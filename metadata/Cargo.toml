@@ -1,0 +1,10 @@
+[package]
+name = "metadata"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+dyn-clone = "1.0.18"
+proc-macro2 = "1.0.93"
+quote = "1.0.38"
+syn = "2.0.96"
