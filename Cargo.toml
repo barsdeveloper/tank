@@ -6,8 +6,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-dyn-clone = "1.0.18"
+anyhow = { version = "1.0.97", features = ["backtrace"] }
+futures = "0.3.31"
 macros = { version = "0.1.0", path = "macros" }
 metadata = { version = "0.1.0", path = "metadata" }
-regex = "1.11.1"
-syn = "2.0.96"
+rust_decimal = "1.37.1"
+time = "0.3.41"

@@ -4,7 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-dyn-clone = "1.0.18"
 proc-macro2 = "1.0.93"
 quote = "1.0.38"
+rust_decimal = "1.37.1"
 syn = "2.0.96"
+time = "0.3.41"
+uuid = "1.16.0"

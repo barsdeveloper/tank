@@ -1,7 +1,8 @@
 mod column_def;
-mod data_type;
-mod table_like;
+mod interval;
+mod table_ref;
+mod value;
 
 pub use column_def::*;
-pub use data_type::*;
-pub use table_like::*;
+pub use table_ref::*;
+pub use value::*;

@@ -1,11 +1,12 @@
-use crate::{data_type, DataType};
-use proc_macro2::{Ident, Span, TokenStream};
-use quote::{quote, ToTokens};
+use crate::Value;
+use proc_macro2::TokenStream;
+use quote::{quote, ToTokens, TokenStreamExt};
+use std::borrow::Cow;
 
 #[derive(Debug, Clone)]
 pub struct ColumnDef {
-    pub name: String,
-    pub data_type: DataType,
+    pub name: Cow<'static, str>,
+    pub value: Value,
     pub nullable: bool,
     // /// `DEFAULT <restricted-expr>`
     // pub default: Option<Expr>,
@@ -14,36 +15,30 @@ pub struct ColumnDef {
     // pub comment: Option<String>,
 }
 
-#[derive(Debug, Clone)]
-pub struct ColumnRef {
-    pub name: String,
-}
-
-impl ColumnRef {
-    pub fn new(name: String) -> ColumnRef {
-        ColumnRef { name }
+impl ToString for ColumnDef {
+    fn to_string(&self) -> String {
+        let mut result = format!("{} {}", self.name, "self.data_type");
+        if !self.nullable {
+            result.push_str(" NOT NULL");
+        }
+        result
     }
 }
 
-impl From<&str> for ColumnRef {
-    fn from(value: &str) -> Self {
-        value.to_string().into()
+impl ToTokens for ColumnDef {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let name = match &self.name {
+            Cow::Borrowed(v) => quote! { ::std::borrow::Cow::Borrowed(#v) },
+            Cow::Owned(v) => quote! { ::std::borrow::Cow::Borrowed(#v) },
+        };
+        let value = self.value.to_token_stream();
+        let nullable = self.nullable;
+        tokens.append_all(quote! {
+            ::tank::ColumnDef {
+                name: #name,
+                value: #value,
+                nullable: #nullable,
+            }
+        });
     }
 }
-
-impl From<String> for ColumnRef {
-    fn from(value: String) -> Self {
-        ColumnRef::new(value)
-    }
-}
-
-// impl ToTokens for ColumnDef {
-//     fn to_tokens(&self, tokens: &mut TokenStream) {
-//         let name = Ident::new(&self.name, Span::call_site());
-//         let data_type = tokens.append_all(quote! {
-//             tank::ColumnDef {
-//                 name: #name,
-//             }
-//         });
-//     }
-// }
