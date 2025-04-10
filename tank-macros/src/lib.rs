@@ -1,7 +1,5 @@
 mod decode_fields;
 
-extern crate self as tank;
-
 use convert_case::{Case, Casing};
 use decode_fields::decode_field;
 use proc_macro::TokenStream;
@@ -47,16 +45,7 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
     let match_variants = iter.clone().map(|field| {
         let column_name = field.ident.as_ref().unwrap();
         let column_def = decode_field(&field);
-        let column_name_str = column_def.name;
-        let value = column_def.value.to_token_stream();
-        let nullable = column_def.nullable.to_token_stream();
-        quote! {
-            Column::#column_name => ::tank::ColumnDef {
-                name: ::std::borrow::Cow::Borrowed(#column_name_str),
-                value: #value,
-                nullable: #nullable,
-            }
-        }
+        quote! { Column::#column_name => #column_def }
     });
     //let primary_keys = sql_list_primary_keys(&input).join(", ");
     //fields.iter().map(result, |col|)
@@ -84,8 +73,10 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                 &columns
             }
 
-            fn sql_create_table(if_not_exists: bool) -> String {
-                todo!()
+            fn sql_create_table<D: ::tank::Driver>(driver: &D, if_not_exists: bool) -> String {
+                let mut query = String::with_capacity(512);
+                driver.sql_writer().sql_create_table::<#name>(&mut query, if_not_exists);
+                query
             }
 
             // fn sql_drop_table(if_exists: bool) -> gluesql::core::ast_builder::DropTableNode {

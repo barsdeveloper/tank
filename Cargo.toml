@@ -1,14 +1,51 @@
+[workspace]
+members = [
+    ".",
+    "tank-core",
+    "tank-duckdb",
+    "tank-macros",
+    "tank-metadata",
+]
+
+[workspace.package]
+version = "0.1.0"
+authors = ["barsdeveloper <barsdeveloper@gmail.com>"]
+license = "Apache-2.0"
+edition = "2021"
+repository = "https://github.com/barsdeveloper/tank"
+categories = ["database", "orm", "async"]
+
+[workspace.dependencies]
+anyhow = { version = "1.0.97", features = ["backtrace"] }
+convert_case = "0.7.1"
+futures = "0.3.31"
+proc-macro2 = "1.0.93"
+quote = "1.0.38"
+rust_decimal = "1.37.1"
+syn = { version = "2.0.96", features = ["full"] }
+tank-core = { path = "tank-core" }
+tank-duckdb = { path = "tank-duckdb" }
+tank-macros = { path = "tank-macros" }
+tank-metadata = { path = "tank-metadata" }
+time = "0.3.41"
+uuid = "1.16.0"
+
+[workspace.dev-dependencies]
+tank-macros.workspace = true
+
 [package]
 name = "tank"
-version = "0.1.0"
-edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+repository.workspace = true
 
 [dependencies]
-anyhow = { version = "1.0.97", features = ["backtrace"] }
-futures = "0.3.31"
-macros = { version = "0.1.0", path = "macros" }
-metadata = { version = "0.1.0", path = "metadata" }
-rust_decimal = "1.37.1"
-time = "0.3.41"
+tank-core = { workspace = true }
+tank-duckdb = { workspace = true }
+tank-macros = { workspace = true }
+tank-metadata = { workspace = true }
+
+[dev-dependencies]
+time = { workspace = true }

@@ -1,0 +1,12 @@
+[package]
+name = "tank-duckdb"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+repository.workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+tank-core = { workspace = true }
+futures = { workspace = true }

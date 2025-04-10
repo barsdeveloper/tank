@@ -1,8 +1,12 @@
 #[cfg(test)]
 mod tests {
-    use macros::Entity;
+
     use tank::Entity;
+    use tank::SqlWriter;
     use tank::Value;
+    use tank_duckdb::DuckDBDriver;
+
+    const DRIVER: DuckDBDriver = DuckDBDriver::new();
 
     #[test]
     fn test_1() {
@@ -20,6 +24,10 @@ mod tests {
         assert_eq!(columns[1].name, "b");
         assert!(matches!(columns[1].value, Value::Varchar(None)));
         assert!(columns[1].nullable == false);
+        assert_eq!(
+            SomeEntity::sql_create_table(&DRIVER, false),
+            "CREATE TABLE some_entity(a TINYINT NOT NULL, b VARCHAR NOT NULL)"
+        );
     }
 
     #[test]
@@ -43,5 +51,9 @@ mod tests {
         assert_eq!(columns[2].name, "third");
         assert!(matches!(columns[2].value, Value::Date(None)));
         assert!(columns[2].nullable == true);
+        assert_eq!(
+            SomeEntity::sql_create_table(&DRIVER, true),
+            "CREATE TABLE IF NOT EXISTS custom_table_name(first UHUGEINT NOT NULL, second TIME, third DATE)"
+        );
     }
 }

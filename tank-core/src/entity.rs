@@ -1,4 +1,5 @@
-use metadata::ColumnDef;
+use crate::Driver;
+use tank_metadata::ColumnDef;
 
 pub trait Entity {
     type Column;
@@ -7,9 +8,7 @@ pub trait Entity {
 
     fn columns() -> &'static [ColumnDef];
 
-    fn sql_create_table(if_not_exists: bool) -> String
-    where
-        Self: Sized;
+    fn sql_create_table<D: Driver>(driver: &D, if_not_exists: bool) -> String;
 
     // fn sql_drop_table(if_exists: bool) -> Drop
     // where

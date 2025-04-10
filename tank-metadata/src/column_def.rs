@@ -3,26 +3,20 @@ use proc_macro2::TokenStream;
 use quote::{quote, ToTokens, TokenStreamExt};
 use std::borrow::Cow;
 
+pub enum DefaultValue {
+    Value(Value),
+    Custom(String),
+}
+
 #[derive(Debug, Clone)]
 pub struct ColumnDef {
     pub name: Cow<'static, str>,
     pub value: Value,
     pub nullable: bool,
-    // /// `DEFAULT <restricted-expr>`
-    // pub default: Option<Expr>,
+    pub default: Option<String>,
     // /// `{ PRIMARY KEY | UNIQUE }`
     // pub unique: Option<ColumnUniqueOption>,
     // pub comment: Option<String>,
-}
-
-impl ToString for ColumnDef {
-    fn to_string(&self) -> String {
-        let mut result = format!("{} {}", self.name, "self.data_type");
-        if !self.nullable {
-            result.push_str(" NOT NULL");
-        }
-        result
-    }
 }
 
 impl ToTokens for ColumnDef {
@@ -33,11 +27,16 @@ impl ToTokens for ColumnDef {
         };
         let value = self.value.to_token_stream();
         let nullable = self.nullable;
+        let default = match &self.default {
+            Some(v) => quote! {Some(#v)},
+            None => quote! {None},
+        };
         tokens.append_all(quote! {
             ::tank::ColumnDef {
                 name: #name,
                 value: #value,
                 nullable: #nullable,
+                default: #default,
             }
         });
     }
