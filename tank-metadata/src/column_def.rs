@@ -17,6 +17,7 @@ pub struct ColumnDef {
     // /// `{ PRIMARY KEY | UNIQUE }`
     // pub unique: Option<ColumnUniqueOption>,
     // pub comment: Option<String>,
+    pub column_type: Cow<'static, str>,
 }
 
 impl ToTokens for ColumnDef {
@@ -31,12 +32,17 @@ impl ToTokens for ColumnDef {
             Some(v) => quote! {Some(#v)},
             None => quote! {None},
         };
+        let column_type = match &self.column_type {
+            Cow::Borrowed(v) => quote! { ::std::borrow::Cow::Borrowed(#v) },
+            Cow::Owned(v) => quote! { ::std::borrow::Cow::Borrowed(#v) },
+        };
         tokens.append_all(quote! {
             ::tank::ColumnDef {
                 name: #name,
                 value: #value,
                 nullable: #nullable,
                 default: #default,
+                column_type: #column_type,
             }
         });
     }

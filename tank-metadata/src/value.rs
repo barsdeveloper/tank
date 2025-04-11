@@ -1,14 +1,16 @@
 use quote::{quote, ToTokens};
 use rust_decimal::Decimal;
 use std::collections::HashMap;
-use syn::{GenericArgument, PathArguments, Type, TypePath};
+use syn::{GenericArgument, Path, PathArguments, Type};
 use time::{Date, OffsetDateTime, PrimitiveDateTime, Time};
 use uuid::Uuid;
 
 use crate::interval::Interval;
 
-#[derive(Debug, Clone)]
+#[derive(Default, Debug, Clone)]
 pub enum Value {
+    #[default]
+    Null,
     Boolean(Option<bool>),
     Int8(Option<i8>),
     Int16(Option<i16>),
@@ -44,9 +46,9 @@ pub enum Value {
     ),
 }
 
-pub fn decode_type(type_path: &TypePath) -> (Value, bool) {
-    let path = type_path.path.segments.last().unwrap();
-    let ident = &path.ident;
+pub fn decode_type(path: &Path) -> (Value, bool) {
+    let arguments = &path.segments.last().unwrap().arguments;
+    let ident = &path.segments.last().unwrap().ident;
     let mut nullable = ident == "Option";
     let data_type = if ident == "String" {
         Value::Varchar(None)
@@ -74,17 +76,21 @@ pub fn decode_type(type_path: &TypePath) -> (Value, bool) {
         Value::Float32(None)
     } else if ident == "f64" {
         Value::Float64(None)
+    } else if ident == "Decimal" {
+        Value::Decimal(None, 0, 0)
     } else if ident == "Time" {
         Value::Time(None)
     } else if ident == "Date" {
         Value::Date(None)
+    } else if ident == "Duration" {
+        Value::Interval(None)
     } else if ident == "Vec" {
-        match &path.arguments {
+        match &arguments {
             PathArguments::AngleBracketed(bracketed) => {
                 if let GenericArgument::Type(Type::Path(type_path)) =
                     bracketed.args.first().unwrap()
                 {
-                    let nested_type = decode_type(&type_path);
+                    let nested_type = decode_type(&type_path.path);
                     Value::List(None, Box::new(nested_type.0))
                 } else {
                     panic!("{} must have a type as the first generic argument", ident)
@@ -92,13 +98,13 @@ pub fn decode_type(type_path: &TypePath) -> (Value, bool) {
             }
             _ => panic!("{} must have a generic argument", ident),
         }
-    } else if ident == "Option" || ident == "Box" {
-        match &path.arguments {
+    } else if ident == "Option" || ident == "Box" || ident == "Arc" {
+        match &arguments {
             PathArguments::AngleBracketed(bracketed) => {
                 if let GenericArgument::Type(Type::Path(type_path)) =
                     bracketed.args.first().unwrap()
                 {
-                    let nested_type = decode_type(&type_path);
+                    let nested_type = decode_type(&type_path.path);
                     nullable = nullable || nested_type.1;
                     nested_type.0
                 } else {
@@ -108,7 +114,7 @@ pub fn decode_type(type_path: &TypePath) -> (Value, bool) {
             _ => panic!("{} must have a generic argument", ident),
         }
     } else {
-        panic!("Unknown type \"{}\"", ident)
+        panic!("Unknown type `{}`", ident)
     };
     (data_type, nullable)
 }
@@ -116,6 +122,7 @@ pub fn decode_type(type_path: &TypePath) -> (Value, bool) {
 impl ToTokens for Value {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let ts = match self {
+            Value::Null => quote! { ::tank::Value::Null },
             Value::Boolean(value) => quote! { ::tank::Value::Boolean(#value.into()) },
             Value::Int8(..) => quote! { ::tank::Value::Int8(None) },
             Value::Int16(..) => quote! { ::tank::Value::Int16(None) },

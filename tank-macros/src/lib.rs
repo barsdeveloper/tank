@@ -6,7 +6,7 @@ use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
 use syn::{parse_macro_input, punctuated::Punctuated, token::Comma, ItemStruct, LitStr, Meta};
 
-#[proc_macro_derive(Entity, attributes(table_name, default_value, unique))]
+#[proc_macro_derive(Entity, attributes(table_name, column_type, default, unique))]
 pub fn derive_entity(input: TokenStream) -> TokenStream {
     let input: ItemStruct = parse_macro_input!(input as ItemStruct);
     let ref name = input.ident;
@@ -97,85 +97,3 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
     }
     .into()
 }
-
-// #[proc_macro_derive(Transition, attributes(method))]
-// pub fn derive_transition(input: TokenStream) -> TokenStream {
-//     let input = parse_macro_input!(input as DeriveInput);
-//     let name = input.ident.to_string();
-//     let fragment_struct = syn::Ident::new(name.as_str(), Span::call_site());
-//     let transition_trait = syn::Ident::new(
-//         format!("Transition{}", name.strip_suffix("Fragment").unwrap()).as_str(),
-//         Span::mixed_site(),
-//     );
-//     let allow_trait = syn::Ident::new(
-//         format!("Allow{}", name.strip_suffix("Fragment").unwrap()).as_str(),
-//         Span::mixed_site(),
-//     );
-//     let method = syn::Ident::new(
-//         input
-//             .attrs
-//             .iter()
-//             .find_map(|attr| {
-//                 if attr.meta.path().is_ident("method") {
-//                     if let Meta::List(v) = &attr.meta {
-//                         if let Ok(lit_str) = v.parse_args::<LitStr>() {
-//                             return Some(lit_str.value());
-//                         }
-//                     }
-//                     panic!("Error while parsing `method`. Example: like #[method(\"select\")]");
-//                 }
-//                 return None;
-//             })
-//             .unwrap_or_else(|| panic!("Expected `method` attribute` like #[method(\"select\")]"))
-//             .as_str(),
-//         Span::call_site(),
-//     );
-//     quote! {
-//         pub trait #transition_trait {
-//             fn #method(self) -> tank::Statement<#fragment_struct>;
-//         }
-//         impl<S: tank::Fragment> #transition_trait for tank::Statement<S>
-//         where
-//             S: tank::#allow_trait,
-//         {
-//             fn #method(self) -> tank::Statement<#fragment_struct> {
-//                 self.add_status(Default::default())
-//             }
-//         }
-//     }
-//     .into()
-// }
-
-// #[proc_macro_derive(ToSql, attributes(keyword))]
-// pub fn derive_to_sql(input: TokenStream) -> TokenStream {
-//     let input = parse_macro_input!(input as DeriveInput);
-//     let name = input.ident;
-//     let keyword = input
-//         .attrs
-//         .iter()
-//         .find_map(|attr| {
-//             if attr.meta.path().is_ident("keyword") {
-//                 if let Meta::List(v) = &attr.meta {
-//                     if let Ok(lit_str) = v.parse_args::<LitStr>() {
-//                         return Some(lit_str.value());
-//                     }
-//                 }
-//                 panic!(
-//                     "Error while parsing `keyword`. Example of correct use: #[keyword(\"SELECT\")]"
-//                 );
-//             }
-//             return None;
-//         })
-//         .unwrap_or_else(|| {
-//             panic!("Expected `keyword` attribute. Example of correct use: #[keyword(\"SELECT\")]")
-//         })
-//         .to_uppercase();
-//     quote! {
-//         impl tank::ToSql for #name {
-//             fn to_sql(&self) -> String {
-//                 #keyword
-//             }
-//         }
-//     }
-//     .into()
-// }

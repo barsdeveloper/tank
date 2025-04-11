@@ -33,7 +33,11 @@ pub trait SqlWriter {
     ) -> &'a mut String {
         query.push_str(&column.name);
         query.push(' ');
-        self.sql_type(query, &column.value);
+        if !column.column_type.is_empty() {
+            query.push_str(&column.column_type);
+        } else {
+            self.sql_type(query, &column.value);
+        }
         if !column.nullable {
             query.push_str(" NOT NULL");
         }
@@ -56,7 +60,10 @@ pub trait SqlWriter {
             Value::Float32(..) => query.push_str("FLOAT"),
             Value::Float64(..) => query.push_str("DOUBLE"),
             Value::Decimal(.., precision, scale) => {
-                write!(query, "DECIMAL({}, {})", precision, scale).unwrap();
+                query.push_str("DECIMAL");
+                if (precision, scale) != (&0, &0) {
+                    write!(query, "({}, {})", precision, scale).unwrap();
+                }
             }
             Value::Varchar(..) => query.push_str("VARCHAR"),
             Value::Blob(..) => query.push_str("BLOB"),
@@ -81,6 +88,7 @@ pub trait SqlWriter {
                 self.sql_type(query, value);
                 query.push(')');
             }
+            _ => panic!("Unexpected tank::Value, cannot get the sql type"),
         };
         query
     }

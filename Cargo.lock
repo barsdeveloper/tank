@@ -612,6 +612,7 @@ dependencies = [
 name = "tank"
 version = "0.1.0"
 dependencies = [
+ "rust_decimal",
  "tank-core",
  "tank-duckdb",
  "tank-macros",

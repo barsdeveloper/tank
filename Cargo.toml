@@ -48,4 +48,5 @@ tank-macros = { workspace = true }
 tank-metadata = { workspace = true }
 
 [dev-dependencies]
+rust_decimal = { workspace = true }
 time = { workspace = true }
