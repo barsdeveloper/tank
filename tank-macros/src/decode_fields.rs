@@ -1,4 +1,4 @@
-use syn::{Expr, ExprLit, Field, Lit, Meta, Type};
+use syn::{Expr, ExprLit, Field, Lit, LitStr, Meta, Type};
 use tank_metadata::{decode_type, ColumnDef, Value};
 
 pub fn decode_field(field: &Field) -> ColumnDef {
@@ -12,19 +12,17 @@ pub fn decode_field(field: &Field) -> ColumnDef {
                         lit: Lit::Str(v), ..
                     }) => v.value(),
                     _ => {
-                        panic!("Error while parsing `default`, use it like #[default=\"some\"]",);
+                        panic!("Error while parsing `default`, use it like #[default(\"some\")]",);
                     }
                 };
                 acc.0.replace(default);
             }
         } else if meta.path().is_ident("column_type") {
-            if let Meta::NameValue(v) = &meta {
-                let column_type = match &v.value {
-                    Expr::Lit(ExprLit {
-                        lit: Lit::Str(v), ..
-                    }) => v.value(),
-                    _ => {
-                        panic!("Error while parsing `type`, use it like #[type=\"VARCHAR\"]",);
+            if let Meta::List(v) = &meta {
+                let column_type = match &v.parse_args::<LitStr>() {
+                    Ok(lit_str) => lit_str.value(),
+                    Err(..) => {
+                        panic!("Error while parsing `column_type`, use it like #[column_type(\"VARCHAR\")]",);
                     }
                 };
                 acc.1.replace(column_type);

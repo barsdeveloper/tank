@@ -50,6 +50,7 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
     //let primary_keys = sql_list_primary_keys(&input).join(", ");
     //fields.iter().map(result, |col|)
     quote! {
+        #[allow(non_camel_case_types)]
         pub enum Column {
             #columns_enum
         }
@@ -69,7 +70,7 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
             }
 
             fn columns() -> &'static [::tank::ColumnDef] {
-                static columns: &[::tank::ColumnDef] = &[#columns_defs];
+                static columns: ::std::sync::LazyLock::<Vec<::tank::ColumnDef>> = ::std::sync::LazyLock::new(|| { vec![#columns_defs] });
                 &columns
             }
 
