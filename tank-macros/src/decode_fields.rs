@@ -1,47 +1,35 @@
-use syn::{Expr, ExprLit, Field, Lit, LitStr, Meta, Type};
+use syn::{Field, LitStr, Type};
 use tank_metadata::{decode_type, ColumnDef, Value};
 
 pub fn decode_field(field: &Field) -> ColumnDef {
-    let name = field.ident.as_ref().unwrap().to_string().into();
-    let (default, column_type) = field.attrs.iter().fold((None, None), |mut acc, cur| {
-        let meta = &cur.meta;
-        if meta.path().is_ident("default") {
-            if let Meta::NameValue(v) = &meta {
-                let default = match &v.value {
-                    Expr::Lit(ExprLit {
-                        lit: Lit::Str(v), ..
-                    }) => v.value(),
-                    _ => {
-                        panic!("Error while parsing `default`, use it like #[default(\"some\")]",);
-                    }
-                };
-                acc.0.replace(default);
-            }
-        } else if meta.path().is_ident("column_type") {
-            if let Meta::List(v) = &meta {
-                let column_type = match &v.parse_args::<LitStr>() {
-                    Ok(lit_str) => lit_str.value(),
-                    Err(..) => {
-                        panic!("Error while parsing `column_type`, use it like #[column_type(\"VARCHAR\")]",);
-                    }
-                };
-                acc.1.replace(column_type);
-            }
-        }
-        acc
-    });
     let (value, nullable) = if let Type::Path(type_path) = &field.ty {
         decode_type(&type_path.path)
     } else {
         (Value::Varchar(None), true)
     };
-    ColumnDef {
-        name,
+    let mut result = ColumnDef {
+        name: field.ident.as_ref().unwrap().to_string().into(),
         value,
         nullable,
-        default,
-        // unique,
-        // comment,
-        column_type: column_type.unwrap_or("".to_string()).into(),
+        ..Default::default()
+    };
+    for attr in &field.attrs {
+        let meta = &attr.meta;
+        if meta.path().is_ident("default_value") {
+            let Ok(v) = meta.require_list().and_then(|v| v.parse_args::<LitStr>()) else {
+                panic!(
+                    "Error while parsing `default_value`, use it like #[default_value(\"some\")]",
+                );
+            };
+            result.default = Some(v.value());
+        } else if meta.path().is_ident("column_type") {
+            let Ok(v) = meta.require_list().and_then(|v| v.parse_args::<LitStr>()) else {
+                panic!(
+                    "Error while parsing `column_type`, use it like #[column_type(\"VARCHAR\")]"
+                );
+            };
+            result.column_type = v.value();
+        }
     }
+    result
 }

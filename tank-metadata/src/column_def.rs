@@ -8,7 +8,7 @@ pub enum DefaultValue {
     Custom(String),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct ColumnDef {
     pub name: Cow<'static, str>,
     pub value: Value,

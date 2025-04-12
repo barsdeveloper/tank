@@ -642,6 +642,7 @@ dependencies = [
 name = "tank-macros"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "convert_case",
  "proc-macro2",
  "quote",
