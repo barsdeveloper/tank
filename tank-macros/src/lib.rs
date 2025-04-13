@@ -1,12 +1,23 @@
 mod decode_fields;
 
+use std::fmt::format;
+
 use convert_case::{Case, Casing};
 use decode_fields::decode_field;
 use proc_macro::TokenStream;
-use quote::{quote, ToTokens};
-use syn::{parse_macro_input, punctuated::Punctuated, token::Comma, ItemStruct, LitStr, Meta};
+use quote::quote;
+use syn::{
+    parse::{ParseStream, Parser},
+    parse_macro_input,
+    punctuated::Punctuated,
+    token::Comma,
+    ItemStruct, LitStr,
+};
 
-#[proc_macro_derive(Entity, attributes(table_name, column_type, default, unique))]
+#[proc_macro_derive(
+    Entity,
+    attributes(table_name, column_type, default, primary_key, unique)
+)]
 pub fn derive_entity(input: TokenStream) -> TokenStream {
     let input: ItemStruct = parse_macro_input!(input as ItemStruct);
     let ref name = input.ident;
@@ -31,10 +42,40 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
             None
         })
         .unwrap_or(default_table_name);
+    let table_primary_key = input.attrs.iter().find_map(|attr| {
+        if attr.meta.path().is_ident("primary_key") {
+            let parser = |input: ParseStream| Punctuated::<LitStr, Comma>::parse_terminated(input);
+            let Ok(v) = attr.meta.require_list().and_then(|v| {
+                Ok(parser
+                    .parse2(v.tokens.clone())?
+                    .into_iter()
+                    .map(|v| v.value())
+                    .collect::<Vec<_>>())
+            }) else {
+                panic!("Error while parsing `primary_key`, use it like #[primary_key(\"first\", \"second\")]");
+            };
+            return Some(v);
+        }
+        None
+    }).unwrap_or(Default::default());
     let iter = input.fields.iter();
-    let columns_defs = iter
+    let columns_defs = iter.clone().map(|f| {
+        let mut column_def = decode_field(&f);
+        if column_def.primary_key && !table_primary_key.is_empty() {
+            panic!(
+                "Column {} cannot be declared a primary key while the table also specifies one",
+                column_def.name
+            )
+        }
+        if table_primary_key.contains(&column_def.name.to_string()) {
+            column_def.primary_key = true;
+        }
+        column_def
+    });
+    let columns = columns_defs.clone().collect::<Punctuated<_, Comma>>();
+    let primary_keys = columns_defs
         .clone()
-        .map(|f| decode_field(&f).to_token_stream())
+        .filter(|c| c.primary_key)
         .collect::<Punctuated<_, Comma>>();
     let columns_enum = iter
         .clone()
@@ -68,8 +109,13 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
             }
 
             fn columns() -> &'static [::tank::ColumnDef] {
-                static columns: ::std::sync::LazyLock::<Vec<::tank::ColumnDef>> = ::std::sync::LazyLock::new(|| { vec![#columns_defs] });
-                &columns
+                static RESULT: ::std::sync::LazyLock::<Vec<::tank::ColumnDef>> = ::std::sync::LazyLock::new(|| { vec![#columns] });
+                &RESULT
+            }
+
+            fn primary_key() -> &'static [::tank::ColumnDef] {
+                static RESULT: ::std::sync::LazyLock::<Vec<::tank::ColumnDef>> = ::std::sync::LazyLock::new(|| { vec![#primary_keys] });
+                &RESULT
             }
 
             async fn create_table<E: ::tank::Executor>(executor: &mut E, if_not_exists: bool) -> ::tank::Result<()> {

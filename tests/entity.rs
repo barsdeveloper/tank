@@ -21,6 +21,7 @@ mod tests {
         let columns = SomeEntity::columns();
 
         assert_eq!(SomeEntity::table_name(), "some_entity");
+        assert_eq!(SomeEntity::primary_key().len(), 0);
 
         assert_eq!(columns[0].name, "a");
         assert!(matches!(columns[0].value, Value::Int8(None, ..)));
@@ -44,6 +45,7 @@ mod tests {
         #[derive(Entity)]
         #[table_name("custom_table_name")]
         struct SomeEntity {
+            #[primary_key]
             first: u128,
             second: Option<time::Time>,
             third: Box<Option<Box<time::Date>>>,
@@ -51,6 +53,8 @@ mod tests {
         let columns = SomeEntity::columns();
 
         assert_eq!(SomeEntity::table_name(), "custom_table_name");
+        assert_eq!(SomeEntity::primary_key().len(), 1);
+        assert_eq!(SomeEntity::primary_key()[0].name, "first");
 
         assert_eq!(columns[0].name, "first");
         assert!(matches!(columns[0].value, Value::UInt128(None, ..)));
@@ -75,6 +79,7 @@ mod tests {
     fn test_3() {
         #[derive(Entity)]
         #[table_name("a_table")]
+        #[primary_key("bravo", "delta")]
         struct MyEntity {
             alpha: Box<Box<Box<Box<Box<Box<Box<Box<Box<Box<Box<f64>>>>>>>>>>>,
             bravo: i16,
@@ -86,6 +91,13 @@ mod tests {
         let columns = MyEntity::columns();
 
         assert_eq!(MyEntity::table_name(), "a_table");
+        assert_eq!(
+            MyEntity::primary_key()
+                .iter()
+                .map(|k| k.name.clone())
+                .collect::<Vec<_>>(),
+            ["bravo", "delta"]
+        );
 
         assert_eq!(columns[0].name, "alpha");
         assert!(matches!(columns[0].value, Value::Float64(None, ..)));
@@ -130,6 +142,7 @@ mod tests {
         let columns = Customer::columns();
 
         assert_eq!(Customer::table_name(), "customers");
+        assert_eq!(Customer::primary_key().len(), 0);
 
         assert_eq!(columns[0].name, "transaction_ids");
         assert!(match &columns[0].value {
