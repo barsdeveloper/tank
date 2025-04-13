@@ -29,6 +29,16 @@ pub fn decode_field(field: &Field) -> ColumnDef {
                 );
             };
             result.column_type = v.value();
+        } else if meta.path().is_ident("primary_key") {
+            let Ok(v) = meta.require_path_only() else {
+                panic!("Error while parsing `primary_key`, use it like #[primary_key]");
+            };
+            result.primary_key = true;
+        } else if meta.path().is_ident("unique") {
+            let Ok(v) = meta.require_path_only() else {
+                panic!("Error while parsing `unique`, use it like #[unique]");
+            };
+            result.unique = true;
         }
     }
     result

@@ -14,3 +14,4 @@ pub use executor::*;
 pub use query::*;
 pub use sql_writer::*;
 pub use tank_metadata::*;
+pub type Result<T> = anyhow::Result<T>;

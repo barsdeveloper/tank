@@ -14,6 +14,11 @@ impl Driver for DuckDBDriver {
     type Connection = DuckDBConnection;
     type SqlWriter = DuckDBSqlWriter;
 
+    fn get_instance() -> Self {
+        static INSTANCE: DuckDBDriver = DuckDBDriver {};
+        INSTANCE
+    }
+
     fn sql_writer(&self) -> Self::SqlWriter {
         DuckDBSqlWriter::default()
     }

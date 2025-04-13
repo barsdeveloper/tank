@@ -50,3 +50,4 @@ tank-metadata = { workspace = true }
 [dev-dependencies]
 rust_decimal = { workspace = true }
 time = { workspace = true }
+tokio = { version = "1.44.2", features = ["full"] }

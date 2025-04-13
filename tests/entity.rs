@@ -3,6 +3,7 @@ mod tests {
 
     use std::sync::Arc;
     use std::time::Duration;
+    use tank::Driver;
     use tank::Entity;
     use tank::SqlWriter;
     use tank::Value;
@@ -10,8 +11,8 @@ mod tests {
 
     const DRIVER: DuckDBDriver = DuckDBDriver::new();
 
-    #[test]
-    fn test_1() {
+    #[tokio::test]
+    async fn test_1() {
         #[derive(Entity)]
         struct SomeEntity {
             a: i8,
@@ -29,14 +30,17 @@ mod tests {
         assert!(matches!(columns[1].value, Value::Varchar(None, ..)));
         assert!(columns[1].nullable == false);
 
+        let mut query = String::new();
         assert_eq!(
-            SomeEntity::sql_create_table(&DRIVER, false),
+            DRIVER
+                .sql_writer()
+                .sql_create_table::<SomeEntity>(&mut query, false),
             "CREATE TABLE some_entity(a TINYINT NOT NULL, b VARCHAR NOT NULL)"
         );
     }
 
-    #[test]
-    fn test_2() {
+    #[tokio::test]
+    async fn test_2() {
         #[derive(Entity)]
         #[table_name("custom_table_name")]
         struct SomeEntity {
@@ -60,8 +64,9 @@ mod tests {
         assert!(matches!(columns[2].value, Value::Date(None, ..)));
         assert!(columns[2].nullable == true);
 
+        let mut query = String::new();
         assert_eq!(
-            SomeEntity::sql_create_table(&DRIVER, true),
+            DRIVER.sql_writer().sql_create_table::<SomeEntity>(&mut query, true),
             "CREATE TABLE IF NOT EXISTS custom_table_name(first UHUGEINT NOT NULL, second TIME, third DATE)"
         );
     }
@@ -102,8 +107,9 @@ mod tests {
         assert!(matches!(columns[4].value, Value::Decimal(None, ..)));
         assert!(columns[4].nullable == true);
 
+        let mut query = String::new();
         assert_eq!(
-            MyEntity::sql_create_table(&DRIVER, false),
+            DRIVER.sql_writer().sql_create_table::<MyEntity>(&mut query, false),
             "CREATE TABLE a_table(alpha DOUBLE NOT NULL, bravo SMALLINT NOT NULL, charlie DECIMAL, delta INTERVAL NOT NULL, echo DECIMAL(8, 2))"
         );
     }
@@ -173,8 +179,9 @@ mod tests {
         assert!(columns[4].nullable);
         assert_eq!(columns[4].column_type, "DECIMAL(10, 4)[][]");
 
+        let mut query = String::new();
         assert_eq!(
-            Customer::sql_create_table(&DRIVER, false),
+            DRIVER.sql_writer().sql_create_table::<Customer>(&mut query, false),
             "CREATE TABLE customers(transaction_ids UBIGINT[] NOT NULL, preferences VARCHAR[], lifetime_value DECIMAL[], signup_duration INTERVAL NOT NULL, recent_purchases DECIMAL(10, 4)[][])"
         );
     }

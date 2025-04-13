@@ -16,21 +16,19 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
         .iter()
         .find_map(|attr| {
             if attr.meta.path().is_ident("table_name") {
-                if let Meta::List(v) = &attr.meta {
-                    let table_name = match v.parse_args::<LitStr>() {
-                        Ok(lit_str) => lit_str.value(),
-                        Err(e) => {
-                            panic!(
-                                "Error while parsing `table_name`: {}, use it like #[table_name(\"{}_table\")]",
-                                e,
-                                &default_table_name
-                            );
-                        }
-                    };
-                    return Some(table_name);
-                }
+                let Ok(v) = attr
+                    .meta
+                    .require_list()
+                    .and_then(|v| v.parse_args::<LitStr>())
+                else {
+                    panic!(
+                        "Error while parsing `table_name`, use it like #[table_name(\"{}_table\")]",
+                        &default_table_name
+                    );
+                };
+                return Some(v.value());
             }
-            return None;
+            None
         })
         .unwrap_or(default_table_name);
     let iter = input.fields.iter();
@@ -74,21 +72,17 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                 &columns
             }
 
-            fn sql_create_table<D: ::tank::Driver>(driver: &D, if_not_exists: bool) -> String {
+            async fn create_table<E: ::tank::Executor>(executor: &mut E, if_not_exists: bool) -> ::tank::Result<()> {
                 let mut query = String::with_capacity(512);
-                driver.sql_writer().sql_create_table::<#name>(&mut query, if_not_exists);
-                query
+                ::tank::Driver::sql_writer(executor.driver()).sql_create_table::<#name>(&mut query, if_not_exists);
+                executor.execute(::tank::Query::Raw(query)).await.map(|_| ())
             }
 
-            // fn sql_drop_table(if_exists: bool) -> gluesql::core::ast_builder::DropTableNode {
-            //     let result = gluesql::core::ast_builder::table(Self::name());
-            //     let result = if if_exists {
-            //         result.drop_table_if_exists()
-            //     } else {
-            //         result.drop_table()
-            //     };
-            //     result
-            // }
+            async fn drop_table<E: ::tank::Executor>(executor: &mut E, if_exists: bool) -> ::tank::Result<()> {
+                let mut query = String::with_capacity(64);
+                ::tank::Driver::sql_writer(executor.driver()).sql_drop_table::<#name>(&mut query, if_exists);
+                executor.execute(::tank::Query::Raw(query)).await.map(|_| ())
+            }
 
             // fn primary_key(&self) -> Vec<gluesql::core::ast::ColumnDef> {
             //     vec![]

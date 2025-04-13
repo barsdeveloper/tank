@@ -14,9 +14,8 @@ pub struct ColumnDef {
     pub value: Value,
     pub nullable: bool,
     pub default: Option<String>,
-    // /// `{ PRIMARY KEY | UNIQUE }`
-    // pub unique: Option<ColumnUniqueOption>,
-    // pub comment: Option<String>,
+    pub primary_key: bool,
+    pub unique: bool,
     pub column_type: String,
 }
 
@@ -33,6 +32,8 @@ impl ToTokens for ColumnDef {
             None => quote! {None},
         };
         let column_type = &self.column_type;
+        let primary_key = &self.primary_key;
+        let unique = &self.unique;
         tokens.append_all(quote! {
             ::tank::ColumnDef {
                 name: #name,
@@ -40,6 +41,8 @@ impl ToTokens for ColumnDef {
                 nullable: #nullable,
                 default: #default,
                 column_type: #column_type.into(),
+                primary_key: #primary_key,
+                unique: #unique,
             }
         });
     }

@@ -44,6 +44,14 @@ pub trait SqlWriter {
         query
     }
 
+    fn sql_drop_table<E: Entity>(&self, query: &mut String, if_exists: bool) {
+        query.push_str("DROP TABLE ");
+        if if_exists {
+            query.push_str("IF EXISTS ");
+        }
+        query.push_str(E::table_name());
+    }
+
     fn sql_type<'a>(&self, query: &'a mut String, value: &Value) -> &'a mut String {
         match value {
             Value::Boolean(..) => query.push_str("BOOLEAN"),
