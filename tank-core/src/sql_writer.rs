@@ -5,43 +5,43 @@ use tank_metadata::{ColumnDef, Value};
 pub trait SqlWriter {
     fn sql_create_table<'a, E: Entity>(
         &self,
-        query: &'a mut String,
+        out: &'a mut String,
         if_not_exists: bool,
     ) -> &'a mut String {
-        query.push_str("CREATE TABLE ");
+        out.push_str("CREATE TABLE ");
         if if_not_exists {
-            query.push_str("IF NOT EXISTS ");
+            out.push_str("IF NOT EXISTS ");
         }
-        query.push_str(E::table_name());
-        query.push('(');
+        out.push_str(E::table_name());
+        out.push('(');
         let mut first = true;
         E::columns().iter().for_each(|c| {
             if !first {
-                query.push_str(", ");
+                out.push_str(", ");
             }
-            self.sql_create_table_column_fragment(query, c);
+            self.sql_create_table_column_fragment(out, c);
             first = false;
         });
-        query.push(')');
-        query
+        out.push(')');
+        out
     }
 
     fn sql_create_table_column_fragment<'a>(
         &self,
-        query: &'a mut String,
+        out: &'a mut String,
         column: &ColumnDef,
     ) -> &'a mut String {
-        query.push_str(&column.name);
-        query.push(' ');
+        out.push_str(&column.name);
+        out.push(' ');
         if !column.column_type.is_empty() {
-            query.push_str(&column.column_type);
+            out.push_str(&column.column_type);
         } else {
-            self.sql_type(query, &column.value);
+            self.sql_type(out, &column.value);
         }
         if !column.nullable {
-            query.push_str(" NOT NULL");
+            out.push_str(" NOT NULL");
         }
-        query
+        out
     }
 
     fn sql_drop_table<E: Entity>(&self, query: &mut String, if_exists: bool) {
@@ -52,52 +52,64 @@ pub trait SqlWriter {
         query.push_str(E::table_name());
     }
 
-    fn sql_type<'a>(&self, query: &'a mut String, value: &Value) -> &'a mut String {
+    fn sql_type<'a>(&self, out: &'a mut String, value: &Value) -> &'a mut String {
         match value {
-            Value::Boolean(..) => query.push_str("BOOLEAN"),
-            Value::Int8(..) => query.push_str("TINYINT"),
-            Value::Int16(..) => query.push_str("SMALLINT"),
-            Value::Int32(..) => query.push_str("INTEGER"),
-            Value::Int64(..) => query.push_str("BIGINT"),
-            Value::Int128(..) => query.push_str("HUGEINT"),
-            Value::UInt8(..) => query.push_str("UTINYINT"),
-            Value::UInt16(..) => query.push_str("USMALLINT"),
-            Value::UInt32(..) => query.push_str("UINTEGER"),
-            Value::UInt64(..) => query.push_str("UBIGINT"),
-            Value::UInt128(..) => query.push_str("UHUGEINT"),
-            Value::Float32(..) => query.push_str("FLOAT"),
-            Value::Float64(..) => query.push_str("DOUBLE"),
+            Value::Boolean(..) => out.push_str("BOOLEAN"),
+            Value::Int8(..) => out.push_str("TINYINT"),
+            Value::Int16(..) => out.push_str("SMALLINT"),
+            Value::Int32(..) => out.push_str("INTEGER"),
+            Value::Int64(..) => out.push_str("BIGINT"),
+            Value::Int128(..) => out.push_str("HUGEINT"),
+            Value::UInt8(..) => out.push_str("UTINYINT"),
+            Value::UInt16(..) => out.push_str("USMALLINT"),
+            Value::UInt32(..) => out.push_str("UINTEGER"),
+            Value::UInt64(..) => out.push_str("UBIGINT"),
+            Value::UInt128(..) => out.push_str("UHUGEINT"),
+            Value::Float32(..) => out.push_str("FLOAT"),
+            Value::Float64(..) => out.push_str("DOUBLE"),
             Value::Decimal(.., precision, scale) => {
-                query.push_str("DECIMAL");
+                out.push_str("DECIMAL");
                 if (precision, scale) != (&0, &0) {
-                    write!(query, "({}, {})", precision, scale).unwrap();
+                    write!(out, "({}, {})", precision, scale).unwrap();
                 }
             }
-            Value::Varchar(..) => query.push_str("VARCHAR"),
-            Value::Blob(..) => query.push_str("BLOB"),
-            Value::Date(..) => query.push_str("DATE"),
-            Value::Time(..) => query.push_str("TIME"),
-            Value::Timestamp(..) => query.push_str("TIMESTAMP"),
-            Value::TimestampWithTimezone(..) => query.push_str("TIMESTAMP WITH TIME ZONE"),
-            Value::Interval(..) => query.push_str("INTERVAL"),
-            Value::Uuid(..) => query.push_str("UUID"),
+            Value::Varchar(..) => out.push_str("VARCHAR"),
+            Value::Blob(..) => out.push_str("BLOB"),
+            Value::Date(..) => out.push_str("DATE"),
+            Value::Time(..) => out.push_str("TIME"),
+            Value::Timestamp(..) => out.push_str("TIMESTAMP"),
+            Value::TimestampWithTimezone(..) => out.push_str("TIMESTAMP WITH TIME ZONE"),
+            Value::Interval(..) => out.push_str("INTERVAL"),
+            Value::Uuid(..) => out.push_str("UUID"),
             Value::Array(.., inner, size) => {
-                self.sql_type(query, inner);
-                write!(query, "[{}]", size).unwrap();
+                self.sql_type(out, inner);
+                write!(out, "[{}]", size).unwrap();
             }
             Value::List(.., inner) => {
-                self.sql_type(query, inner);
-                query.push_str("[]");
+                self.sql_type(out, inner);
+                out.push_str("[]");
             }
             Value::Map(.., key, value) => {
-                query.push_str("MAP(");
-                self.sql_type(query, key);
-                query.push_str(", ");
-                self.sql_type(query, value);
-                query.push(')');
+                out.push_str("MAP(");
+                self.sql_type(out, key);
+                out.push_str(", ");
+                self.sql_type(out, value);
+                out.push(')');
             }
             _ => panic!("Unexpected tank::Value, cannot get the sql type"),
         };
-        query
+        out
+    }
+
+    fn sql_select<'a, E: Entity>(
+        &self,
+        out: &'a mut String,
+        condition: &[Value],
+        limit: u32,
+    ) -> &'a mut String {
+        out.push_str("SELECT * FROM ");
+        out.push_str(E::table_name());
+        out.push_str(" WHERE ");
+        out
     }
 }
