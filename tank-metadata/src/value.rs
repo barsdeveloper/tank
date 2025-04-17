@@ -159,7 +159,7 @@ impl ToTokens for Value {
             Value::Map(.., key, value) => {
                 let key = key.as_ref().to_token_stream();
                 let value = value.as_ref().to_token_stream();
-                quote! { ::std::collections::HashMap<#key, #value> }
+                quote! { ::tank::Value::Map<#key, #value>(None, Box::new(#key), Box::new(#value)) }
             }
         };
         tokens.extend(ts);

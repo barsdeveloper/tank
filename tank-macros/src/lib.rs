@@ -1,13 +1,15 @@
 mod column_enum;
 mod decode_fields;
+mod expression;
 mod table_name;
 mod table_primary_key;
 
 use column_enum::column_enum;
 use decode_fields::decode_field;
+use expression::*;
 use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
-use syn::{parse_macro_input, punctuated::Punctuated, token::Comma, ItemStruct};
+use syn::{parse_macro_input, punctuated::Punctuated, token::Comma, Expr, ItemStruct};
 use table_name::table_name;
 use table_primary_key::table_primary_key;
 
@@ -106,4 +108,11 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
 
     }
     .into()
+}
+
+#[proc_macro]
+pub fn sql(input: TokenStream) -> TokenStream {
+    let input: Expr = parse_macro_input!(input as Expr);
+    let parsed = decode_expression(&input);
+    quote!(#parsed).into()
 }
