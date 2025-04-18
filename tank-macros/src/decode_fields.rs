@@ -1,5 +1,5 @@
 use syn::{Field, LitStr, Type};
-use tank_metadata::{decode_type, ColumnDef, Value};
+use tank_core::{decode_type, ColumnDef, Value};
 
 pub fn decode_field(field: &Field) -> ColumnDef {
     let (value, nullable) = if let Type::Path(type_path) = &field.ty {

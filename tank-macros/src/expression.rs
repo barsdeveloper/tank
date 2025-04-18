@@ -1,7 +1,7 @@
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens, TokenStreamExt};
 use syn::{punctuated::Punctuated, spanned::Spanned, token::Comma, BinOp, Expr, ExprLit, LitStr};
-use tank_metadata::{BinaryOpType, Operand};
+use tank_core::{BinaryOpType, Operand};
 
 pub fn decode_expression(condition: &Expr) -> TokenStream {
     match condition {

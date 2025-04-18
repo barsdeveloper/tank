@@ -3,7 +3,7 @@ members = [
     ".",
     "tank-duckdb",
     "tank-macros",
-    "tank-metadata",
+    "tank-core",
 ]
 
 [workspace.package]
@@ -24,7 +24,7 @@ rust_decimal = "1.37.1"
 syn = { version = "2.0.96", features = ["full"] }
 tank-duckdb = { path = "tank-duckdb" }
 tank-macros = { path = "tank-macros" }
-tank-metadata = { path = "tank-metadata" }
+tank-core = { path = "tank-core" }
 time = "0.3.41"
 uuid = "1.16.0"
 
@@ -42,7 +42,7 @@ repository.workspace = true
 [dependencies]
 tank-duckdb = { workspace = true }
 tank-macros = { workspace = true }
-tank-metadata = { workspace = true }
+tank-core = { workspace = true }
 
 [dev-dependencies]
 rust_decimal = { workspace = true }

@@ -1,4 +1,4 @@
-use tank_metadata::SqlWriter;
+use tank_core::SqlWriter;
 
 #[derive(Default)]
 pub struct DuckDBSqlWriter {}

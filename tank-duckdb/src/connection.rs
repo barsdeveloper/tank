@@ -1,7 +1,7 @@
 use crate::driver::DuckDBDriver;
 use anyhow::Result;
 use futures::stream::BoxStream;
-use tank_metadata::{Connection, Executor, Query, QueryResult};
+use tank_core::{Connection, Executor, Query, QueryResult};
 
 #[derive(Debug)]
 pub struct DuckDBConnection {}

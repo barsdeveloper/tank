@@ -1,5 +1,5 @@
 use crate::{connection::DuckDBConnection, sql_writer::DuckDBSqlWriter};
-use tank_metadata::Driver;
+use tank_core::Driver;
 
 #[derive(Default, Clone, Copy)]
 pub struct DuckDBDriver {}

@@ -8,5 +8,5 @@ repository.workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-tank-metadata = { workspace = true }
+tank-core = { workspace = true }
 futures = { workspace = true }
