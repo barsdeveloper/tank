@@ -1,2 +1,4 @@
 # tank
-Table Abstraction and Navigation Kit. (It is a ORM)
+Table Abstraction and Navigation Kit. Simple and robust ORM for Rust.
+
+## Design goals

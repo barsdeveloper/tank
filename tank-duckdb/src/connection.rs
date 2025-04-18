@@ -1,7 +1,7 @@
 use crate::driver::DuckDBDriver;
 use anyhow::Result;
 use futures::stream::BoxStream;
-use tank_core::{Connection, Executor};
+use tank_metadata::{Connection, Executor, Query, QueryResult};
 
 #[derive(Debug)]
 pub struct DuckDBConnection {}
@@ -13,10 +13,7 @@ impl Executor for DuckDBConnection {
         &DuckDBDriver {}
     }
 
-    fn run<'a>(
-        &mut self,
-        query: tank_core::Query,
-    ) -> BoxStream<'a, Result<tank_core::QueryResult>> {
+    fn run<'a>(&mut self, query: Query) -> BoxStream<'a, Result<QueryResult>> {
         todo!()
     }
 }

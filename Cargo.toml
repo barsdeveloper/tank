@@ -1,7 +1,6 @@
 [workspace]
 members = [
     ".",
-    "tank-core",
     "tank-duckdb",
     "tank-macros",
     "tank-metadata",
@@ -23,7 +22,6 @@ proc-macro2 = "1.0.93"
 quote = "1.0.38"
 rust_decimal = "1.37.1"
 syn = { version = "2.0.96", features = ["full"] }
-tank-core = { path = "tank-core" }
 tank-duckdb = { path = "tank-duckdb" }
 tank-macros = { path = "tank-macros" }
 tank-metadata = { path = "tank-metadata" }
@@ -42,7 +40,6 @@ edition.workspace = true
 repository.workspace = true
 
 [dependencies]
-tank-core = { workspace = true }
 tank-duckdb = { workspace = true }
 tank-macros = { workspace = true }
 tank-metadata = { workspace = true }

@@ -703,7 +703,6 @@ name = "tank"
 version = "0.1.0"
 dependencies = [
  "rust_decimal",
- "tank-core",
  "tank-duckdb",
  "tank-macros",
  "tank-metadata",
@@ -712,24 +711,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "tank-core"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "futures",
- "proc-macro2",
- "quote",
- "syn 2.0.100",
- "tank-metadata",
-]
-
-[[package]]
 name = "tank-duckdb"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "futures",
- "tank-core",
+ "tank-metadata",
 ]
 
 [[package]]
@@ -748,6 +735,8 @@ dependencies = [
 name = "tank-metadata"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "futures",
  "proc-macro2",
  "quote",
  "rust_decimal",

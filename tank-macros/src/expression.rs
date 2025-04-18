@@ -1,29 +1,29 @@
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens, TokenStreamExt};
 use syn::{punctuated::Punctuated, spanned::Spanned, token::Comma, BinOp, Expr, ExprLit, LitStr};
-use tank_metadata::{Operand, Operator};
+use tank_metadata::{BinaryOpType, Operand};
 
 pub fn decode_expression(condition: &Expr) -> TokenStream {
     match condition {
         Expr::Binary(v) => {
             let op = match v.op {
-                BinOp::Add(..) => quote! { ::tank::Operator::Addition },
-                BinOp::Sub(..) => quote! { ::tank::Operator::Subtraction},
-                BinOp::Mul(..) => quote! { ::tank::Operator::Multiplication},
-                BinOp::Div(..) => quote! { ::tank::Operator::Division},
-                BinOp::Rem(..) => quote! { ::tank::Operator::Remainder},
-                BinOp::And(..) => quote! { ::tank::Operator::And},
-                BinOp::Or(..) => quote! { ::tank::Operator::Or },
-                BinOp::BitAnd(..) => quote! { ::tank::Operator::BitwiseAnd },
-                BinOp::BitOr(..) => quote! { ::tank::Operator::BitwiseOr },
-                BinOp::Shl(..) => quote! { ::tank::Operator::ShiftLeft },
-                BinOp::Shr(..) => quote! { ::tank::Operator::ShiftRight },
-                BinOp::Eq(..) => quote! { ::tank::Operator::Equal },
-                BinOp::Lt(..) => quote! { ::tank::Operator::Less },
-                BinOp::Le(..) => quote! { ::tank::Operator::LessEqual },
-                BinOp::Ne(..) => quote! { ::tank::Operator::NotEqual },
-                BinOp::Ge(..) => quote! { ::tank::Operator::GreaterEqual },
-                BinOp::Gt(..) => quote! { ::tank::Operator::Greater },
+                BinOp::Add(..) => quote! { ::tank::BinaryOpType::Addition },
+                BinOp::Sub(..) => quote! { ::tank::BinaryOpType::Subtraction},
+                BinOp::Mul(..) => quote! { ::tank::BinaryOpType::Multiplication},
+                BinOp::Div(..) => quote! { ::tank::BinaryOpType::Division},
+                BinOp::Rem(..) => quote! { ::tank::BinaryOpType::Remainder},
+                BinOp::And(..) => quote! { ::tank::BinaryOpType::And},
+                BinOp::Or(..) => quote! { ::tank::BinaryOpType::Or },
+                BinOp::BitAnd(..) => quote! { ::tank::BinaryOpType::BitwiseAnd },
+                BinOp::BitOr(..) => quote! { ::tank::BinaryOpType::BitwiseOr },
+                BinOp::Shl(..) => quote! { ::tank::BinaryOpType::ShiftLeft },
+                BinOp::Shr(..) => quote! { ::tank::BinaryOpType::ShiftRight },
+                BinOp::Eq(..) => quote! { ::tank::BinaryOpType::Equal },
+                BinOp::Lt(..) => quote! { ::tank::BinaryOpType::Less },
+                BinOp::Le(..) => quote! { ::tank::BinaryOpType::LessEqual },
+                BinOp::Ne(..) => quote! { ::tank::BinaryOpType::NotEqual },
+                BinOp::Ge(..) => quote! { ::tank::BinaryOpType::GreaterEqual },
+                BinOp::Gt(..) => quote! { ::tank::BinaryOpType::Greater },
                 _ => todo!(),
             };
             let lhs = decode_expression(&v.left);
@@ -38,8 +38,8 @@ pub fn decode_expression(condition: &Expr) -> TokenStream {
         }
         Expr::Unary(v) => {
             let op = match v.op {
-                syn::UnOp::Not(..) => quote! { ::tank::Operator::Not },
-                syn::UnOp::Neg(..) => quote! { ::tank::Operator::Negative },
+                syn::UnOp::Not(..) => quote! { ::tank::UnaryOpType::Not },
+                syn::UnOp::Neg(..) => quote! { ::tank::UnaryOpType::Negative },
                 _ => panic!("Unsupported operator: dereference"),
             };
             let v = decode_expression(v.expr.as_ref());

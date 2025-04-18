@@ -1,5 +1,5 @@
+use crate::Value;
 use std::sync::Arc;
-use tank_metadata::Value;
 
 pub trait PreparedQuery {}
 

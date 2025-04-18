@@ -1,5 +1,4 @@
-use crate::{Executor, Result};
-use tank_metadata::ColumnDef;
+use crate::{ColumnDef, Executor, Result};
 
 pub trait Entity {
     type Column;
