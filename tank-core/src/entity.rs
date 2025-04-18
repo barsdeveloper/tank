@@ -4,6 +4,7 @@ pub trait Entity {
     type Column;
     type PrimaryKey;
 
+    fn schema_name() -> &'static str;
     fn table_name() -> &'static str;
     fn columns() -> &'static [ColumnDef];
     fn primary_key() -> &'static [ColumnDef];

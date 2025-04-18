@@ -1,6 +1,8 @@
+use crate::ColumnDef;
+
 pub trait Expression {}
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub enum Operand {
     // Function(String, Vec<String>),
     LitBool(bool),
@@ -8,10 +10,22 @@ pub enum Operand {
     LitIdent(&'static str),
     LitInt(i128),
     LitStr(String),
-    Column(String),
+    Column(ColumnDef),
 }
-
 impl Expression for Operand {}
+impl PartialEq for Operand {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::LitBool(l), Self::LitBool(r)) => l == r,
+            (Self::LitFloat(l), Self::LitFloat(r)) => l == r,
+            (Self::LitIdent(l), Self::LitIdent(r)) => l == r,
+            (Self::LitInt(l), Self::LitInt(r)) => l == r,
+            (Self::LitStr(l), Self::LitStr(r)) => l == r,
+            (Self::Column(l), Self::Column(r)) => l.name == r.name && l.value.same_type(&r.value),
+            _ => false,
+        }
+    }
+}
 
 #[derive(Debug, PartialEq)]
 pub enum UnaryOpType {

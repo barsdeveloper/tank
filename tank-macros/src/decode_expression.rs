@@ -40,7 +40,7 @@ pub fn decode_expression(condition: &Expr) -> TokenStream {
             let op = match v.op {
                 syn::UnOp::Not(..) => quote! { ::tank::UnaryOpType::Not },
                 syn::UnOp::Neg(..) => quote! { ::tank::UnaryOpType::Negative },
-                _ => panic!("Unsupported operator: dereference"),
+                _ => panic!("Unsupported operator `{}`", v.op.to_token_stream()),
             };
             let v = decode_expression(v.expr.as_ref());
             quote! {
@@ -69,16 +69,20 @@ pub fn decode_expression(condition: &Expr) -> TokenStream {
         Expr::MethodCall(expr_method_call) => todo!(),
         Expr::Paren(v) => decode_expression(&v.expr),
         Expr::Path(v) => {
-            let v = LitStr::new(&v.path.to_token_stream().to_string(), v.path.span());
-            quote! { ::tank::Operand::LitIdent(#v) }
+            if v.path
+                .segments
+                .iter()
+                .rev()
+                .nth(1)
+                .map_or(false, |v| v.ident.to_string().ends_with("Column"))
+            {
+                let path = &v.path;
+                quote! { ::tank::Operand::Column(::tank::ColumnTrait::def(&#path)) }
+            } else {
+                let v = LitStr::new(&v.path.to_token_stream().to_string(), v.path.span());
+                quote! { ::tank::Operand::LitIdent(#v) }
+            }
         }
         _ => todo!("UNKNOWN"),
     }
-}
-
-macro_rules! condition {
-    ($v:tt) => {
-        let tokens = ::quote::quote! { $v };
-        let expr: Expr = ::syn::parse_macro_input!(input as ::syn::Expr);
-    };
 }

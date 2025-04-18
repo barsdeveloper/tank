@@ -51,6 +51,72 @@ pub trait SqlWriter {
         out
     }
 
+    fn sql_column_reference<'a>(&self, out: &'a mut String, value: &ColumnDef) -> &'a mut String {
+        out.push_str(&value.full_name());
+        out
+    }
+
+    fn sql_expression_unary_op_precedence<'a>(&self, value: &UnaryOpType) -> i32 {
+        match value {
+            UnaryOpType::Negative => 950,
+            UnaryOpType::Not => 250,
+        }
+    }
+
+    fn sql_expression_binary_op_precedence<'a>(&self, value: &BinaryOpType) -> i32 {
+        match value {
+            BinaryOpType::Or => 100,
+            BinaryOpType::And => 200,
+            BinaryOpType::Equal => 300,
+            BinaryOpType::NotEqual => 300,
+            BinaryOpType::Less => 300,
+            BinaryOpType::Greater => 300,
+            BinaryOpType::LessEqual => 300,
+            BinaryOpType::GreaterEqual => 300,
+            BinaryOpType::BitwiseOr => 400,
+            BinaryOpType::BitwiseAnd => 500,
+            BinaryOpType::ShiftLeft => 600,
+            BinaryOpType::ShiftRight => 600,
+            BinaryOpType::Subtraction => 700,
+            BinaryOpType::Addition => 700,
+            BinaryOpType::Multiplication => 800,
+            BinaryOpType::Division => 800,
+            BinaryOpType::Remainder => 800,
+            BinaryOpType::Cast => 1_000_000, // CAST(value AS TYPE) in SQL, does not compete for operands
+            BinaryOpType::ArrayIndexing => 1000,
+        }
+    }
+
+    fn sql_expression_operand<'a>(&self, out: &'a mut String, value: &Operand) -> &'a mut String {
+        let _ = match value {
+            Operand::LitBool(v) => write!(out, "{}", v),
+            Operand::LitFloat(v) => write!(out, "{}", v),
+            Operand::LitIdent(v) => write!(out, "{}", v),
+            Operand::LitInt(v) => write!(out, "{}", v),
+            Operand::LitStr(v) => write!(out, "'{}'", v),
+            Operand::Column(v) => {
+                out.push('"');
+                self.sql_column_reference(out, v);
+                out.push('"');
+                Ok(())
+            }
+        };
+        out
+    }
+
+    fn sql_expression_unary_op<'a, E: Expression>(
+        &self,
+        out: &'a mut String,
+        value: &UnaryOp<E>,
+    ) -> &'a mut String {
+        let _ = match value.op {
+            UnaryOpType::Negative => out.push_str("-"),
+            UnaryOpType::Not => out.push_str("NOT "),
+        };
+        // if self.sql_expression_unary_op_precedence(&value.op) < value.v
+        out
+    }
+
     fn sql_create_table<'a, E: Entity>(
         &self,
         out: &'a mut String,
@@ -109,62 +175,6 @@ pub trait SqlWriter {
         out.push_str("SELECT * FROM ");
         out.push_str(E::table_name());
         out.push_str(" WHERE ");
-        out
-    }
-
-    fn sql_expression_unary_op_precedence<'a>(&self, value: &UnaryOpType) -> i32 {
-        match value {
-            UnaryOpType::Negative => 950,
-            UnaryOpType::Not => 250,
-        }
-    }
-
-    fn sql_expression_binary_op_precedence<'a>(&self, value: &BinaryOpType) -> i32 {
-        match value {
-            BinaryOpType::Or => 100,
-            BinaryOpType::And => 200,
-            BinaryOpType::Equal => 300,
-            BinaryOpType::NotEqual => 300,
-            BinaryOpType::Less => 300,
-            BinaryOpType::Greater => 300,
-            BinaryOpType::LessEqual => 300,
-            BinaryOpType::GreaterEqual => 300,
-            BinaryOpType::BitwiseOr => 400,
-            BinaryOpType::BitwiseAnd => 500,
-            BinaryOpType::ShiftLeft => 600,
-            BinaryOpType::ShiftRight => 600,
-            BinaryOpType::Subtraction => 700,
-            BinaryOpType::Addition => 700,
-            BinaryOpType::Multiplication => 800,
-            BinaryOpType::Division => 800,
-            BinaryOpType::Remainder => 800,
-            BinaryOpType::Cast => 1_000_000, // CAST(value AS TYPE) in SQL, does not compete for operands
-            BinaryOpType::ArrayIndexing => 1000,
-        }
-    }
-
-    fn sql_expression_operand<'a>(&self, out: &'a mut String, value: &Operand) -> &'a mut String {
-        let _ = match value {
-            Operand::LitBool(v) => write!(out, "{}", v),
-            Operand::LitFloat(v) => write!(out, "{}", v),
-            Operand::LitIdent(v) => write!(out, "{}", v),
-            Operand::LitInt(v) => write!(out, "{}", v),
-            Operand::LitStr(v) => write!(out, "'{}'", v),
-            Operand::Column(v) => write!(out, "\"{}\"", v),
-        };
-        out
-    }
-
-    fn sql_expression_unary_op<'a, E: Expression>(
-        &self,
-        out: &'a mut String,
-        value: &UnaryOp<E>,
-    ) -> &'a mut String {
-        let _ = match value.op {
-            UnaryOpType::Negative => out.push_str("-"),
-            UnaryOpType::Not => out.push_str("NOT "),
-        };
-        // if self.sql_expression_unary_op_precedence(&value.op) < value.v
         out
     }
 }

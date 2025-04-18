@@ -46,6 +46,45 @@ pub enum Value {
     ),
 }
 
+impl Value {
+    pub fn same_type(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Boolean(..), Self::Boolean(..)) => true,
+            (Self::Int8(..), Self::Int8(..)) => true,
+            (Self::Int16(..), Self::Int16(..)) => true,
+            (Self::Int32(..), Self::Int32(..)) => true,
+            (Self::Int64(..), Self::Int64(..)) => true,
+            (Self::Int128(..), Self::Int128(..)) => true,
+            (Self::UInt8(..), Self::UInt8(..)) => true,
+            (Self::UInt16(..), Self::UInt16(..)) => true,
+            (Self::UInt32(..), Self::UInt32(..)) => true,
+            (Self::UInt64(..), Self::UInt64(..)) => true,
+            (Self::UInt128(..), Self::UInt128(..)) => true,
+            (Self::Float32(..), Self::Float32(..)) => true,
+            (Self::Float64(..), Self::Float64(..)) => true,
+            (Self::Decimal(.., l_prec, l_scale), Self::Decimal(.., r_prec, r_scale)) => {
+                l_prec == r_prec && l_scale == r_scale
+            }
+            (Self::Varchar(..), Self::Varchar(..)) => true,
+            (Self::Blob(..), Self::Blob(..)) => true,
+            (Self::Date(..), Self::Date(..)) => true,
+            (Self::Time(..), Self::Time(..)) => true,
+            (Self::Timestamp(..), Self::Timestamp(..)) => true,
+            (Self::TimestampWithTimezone(..), Self::TimestampWithTimezone(..)) => true,
+            (Self::Interval(..), Self::Interval(..)) => true,
+            (Self::Uuid(..), Self::Uuid(..)) => true,
+            (Self::Array(.., l_type, l_len), Self::Array(.., r_type, r_len)) => {
+                l_len == r_len && l_type.same_type(&r_type)
+            }
+            (Self::List(.., l), Self::List(.., r)) => l.same_type(r),
+            (Self::Map(.., l_key, l_value), Self::Map(.., r_key, r_value)) => {
+                l_key.same_type(r_key) && l_value.same_type(&r_value)
+            }
+            _ => core::mem::discriminant(self) == core::mem::discriminant(other),
+        }
+    }
+}
+
 pub fn decode_type(path: &Path) -> (Value, bool) {
     let arguments = &path.segments.last().unwrap().arguments;
     let ident = &path.segments.last().unwrap().ident;

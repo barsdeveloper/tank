@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use tank::{BinaryOp, BinaryOpType, Operand, UnaryOp, UnaryOpType};
+    use tank::{BinaryOp, BinaryOpType, ColumnTrait, Operand, UnaryOp, UnaryOpType};
     use tank_macros::{sql, Entity};
 
     #[test]
@@ -150,27 +150,26 @@ mod tests {
         ));
     }
 
-    // #[test]
-    // fn columns() {
-    //     #[derive(Entity)]
-    //     struct MyEntity {
-    //         first: i128,
-    //         second: String,
-    //         third: Vec<f64>,
-    //     }
-    //     let c = Column::first;
+    #[test]
+    fn columns() {
+        #[derive(Entity)]
+        struct MyEntity {
+            first: i128,
+            second: String,
+            third: Vec<f64>,
+        }
 
-    //     let expr = sql!(1 + 2);
-    //     assert!(matches!(
-    //         expr,
-    //         BinaryOp {
-    //             op: BinaryOpType::BitwiseOr,
-    //             lhs: Operand::LitInt(45),
-    //             rhs: UnaryOp {
-    //                 op: UnaryOpType::Negative,
-    //                 v: Operand::LitInt(90),
-    //             }
-    //         }
-    //     ));
-    // }
+        let expr = sql!(MyEntityColumn::first + 2);
+        // assert!(matches!(
+        //     expr,
+        //     BinaryOp {
+        //         op: BinaryOpType::BitwiseOr,
+        //         lhs: Operand::LitInt(45),
+        //         rhs: UnaryOp {
+        //             op: UnaryOpType::Negative,
+        //             v: Operand::LitInt(90),
+        //         }
+        //     }
+        // ));
+    }
 }

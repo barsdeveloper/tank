@@ -1,7 +1,9 @@
-use syn::{Field, LitStr, Type};
+use syn::{Field, ItemStruct, LitStr, Type};
 use tank_core::{decode_type, ColumnDef, Value};
 
-pub fn decode_field(field: &Field) -> ColumnDef {
+use crate::{schema_name, table_name};
+
+pub fn decode_field(field: &Field, item: &ItemStruct) -> ColumnDef {
     let (value, nullable) = if let Type::Path(type_path) = &field.ty {
         decode_type(&type_path.path)
     } else {
@@ -9,6 +11,8 @@ pub fn decode_field(field: &Field) -> ColumnDef {
     };
     let mut result = ColumnDef {
         name: field.ident.as_ref().unwrap().to_string().into(),
+        table_name: table_name(item).into(),
+        schema_name: schema_name(item).into(),
         value,
         nullable,
         ..Default::default()
