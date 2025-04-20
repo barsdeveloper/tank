@@ -1,7 +1,10 @@
 #[cfg(test)]
 mod tests {
-    use tank::{BinaryOp, BinaryOpType, ColumnTrait, Operand, UnaryOp, UnaryOpType};
+    use tank::{BinaryOp, BinaryOpType, Expression, Operand, UnaryOp, UnaryOpType};
+    use tank_duckdb::DuckDBSqlWriter;
     use tank_macros::{sql, Entity};
+
+    const WRITER: DuckDBSqlWriter = DuckDBSqlWriter::new();
 
     #[test]
     fn simple() {
@@ -14,6 +17,9 @@ mod tests {
                 rhs: Operand::LitInt(2)
             }
         ));
+        let mut out = String::new();
+        expr.sql_write(&WRITER, &mut out);
+        assert_eq!(out, "1 + 2");
 
         let expr = sql!(5 * 1.2);
         assert!(matches!(
@@ -24,6 +30,9 @@ mod tests {
                 rhs: Operand::LitFloat(1.2)
             }
         ));
+        let mut out = String::new();
+        expr.sql_write(&WRITER, &mut out);
+        assert_eq!(out, "5 * 1.2");
 
         let expr = sql!(true && false);
         assert!(matches!(
@@ -34,6 +43,9 @@ mod tests {
                 rhs: Operand::LitBool(false)
             }
         ));
+        let mut out = String::new();
+        expr.sql_write(&WRITER, &mut out);
+        assert_eq!(out, "true AND false");
 
         let expr = sql!(45 | -90);
         assert!(matches!(
@@ -47,6 +59,22 @@ mod tests {
                 }
             }
         ));
+        let mut out = String::new();
+        expr.sql_write(&WRITER, &mut out);
+        assert_eq!(out, "45 | -90");
+
+        let expr = sql!(true as i32);
+        assert!(matches!(
+            expr,
+            BinaryOp {
+                op: BinaryOpType::And,
+                lhs: Operand::LitBool(true),
+                rhs: Operand::LitBool(false)
+            }
+        ));
+        let mut out = String::new();
+        expr.sql_write(&WRITER, &mut out);
+        assert_eq!(out, "true AND false");
     }
 
     #[test]
@@ -153,6 +181,7 @@ mod tests {
     #[test]
     fn columns() {
         #[derive(Entity)]
+        #[table_name("the_table")]
         struct MyEntity {
             first: i128,
             second: String,
@@ -160,16 +189,18 @@ mod tests {
         }
 
         let expr = sql!(MyEntityColumn::first + 2);
-        // assert!(matches!(
-        //     expr,
-        //     BinaryOp {
-        //         op: BinaryOpType::BitwiseOr,
-        //         lhs: Operand::LitInt(45),
-        //         rhs: UnaryOp {
-        //             op: UnaryOpType::Negative,
-        //             v: Operand::LitInt(90),
-        //         }
-        //     }
-        // ));
+        assert!(matches!(
+            expr,
+            BinaryOp {
+                op: BinaryOpType::Addition,
+                lhs: Operand::Column(..),
+                rhs: Operand::LitInt(2),
+            }
+        ));
+        let Operand::Column(ref col) = expr.lhs else {
+            panic!("Unexpected error")
+        };
+        assert_eq!(col.name, "first");
+        assert_eq!(col.table_name, "the_table")
     }
 }

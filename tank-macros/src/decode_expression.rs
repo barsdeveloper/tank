@@ -1,7 +1,7 @@
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens, TokenStreamExt};
-use syn::{punctuated::Punctuated, spanned::Spanned, token::Comma, BinOp, Expr, ExprLit, LitStr};
-use tank_core::{BinaryOpType, Operand};
+use quote::{quote, ToTokens};
+use syn::{spanned::Spanned, BinOp, Expr, ExprLit, LitStr};
+use tank_core::decode_type;
 
 pub fn decode_expression(condition: &Expr) -> TokenStream {
     match condition {
@@ -31,6 +31,35 @@ pub fn decode_expression(condition: &Expr) -> TokenStream {
             quote! {
                 ::tank::BinaryOp {
                     op: #op,
+                    lhs: #lhs,
+                    rhs: #rhs,
+                }
+            }
+        }
+        Expr::Cast(v) => {
+            let lhs = decode_expression(&v.expr);
+            let rhs = decode_type(match v.ty.as_ref() {
+                syn::Type::Array(type_array) => todo!(),
+                syn::Type::BareFn(type_bare_fn) => todo!(),
+                syn::Type::Group(type_group) => todo!(),
+                syn::Type::ImplTrait(type_impl_trait) => todo!(),
+                syn::Type::Infer(type_infer) => todo!(),
+                syn::Type::Macro(type_macro) => todo!(),
+                syn::Type::Never(type_never) => todo!(),
+                syn::Type::Paren(type_paren) => todo!(),
+                syn::Type::Path(v) => &v.path,
+                syn::Type::Ptr(type_ptr) => todo!(),
+                syn::Type::Reference(type_reference) => todo!(),
+                syn::Type::Slice(type_slice) => todo!(),
+                syn::Type::TraitObject(type_trait_object) => todo!(),
+                syn::Type::Tuple(type_tuple) => todo!(),
+                syn::Type::Verbatim(token_stream) => todo!(),
+                _ => todo!(),
+            })
+            .0;
+            quote! {
+                ::tank::BinaryOp {
+                    op: ::tank::BinaryOpType::Cast,
                     lhs: #lhs,
                     rhs: #rhs,
                 }
@@ -83,6 +112,9 @@ pub fn decode_expression(condition: &Expr) -> TokenStream {
                 quote! { ::tank::Operand::LitIdent(#v) }
             }
         }
-        _ => todo!("UNKNOWN"),
+        _ => panic!(
+            "Unexpected expression `{}`",
+            condition.to_token_stream().to_string()
+        ),
     }
 }

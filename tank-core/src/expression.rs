@@ -1,6 +1,16 @@
-use crate::ColumnDef;
+use crate::{ColumnDef, SqlWriter, Value};
 
-pub trait Expression {}
+pub trait OpPrecedence {
+    fn precedence<W: SqlWriter + ?Sized>(&self, writer: &W) -> i32;
+}
+
+pub trait Expression: OpPrecedence {
+    fn sql_write<'a, W: SqlWriter + ?Sized>(
+        &self,
+        writer: &W,
+        out: &'a mut String,
+    ) -> &'a mut String;
+}
 
 #[derive(Debug)]
 pub enum Operand {
@@ -12,7 +22,20 @@ pub enum Operand {
     LitStr(String),
     Column(ColumnDef),
 }
-impl Expression for Operand {}
+impl OpPrecedence for Operand {
+    fn precedence<W: SqlWriter + ?Sized>(&self, _writer: &W) -> i32 {
+        0
+    }
+}
+impl Expression for Operand {
+    fn sql_write<'a, W: SqlWriter + ?Sized>(
+        &self,
+        writer: &W,
+        out: &'a mut String,
+    ) -> &'a mut String {
+        writer.sql_expression_operand(out, self)
+    }
+}
 impl PartialEq for Operand {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
@@ -31,6 +54,11 @@ impl PartialEq for Operand {
 pub enum UnaryOpType {
     Negative,
     Not,
+}
+impl OpPrecedence for UnaryOpType {
+    fn precedence<W: SqlWriter + ?Sized>(&self, writer: &W) -> i32 {
+        writer.expression_unary_op_precedence(self)
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -55,16 +83,56 @@ pub enum BinaryOpType {
     And,
     Or,
 }
+impl OpPrecedence for BinaryOpType {
+    fn precedence<W: SqlWriter + ?Sized>(&self, writer: &W) -> i32 {
+        writer.expression_binary_op_precedence(self)
+    }
+}
 
 pub struct UnaryOp<V: Expression> {
     pub op: UnaryOpType,
     pub v: V,
 }
-impl<V: Expression> Expression for UnaryOp<V> {}
+impl<E: Expression> OpPrecedence for UnaryOp<E> {
+    fn precedence<W: SqlWriter + ?Sized>(&self, writer: &W) -> i32 {
+        writer.expression_unary_op_precedence(&self.op)
+    }
+}
+impl<E: Expression> Expression for UnaryOp<E> {
+    fn sql_write<'a, W: SqlWriter + ?Sized>(
+        &self,
+        writer: &W,
+        out: &'a mut String,
+    ) -> &'a mut String {
+        writer.sql_expression_unary_op(out, self)
+    }
+}
 
 pub struct BinaryOp<L: Expression, R: Expression> {
     pub op: BinaryOpType,
     pub lhs: L,
     pub rhs: R,
 }
-impl<L: Expression, R: Expression> Expression for BinaryOp<L, R> {}
+impl<L: Expression, R: Expression> OpPrecedence for BinaryOp<L, R> {
+    fn precedence<W: SqlWriter + ?Sized>(&self, writer: &W) -> i32 {
+        writer.expression_binary_op_precedence(&self.op)
+    }
+}
+impl<L: Expression, R: Expression> Expression for BinaryOp<L, R> {
+    fn sql_write<'a, W: SqlWriter + ?Sized>(
+        &self,
+        writer: &W,
+        out: &'a mut String,
+    ) -> &'a mut String {
+        writer.sql_expression_binary_op(out, self)
+    }
+}
+
+impl Expression for Value {
+    fn sql_write<'a, W: SqlWriter + ?Sized>(
+        &self,
+        writer: &W,
+        out: &'a mut String,
+    ) -> &'a mut String {
+    }
+}

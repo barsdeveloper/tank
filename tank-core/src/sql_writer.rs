@@ -1,5 +1,19 @@
-use crate::{BinaryOpType, ColumnDef, Entity, Expression, Operand, UnaryOp, UnaryOpType, Value};
+use crate::{
+    BinaryOp, BinaryOpType, ColumnDef, Entity, Expression, Operand, UnaryOp, UnaryOpType, Value,
+};
 use std::fmt::Write;
+
+macro_rules! sql_possibly_parenthesized {
+    ($out:ident, $cond:expr, $v:expr) => {
+        if $cond {
+            $out.push('(');
+            $v;
+            $out.push(')');
+        } else {
+            $v;
+        }
+    };
+}
 
 pub trait SqlWriter {
     fn sql_type<'a>(&self, out: &'a mut String, value: &Value) -> &'a mut String {
@@ -56,33 +70,33 @@ pub trait SqlWriter {
         out
     }
 
-    fn sql_expression_unary_op_precedence<'a>(&self, value: &UnaryOpType) -> i32 {
+    fn expression_unary_op_precedence<'a>(&self, value: &UnaryOpType) -> i32 {
         match value {
             UnaryOpType::Negative => 950,
             UnaryOpType::Not => 250,
         }
     }
 
-    fn sql_expression_binary_op_precedence<'a>(&self, value: &BinaryOpType) -> i32 {
+    fn expression_binary_op_precedence<'a>(&self, value: &BinaryOpType) -> i32 {
         match value {
-            BinaryOpType::Or => 100,
-            BinaryOpType::And => 200,
-            BinaryOpType::Equal => 300,
-            BinaryOpType::NotEqual => 300,
-            BinaryOpType::Less => 300,
-            BinaryOpType::Greater => 300,
-            BinaryOpType::LessEqual => 300,
-            BinaryOpType::GreaterEqual => 300,
-            BinaryOpType::BitwiseOr => 400,
-            BinaryOpType::BitwiseAnd => 500,
-            BinaryOpType::ShiftLeft => 600,
-            BinaryOpType::ShiftRight => 600,
-            BinaryOpType::Subtraction => 700,
-            BinaryOpType::Addition => 700,
-            BinaryOpType::Multiplication => 800,
-            BinaryOpType::Division => 800,
-            BinaryOpType::Remainder => 800,
-            BinaryOpType::Cast => 1_000_000, // CAST(value AS TYPE) in SQL, does not compete for operands
+            BinaryOpType::Cast => 100,
+            BinaryOpType::Or => 200,
+            BinaryOpType::And => 300,
+            BinaryOpType::Equal => 400,
+            BinaryOpType::NotEqual => 400,
+            BinaryOpType::Less => 400,
+            BinaryOpType::Greater => 400,
+            BinaryOpType::LessEqual => 400,
+            BinaryOpType::GreaterEqual => 400,
+            BinaryOpType::BitwiseOr => 500,
+            BinaryOpType::BitwiseAnd => 600,
+            BinaryOpType::ShiftLeft => 700,
+            BinaryOpType::ShiftRight => 700,
+            BinaryOpType::Subtraction => 800,
+            BinaryOpType::Addition => 800,
+            BinaryOpType::Multiplication => 900,
+            BinaryOpType::Division => 900,
+            BinaryOpType::Remainder => 900,
             BinaryOpType::ArrayIndexing => 1000,
         }
     }
@@ -110,10 +124,54 @@ pub trait SqlWriter {
         value: &UnaryOp<E>,
     ) -> &'a mut String {
         let _ = match value.op {
-            UnaryOpType::Negative => out.push_str("-"),
+            UnaryOpType::Negative => out.push('-'),
             UnaryOpType::Not => out.push_str("NOT "),
         };
-        // if self.sql_expression_unary_op_precedence(&value.op) < value.v
+        sql_possibly_parenthesized!(
+            out,
+            self.expression_unary_op_precedence(&value.op) < value.v.precedence(self),
+            value.v.sql_write(self, out)
+        );
+        out
+    }
+
+    fn sql_expression_binary_op<'a, L: Expression, R: Expression>(
+        &self,
+        out: &'a mut String,
+        value: &BinaryOp<L, R>,
+    ) -> &'a mut String {
+        let (prefix, infix, suffix) = match value.op {
+            BinaryOpType::ArrayIndexing => ("", "[", "]"),
+            BinaryOpType::Cast => ("CAST(", " AS ", ")"),
+            BinaryOpType::Multiplication => ("", " * ", ""),
+            BinaryOpType::Division => ("", " / ", ""),
+            BinaryOpType::Remainder => ("", " % ", ""),
+            BinaryOpType::Addition => ("", " + ", ""),
+            BinaryOpType::Subtraction => ("", " - ", ""),
+            BinaryOpType::ShiftLeft => ("", " << ", ""),
+            BinaryOpType::ShiftRight => ("", " >> ", ""),
+            BinaryOpType::BitwiseAnd => ("", " & ", ""),
+            BinaryOpType::BitwiseOr => ("", " | ", ""),
+            BinaryOpType::Equal => ("", " = ", ""),
+            BinaryOpType::NotEqual => ("", " != ", ""),
+            BinaryOpType::Less => ("", " < ", ""),
+            BinaryOpType::LessEqual => ("", " <= ", ""),
+            BinaryOpType::Greater => ("", " > ", ""),
+            BinaryOpType::GreaterEqual => ("", " >= ", ""),
+            BinaryOpType::And => ("", " AND ", ""),
+            BinaryOpType::Or => ("", " OR ", ""),
+        };
+        let precedence = self.expression_binary_op_precedence(&value.op);
+        out.push_str(prefix);
+        sql_possibly_parenthesized!(
+            out,
+            value.lhs.precedence(self) > precedence,
+            value.lhs.sql_write(self, out)
+        );
+        out.push_str(infix);
+        // No parentheses needed because all known unary operators are prefix in this common SQL flavor
+        value.rhs.sql_write(self, out);
+        out.push_str(suffix);
         out
     }
 
