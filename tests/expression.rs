@@ -75,6 +75,32 @@ mod tests {
         let mut out = String::new();
         expr.sql_write(&WRITER, &mut out);
         assert_eq!(out, "CAST(true AS INTEGER)");
+
+        let expr = sql!("1.5" as f64);
+        assert!(matches!(
+            expr,
+            BinaryOp {
+                op: BinaryOpType::Cast,
+                lhs: Operand::LitStr("1.5"),
+                rhs: Operand::Type(Value::Float64(..))
+            }
+        ));
+        let mut out = String::new();
+        expr.sql_write(&WRITER, &mut out);
+        assert_eq!(out, "CAST('1.5' AS DOUBLE)");
+
+        let expr = sql!(["a", "b", "c"]);
+        assert!(matches!(
+            expr,
+            Operand::LitArray([
+                Operand::LitStr("a"),
+                Operand::LitStr("b"),
+                Operand::LitStr("c")
+            ])
+        ));
+        let mut out = String::new();
+        expr.sql_write(&WRITER, &mut out);
+        assert_eq!(out, "['a', 'b', 'c']");
     }
 
     #[test]

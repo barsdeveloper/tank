@@ -108,6 +108,18 @@ pub trait SqlWriter {
             Operand::LitIdent(v) => write!(out, "{}", v),
             Operand::LitInt(v) => write!(out, "{}", v),
             Operand::LitStr(v) => write!(out, "'{}'", v),
+            Operand::LitArray(v) => {
+                out.push('[');
+                v.iter().fold(false, |comma, v| {
+                    if comma {
+                        out.push_str(", ");
+                    }
+                    v.sql_write(self, out);
+                    true
+                });
+                out.push(']');
+                Ok(())
+            }
             Operand::Column(v) => {
                 out.push('"');
                 self.sql_column_reference(out, v);

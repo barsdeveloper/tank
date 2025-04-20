@@ -1,6 +1,6 @@
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
-use syn::{spanned::Spanned, BinOp, Expr, ExprLit, LitStr};
+use syn::{punctuated::Punctuated, spanned::Spanned, token::Comma, BinOp, Expr, ExprLit, LitStr};
 use tank_core::decode_type;
 
 pub fn decode_expression(condition: &Expr) -> TokenStream {
@@ -111,6 +111,14 @@ pub fn decode_expression(condition: &Expr) -> TokenStream {
                 let v = LitStr::new(&v.path.to_token_stream().to_string(), v.path.span());
                 quote! { ::tank::Operand::LitIdent(#v) }
             }
+        }
+        Expr::Array(v) => {
+            let v = v
+                .elems
+                .iter()
+                .map(|v| decode_expression(v))
+                .collect::<Punctuated<_, Comma>>();
+            quote! { ::tank::Operand::LitArray(&[#v]) }
         }
         _ => panic!(
             "Unexpected expression `{}`",

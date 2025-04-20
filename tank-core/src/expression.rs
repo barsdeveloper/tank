@@ -19,7 +19,8 @@ pub enum Operand {
     LitFloat(f64),
     LitIdent(&'static str),
     LitInt(i128),
-    LitStr(String),
+    LitStr(&'static str),
+    LitArray(&'static [Operand]),
     Column(ColumnDef),
     Type(Value),
 }
@@ -45,7 +46,9 @@ impl PartialEq for Operand {
             (Self::LitIdent(l), Self::LitIdent(r)) => l == r,
             (Self::LitInt(l), Self::LitInt(r)) => l == r,
             (Self::LitStr(l), Self::LitStr(r)) => l == r,
+            (Self::LitArray(l), Self::LitArray(r)) => l == r,
             (Self::Column(l), Self::Column(r)) => l.name == r.name && l.value.same_type(&r.value),
+            (Self::Type(l), Self::Type(r)) => l.same_type(r),
             _ => false,
         }
     }
@@ -130,14 +133,14 @@ impl<L: Expression, R: Expression> Expression for BinaryOp<L, R> {
 }
 
 impl OpPrecedence for Value {
-    fn precedence<W: SqlWriter + ?Sized>(&self, writer: &W) -> i32 {
+    fn precedence<W: SqlWriter + ?Sized>(&self, _writer: &W) -> i32 {
         0
     }
 }
 impl Expression for Value {
     fn sql_write<'a, W: SqlWriter + ?Sized>(
         &self,
-        writer: &W,
+        _writer: &W,
         out: &'a mut String,
     ) -> &'a mut String {
         out
