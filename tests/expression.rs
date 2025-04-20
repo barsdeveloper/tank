@@ -101,6 +101,23 @@ mod tests {
         let mut out = String::new();
         expr.sql_write(&WRITER, &mut out);
         assert_eq!(out, "['a', 'b', 'c']");
+
+        let expr = sql!([11, 22, 33][1]);
+        assert!(matches!(
+            expr,
+            BinaryOp {
+                op: BinaryOpType::Indexing,
+                lhs: Operand::LitArray([
+                    Operand::LitInt(11),
+                    Operand::LitInt(22),
+                    Operand::LitInt(33)
+                ]),
+                rhs: Operand::LitInt(1)
+            }
+        ));
+        let mut out = String::new();
+        expr.sql_write(&WRITER, &mut out);
+        assert_eq!(out, "[11, 22, 33][1]");
     }
 
     #[test]
@@ -129,6 +146,9 @@ mod tests {
                 }
             }
         ));
+        let mut out = String::new();
+        expr.sql_write(&WRITER, &mut out);
+        assert_eq!(out, "90.5 - -0.54 * 2 < 7 / 2");
 
         let expr = sql!((2 + 3) * (4 - 1) >> 1 & (8 | 3));
         assert!(matches!(
@@ -159,6 +179,9 @@ mod tests {
                 }
             }
         ));
+        let mut out = String::new();
+        expr.sql_write(&WRITER, &mut out);
+        assert_eq!(out, "(2 + 3) * (4 - 1) >> 1 & (8 | 3)");
 
         let expr = sql!(-(-PI) + 2 * (5 % (2 + 1)) == 7 && !(4 < 2));
         assert!(matches!(
@@ -202,6 +225,9 @@ mod tests {
                 }
             }
         ));
+        let mut out = String::new();
+        expr.sql_write(&WRITER, &mut out);
+        assert_eq!(out, "-(-PI) + 2 * (5 % (2 + 1)) = 7 AND NOT 4 < 2");
     }
 
     #[test]
@@ -227,6 +253,10 @@ mod tests {
             panic!("Unexpected error")
         };
         assert_eq!(col.name, "first");
-        assert_eq!(col.table_name, "the_table")
+        assert_eq!(col.table_name, "the_table");
+        assert_eq!(col.schema_name, "");
+        let mut out = String::new();
+        expr.sql_write(&WRITER, &mut out);
+        assert_eq!(out, "the_table.first + 2");
     }
 }

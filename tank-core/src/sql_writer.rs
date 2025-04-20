@@ -73,7 +73,7 @@ pub trait SqlWriter {
     fn expression_unary_op_precedence<'a>(&self, value: &UnaryOpType) -> i32 {
         match value {
             UnaryOpType::Negative => 950,
-            UnaryOpType::Not => 250,
+            UnaryOpType::Not => 350,
         }
     }
 
@@ -97,7 +97,7 @@ pub trait SqlWriter {
             BinaryOpType::Multiplication => 900,
             BinaryOpType::Division => 900,
             BinaryOpType::Remainder => 900,
-            BinaryOpType::ArrayIndexing => 1000,
+            BinaryOpType::Indexing => 1000,
         }
     }
 
@@ -121,9 +121,7 @@ pub trait SqlWriter {
                 Ok(())
             }
             Operand::Column(v) => {
-                out.push('"');
                 self.sql_column_reference(out, v);
-                out.push('"');
                 Ok(())
             }
             Operand::Type(v) => {
@@ -145,7 +143,7 @@ pub trait SqlWriter {
         };
         sql_possibly_parenthesized!(
             out,
-            self.expression_unary_op_precedence(&value.op) < value.v.precedence(self),
+            value.v.precedence(self) <= self.expression_unary_op_precedence(&value.op),
             value.v.sql_write(self, out)
         );
         out
@@ -157,7 +155,7 @@ pub trait SqlWriter {
         value: &BinaryOp<L, R>,
     ) -> &'a mut String {
         let (prefix, infix, suffix) = match value.op {
-            BinaryOpType::ArrayIndexing => ("", "[", "]"),
+            BinaryOpType::Indexing => ("", "[", "]"),
             BinaryOpType::Cast => ("CAST(", " AS ", ")"),
             BinaryOpType::Multiplication => ("", " * ", ""),
             BinaryOpType::Division => ("", " / ", ""),
@@ -181,12 +179,15 @@ pub trait SqlWriter {
         out.push_str(prefix);
         sql_possibly_parenthesized!(
             out,
-            value.lhs.precedence(self) > precedence,
+            value.lhs.precedence(self) < precedence,
             value.lhs.sql_write(self, out)
         );
         out.push_str(infix);
-        // No parentheses needed because all known unary operators are prefix in this common SQL flavor
-        value.rhs.sql_write(self, out);
+        sql_possibly_parenthesized!(
+            out,
+            value.rhs.precedence(self) <= precedence,
+            value.rhs.sql_write(self, out)
+        );
         out.push_str(suffix);
         out
     }
@@ -243,8 +244,8 @@ pub trait SqlWriter {
     fn sql_select<'a, E: Entity>(
         &self,
         out: &'a mut String,
-        condition: &[Value],
-        limit: u32,
+        _condition: &[Value],
+        _limit: u32,
     ) -> &'a mut String {
         out.push_str("SELECT * FROM ");
         out.push_str(E::table_name());

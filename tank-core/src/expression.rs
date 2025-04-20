@@ -26,7 +26,7 @@ pub enum Operand {
 }
 impl OpPrecedence for Operand {
     fn precedence<W: SqlWriter + ?Sized>(&self, _writer: &W) -> i32 {
-        0
+        1_000_000_000
     }
 }
 impl Expression for Operand {
@@ -67,7 +67,7 @@ impl OpPrecedence for UnaryOpType {
 
 #[derive(Debug, PartialEq)]
 pub enum BinaryOpType {
-    ArrayIndexing,
+    Indexing,
     Cast,
     Multiplication,
     Division,

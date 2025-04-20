@@ -36,6 +36,17 @@ pub fn decode_expression(condition: &Expr) -> TokenStream {
                 }
             }
         }
+        Expr::Index(v) => {
+            let lhs = decode_expression(&v.expr);
+            let rhs = decode_expression(&v.index);
+            quote! {
+                ::tank::BinaryOp {
+                    op: ::tank::BinaryOpType::Indexing,
+                    lhs: #lhs,
+                    rhs: #rhs,
+                }
+            }
+        }
         Expr::Cast(v) => {
             let lhs = decode_expression(&v.expr);
             let rhs = decode_type(match v.ty.as_ref() {
