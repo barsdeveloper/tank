@@ -61,7 +61,7 @@ pub fn decode_expression(condition: &Expr) -> TokenStream {
                 ::tank::BinaryOp {
                     op: ::tank::BinaryOpType::Cast,
                     lhs: #lhs,
-                    rhs: #rhs,
+                    rhs: ::tank::Operand::Type(#rhs),
                 }
             }
         }

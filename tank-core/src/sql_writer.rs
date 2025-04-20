@@ -114,6 +114,10 @@ pub trait SqlWriter {
                 out.push('"');
                 Ok(())
             }
+            Operand::Type(v) => {
+                self.sql_type(out, v);
+                Ok(())
+            }
         };
         out
     }

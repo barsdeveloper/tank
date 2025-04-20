@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use tank::{BinaryOp, BinaryOpType, Expression, Operand, UnaryOp, UnaryOpType};
+    use tank::{BinaryOp, BinaryOpType, Expression, Operand, UnaryOp, UnaryOpType, Value};
     use tank_duckdb::DuckDBSqlWriter;
     use tank_macros::{sql, Entity};
 
@@ -67,14 +67,14 @@ mod tests {
         assert!(matches!(
             expr,
             BinaryOp {
-                op: BinaryOpType::And,
+                op: BinaryOpType::Cast,
                 lhs: Operand::LitBool(true),
-                rhs: Operand::LitBool(false)
+                rhs: Operand::Type(Value::Int32(..))
             }
         ));
         let mut out = String::new();
         expr.sql_write(&WRITER, &mut out);
-        assert_eq!(out, "true AND false");
+        assert_eq!(out, "CAST(true AS INTEGER)");
     }
 
     #[test]

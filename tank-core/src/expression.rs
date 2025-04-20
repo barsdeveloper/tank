@@ -21,6 +21,7 @@ pub enum Operand {
     LitInt(i128),
     LitStr(String),
     Column(ColumnDef),
+    Type(Value),
 }
 impl OpPrecedence for Operand {
     fn precedence<W: SqlWriter + ?Sized>(&self, _writer: &W) -> i32 {
@@ -128,11 +129,17 @@ impl<L: Expression, R: Expression> Expression for BinaryOp<L, R> {
     }
 }
 
+impl OpPrecedence for Value {
+    fn precedence<W: SqlWriter + ?Sized>(&self, writer: &W) -> i32 {
+        0
+    }
+}
 impl Expression for Value {
     fn sql_write<'a, W: SqlWriter + ?Sized>(
         &self,
         writer: &W,
         out: &'a mut String,
     ) -> &'a mut String {
+        out
     }
 }
