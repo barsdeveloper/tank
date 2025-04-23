@@ -18,6 +18,7 @@ pub use driver::*;
 pub use entity::*;
 pub use executor::*;
 pub use expression::*;
+pub use interval::*;
 pub use query::*;
 pub use sql_writer::*;
 pub use table_ref::*;

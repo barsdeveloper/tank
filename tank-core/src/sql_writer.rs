@@ -72,7 +72,7 @@ pub trait SqlWriter {
 
     fn expression_unary_op_precedence<'a>(&self, value: &UnaryOpType) -> i32 {
         match value {
-            UnaryOpType::Negative => 950,
+            UnaryOpType::Negative => 1050,
             UnaryOpType::Not => 350,
         }
     }
@@ -88,16 +88,24 @@ pub trait SqlWriter {
             BinaryOpType::Greater => 400,
             BinaryOpType::LessEqual => 400,
             BinaryOpType::GreaterEqual => 400,
-            BinaryOpType::BitwiseOr => 500,
-            BinaryOpType::BitwiseAnd => 600,
-            BinaryOpType::ShiftLeft => 700,
-            BinaryOpType::ShiftRight => 700,
-            BinaryOpType::Subtraction => 800,
-            BinaryOpType::Addition => 800,
-            BinaryOpType::Multiplication => 900,
-            BinaryOpType::Division => 900,
-            BinaryOpType::Remainder => 900,
-            BinaryOpType::Indexing => 1000,
+            BinaryOpType::Is => 500,
+            BinaryOpType::IsNot => 500,
+            BinaryOpType::Like => 500,
+            BinaryOpType::NotLike => 500,
+            BinaryOpType::Regexp => 500,
+            BinaryOpType::NotRegexpr => 500,
+            BinaryOpType::Glob => 500,
+            BinaryOpType::NotGlob => 500,
+            BinaryOpType::BitwiseOr => 600,
+            BinaryOpType::BitwiseAnd => 700,
+            BinaryOpType::ShiftLeft => 800,
+            BinaryOpType::ShiftRight => 800,
+            BinaryOpType::Subtraction => 900,
+            BinaryOpType::Addition => 900,
+            BinaryOpType::Multiplication => 1000,
+            BinaryOpType::Division => 1000,
+            BinaryOpType::Remainder => 1000,
+            BinaryOpType::Indexing => 1100,
         }
     }
 
@@ -118,6 +126,10 @@ pub trait SqlWriter {
                     true
                 });
                 out.push(']');
+                Ok(())
+            }
+            Operand::Null => {
+                out.push_str("NULL");
                 Ok(())
             }
             Operand::Column(v) => {
@@ -166,6 +178,14 @@ pub trait SqlWriter {
             BinaryOpType::ShiftRight => ("", " >> ", ""),
             BinaryOpType::BitwiseAnd => ("", " & ", ""),
             BinaryOpType::BitwiseOr => ("", " | ", ""),
+            BinaryOpType::Is => ("", " Is ", ""),
+            BinaryOpType::IsNot => ("", " IS NOT ", ""),
+            BinaryOpType::Like => ("", " LIKE ", ""),
+            BinaryOpType::NotLike => ("", " NOT LIKE ", ""),
+            BinaryOpType::Regexp => ("", " REGEXP ", ""),
+            BinaryOpType::NotRegexpr => ("", " NOT REGEXP ", ""),
+            BinaryOpType::Glob => ("", " GLOB ", ""),
+            BinaryOpType::NotGlob => ("", " NOT GLOB ", ""),
             BinaryOpType::Equal => ("", " = ", ""),
             BinaryOpType::NotEqual => ("", " != ", ""),
             BinaryOpType::Less => ("", " < ", ""),

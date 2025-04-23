@@ -10,3 +10,9 @@ repository.workspace = true
 anyhow = { workspace = true }
 tank-core = { workspace = true }
 futures = { workspace = true }
+flume = "0.11.1"
+tokio = { version = "1.44.2", features = ["rt-multi-thread"] }
+libduckdb-sys = { version = "1.2.2", features = ["bundled"] }
+log = "0.4.27"
+rust_decimal.workspace = true
+time.workspace = true

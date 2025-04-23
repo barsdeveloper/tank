@@ -1,22 +1,37 @@
 use crate::Value;
 use std::sync::Arc;
 
-pub trait PreparedQuery {}
+pub trait Prepared: Clone {}
 
-pub enum Query {
-    Raw(String),
-    Prepared(Box<dyn PreparedQuery>),
+#[derive(Clone)]
+pub enum Query<P: Prepared> {
+    Raw(Arc<String>),
+    Prepared(P),
 }
 
 #[derive(Default)]
 pub struct Count {
-    rows_affected: u64,
-    last_insert_id: Option<u64>,
+    pub rows_affected: u64,
+    pub last_insert_id: Option<u64>,
 }
 
 pub struct Row {
     names: Arc<[String]>,
-    fields: Box<[Value]>,
+    values: Box<[Value]>,
+}
+
+impl Row {
+    pub fn new(names: Arc<[String]>, values: Box<[Value]>) -> Self {
+        Self { names, values }
+    }
+
+    pub fn names(&self) -> &[String] {
+        &self.names
+    }
+
+    pub fn values(&self) -> &[Value] {
+        &self.values
+    }
 }
 
 pub enum QueryResult {

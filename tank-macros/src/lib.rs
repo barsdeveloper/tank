@@ -93,7 +93,7 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                     &mut query,
                     if_not_exists
                 );
-                executor.execute(::tank::Query::Raw(query)).await.map(|_| {()})
+                executor.execute(::tank::Query::Raw(query.into())).await.map(|_| {()})
             }
 
             async fn drop_table<E: ::tank::Executor>(
@@ -106,7 +106,7 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                     &mut query,
                     if_exists
                 );
-                executor.execute(::tank::Query::Raw(query)).await.map(|_| {()})
+                executor.execute(::tank::Query::Raw(query.into())).await.map(|_| {()})
             }
 
             async fn find_by_pk<E: ::tank::Executor>(

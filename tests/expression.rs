@@ -27,7 +27,7 @@ mod tests {
             BinaryOp {
                 op: BinaryOpType::Multiplication,
                 lhs: Operand::LitInt(5),
-                rhs: Operand::LitFloat(1.2)
+                rhs: Operand::LitFloat(1.2),
             }
         ));
         let mut out = String::new();
@@ -40,7 +40,7 @@ mod tests {
             BinaryOp {
                 op: BinaryOpType::And,
                 lhs: Operand::LitBool(true),
-                rhs: Operand::LitBool(false)
+                rhs: Operand::LitBool(false),
             }
         ));
         let mut out = String::new();
@@ -69,7 +69,7 @@ mod tests {
             BinaryOp {
                 op: BinaryOpType::Cast,
                 lhs: Operand::LitBool(true),
-                rhs: Operand::Type(Value::Int32(..))
+                rhs: Operand::Type(Value::Int32(..)),
             }
         ));
         let mut out = String::new();
@@ -82,7 +82,7 @@ mod tests {
             BinaryOp {
                 op: BinaryOpType::Cast,
                 lhs: Operand::LitStr("1.5"),
-                rhs: Operand::Type(Value::Float64(..))
+                rhs: Operand::Type(Value::Float64(..)),
             }
         ));
         let mut out = String::new();
@@ -95,7 +95,7 @@ mod tests {
             Operand::LitArray([
                 Operand::LitStr("a"),
                 Operand::LitStr("b"),
-                Operand::LitStr("c")
+                Operand::LitStr("c"),
             ])
         ));
         let mut out = String::new();
@@ -110,7 +110,7 @@ mod tests {
                 lhs: Operand::LitArray([
                     Operand::LitInt(11),
                     Operand::LitInt(22),
-                    Operand::LitInt(33)
+                    Operand::LitInt(33),
                 ]),
                 rhs: Operand::LitInt(1)
             }
@@ -118,6 +118,71 @@ mod tests {
         let mut out = String::new();
         expr.sql_write(&WRITER, &mut out);
         assert_eq!(out, "[11, 22, 33][1]");
+
+        let expr = sql!("hello" == "hell_" as LIKE);
+        assert!(matches!(
+            expr,
+            BinaryOp {
+                op: BinaryOpType::Like,
+                lhs: Operand::LitStr("hello"),
+                rhs: Operand::LitStr("hell_"),
+            }
+        ));
+        let mut out = String::new();
+        expr.sql_write(&WRITER, &mut out);
+        assert_eq!(out, "'hello' LIKE 'hell_'");
+
+        let expr = sql!("abc" != "A%" as LIKE);
+        assert!(matches!(
+            expr,
+            BinaryOp {
+                op: BinaryOpType::NotLike,
+                lhs: Operand::LitStr("abc"),
+                rhs: Operand::LitStr("A%"),
+            }
+        ));
+        let mut out = String::new();
+        expr.sql_write(&WRITER, &mut out);
+        assert_eq!(out, "'abc' NOT LIKE 'A%'");
+
+        let expr = sql!("log.txt" != "src/**/log.{txt,csv}" as GLOB);
+        assert!(matches!(
+            expr,
+            BinaryOp {
+                op: BinaryOpType::NotGlob,
+                lhs: Operand::LitStr("log.txt"),
+                rhs: Operand::LitStr("src/**/log.{txt,csv}"),
+            }
+        ));
+        let mut out = String::new();
+        expr.sql_write(&WRITER, &mut out);
+        assert_eq!(out, "'log.txt' NOT GLOB 'src/**/log.{txt,csv}'");
+
+        let expr = sql!(true as i32);
+        assert!(matches!(
+            expr,
+            BinaryOp {
+                op: BinaryOpType::Cast,
+                lhs: Operand::LitBool(true),
+                rhs: Operand::Type(Value::Int32(..)),
+            }
+        ));
+        let mut out = String::new();
+        expr.sql_write(&WRITER, &mut out);
+        assert_eq!(out, "CAST(true AS INTEGER)");
+
+        let expr = sql!("value" != None);
+        assert!(matches!(
+            expr,
+            BinaryOp {
+                op: BinaryOpType::IsNot,
+                lhs: Operand::LitStr("value"),
+                rhs: Operand::Null,
+            }
+        ));
+        let mut out = String::new();
+        expr.sql_write(&WRITER, &mut out);
+        assert_eq!(out, "'value' IS NOT NULL");
     }
 
     #[test]
@@ -142,7 +207,7 @@ mod tests {
                 rhs: BinaryOp {
                     op: BinaryOpType::Division,
                     lhs: Operand::LitInt(7),
-                    rhs: Operand::LitInt(2)
+                    rhs: Operand::LitInt(2),
                 }
             }
         ));
@@ -208,7 +273,7 @@ mod tests {
                                 rhs: BinaryOp {
                                     op: BinaryOpType::Addition,
                                     lhs: Operand::LitInt(2),
-                                    rhs: Operand::LitInt(1)
+                                    rhs: Operand::LitInt(1),
                                 }
                             }
                         }
@@ -220,7 +285,7 @@ mod tests {
                     v: BinaryOp {
                         op: BinaryOpType::Less,
                         lhs: Operand::LitInt(4),
-                        rhs: Operand::LitInt(2)
+                        rhs: Operand::LitInt(2),
                     }
                 }
             }
