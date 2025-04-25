@@ -4,7 +4,7 @@ pub trait OpPrecedence {
     fn precedence<W: SqlWriter + ?Sized>(&self, writer: &W) -> i32;
 }
 
-pub trait Expression: OpPrecedence {
+pub trait Expression: OpPrecedence + Send {
     fn sql_write<'a, W: SqlWriter + ?Sized>(
         &self,
         writer: &W,

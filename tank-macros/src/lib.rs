@@ -63,12 +63,20 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
             type Column = #column_enum_name;
             type PrimaryKey = (#primary_key_tuple);
 
+            fn table_name() -> &'static str {
+                #table_name
+            }
+
             fn schema_name() -> &'static str {
                 #schema_name
             }
 
-            fn table_name() -> &'static str {
-                #table_name
+            fn table_ref() -> &'static ::tank::TableRef {
+                static TABLE_REF: ::tank::TableRef = ::tank::TableRef {
+                    name: ::std::borrow::Cow::Borrowed(#table_name),
+                    schema: ::std::borrow::Cow::Borrowed(#schema_name),
+                };
+                &TABLE_REF
             }
 
             fn columns() -> &'static [::tank::ColumnDef] {
@@ -109,9 +117,16 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                 executor.execute(::tank::Query::Raw(query.into())).await.map(|_| {()})
             }
 
-            async fn find_by_pk<E: ::tank::Executor>(
+            async fn find_by_key<E: ::tank::Executor>(
                 executor: &mut E,
                 primary_key: &Self::PrimaryKey,
+            ) -> ::tank::Result<Self> {
+                todo!()
+            }
+
+            async fn find_by_condition<E: ::tank::Executor, Expr: ::tank::Expression>(
+                executor: &mut E,
+                condition: Expr,
             ) -> ::tank::Result<Self> {
                 todo!()
             }
@@ -122,7 +137,7 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro]
-pub fn sql(input: TokenStream) -> TokenStream {
+pub fn expr(input: TokenStream) -> TokenStream {
     let input: Expr = parse_macro_input!(input as Expr);
     let parsed = decode_expression(&input);
     quote!(#parsed).into()

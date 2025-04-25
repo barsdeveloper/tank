@@ -23,17 +23,17 @@ pub struct ColumnDef {
 
 impl ColumnDef {
     pub fn full_name(&self) -> String {
-        let mut s = String::new();
+        let mut result = String::new();
         if !self.schema_name.is_empty() {
-            s.push_str(&self.schema_name);
-            s.push('.');
+            result.push_str(&self.schema_name);
+            result.push('.');
         }
         if !self.table_name.is_empty() {
-            s.push_str(&self.table_name);
-            s.push('.');
+            result.push_str(&self.table_name);
+            result.push('.');
         }
-        s.push_str(&self.name);
-        s
+        result.push_str(&self.name);
+        result
     }
 }
 

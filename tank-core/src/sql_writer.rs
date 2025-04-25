@@ -1,5 +1,6 @@
 use crate::{
-    BinaryOp, BinaryOpType, ColumnDef, Entity, Expression, Operand, UnaryOp, UnaryOpType, Value,
+    BinaryOp, BinaryOpType, ColumnDef, Entity, Expression, Operand, TableRef, UnaryOp, UnaryOpType,
+    Value,
 };
 use std::fmt::Write;
 
@@ -62,6 +63,11 @@ pub trait SqlWriter {
             }
             _ => panic!("Unexpected tank::Value, cannot get the sql type"),
         };
+        out
+    }
+
+    fn sql_table_reference<'a>(&self, out: &'a mut String, value: &TableRef) -> &'a mut String {
+        out.push_str(&value.full_name());
         out
     }
 
@@ -261,15 +267,29 @@ pub trait SqlWriter {
         query.push_str(E::table_name());
     }
 
-    fn sql_select<'a, E: Entity>(
+    fn sql_select<'a, E: Entity, Expr: Expression>(
         &self,
         out: &'a mut String,
-        _condition: &[Value],
-        _limit: u32,
+        entity: E,
+        condition: Expr,
+        limit: Option<u32>,
     ) -> &'a mut String {
-        out.push_str("SELECT * FROM ");
-        out.push_str(E::table_name());
-        out.push_str(" WHERE ");
+        out.push_str("SELECT ");
+        E::columns().iter().fold(false, |comma, col| {
+            if comma {
+                out.push_str(", ");
+            }
+            self.sql_column_reference(out, col);
+            true
+        });
+        out.push_str("\nFROM ");
+        self.sql_table_reference(out, E::table_ref());
+        out.push_str("\nWHERE ");
+        condition.sql_write(self, out);
+        if let Some(limit) = limit {
+            let _ = write!(out, "\nLIMIT {}", limit);
+        }
+        out.push(';');
         out
     }
 }
