@@ -11,7 +11,6 @@ mod tests {
         _a: u32,
         _b: String,
     }
-
     #[derive(Entity)]
     struct Bravo {
         _first: u32,
@@ -210,8 +209,11 @@ mod tests {
             _string_column: Option<String>,
         }
 
-        let join = join!(Bravo OUTER JOIN (Delta LEFT JOIN Alpha ON DeltaColumn::the_string < AlphaColumn::b) ON BravoColumn::second == DeltaColumn::the_string);
-
+        let join = join!(
+            Bravo OUTER JOIN (
+                Delta LEFT JOIN Alpha ON DeltaColumn::the_string < AlphaColumn::b
+            ) ON BravoColumn::second == DeltaColumn::the_string
+        );
         assert!(matches!(
             join,
             Join {

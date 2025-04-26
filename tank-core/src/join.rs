@@ -22,29 +22,29 @@ impl<L: DataSet, R: DataSet, E: Expression> DataSet for Join<L, R, E> {}
 
 #[macro_export]
 macro_rules! join {
-    ($lhs:tt INNER JOIN $rhs:tt ON $($cond:tt)+) => {
-        $crate::join!(@make ::tank::JoinType::Inner, $lhs, $rhs, $($cond)+)
+    ($lhs:tt INNER JOIN $rhs:tt ON $cond:expr) => {
+        $crate::join!(@make ::tank::JoinType::Inner, $lhs, $rhs, $cond)
     };
-    ($lhs:tt JOIN $rhs:tt ON $($cond:tt)+) => {
-        $crate::join!(@make ::tank::JoinType::Inner, $lhs, $rhs, $($cond)+)
+    ($lhs:tt JOIN $rhs:tt ON $cond:expr) => {
+        $crate::join!(@make ::tank::JoinType::Inner, $lhs, $rhs, $cond)
     };
-    ($lhs:tt FULL OUTER JOIN $rhs:tt ON $($cond:tt)+) => {
-        $crate::join!(@make ::tank::JoinType::Outer, $lhs, $rhs, $($cond)+)
+    ($lhs:tt FULL OUTER JOIN $rhs:tt ON $cond:expr) => {
+        $crate::join!(@make ::tank::JoinType::Outer, $lhs, $rhs, $cond)
     };
-    ($lhs:tt OUTER JOIN $rhs:tt ON $($cond:tt)+) => {
-        $crate::join!(@make ::tank::JoinType::Outer, $lhs, $rhs, $($cond)+)
+    ($lhs:tt OUTER JOIN $rhs:tt ON $cond:expr) => {
+        $crate::join!(@make ::tank::JoinType::Outer, $lhs, $rhs, $cond)
     };
-    ($lhs:tt LEFT OUTER JOIN $rhs:tt ON $($cond:tt)+) => {
-        $crate::join!(@make ::tank::JoinType::Left, $lhs, $rhs, $($cond)+)
+    ($lhs:tt LEFT OUTER JOIN $rhs:tt ON $cond:expr) => {
+        $crate::join!(@make ::tank::JoinType::Left, $lhs, $rhs, $cond)
     };
-    ($lhs:tt LEFT JOIN $rhs:tt ON $($cond:tt)+) => {
-        $crate::join!(@make ::tank::JoinType::Left, $lhs, $rhs, $($cond)+)
+    ($lhs:tt LEFT JOIN $rhs:tt ON $cond:expr) => {
+        $crate::join!(@make ::tank::JoinType::Left, $lhs, $rhs, $cond)
     };
-    ($lhs:tt RIGHT OUTER JOIN $rhs:tt ON $($cond:tt)+) => {
-        $crate::join!(@make ::tank::JoinType::Right, $lhs, $rhs, $($cond)+)
+    ($lhs:tt RIGHT OUTER JOIN $rhs:tt ON $cond:expr) => {
+        $crate::join!(@make ::tank::JoinType::Right, $lhs, $rhs, $cond)
     };
-    ($lhs:tt RIGHT JOIN $rhs:tt ON $($cond:tt)+) => {
-        $crate::join!(@make ::tank::JoinType::Right, $lhs, $rhs, $($cond)+)
+    ($lhs:tt RIGHT JOIN $rhs:tt ON $cond:expr) => {
+        $crate::join!(@make ::tank::JoinType::Right, $lhs, $rhs, $cond)
     };
     ($lhs:tt CROSS JOIN $rhs:tt) => {
         $crate::join!(@make ::tank::JoinType::Right, $lhs, $rhs)
@@ -56,12 +56,12 @@ macro_rules! join {
         $crate::join!(@make ::tank::JoinType::Natural, $lhs, $rhs)
     };
 
-    (@make $join_type:expr, $lhs:tt, $rhs:tt, $($cond:tt)+) => {
+    (@make $join_type:expr, $lhs:tt, $rhs:tt, $cond:expr) => {
         ::tank::Join {
             join: $join_type,
             lhs: $crate::join!(@table $lhs),
             rhs: $crate::join!(@table $rhs),
-            on: Some(::tank::expr!($($cond)+)),
+            on: Some(::tank::expr!($cond)),
         }
     };
     (@make $join_type:expr, $lhs:tt, $rhs:tt) => {
