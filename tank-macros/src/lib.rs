@@ -20,7 +20,15 @@ use table_primary_key::table_primary_key;
 
 #[proc_macro_derive(
     Entity,
-    attributes(schema_name, table_name, column_type, default, primary_key, unique)
+    attributes(
+        schema_name,
+        table_name,
+        column_name,
+        column_type,
+        default,
+        primary_key,
+        unique
+    )
 )]
 pub fn derive_entity(input: TokenStream) -> TokenStream {
     let item: ItemStruct = parse_macro_input!(input as ItemStruct);
@@ -28,8 +36,8 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
     let schema_name = schema_name(&item);
     let table_name = table_name(&item);
     let table_primary_key = table_primary_key(&item);
-    let iter = item.fields.iter();
-    let columns_defs = iter.clone().map(|f| {
+    let fields = item.fields.iter();
+    let columns_defs = fields.clone().map(|f| {
         let mut column_def = decode_field(&f, &item);
         if column_def.primary_key && !table_primary_key.is_empty() {
             panic!(
@@ -46,10 +54,14 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
     let primary_keys = columns_defs.clone().filter(|c| c.primary_key);
     let primary_key_tuple = primary_keys
         .clone()
-        .map(|k| {
-            iter.clone()
-                .find(|f| *f.ident.as_ref().unwrap() == *k.name())
-                .unwrap()
+        .map(|key| {
+            fields
+                .clone()
+                .find(|f| decode_field(f, &item).name() == key.name())
+                .expect(&format!(
+                    "Could not find the primary key \"{}\" among the fields",
+                    key.name()
+                ))
                 .ty
                 .to_token_stream()
         })

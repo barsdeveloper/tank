@@ -81,12 +81,12 @@ mod tests {
         #[table_name("a_table")]
         #[primary_key("bravo", "delta")]
         struct MyEntity {
-            alpha: Box<Box<Box<Box<Box<Box<Box<Box<Box<Box<Box<f64>>>>>>>>>>>,
-            bravo: i16,
-            charlie: Box<Box<Option<Option<Box<Box<Option<Box<rust_decimal::Decimal>>>>>>>>,
-            delta: Duration,
+            _alpha: Box<Box<Box<Box<Box<Box<Box<Box<Box<Box<Box<f64>>>>>>>>>>>,
+            _bravo: i16,
+            _charlie: Box<Box<Option<Option<Box<Box<Option<Box<rust_decimal::Decimal>>>>>>>>,
+            _delta: Duration,
             #[column_type("DECIMAL(8, 2)")]
-            echo: Option<Arc<rust_decimal::Decimal>>,
+            _echo: Option<Arc<rust_decimal::Decimal>>,
         }
         let columns = MyEntity::columns();
 
@@ -131,12 +131,12 @@ mod tests {
         #[derive(Entity)]
         #[table_name("customers")]
         struct Customer {
-            transaction_ids: Vec<u64>,
-            preferences: Option<Vec<String>>,
-            lifetime_value: Box<Option<Vec<rust_decimal::Decimal>>>,
-            signup_duration: std::time::Duration,
+            _transaction_ids: Vec<u64>,
+            _preferences: Option<Vec<String>>,
+            _lifetime_value: Box<Option<Vec<rust_decimal::Decimal>>>,
+            _signup_duration: std::time::Duration,
             #[column_type("DECIMAL(10, 4)[][]")]
-            recent_purchases: Option<Vec<Option<Box<Vec<rust_decimal::Decimal>>>>>,
+            _recent_purchases: Option<Vec<Option<Box<Vec<rust_decimal::Decimal>>>>>,
         }
 
         let columns = Customer::columns();

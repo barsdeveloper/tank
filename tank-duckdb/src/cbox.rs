@@ -35,7 +35,7 @@ impl<T: NullCheck> NullCheck for &T {
 
 impl<T: NullCheck> NullCheck for &mut T {
     fn is_null(&self) -> bool {
-        (*self as *const T).is_null()
+        false
     }
 }
 
@@ -105,21 +105,21 @@ mod tests {
 
     #[tokio::test]
     async fn cbox_raw_pointer() {
-        static mut destroyed: bool = false;
+        static mut DESTROYED: bool = false;
         let v = 123;
         let ptr: *const i32 = &v;
         unsafe {
             {
-                let ptr = CBox::new(ptr::null::<*const i32>(), |_| destroyed = true);
+                let ptr = CBox::new(ptr::null::<*const i32>(), |_| DESTROYED = true);
                 assert_eq!(*ptr, ptr::null());
             }
-            assert!(!destroyed);
+            assert!(!DESTROYED);
             {
-                let ptr = CBox::new(ptr, |_| destroyed = true);
+                let ptr = CBox::new(ptr, |_| DESTROYED = true);
                 assert_eq!(**ptr, 123);
-                assert!(!destroyed);
+                assert!(!DESTROYED);
             }
-            assert!(destroyed)
+            assert!(DESTROYED)
         }
     }
 }

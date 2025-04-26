@@ -278,7 +278,6 @@ pub trait SqlWriter {
     fn sql_select<'a, E: Entity, Expr: Expression>(
         &self,
         out: &'a mut String,
-        entity: E,
         condition: Expr,
         limit: Option<u32>,
     ) -> &'a mut String {

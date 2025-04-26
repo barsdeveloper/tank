@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::borrow::Cow;
 
 use syn::{Field, ItemStruct, LitStr, Type};
 use tank_core::{decode_type, ColumnDef, ColumnRef, Value};
@@ -13,7 +13,12 @@ pub fn decode_field(field: &Field, item: &ItemStruct) -> ColumnDef {
     };
     let mut result = ColumnDef {
         reference: ColumnRef {
-            name: field.ident.as_ref().unwrap().to_string().into(),
+            name: field
+                .ident
+                .as_ref()
+                .expect("Field is expected to have a name")
+                .to_string()
+                .into(),
             table: table_name(item).into(),
             schema: schema_name(item).into(),
         },
@@ -21,6 +26,17 @@ pub fn decode_field(field: &Field, item: &ItemStruct) -> ColumnDef {
         nullable,
         ..Default::default()
     };
+    if result.reference.name.starts_with('_') {
+        match result.reference.name {
+            Cow::Borrowed(v) => {
+                result.reference.name = Cow::Borrowed(&v[1..]);
+            }
+            Cow::Owned(ref mut v) => {
+                v.remove(0);
+            }
+        }
+    }
+
     for attr in &field.attrs {
         let meta = &attr.meta;
         if meta.path().is_ident("default_value") {
@@ -30,6 +46,13 @@ pub fn decode_field(field: &Field, item: &ItemStruct) -> ColumnDef {
                 );
             };
             result.default = Some(v.value());
+        } else if meta.path().is_ident("column_name") {
+            let Ok(v) = meta.require_list().and_then(|v| v.parse_args::<LitStr>()) else {
+                panic!(
+                    "Error while parsing `column_name`, use it like #[column_name(\"my_column\")]"
+                );
+            };
+            result.reference.name = v.value().into();
         } else if meta.path().is_ident("column_type") {
             let Ok(v) = meta.require_list().and_then(|v| v.parse_args::<LitStr>()) else {
                 panic!(
@@ -38,13 +61,13 @@ pub fn decode_field(field: &Field, item: &ItemStruct) -> ColumnDef {
             };
             result.column_type = v.value();
         } else if meta.path().is_ident("primary_key") {
-            let Ok(v) = meta.require_path_only() else {
-                panic!("Error while parsing `primary_key`, use it like #[primary_key]");
+            let Ok(..) = meta.require_path_only() else {
+                panic!("Error while parsing `primary_key`, use it like #[primary_key] on a field");
             };
             result.primary_key = true;
         } else if meta.path().is_ident("unique") {
-            let Ok(v) = meta.require_path_only() else {
-                panic!("Error while parsing `unique`, use it like #[unique]");
+            let Ok(..) = meta.require_path_only() else {
+                panic!("Error while parsing `unique`, use it like #[unique] on a field");
             };
             result.unique = true;
         }

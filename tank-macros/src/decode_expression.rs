@@ -109,14 +109,6 @@ pub fn decode_expression(condition: &Expr) -> TokenStream {
         Expr::Cast(v) => {
             let lhs = decode_expression(&v.expr);
             let rhs = match v.ty.as_ref() {
-                Type::Array(type_array) => todo!(),
-                Type::BareFn(type_bare_fn) => todo!(),
-                Type::Group(type_group) => todo!(),
-                Type::ImplTrait(type_impl_trait) => todo!(),
-                Type::Infer(type_infer) => todo!(),
-                Type::Macro(type_macro) => todo!(),
-                Type::Never(type_never) => todo!(),
-                Type::Paren(type_paren) => todo!(),
                 Type::Path(TypePath { path, .. }) => 'r: {
                     if path.segments.len() == 1 {
                         let v = &path.segments.first().unwrap().ident;
@@ -126,13 +118,7 @@ pub fn decode_expression(condition: &Expr) -> TokenStream {
                     }
                     decode_type(path).0.into_token_stream()
                 }
-                Type::Ptr(type_ptr) => todo!(),
-                Type::Reference(type_reference) => todo!(),
-                Type::Slice(type_slice) => todo!(),
-                Type::TraitObject(type_trait_object) => todo!(),
-                Type::Tuple(type_tuple) => todo!(),
-                Type::Verbatim(token_stream) => todo!(),
-                _ => todo!(),
+                _ => panic!("Unexpected cast type, cast can only be a type or the special keyworkds: `LIKE`, `REGEXP`, `GLOB`"),
             };
             quote! {
                 ::tank::BinaryOp {

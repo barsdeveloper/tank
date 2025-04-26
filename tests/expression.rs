@@ -300,9 +300,9 @@ mod tests {
         #[derive(Entity)]
         #[table_name("the_table")]
         struct MyEntity {
-            first: i128,
-            second: String,
-            third: Vec<f64>,
+            _first: i128,
+            _second: String,
+            _third: Vec<f64>,
         }
 
         let expr = expr!(MyEntityColumn::first + 2);
