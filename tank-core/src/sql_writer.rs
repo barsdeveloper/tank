@@ -1,6 +1,6 @@
 use crate::{
-    BinaryOp, BinaryOpType, ColumnDef, Entity, Expression, Operand, TableRef, UnaryOp, UnaryOpType,
-    Value,
+    BinaryOp, BinaryOpType, ColumnDef, ColumnRef, Entity, Expression, Operand, TableRef, UnaryOp,
+    UnaryOpType, Value,
 };
 use std::fmt::Write;
 
@@ -66,13 +66,21 @@ pub trait SqlWriter {
         out
     }
 
-    fn sql_table_reference<'a>(&self, out: &'a mut String, value: &TableRef) -> &'a mut String {
+    fn sql_table_ref<'a>(&self, out: &'a mut String, value: &TableRef) -> &'a mut String {
         out.push_str(&value.full_name());
         out
     }
 
-    fn sql_column_reference<'a>(&self, out: &'a mut String, value: &ColumnDef) -> &'a mut String {
-        out.push_str(&value.full_name());
+    fn sql_column_ref<'a>(&self, out: &'a mut String, value: &ColumnRef) -> &'a mut String {
+        if !value.schema.is_empty() {
+            out.push_str(&value.schema);
+            out.push('.');
+        }
+        if !value.table.is_empty() {
+            out.push_str(&value.table);
+            out.push('.');
+        }
+        out.push_str(&value.name);
         out
     }
 
@@ -139,7 +147,7 @@ pub trait SqlWriter {
                 Ok(())
             }
             Operand::Column(v) => {
-                self.sql_column_reference(out, v);
+                self.sql_column_ref(out, v);
                 Ok(())
             }
             Operand::Type(v) => {
@@ -246,7 +254,7 @@ pub trait SqlWriter {
         out: &'a mut String,
         column: &ColumnDef,
     ) -> &'a mut String {
-        out.push_str(&column.name);
+        out.push_str(&column.name());
         out.push(' ');
         if !column.column_type.is_empty() {
             out.push_str(&column.column_type);
@@ -279,11 +287,11 @@ pub trait SqlWriter {
             if comma {
                 out.push_str(", ");
             }
-            self.sql_column_reference(out, col);
+            self.sql_column_ref(out, col.into());
             true
         });
         out.push_str("\nFROM ");
-        self.sql_table_reference(out, E::table_ref());
+        self.sql_table_ref(out, E::table_ref());
         out.push_str("\nWHERE ");
         condition.sql_write(self, out);
         if let Some(limit) = limit {

@@ -23,11 +23,11 @@ mod tests {
         assert_eq!(SomeEntity::table_name(), "some_entity");
         assert_eq!(SomeEntity::primary_key().len(), 0);
 
-        assert_eq!(columns[0].name, "a");
+        assert_eq!(columns[0].name(), "a");
         assert!(matches!(columns[0].value, Value::Int8(None, ..)));
         assert!(columns[0].nullable == false);
 
-        assert_eq!(columns[1].name, "b");
+        assert_eq!(columns[1].name(), "b");
         assert!(matches!(columns[1].value, Value::Varchar(None, ..)));
         assert!(columns[1].nullable == false);
 
@@ -54,17 +54,17 @@ mod tests {
 
         assert_eq!(SomeEntity::table_name(), "custom_table_name");
         assert_eq!(SomeEntity::primary_key().len(), 1);
-        assert_eq!(SomeEntity::primary_key()[0].name, "first");
+        assert_eq!(SomeEntity::primary_key()[0].name(), "first");
 
-        assert_eq!(columns[0].name, "first");
+        assert_eq!(columns[0].name(), "first");
         assert!(matches!(columns[0].value, Value::UInt128(None, ..)));
         assert!(columns[0].nullable == false);
 
-        assert_eq!(columns[1].name, "second");
+        assert_eq!(columns[1].name(), "second");
         assert!(matches!(columns[1].value, Value::Time(None, ..)));
         assert!(columns[1].nullable == true);
 
-        assert_eq!(columns[2].name, "third");
+        assert_eq!(columns[2].name(), "third");
         assert!(matches!(columns[2].value, Value::Date(None, ..)));
         assert!(columns[2].nullable == true);
 
@@ -94,28 +94,28 @@ mod tests {
         assert_eq!(
             MyEntity::primary_key()
                 .iter()
-                .map(|k| k.name.clone())
+                .map(|k| k.name().clone())
                 .collect::<Vec<_>>(),
             ["bravo", "delta"]
         );
 
-        assert_eq!(columns[0].name, "alpha");
+        assert_eq!(columns[0].name(), "alpha");
         assert!(matches!(columns[0].value, Value::Float64(None, ..)));
         assert!(columns[0].nullable == false);
 
-        assert_eq!(columns[1].name, "bravo");
+        assert_eq!(columns[1].name(), "bravo");
         assert!(matches!(columns[1].value, Value::Int16(None, ..)));
         assert!(columns[1].nullable == false);
 
-        assert_eq!(columns[2].name, "charlie");
+        assert_eq!(columns[2].name(), "charlie");
         assert!(matches!(columns[2].value, Value::Decimal(None, ..)));
         assert!(columns[2].nullable == true);
 
-        assert_eq!(columns[3].name, "delta");
+        assert_eq!(columns[3].name(), "delta");
         assert!(matches!(columns[3].value, Value::Interval(None, ..)));
         assert!(columns[3].nullable == false);
 
-        assert_eq!(columns[4].name, "echo");
+        assert_eq!(columns[4].name(), "echo");
         assert!(matches!(columns[4].value, Value::Decimal(None, ..)));
         assert!(columns[4].nullable == true);
 
@@ -144,7 +144,7 @@ mod tests {
         assert_eq!(Customer::table_name(), "customers");
         assert_eq!(Customer::primary_key().len(), 0);
 
-        assert_eq!(columns[0].name, "transaction_ids");
+        assert_eq!(columns[0].name(), "transaction_ids");
         assert!(match &columns[0].value {
             Value::List(None, v, ..) => match v.as_ref() {
                 Value::UInt64(None, ..) => true,
@@ -154,7 +154,7 @@ mod tests {
         });
         assert!(!columns[0].nullable);
 
-        assert_eq!(columns[1].name, "preferences");
+        assert_eq!(columns[1].name(), "preferences");
         assert!(match &columns[1].value {
             Value::List(None, v, ..) => match v.as_ref() {
                 Value::Varchar(None, ..) => true,
@@ -164,7 +164,7 @@ mod tests {
         });
         assert!(columns[1].nullable);
 
-        assert_eq!(columns[2].name, "lifetime_value");
+        assert_eq!(columns[2].name(), "lifetime_value");
         assert!(match &columns[2].value {
             Value::List(None, v, ..) => match v.as_ref() {
                 Value::Decimal(None, ..) => true,
@@ -174,11 +174,11 @@ mod tests {
         });
         assert!(columns[2].nullable);
 
-        assert_eq!(columns[3].name, "signup_duration");
+        assert_eq!(columns[3].name(), "signup_duration");
         assert!(matches!(columns[3].value, Value::Interval(None)));
         assert!(!columns[3].nullable);
 
-        assert_eq!(columns[4].name, "recent_purchases");
+        assert_eq!(columns[4].name(), "recent_purchases");
         assert!(match &columns[4].value {
             Value::List(None, v) => match v.as_ref() {
                 Value::List(None, v) => match v.as_ref() {

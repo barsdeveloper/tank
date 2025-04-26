@@ -1,5 +1,4 @@
 mod column;
-mod column_def;
 mod connection;
 mod data_set;
 mod driver;
@@ -14,7 +13,6 @@ mod table_ref;
 mod value;
 
 pub use column::*;
-pub use column_def::*;
 pub use connection::*;
 pub use data_set::*;
 pub use driver::*;

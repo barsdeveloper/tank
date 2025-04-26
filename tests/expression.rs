@@ -318,8 +318,8 @@ mod tests {
             panic!("Unexpected error")
         };
         assert_eq!(col.name, "first");
-        assert_eq!(col.table_name, "the_table");
-        assert_eq!(col.schema_name, "");
+        assert_eq!(col.table, "the_table");
+        assert_eq!(col.schema, "");
         let mut out = String::new();
         expr.sql_write(&WRITER, &mut out);
         assert_eq!(out, "the_table.first + 2");

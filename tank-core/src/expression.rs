@@ -1,4 +1,4 @@
-use crate::{ColumnDef, SqlWriter, Value};
+use crate::{ColumnRef, SqlWriter, Value};
 
 pub trait OpPrecedence {
     fn precedence<W: SqlWriter + ?Sized>(&self, writer: &W) -> i32;
@@ -22,7 +22,7 @@ pub enum Operand {
     LitStr(&'static str),
     LitArray(&'static [Operand]),
     Null,
-    Column(ColumnDef),
+    Column(ColumnRef),
     Type(Value),
 }
 impl OpPrecedence for Operand {
@@ -48,7 +48,7 @@ impl PartialEq for Operand {
             (Self::LitInt(l), Self::LitInt(r)) => l == r,
             (Self::LitStr(l), Self::LitStr(r)) => l == r,
             (Self::LitArray(l), Self::LitArray(r)) => l == r,
-            (Self::Column(l), Self::Column(r)) => l.name == r.name && l.value.same_type(&r.value),
+            (Self::Column(l), Self::Column(r)) => l == r,
             (Self::Type(l), Self::Type(r)) => l.same_type(r),
             _ => false,
         }

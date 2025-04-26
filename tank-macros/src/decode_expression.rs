@@ -1,8 +1,8 @@
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn::{
-    punctuated::Punctuated, spanned::Spanned, token::Comma, BinOp, Expr, ExprLit, ExprPath,
-    ExprRange, LitStr, Path, Type, TypePath,
+    punctuated::Punctuated, spanned::Spanned, token::Comma, BinOp, Expr, ExprLit, ExprPath, LitStr,
+    Path, Type, TypePath,
 };
 use tank_core::decode_type;
 
@@ -181,7 +181,7 @@ pub fn decode_expression(condition: &Expr) -> TokenStream {
                 .nth(1)
                 .map_or(false, |v| v.ident.to_string().ends_with("Column"))
             {
-                quote! { ::tank::Operand::Column(::tank::ColumnTrait::def(&#path)) }
+                quote! { ::tank::Operand::Column(::tank::ColumnTrait::column_ref(&#path)) }
             } else if path.segments.iter().map(|v| &v.ident).eq(["None"].iter()) {
                 quote! { ::tank::Operand::Null }
             } else {

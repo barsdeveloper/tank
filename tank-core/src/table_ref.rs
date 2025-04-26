@@ -1,6 +1,8 @@
 use quote::{quote, ToTokens, TokenStreamExt};
 use std::borrow::Cow;
 
+use crate::DataSet;
+
 pub struct TableRef {
     pub name: Cow<'static, str>,
     pub schema: Cow<'static, str>,
@@ -36,3 +38,6 @@ impl ToTokens for TableRef {
         });
     }
 }
+
+impl DataSet for TableRef {}
+impl<T: DataSet> DataSet for &T {}

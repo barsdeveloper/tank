@@ -34,10 +34,10 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
         if column_def.primary_key && !table_primary_key.is_empty() {
             panic!(
                 "Column {} cannot be declared a primary key while the table also specifies one",
-                column_def.name
+                column_def.name()
             )
         }
-        if table_primary_key.contains(&column_def.name.to_string()) {
+        if table_primary_key.contains(&column_def.name().to_string()) {
             column_def.primary_key = true;
         }
         column_def
@@ -48,7 +48,7 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
         .clone()
         .map(|k| {
             iter.clone()
-                .find(|f| *f.ident.as_ref().unwrap() == *k.name)
+                .find(|f| *f.ident.as_ref().unwrap() == *k.name())
                 .unwrap()
                 .ty
                 .to_token_stream()

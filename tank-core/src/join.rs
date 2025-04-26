@@ -22,15 +22,23 @@ impl<L: DataSet, R: DataSet, E: Expression> DataSet for Join<L, R, E> {}
 
 #[macro_export]
 macro_rules! join {
-    ($lhs:ident JOIN $rhs:ident ON $($on:tt)*) => {
-        $crate::join!(@make ::tank::JoinType::Inner, $lhs, $rhs, $($on)*)
+    ($lhs:tt JOIN $rhs:tt ON $($cond:tt)+) => {
+        $crate::join!(@make ::tank::JoinType::Inner, $lhs, $rhs, $($cond)+)
     };
-    (@make $join_type:expr, $lhs:ident, $rhs:ident, $($on:tt)*) => {
+
+    (@make $join_type:expr, $lhs:tt, $rhs:tt, $($cond:tt)+) => {
         ::tank::Join {
             join: $join_type,
-            lhs: $lhs,
-            rhs: $rhs,
-            on: $($on)*,
+            lhs: $crate::join!(@table $lhs),
+            rhs: $crate::join!(@table $rhs),
+            on: Some(::tank::expr!($($cond)+)),
         }
+    };
+
+    (@table $table:ident) => {
+        $table::table_ref()
+    };
+    (@table $table:path) => {
+        $table::table_ref()
     };
 }

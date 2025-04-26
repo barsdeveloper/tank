@@ -21,11 +21,14 @@ pub(crate) fn column_enum(item: &ItemStruct) -> TokenStream {
             #columns_enum
         }
         impl ::tank::ColumnTrait for #name {
-            fn def(&self) -> ::tank::ColumnDef {
+            fn column_def(&self) -> ::tank::ColumnDef {
                 match &self {
                     #(#match_variants,)*
                     _ => panic!("Unexpected column type"),
                 }
+            }
+            fn column_ref(&self) -> ::tank::ColumnRef {
+                self.column_def().into()
             }
         }
     }

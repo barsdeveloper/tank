@@ -1,5 +1,7 @@
+use std::sync::Arc;
+
 use syn::{Field, ItemStruct, LitStr, Type};
-use tank_core::{decode_type, ColumnDef, Value};
+use tank_core::{decode_type, ColumnDef, ColumnRef, Value};
 
 use crate::{schema_name, table_name};
 
@@ -10,9 +12,11 @@ pub fn decode_field(field: &Field, item: &ItemStruct) -> ColumnDef {
         (Value::Varchar(None), true)
     };
     let mut result = ColumnDef {
-        name: field.ident.as_ref().unwrap().to_string().into(),
-        table_name: table_name(item).into(),
-        schema_name: schema_name(item).into(),
+        reference: ColumnRef {
+            name: field.ident.as_ref().unwrap().to_string().into(),
+            table: table_name(item).into(),
+            schema: schema_name(item).into(),
+        },
         value,
         nullable,
         ..Default::default()
