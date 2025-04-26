@@ -20,7 +20,7 @@ use table_primary_key::table_primary_key;
 
 #[proc_macro_derive(
     Entity,
-    attributes(table_name, column_type, default, primary_key, unique)
+    attributes(schema_name, table_name, column_type, default, primary_key, unique)
 )]
 pub fn derive_entity(input: TokenStream) -> TokenStream {
     let item: ItemStruct = parse_macro_input!(input as ItemStruct);
