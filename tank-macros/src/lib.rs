@@ -1,6 +1,7 @@
 mod column_enum;
 mod decode_expression;
 mod decode_fields;
+mod decode_join;
 mod schema_name;
 mod table_name;
 mod table_primary_key;
@@ -8,6 +9,7 @@ mod table_primary_key;
 use column_enum::column_enum;
 use decode_expression::decode_expression;
 use decode_fields::decode_field;
+use decode_join::JoinParsed;
 use proc_macro::TokenStream;
 use proc_macro2::Ident as Ident2;
 use quote::{quote, ToTokens};
@@ -133,14 +135,14 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                 executor: &mut E,
                 primary_key: &Self::PrimaryKey,
             ) -> ::tank::Result<Self> {
-                todo!()
+                todo!("find_by_key")
             }
 
             async fn find_by_condition<E: ::tank::Executor, Expr: ::tank::Expression>(
                 executor: &mut E,
                 condition: Expr,
             ) -> ::tank::Result<Self> {
-                todo!()
+                todo!("find_by_condition")
             }
         }
 
@@ -153,4 +155,10 @@ pub fn expr(input: TokenStream) -> TokenStream {
     let input: Expr = parse_macro_input!(input as Expr);
     let parsed = decode_expression(&input);
     quote!(#parsed).into()
+}
+
+#[proc_macro]
+pub fn join(input: TokenStream) -> TokenStream {
+    let result = parse_macro_input!(input as JoinParsed);
+    result.0.into()
 }

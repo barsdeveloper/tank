@@ -1,9 +1,9 @@
 #[cfg(test)]
 mod tests {
     use std::borrow::Cow;
-
-    use tank::{BinaryOp, BinaryOpType, ColumnRef, Entity, Join, JoinType, Operand, TableRef};
-    use tank_core::join;
+    use tank::{
+        join, BinaryOp, BinaryOpType, ColumnRef, Entity, Join, JoinType, Operand, TableRef,
+    };
 
     #[derive(Entity)]
     #[schema_name("my_data")]
@@ -19,7 +19,7 @@ mod tests {
 
     #[test]
     fn join_simple() {
-        let join = join!(Alpha JOIN Bravo ON AlphaColumn::a == BravoColumn::first);
+        let join = join!(Alpha JOIN crate::tests::Bravo ON AlphaColumn::a == BravoColumn::first);
         assert!(matches!(
             join,
             Join {
@@ -270,5 +270,14 @@ mod tests {
                 ..
             }
         ));
+    }
+
+    #[test]
+    fn join_chained() {
+        #[derive(Entity)]
+        struct Some {
+            col: Box<i64>,
+        }
+        let join = join!(Alpha FULL OUTER JOIN Bravo ON AlphaColumn::b < BravoColumn::second RIGHT JOIN Some ON SomeColumn::col == BravoColumn::first);
     }
 }

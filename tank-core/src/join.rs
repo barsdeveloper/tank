@@ -1,6 +1,20 @@
 use crate::{DataSet, Expression};
+use proc_macro2::{TokenStream, TokenTree};
+use quote::{quote, ToTokens, TokenStreamExt};
+use std::fmt::{self, Display, Formatter};
+use syn::{
+    parse::{Parse, ParseStream},
+    Ident,
+};
 
-#[derive(Default)]
+pub struct Join<L: DataSet, R: DataSet, E: Expression> {
+    pub join: JoinType,
+    pub lhs: L,
+    pub rhs: R,
+    pub on: Option<E>,
+}
+
+#[derive(Default, Clone, Copy)]
 pub enum JoinType {
     #[default]
     Inner,
@@ -11,75 +25,74 @@ pub enum JoinType {
     Natural,
 }
 
-pub struct Join<L: DataSet, R: DataSet, E: Expression> {
-    pub join: JoinType,
-    pub lhs: L,
-    pub rhs: R,
-    pub on: Option<E>,
+impl JoinType {
+    pub fn has_on_clause(&self) -> bool {
+        match self {
+            JoinType::Inner | JoinType::Outer | JoinType::Left | JoinType::Right => true,
+            JoinType::Cross | JoinType::Natural => false,
+        }
+    }
 }
 
 impl<L: DataSet, R: DataSet, E: Expression> DataSet for Join<L, R, E> {}
 
-#[macro_export]
-macro_rules! join {
-    ($lhs:tt INNER JOIN $rhs:tt ON $cond:expr) => {
-        $crate::join!(@make ::tank::JoinType::Inner, $lhs, $rhs, $cond)
-    };
-    ($lhs:tt JOIN $rhs:tt ON $cond:expr) => {
-        $crate::join!(@make ::tank::JoinType::Inner, $lhs, $rhs, $cond)
-    };
-    ($lhs:tt FULL OUTER JOIN $rhs:tt ON $cond:expr) => {
-        $crate::join!(@make ::tank::JoinType::Outer, $lhs, $rhs, $cond)
-    };
-    ($lhs:tt OUTER JOIN $rhs:tt ON $cond:expr) => {
-        $crate::join!(@make ::tank::JoinType::Outer, $lhs, $rhs, $cond)
-    };
-    ($lhs:tt LEFT OUTER JOIN $rhs:tt ON $cond:expr) => {
-        $crate::join!(@make ::tank::JoinType::Left, $lhs, $rhs, $cond)
-    };
-    ($lhs:tt LEFT JOIN $rhs:tt ON $cond:expr) => {
-        $crate::join!(@make ::tank::JoinType::Left, $lhs, $rhs, $cond)
-    };
-    ($lhs:tt RIGHT OUTER JOIN $rhs:tt ON $cond:expr) => {
-        $crate::join!(@make ::tank::JoinType::Right, $lhs, $rhs, $cond)
-    };
-    ($lhs:tt RIGHT JOIN $rhs:tt ON $cond:expr) => {
-        $crate::join!(@make ::tank::JoinType::Right, $lhs, $rhs, $cond)
-    };
-    ($lhs:tt CROSS JOIN $rhs:tt) => {
-        $crate::join!(@make ::tank::JoinType::Right, $lhs, $rhs)
-    };
-    ($lhs:tt CROSS $rhs:tt) => {
-        $crate::join!(@make ::tank::JoinType::Cross, $lhs, $rhs)
-    };
-    ($lhs:tt NATURAL JOIN $rhs:tt) => {
-        $crate::join!(@make ::tank::JoinType::Natural, $lhs, $rhs)
-    };
+impl Display for JoinType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        Ok(f.write_str(match self {
+            JoinType::Inner => "INNER JOIN",
+            JoinType::Outer => "OUTER JOIN",
+            JoinType::Left => "LEFT JOIN",
+            JoinType::Right => "RIGHT JOIN",
+            JoinType::Cross => "CROSS",
+            JoinType::Natural => "NATURAL JOIN",
+        })?)
+    }
+}
 
-    (@make $join_type:expr, $lhs:tt, $rhs:tt, $cond:expr) => {
-        ::tank::Join {
-            join: $join_type,
-            lhs: $crate::join!(@table $lhs),
-            rhs: $crate::join!(@table $rhs),
-            on: Some(::tank::expr!($cond)),
+impl Parse for JoinType {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let tokens = input.cursor().token_stream().into_iter().map(|t| match t {
+            TokenTree::Ident(ident) => ident.to_string(),
+            _ => "".to_string(),
+        });
+        let patterns: &[(&[&str], JoinType)] = &[
+            (&["INNER", "JOIN"], JoinType::Inner),
+            (&["JOIN"], JoinType::Inner),
+            (&["FULL", "OUTER", "JOIN"], JoinType::Outer),
+            (&["OUTER", "JOIN"], JoinType::Outer),
+            (&["LEFT", "OUTER", "JOIN"], JoinType::Left),
+            (&["LEFT", "JOIN"], JoinType::Left),
+            (&["RIGHT", "OUTER", "JOIN"], JoinType::Right),
+            (&["RIGHT", "JOIN"], JoinType::Right),
+            (&["CROSS", "JOIN"], JoinType::Cross),
+            (&["CROSS"], JoinType::Cross),
+            (&["NATURAL", "JOIN"], JoinType::Natural),
+        ];
+        for (keywords, join_type) in patterns {
+            let it = tokens.clone().take(keywords.len());
+            if it.eq(keywords.iter().copied()) {
+                for _ in 0..keywords.len() {
+                    input.parse::<Ident>().expect(&format!(
+                        "Unexpected error, the input should contain {:?} as next Ident tokens at this point",
+                        keywords
+                    ));
+                }
+                return Ok(*join_type);
+            }
         }
-    };
-    (@make $join_type:expr, $lhs:tt, $rhs:tt) => {
-        ::tank::Join::<_, _, ()> {
-            join: $join_type,
-            lhs: $crate::join!(@table $lhs),
-            rhs: $crate::join!(@table $rhs),
-            on: None,
-        }
-    };
+        Err(syn::Error::new(input.span(), "Not a join keyword"))
+    }
+}
 
-    (@table $table:ident) => {
-        $table::table_ref()
-    };
-    (@table $table:path) => {
-        $table::table_ref()
-    };
-    (@table ( $($nested:tt)+ )) => {
-        $crate::join!($($nested)+)
+impl ToTokens for JoinType {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        tokens.append_all(match self {
+            JoinType::Inner => quote! { JoinType::Inner },
+            JoinType::Outer => quote! { JoinType::Outer },
+            JoinType::Left => quote! { JoinType::Left },
+            JoinType::Right => quote! { JoinType::Right },
+            JoinType::Cross => quote! { JoinType::Cross },
+            JoinType::Natural => quote! { JoinType::Natural },
+        });
     }
 }

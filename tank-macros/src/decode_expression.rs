@@ -142,7 +142,7 @@ pub fn decode_expression(condition: &Expr) -> TokenStream {
                 }
             }
         }
-        Expr::Call(v) => todo!(),
+        Expr::Call(v) => todo!("Expr::Call"),
         Expr::Lit(ExprLit { lit: v, .. }) => {
             let v = match v {
                 syn::Lit::Str(v) => quote! { ::tank::Operand::LitStr(#v) },
@@ -157,7 +157,7 @@ pub fn decode_expression(condition: &Expr) -> TokenStream {
             };
             quote! { #v }
         }
-        Expr::MethodCall(expr_method_call) => todo!(),
+        Expr::MethodCall(expr_method_call) => todo!("Expr::MethodCall"),
         Expr::Paren(v) => decode_expression(&v.expr),
         Expr::Path(ExprPath { path, .. }) => {
             if path
