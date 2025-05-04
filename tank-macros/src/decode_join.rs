@@ -13,6 +13,77 @@ pub(crate) struct JoinParsed(pub(crate) TokenStream);
 struct JoinTypeParsed(pub(crate) TokenStream, JoinType);
 struct JoinMemberParsed(pub(crate) TokenStream);
 
+fn parse_join_rhs(original: ParseStream, join: JoinType, lhs: TokenStream) -> Result<TokenStream> {
+    let input = original.fork();
+    let (rhs, on, expr_type, chained_join) = if join.has_on_clause() {
+        let rhs = {
+            custom_keyword!(ON);
+            let mut accumulated = TokenStream::new();
+            loop {
+                if input.is_empty() {
+                    return Err(input.error("Expected ON clause"));
+                }
+                let attempt = input.fork();
+                if attempt.parse::<ON>().is_ok() {
+                    input.advance_to(&attempt);
+                    break parse2::<JoinMemberParsed>(accumulated)?;
+                }
+                accumulated.append(input.parse::<TokenTree>()?);
+            }
+        };
+        let (expr, chained_join) = {
+            let mut accumulated = TokenStream::new();
+            loop {
+                if input.is_empty() {
+                    break (parse2::<Expr>(accumulated)?, None);
+                }
+                let attempt = input.fork();
+                if let Ok(join) = attempt.parse::<JoinType>() {
+                    input.advance_to(&attempt);
+                    break (parse2::<Expr>(accumulated)?, Some(join));
+                }
+                accumulated.append(input.parse::<TokenTree>()?);
+            }
+        };
+        (
+            rhs,
+            quote! { Some(::tank::expr!(#expr)) },
+            quote! { _ },
+            chained_join,
+        )
+    } else {
+        let (rhs, chained_join) = {
+            let mut accumulated = TokenStream::new();
+            loop {
+                if input.is_empty() {
+                    break (parse2::<JoinMemberParsed>(accumulated)?, None);
+                }
+                let attempt = input.fork();
+                if let Ok(join) = attempt.parse::<JoinType>() {
+                    break (parse2::<JoinMemberParsed>(accumulated)?, Some(join));
+                }
+                accumulated.append(input.parse::<TokenTree>()?);
+            }
+        };
+        (rhs, quote! { None }, quote! { () }, chained_join)
+    };
+    let rhs = rhs.0;
+    let result = quote! {
+        ::tank::Join::<_, _, #expr_type> {
+            join: #join,
+            lhs: #lhs,
+            rhs: #rhs,
+            on: #on,
+        }
+    };
+    original.advance_to(&input);
+    if let Some(chained) = chained_join {
+        parse_join_rhs(original, chained, result)
+    } else {
+        Ok(result)
+    }
+}
+
 impl Parse for JoinParsed {
     fn parse(original: ParseStream) -> Result<Self> {
         let input = original.fork();
@@ -29,53 +100,26 @@ impl Parse for JoinParsed {
         }
 
         // Base case
-        let mut accumulated = TokenStream::new();
-        let join = loop {
-            if input.is_empty() {
-                return Err(input.error("Expected to find join keywords in the input"));
-            }
-            let attempt = input.fork();
-            if let Ok(join) = attempt.parse::<JoinType>() {
-                input.advance_to(&attempt);
-                break join;
-            }
-            accumulated.append(input.parse::<TokenTree>()?);
-        };
-        let lhs = parse2::<JoinMemberParsed>(accumulated)?;
-        let (rhs, on, expr_type) = if join.has_on_clause() {
-            custom_keyword!(ON);
+        let (join, lhs) = {
             let mut accumulated = TokenStream::new();
-            let rhs = loop {
+            let join: JoinType = loop {
                 if input.is_empty() {
-                    return Err(input.error("Expected ON clause"));
+                    return Err(input.error("Expected to find join keywords in the input"));
                 }
                 let attempt = input.fork();
-                if let Ok(..) = attempt.parse::<ON>() {
+                if let Ok(join) = attempt.parse::<JoinType>() {
                     input.advance_to(&attempt);
-                    break parse2::<JoinMemberParsed>(accumulated)?;
+                    break join;
                 }
                 accumulated.append(input.parse::<TokenTree>()?);
             };
-            let expr = input.parse::<Expr>()?;
-            (rhs, quote! { Some(::tank::expr!(#expr)) }, quote! { _ })
-        } else {
-            (
-                input.parse::<JoinMemberParsed>()?,
-                quote! { None },
-                quote! { () },
-            )
+            let lhs = parse2::<JoinMemberParsed>(accumulated)?;
+            (join, lhs)
         };
-        let lhs = lhs.0;
-        let rhs = rhs.0;
+
         original.advance_to(&input);
-        Ok(Self(quote! {
-            ::tank::Join::<_, _, #expr_type> {
-                join: #join,
-                lhs: #lhs,
-                rhs: #rhs,
-                on: #on,
-            }
-        }))
+        let parsed = parse_join_rhs(original, join, lhs.0)?;
+        Ok(Self(parsed))
     }
 }
 

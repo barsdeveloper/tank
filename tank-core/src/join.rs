@@ -14,7 +14,7 @@ pub struct Join<L: DataSet, R: DataSet, E: Expression> {
     pub on: Option<E>,
 }
 
-#[derive(Default, Clone, Copy)]
+#[derive(Default, Clone, Copy, Debug)]
 pub enum JoinType {
     #[default]
     Inner,
