@@ -19,19 +19,32 @@ struct JoinMemberParsed(pub(crate) TokenStream);
 macro_rules! accumulate_until {
     ($original:expr, $($parser:expr),+ $(,)?) => {{
         let input = $original.fork();
-        let mut result = (TokenStream::new(), None);
+        let mut result = (
+            TokenStream::new(),
+            ($({
+                $parser;
+                None
+            }),+),
+        );
         loop {
             if input.is_empty() {
                 break;
             }
-            $(
+            let mut parsed = false;
+            let produced = ($({
                 let attempt = input.fork();
-                if let Ok(parsed) = ($parser)(&attempt) {
+                if let Ok(content) = ($parser)(&attempt) {
                     input.advance_to(&attempt);
-                    result.1 = Some(parsed);
-                    break;
+                    parsed = true;
+                    Some(content)
+                } else {
+                    None
                 }
-            )+
+            }),+);
+            if parsed {
+                result.1 = produced;
+                break;
+            }
             result.0.append(input.parse::<TokenTree>()?);
         }
         $original.advance_to(&input);
@@ -43,10 +56,12 @@ fn parse_join_rhs(original: ParseStream, join: JoinType, lhs: TokenStream) -> Re
     let input = original.fork();
     let (rhs, on, expr_type, chained_join) = if join.has_on_clause() {
         custom_keyword!(ON);
-        let rhs = accumulate_until!(input, |p| ParseBuffer::parse::<ON>(p).map(|_| None), |p| {
-            ParseBuffer::parse::<JoinType>(p).map(|v| Some(v))
-        },);
-        let (rhs, chained_join) = (parse2::<JoinMemberParsed>(rhs.0)?, rhs.1.flatten());
+        let (rhs, (on, chained_join)) = accumulate_until!(
+            input,
+            ParseBuffer::parse::<ON>,
+            ParseBuffer::parse::<JoinType>,
+        );
+        let rhs = parse2::<JoinMemberParsed>(rhs)?;
         let (expr, chained_join) = {
             let mut accumulated = TokenStream::new();
             loop {
