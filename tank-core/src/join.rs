@@ -25,15 +25,6 @@ pub enum JoinType {
     Natural,
 }
 
-impl JoinType {
-    pub fn has_on_clause(&self) -> bool {
-        match self {
-            JoinType::Inner | JoinType::Outer | JoinType::Left | JoinType::Right => true,
-            JoinType::Cross | JoinType::Natural => false,
-        }
-    }
-}
-
 impl<L: DataSet, R: DataSet, E: Expression> DataSet for Join<L, R, E> {}
 
 impl Display for JoinType {

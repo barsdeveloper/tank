@@ -16,7 +16,7 @@ struct JoinMemberParsed(pub(crate) TokenStream);
 /// Accumulates the tokens until a parser matches.
 ///
 /// It returns the accumulated `TokenStream` as well as the result of the match (if any).
-macro_rules! accumulate_until {
+macro_rules! take_until {
     ($original:expr, $($parser:expr),+ $(,)?) => {{
         let input = $original.fork();
         let mut result = (
@@ -54,38 +54,26 @@ macro_rules! accumulate_until {
 
 fn parse_join_rhs(original: ParseStream, join: JoinType, lhs: TokenStream) -> Result<TokenStream> {
     let input = original.fork();
-    let (rhs, on, expr_type, chained_join) = if join.has_on_clause() {
+    let (rhs, on, expr_type, chained_join) = {
         custom_keyword!(ON);
-        let (rhs, (on, chained_join)) = accumulate_until!(
+        let (rhs, (on, chained_join)) = take_until!(
             input,
             ParseBuffer::parse::<ON>,
             ParseBuffer::parse::<JoinType>,
         );
         let rhs = parse2::<JoinMemberParsed>(rhs)?;
-        let (expr, chained_join) = {
-            let mut accumulated = TokenStream::new();
-            loop {
-                if input.is_empty() {
-                    break (parse2::<Expr>(accumulated)?, None);
-                }
-                let attempt = input.fork();
-                if let Ok(join) = attempt.parse::<JoinType>() {
-                    input.advance_to(&attempt);
-                    break (parse2::<Expr>(accumulated)?, Some(join));
-                }
-                accumulated.append(input.parse::<TokenTree>()?);
-            }
+        let (expr, expr_type, chained_join) = if on.is_some() {
+            let (expr, chained_join) = take_until!(input, ParseBuffer::parse::<JoinType>);
+            let expr = parse2::<Expr>(expr)?;
+            (
+                quote! { Some(::tank::expr!(#expr)) },
+                quote! { _ },
+                chained_join,
+            )
+        } else {
+            (quote! { None }, quote! { () }, chained_join)
         };
-        (
-            rhs,
-            quote! { Some(::tank::expr!(#expr)) },
-            quote! { _ },
-            chained_join,
-        )
-    } else {
-        let (rhs, chained_join) = accumulate_until!(input, ParseBuffer::parse::<JoinType>);
-        let rhs = parse2::<JoinMemberParsed>(rhs)?;
-        (rhs, quote! { None }, quote! { () }, chained_join)
+        (rhs, expr, expr_type, chained_join)
     };
     let rhs = rhs.0;
     let result = quote! {
