@@ -343,6 +343,63 @@ mod tests {
         #[derive(Entity)]
         struct Delta;
 
-        let join = join!(Alpha NATURAL JOIN Charlie CROSS Bravo);
+        let join = join!(
+            Alpha NATURAL JOIN Charlie
+                CROSS Bravo
+                    LEFT JOIN Bravo ON BravoColumn::second == AlphaColumn::b
+                        CROSS Delta
+        );
+        assert!(matches!(
+            join,
+            Join {
+                join: JoinType::Cross,
+                lhs: Join {
+                    join: JoinType::Left,
+                    lhs: Join {
+                        join: JoinType::Cross,
+                        lhs: Join {
+                            join: JoinType::Natural,
+                            lhs: TableRef {
+                                name: Cow::Borrowed("alpha"),
+                                ..
+                            },
+                            rhs: TableRef {
+                                name: Cow::Borrowed("ccc"),
+                                ..
+                            },
+                            on: None,
+                            ..
+                        },
+                        ..
+                    },
+                    rhs: TableRef {
+                        name: Cow::Borrowed("bravo"),
+                        ..
+                    },
+                    on: Some(BinaryOp {
+                        op: BinaryOpType::Equal,
+                        lhs: Operand::Column(ColumnRef {
+                            name: Cow::Borrowed("second"),
+                            table: Cow::Borrowed("bravo"),
+                            ..
+                        }),
+                        rhs: Operand::Column(ColumnRef {
+                            name: Cow::Borrowed("b"),
+                            table: Cow::Borrowed("alpha"),
+                            schema: Cow::Borrowed("my_data"),
+                            ..
+                        }),
+                        ..
+                    }),
+                    ..
+                },
+                rhs: TableRef {
+                    name: Cow::Borrowed("delta"),
+                    ..
+                },
+                on: None,
+                ..
+            }
+        ));
     }
 }
