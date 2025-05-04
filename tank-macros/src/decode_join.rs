@@ -2,7 +2,7 @@ use proc_macro2::{TokenStream, TokenTree};
 use quote::{quote, ToTokens, TokenStreamExt};
 use syn::{
     custom_keyword, parenthesized,
-    parse::{discouraged::Speculative, Parse, ParseStream},
+    parse::{discouraged::Speculative, Parse, ParseBuffer, ParseStream},
     parse2,
     token::Paren,
     Expr, Ident, Path, Result,
@@ -13,24 +13,40 @@ pub(crate) struct JoinParsed(pub(crate) TokenStream);
 struct JoinTypeParsed(pub(crate) TokenStream, JoinType);
 struct JoinMemberParsed(pub(crate) TokenStream);
 
+/// Accumulates the tokens until a parser matches.
+///
+/// It returns the accumulated `TokenStream` as well as the result of the match (if any).
+macro_rules! accumulate_until {
+    ($original:expr, $($parser:expr),+ $(,)?) => {{
+        let input = $original.fork();
+        let mut result = (TokenStream::new(), None);
+        loop {
+            if input.is_empty() {
+                break;
+            }
+            $(
+                let attempt = input.fork();
+                if let Ok(parsed) = ($parser)(&attempt) {
+                    input.advance_to(&attempt);
+                    result.1 = Some(parsed);
+                    break;
+                }
+            )+
+            result.0.append(input.parse::<TokenTree>()?);
+        }
+        $original.advance_to(&input);
+        result
+    }};
+}
+
 fn parse_join_rhs(original: ParseStream, join: JoinType, lhs: TokenStream) -> Result<TokenStream> {
     let input = original.fork();
     let (rhs, on, expr_type, chained_join) = if join.has_on_clause() {
-        let rhs = {
-            custom_keyword!(ON);
-            let mut accumulated = TokenStream::new();
-            loop {
-                if input.is_empty() {
-                    return Err(input.error("Expected ON clause"));
-                }
-                let attempt = input.fork();
-                if attempt.parse::<ON>().is_ok() {
-                    input.advance_to(&attempt);
-                    break parse2::<JoinMemberParsed>(accumulated)?;
-                }
-                accumulated.append(input.parse::<TokenTree>()?);
-            }
-        };
+        custom_keyword!(ON);
+        let rhs = accumulate_until!(input, |p| ParseBuffer::parse::<ON>(p).map(|_| None), |p| {
+            ParseBuffer::parse::<JoinType>(p).map(|v| Some(v))
+        },);
+        let (rhs, chained_join) = (parse2::<JoinMemberParsed>(rhs.0)?, rhs.1.flatten());
         let (expr, chained_join) = {
             let mut accumulated = TokenStream::new();
             loop {
@@ -52,19 +68,8 @@ fn parse_join_rhs(original: ParseStream, join: JoinType, lhs: TokenStream) -> Re
             chained_join,
         )
     } else {
-        let (rhs, chained_join) = {
-            let mut accumulated = TokenStream::new();
-            loop {
-                if input.is_empty() {
-                    break (parse2::<JoinMemberParsed>(accumulated)?, None);
-                }
-                let attempt = input.fork();
-                if let Ok(join) = attempt.parse::<JoinType>() {
-                    break (parse2::<JoinMemberParsed>(accumulated)?, Some(join));
-                }
-                accumulated.append(input.parse::<TokenTree>()?);
-            }
-        };
+        let (rhs, chained_join) = accumulate_until!(input, ParseBuffer::parse::<JoinType>);
+        let rhs = parse2::<JoinMemberParsed>(rhs)?;
         (rhs, quote! { None }, quote! { () }, chained_join)
     };
     let rhs = rhs.0;

@@ -278,6 +278,71 @@ mod tests {
         struct Some {
             col: Box<i64>,
         }
-        let join = join!(Alpha FULL OUTER JOIN Bravo ON AlphaColumn::b < BravoColumn::second RIGHT JOIN Some ON SomeColumn::col == BravoColumn::first);
+        let join = join!(Alpha FULL OUTER JOIN Bravo ON AlphaColumn::b >= BravoColumn::second RIGHT JOIN Some ON SomeColumn::col == BravoColumn::first);
+        assert!(matches!(
+            join,
+            Join {
+                join: JoinType::Right,
+                lhs: Join {
+                    join: JoinType::Outer,
+                    lhs: TableRef {
+                        name: Cow::Borrowed("alpha"),
+                        schema: Cow::Borrowed("my_data"),
+                        ..
+                    },
+                    rhs: TableRef {
+                        name: Cow::Borrowed("bravo"),
+                        ..
+                    },
+                    on: Some(BinaryOp {
+                        op: BinaryOpType::GreaterEqual,
+                        lhs: Operand::Column(ColumnRef {
+                            name: Cow::Borrowed("b"),
+                            table: Cow::Borrowed("alpha"),
+                            schema: Cow::Borrowed("my_data"),
+                            ..
+                        }),
+                        rhs: Operand::Column(ColumnRef {
+                            name: Cow::Borrowed("second"),
+                            table: Cow::Borrowed("bravo"),
+                            ..
+                        }),
+                        ..
+                    }),
+                    ..
+                },
+                rhs: TableRef {
+                    name: Cow::Borrowed("some"),
+                    ..
+                },
+                on: Some(BinaryOp {
+                    op: BinaryOpType::Equal,
+                    lhs: Operand::Column(ColumnRef {
+                        name: Cow::Borrowed("col"),
+                        table: Cow::Borrowed("some"),
+                        ..
+                    }),
+                    rhs: Operand::Column(ColumnRef {
+                        name: Cow::Borrowed("first"),
+                        table: Cow::Borrowed("bravo"),
+                        ..
+                    }),
+                    ..
+                }),
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn join_multi_chained() {
+        #[derive(Entity)]
+        #[table_name("ccc")]
+        struct Charlie;
+
+        #[derive(Entity)]
+        struct Delta;
+
+        let join = join!(Alpha NATURAL JOIN Charlie CROSS Bravo);
     }
 }
