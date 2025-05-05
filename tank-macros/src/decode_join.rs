@@ -1,11 +1,11 @@
-use proc_macro2::{TokenStream, TokenTree};
+use proc_macro2::{Delimiter, Group, TokenStream, TokenTree};
 use quote::{quote, ToTokens, TokenStreamExt};
 use syn::{
     custom_keyword, parenthesized,
     parse::{discouraged::Speculative, Parse, ParseBuffer, ParseStream},
     parse2,
     token::Paren,
-    Expr, Ident, Path, Result,
+    Expr, ExprParen, Ident, Path, Result,
 };
 use tank_core::JoinType;
 
@@ -13,28 +13,64 @@ pub(crate) struct JoinParsed(pub(crate) TokenStream);
 struct JoinTypeParsed(pub(crate) TokenStream, JoinType);
 struct JoinMemberParsed(pub(crate) TokenStream);
 
+trait UnwrapParentheses {
+    fn unwrap_parentheses(self) -> Self;
+}
+
+impl UnwrapParentheses for ParseBuffer<'_> {
+    fn unwrap_parentheses(self) -> Self {
+        if self.peek(Paren) {
+            let attempt = self.fork();
+            let content = (|| {
+                let content;
+                parenthesized!(content in attempt);
+                Ok(content)
+            })()
+            .expect("Must be parentheses by this point");
+            if attempt.is_empty() {
+                self.advance_to(&attempt);
+                return content.unwrap_parentheses();
+            }
+        }
+        self
+    }
+}
+
+impl UnwrapParentheses for TokenStream {
+    fn unwrap_parentheses(self) -> Self {
+        let original = self.into_iter();
+        let mut it = original.clone();
+        if let [Some(TokenTree::Group(content)), None] = [it.next(), it.next()] {
+            if matches!(content.delimiter(), Delimiter::Parenthesis) {
+                return content.stream().unwrap_parentheses();
+            }
+        }
+        original.collect::<TokenStream>()
+    }
+}
+
 /// Accumulates the tokens until a parser matches.
 ///
 /// It returns the accumulated `TokenStream` as well as the result of the match (if any).
 macro_rules! take_until {
     ($original:expr, $($parser:expr),+ $(,)?) => {{
-        let input = $original.fork();
-        let mut result = (
+        let macro_local_input = $original.fork();
+        let mut macro_local_result = (
             TokenStream::new(),
             ($({
-                $parser;
+                let _ = $parser;
                 None
             }),+),
         );
         loop {
-            if input.is_empty() {
+            if macro_local_input.is_empty() {
                 break;
             }
             let mut parsed = false;
             let produced = ($({
-                let attempt = input.fork();
+                let attempt = macro_local_input.fork();
                 if let Ok(content) = ($parser)(&attempt) {
-                    input.advance_to(&attempt);
+                    macro_local_input.advance_to(&attempt);
                     parsed = true;
                     Some(content)
                 } else {
@@ -42,13 +78,13 @@ macro_rules! take_until {
                 }
             }),+);
             if parsed {
-                result.1 = produced;
+                macro_local_result.1 = produced;
                 break;
             }
-            result.0.append(input.parse::<TokenTree>()?);
+            macro_local_result.0.append(macro_local_input.parse::<TokenTree>()?);
         }
-        $original.advance_to(&input);
-        result
+        $original.advance_to(&macro_local_input);
+        macro_local_result
     }};
 }
 
@@ -61,7 +97,7 @@ fn parse_join_rhs(original: ParseStream, join: JoinType, lhs: TokenStream) -> Re
             ParseBuffer::parse::<ON>,
             ParseBuffer::parse::<JoinType>,
         );
-        let rhs = parse2::<JoinMemberParsed>(rhs)?;
+        let rhs = parse2::<JoinMemberParsed>(rhs /*.unwrap_parentheses()*/)?;
         let (expr, expr_type, chained_join) = if on.is_some() {
             let (expr, chained_join) = take_until!(input, ParseBuffer::parse::<JoinType>);
             let expr = parse2::<Expr>(expr)?;
@@ -94,18 +130,7 @@ fn parse_join_rhs(original: ParseStream, join: JoinType, lhs: TokenStream) -> Re
 
 impl Parse for JoinParsed {
     fn parse(original: ParseStream) -> Result<Self> {
-        let input = original.fork();
-        // Unwrap eventual parentheses
-        if input.peek(Paren) {
-            let attempt = input.fork();
-            let content;
-            parenthesized!(content in attempt);
-            if attempt.is_empty() {
-                // The whole join can be parenthesized
-                original.advance_to(&attempt);
-                return Self::parse(&content);
-            }
-        }
+        let input = original.fork()/* .unwrap_parentheses()*/;
 
         // Base case
         let (join, lhs) = {
