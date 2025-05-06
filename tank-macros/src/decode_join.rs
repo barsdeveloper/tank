@@ -110,19 +110,9 @@ impl Parse for JoinParsed {
 
         // Base case
         let (join, lhs) = {
-            let mut accumulated = TokenStream::new();
-            let join: JoinType = loop {
-                if input.is_empty() {
-                    return Err(input.error("Expected to find join keywords in the input"));
-                }
-                let attempt = input.fork();
-                if let Ok(join) = attempt.parse::<JoinType>() {
-                    input.advance_to(&attempt);
-                    break join;
-                }
-                accumulated.append(input.parse::<TokenTree>()?);
-            };
-            let lhs = parse2::<JoinMemberParsed>(accumulated)?;
+            let (lhs, join) = take_until!(input, ParseBuffer::parse::<JoinType>);
+            let lhs = parse2::<JoinMemberParsed>(lhs)?;
+            let join = join.expect("Expected to find join keywords in the input");
             (join, lhs)
         };
 
