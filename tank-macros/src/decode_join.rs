@@ -109,25 +109,14 @@ impl Parse for JoinParsed {
         }
 
         // Base case
-        let (join, lhs) = {
-            let mut accumulated = TokenStream::new();
-            let join: JoinType = loop {
-                if input.is_empty() {
-                    return Err(input.error("Expected to find join keywords in the input"));
-                }
-                let attempt = input.fork();
-                if let Ok(join) = attempt.parse::<JoinType>() {
-                    input.advance_to(&attempt);
-                    break join;
-                }
-                accumulated.append(input.parse::<TokenTree>()?);
-            };
-            let lhs = parse2::<JoinMemberParsed>(accumulated)?;
-            (join, lhs)
+        let (lhs, join) = take_until!(input, ParseBuffer::parse::<JoinType>);
+        let Some(join) = join else {
+            return Err(input.error("Expected to find join keywords in the input"));
         };
+        let lhs = parse2::<JoinMemberParsed>(lhs)?.0;
+        let parsed = parse_join_rhs(&input, join, lhs)?;
 
         original.advance_to(&input);
-        let parsed = parse_join_rhs(original, join, lhs.0)?;
         Ok(Self(parsed))
     }
 }
@@ -135,14 +124,13 @@ impl Parse for JoinParsed {
 impl Parse for JoinMemberParsed {
     fn parse(input: ParseStream) -> Result<Self> {
         if let Ok(join) = input.parse::<JoinParsed>() {
-            return Ok(Self(join.0));
+            Ok(Self(join.0))
+        } else if let Ok(table) = input.parse::<Path>() {
+            Ok(Self(quote! { #table::table_ref() }))
+        } else if let Ok(table) = input.parse::<Ident>() {
+            Ok(Self(quote! { #table::table_ref() }))
+        } else {
+            Err(input.error(""))
         }
-        if let Ok(table) = input.parse::<Path>() {
-            return Ok(Self(quote! { #table::table_ref() }));
-        }
-        if let Ok(table) = input.parse::<Ident>() {
-            return Ok(Self(quote! { #table::table_ref() }));
-        }
-        Err(input.error(""))
     }
 }
