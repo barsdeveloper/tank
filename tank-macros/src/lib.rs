@@ -1,4 +1,4 @@
-mod column_enum;
+mod column_trait;
 mod decode_expression;
 mod decode_fields;
 mod decode_join;
@@ -6,17 +6,14 @@ mod schema_name;
 mod table_name;
 mod table_primary_key;
 
-use column_enum::column_enum;
+use column_trait::column_trait;
 use decode_expression::decode_expression;
 use decode_fields::decode_field;
 use decode_join::JoinParsed;
 use proc_macro::TokenStream;
-use proc_macro2::Ident as Ident2;
 use quote::{quote, ToTokens};
 use schema_name::schema_name;
-use syn::{
-    parse_macro_input, punctuated::Punctuated, spanned::Spanned, token::Comma, Expr, ItemStruct,
-};
+use syn::{parse_macro_input, punctuated::Punctuated, token::Comma, Expr, ItemStruct};
 use table_name::table_name;
 use table_primary_key::table_primary_key;
 
@@ -69,12 +66,10 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
         })
         .collect::<Punctuated<_, Comma>>();
     let primary_keys = primary_keys.collect::<Punctuated<_, Comma>>();
-    let column = column_enum(&item);
-    let column_enum_name = Ident2::new(&format!("{}Column", name), item.span());
+    let column = column_trait(&item);
     quote! {
         #column
         impl ::tank::Entity for #name {
-            type Column = #column_enum_name;
             type PrimaryKey = (#primary_key_tuple);
 
             fn table_name() -> &'static str {

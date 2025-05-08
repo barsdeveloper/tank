@@ -69,7 +69,7 @@ pub fn decode_expression(condition: &Expr) -> TokenStream {
                         ..
                     }) = v.right.as_ref()
                     {
-                        if segments.iter().map(|v| &v.ident).eq(["None"].iter()) {
+                        if segments.iter().map(|v| &v.ident).eq(["NULL"].iter()) {
                             result = match op {
                                 BinOp::Eq(..) => quote! { ::tank::BinaryOpType::Is },
                                 BinOp::Ne(..) => quote! { ::tank::BinaryOpType::IsNot },
@@ -160,19 +160,18 @@ pub fn decode_expression(condition: &Expr) -> TokenStream {
         Expr::MethodCall(expr_method_call) => todo!("Expr::MethodCall"),
         Expr::Paren(v) => decode_expression(&v.expr),
         Expr::Path(ExprPath { path, .. }) => {
-            if path
-                .segments
-                .iter()
-                .rev()
-                .nth(1)
-                .map_or(false, |v| v.ident.to_string().ends_with("Column"))
-            {
-                quote! { ::tank::Operand::Column(::tank::ColumnTrait::column_ref(&#path)) }
-            } else if path.segments.iter().map(|v| &v.ident).eq(["None"].iter()) {
-                quote! { ::tank::Operand::Null }
+            if path.segments.len() > 1 {
+                quote! { ::tank::Operand::Column(#path.into()) }
             } else {
-                let v = LitStr::new(&path.to_token_stream().to_string(), path.span());
-                quote! { ::tank::Operand::LitIdent(#v) }
+                let ident = path
+                    .get_ident()
+                    .expect("The path is expected to be identifier");
+                if ident == "NULL" {
+                    quote! { ::tank::Operand::Null }
+                } else {
+                    let v = LitStr::new(&path.to_token_stream().to_string(), path.span());
+                    quote! { ::tank::Operand::LitIdent(#v) }
+                }
             }
         }
         Expr::Array(v) => {

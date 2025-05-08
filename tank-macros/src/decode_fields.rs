@@ -59,7 +59,7 @@ pub fn decode_field(field: &Field, item: &ItemStruct) -> ColumnDef {
                     "Error while parsing `column_type`, use it like #[column_type(\"VARCHAR\")]"
                 );
             };
-            result.column_type = v.value();
+            result.column_type = v.value().into();
         } else if meta.path().is_ident("primary_key") {
             let Ok(..) = meta.require_path_only() else {
                 panic!("Error while parsing `primary_key`, use it like #[primary_key] on a field");

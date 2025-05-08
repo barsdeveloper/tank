@@ -171,7 +171,7 @@ mod tests {
         expr.sql_write(&WRITER, &mut out);
         assert_eq!(out, "CAST(true AS INTEGER)");
 
-        let expr = expr!("value" != None);
+        let expr = expr!("value" != NULL);
         assert!(matches!(
             expr,
             BinaryOp {
@@ -305,7 +305,7 @@ mod tests {
             _third: Vec<f64>,
         }
 
-        let expr = expr!(MyEntityColumn::first + 2);
+        let expr = expr!(MyEntity::_first + 2);
         assert!(matches!(
             expr,
             BinaryOp {

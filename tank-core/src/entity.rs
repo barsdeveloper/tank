@@ -1,7 +1,6 @@
 use crate::{ColumnDef, Executor, Expression, Result, TableRef};
 
 pub trait Entity: Send {
-    type Column;
     type PrimaryKey;
 
     fn table_name() -> &'static str;

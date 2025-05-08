@@ -19,7 +19,7 @@ mod tests {
 
     #[test]
     fn join_simple() {
-        let join = join!(Alpha JOIN crate::tests::Bravo ON AlphaColumn::a == BravoColumn::first);
+        let join = join!(Alpha JOIN crate::tests::Bravo ON Alpha::_a == Bravo::_first);
         assert!(matches!(
             join,
             Join {
@@ -54,7 +54,7 @@ mod tests {
             }
         ));
 
-        let join = join!(Alpha INNER JOIN Bravo ON AlphaColumn::a == BravoColumn::first);
+        let join = join!(Alpha INNER JOIN Bravo ON Alpha::_a == Bravo::_first);
         assert!(matches!(
             join,
             Join {
@@ -63,7 +63,7 @@ mod tests {
             }
         ));
 
-        let join = join!(Alpha FULL OUTER JOIN Bravo ON AlphaColumn::a == BravoColumn::first);
+        let join = join!(Alpha FULL OUTER JOIN Bravo ON Alpha::_a == Bravo::_first);
         assert!(matches!(
             join,
             Join {
@@ -72,7 +72,7 @@ mod tests {
             }
         ));
 
-        let join = join!(Alpha OUTER JOIN Bravo ON AlphaColumn::a == BravoColumn::first);
+        let join = join!(Alpha OUTER JOIN Bravo ON Alpha::_a == Bravo::_first);
         assert!(matches!(
             join,
             Join {
@@ -81,7 +81,7 @@ mod tests {
             }
         ));
 
-        let join = join!(Alpha LEFT OUTER JOIN Bravo ON AlphaColumn::a == BravoColumn::first);
+        let join = join!(Alpha LEFT OUTER JOIN Bravo ON Alpha::_a == Bravo::_first);
         assert!(matches!(
             join,
             Join {
@@ -90,7 +90,7 @@ mod tests {
             }
         ));
 
-        let join = join!(Alpha LEFT JOIN Bravo ON AlphaColumn::a == BravoColumn::first);
+        let join = join!(Alpha LEFT JOIN Bravo ON Alpha::_a == Bravo::_first);
         assert!(matches!(
             join,
             Join {
@@ -99,7 +99,7 @@ mod tests {
             }
         ));
 
-        let join = join!(Alpha RIGHT OUTER JOIN Bravo ON AlphaColumn::a == BravoColumn::first);
+        let join = join!(Alpha RIGHT OUTER JOIN Bravo ON Alpha::_a == Bravo::_first);
         assert!(matches!(
             join,
             Join {
@@ -108,7 +108,7 @@ mod tests {
             }
         ));
 
-        let join = join!(Alpha RIGHT JOIN Bravo ON AlphaColumn::a == BravoColumn::first);
+        let join = join!(Alpha RIGHT JOIN Bravo ON Alpha::_a == Bravo::_first);
         assert!(matches!(
             join,
             Join {
@@ -146,7 +146,7 @@ mod tests {
             _column: u128,
         }
 
-        let join = join!((Charlie JOIN Alpha ON CharlieColumn::column < AlphaColumn::b) JOIN Bravo ON AlphaColumn::a == BravoColumn::second);
+        let join = join!((Charlie JOIN Alpha ON Charlie::_column < Alpha::_b) JOIN Bravo ON Alpha::_a == Bravo::_second);
         assert!(matches!(
             join,
             Join {
@@ -211,8 +211,8 @@ mod tests {
 
         let join = join!(
             Bravo OUTER JOIN (
-                Delta LEFT JOIN Alpha ON DeltaColumn::the_string < AlphaColumn::b
-            ) ON BravoColumn::second == DeltaColumn::the_string
+                Delta LEFT JOIN Alpha ON Delta::_string_column < Alpha::_b
+            ) ON Bravo::_second == Delta::_string_column
         );
         assert!(matches!(
             join,
@@ -278,7 +278,7 @@ mod tests {
         struct Some {
             col: Box<i64>,
         }
-        let join = join!(Alpha FULL OUTER JOIN Bravo ON AlphaColumn::b >= BravoColumn::second RIGHT JOIN Some ON SomeColumn::col == BravoColumn::first);
+        let join = join!(Alpha FULL OUTER JOIN Bravo ON Alpha::_b >= Bravo::_second RIGHT JOIN Some ON Some::col == Bravo::_first);
         assert!(matches!(
             join,
             Join {
@@ -346,7 +346,7 @@ mod tests {
         let join = join!(
             Alpha NATURAL JOIN Charlie
                 CROSS Bravo
-                    LEFT JOIN Bravo ON BravoColumn::second == AlphaColumn::b
+                    LEFT JOIN Bravo ON Bravo::_second == Alpha::_b
                         CROSS Delta
         );
         assert!(matches!(
@@ -406,7 +406,7 @@ mod tests {
     #[test]
     fn join_with_many_parentheses() {
         let join = join!(
-            ((((((Alpha RIGHT JOIN Bravo ON (((((((((((AlphaColumn::a <= BravoColumn::first)))))))))))))))))
+            ((((((Alpha RIGHT JOIN Bravo ON (((((((((((Alpha::_a <= Bravo::_first)))))))))))))))))
         );
         assert!(matches!(
             join,

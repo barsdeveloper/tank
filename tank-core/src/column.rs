@@ -4,8 +4,8 @@ use quote::{quote, ToTokens, TokenStreamExt};
 use std::borrow::Cow;
 
 pub trait ColumnTrait {
-    fn column_def(&self) -> ColumnDef;
-    fn column_ref(&self) -> ColumnRef;
+    fn column_def(&self) -> &ColumnDef;
+    fn column_ref(&self) -> &ColumnRef;
 }
 
 #[derive(Default, Debug, Clone, PartialEq)]
@@ -28,7 +28,7 @@ pub struct ColumnDef {
     pub default: Option<String>,
     pub primary_key: bool,
     pub unique: bool,
-    pub column_type: String,
+    pub column_type: Cow<'static, str>,
 }
 impl ColumnDef {
     pub fn name(&self) -> &Cow<'static, str> {
@@ -53,20 +53,20 @@ impl<'a> From<&'a ColumnDef> for &'a ColumnRef {
     }
 }
 
+macro_rules! cow_to_tokens {
+    ($value:expr) => {
+        match $value {
+            Cow::Borrowed(v) => quote! { ::std::borrow::Cow::Borrowed(#v) },
+            Cow::Owned(v) => quote! { ::std::borrow::Cow::Borrowed(#v) },
+        }
+    };
+}
+
 impl ToTokens for ColumnRef {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let name = match &self.name {
-            Cow::Borrowed(v) => quote! { ::std::borrow::Cow::Borrowed(#v) },
-            Cow::Owned(v) => quote! { ::std::borrow::Cow::Borrowed(#v) },
-        };
-        let table = match &self.table {
-            Cow::Borrowed(v) => quote! { ::std::borrow::Cow::Borrowed(#v) },
-            Cow::Owned(v) => quote! { ::std::borrow::Cow::Borrowed(#v) },
-        };
-        let schema = match &self.schema {
-            Cow::Borrowed(v) => quote! { ::std::borrow::Cow::Borrowed(#v) },
-            Cow::Owned(v) => quote! { ::std::borrow::Cow::Borrowed(#v) },
-        };
+        let name = cow_to_tokens!(&self.name);
+        let table = cow_to_tokens!(&self.table);
+        let schema = cow_to_tokens!(&self.schema);
         tokens.append_all(quote! {
             ::tank::ColumnRef {
                 name: #name,
@@ -86,7 +86,7 @@ impl ToTokens for ColumnDef {
             Some(v) => quote! {Some(#v)},
             None => quote! {None},
         };
-        let column_type = &self.column_type;
+        let column_type = cow_to_tokens!(&self.column_type);
         let primary_key = &self.primary_key;
         let unique = &self.unique;
         tokens.append_all(quote! {
@@ -95,7 +95,7 @@ impl ToTokens for ColumnDef {
                 value: #value,
                 nullable: #nullable,
                 default: #default,
-                column_type: #column_type.into(),
+                column_type: #column_type,
                 primary_key: #primary_key,
                 unique: #unique,
             }

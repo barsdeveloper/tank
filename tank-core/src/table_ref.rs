@@ -31,7 +31,7 @@ impl ToTokens for TableRef {
             Cow::Owned(v) => quote! { ::std::borrow::Cow::Borrowed(#v) },
         };
         tokens.append_all(quote! {
-            ::tank::ColumnDef {
+            ::tank::ColumnRef {
                 name: #name,
                 schema: #schema,
             }
