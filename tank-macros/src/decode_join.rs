@@ -61,10 +61,16 @@ fn parse_join_rhs(original: ParseStream, join: JoinType, lhs: TokenStream) -> Re
             ParseBuffer::parse::<ON>,
             ParseBuffer::parse::<JoinType>,
         );
-        let rhs = parse2::<JoinMemberParsed>(rhs)?;
+        let Ok(rhs) = parse2::<JoinMemberParsed>(rhs) else {
+            return Err(input.error(
+                "Expected to find a right hand side after the join, a table or a nested join",
+            ));
+        };
         let (expr, expr_type, chained_join) = if on.is_some() {
             let (expr, chained_join) = take_until!(input, ParseBuffer::parse::<JoinType>);
-            let expr = parse2::<Expr>(expr)?;
+            let Ok(expr) = parse2::<Expr>(expr) else {
+                return Err(input.error("Expected to find a valid expression after `ON`"));
+            };
             (
                 quote! { Some(::tank::expr!(#expr)) },
                 quote! { _ },
@@ -130,7 +136,7 @@ impl Parse for JoinMemberParsed {
         } else if let Ok(table) = input.parse::<Ident>() {
             Ok(Self(quote! { #table::table_ref() }))
         } else {
-            Err(input.error(""))
+            Err(input.error("Expected a table or some nested join"))
         }
     }
 }

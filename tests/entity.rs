@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-
+    use indoc::indoc;
     use std::sync::Arc;
     use std::time::Duration;
     use tank::Driver;
@@ -36,7 +36,13 @@ mod tests {
             DRIVER
                 .sql_writer()
                 .sql_create_table::<SomeEntity>(&mut query, false),
-            "CREATE TABLE some_entity(a TINYINT NOT NULL, b VARCHAR NOT NULL)"
+            indoc! {"
+                CREATE TABLE some_entity(
+                a TINYINT NOT NULL,
+                b VARCHAR NOT NULL
+                )
+            "}
+            .trim()
         );
     }
 
@@ -70,8 +76,17 @@ mod tests {
 
         let mut query = String::new();
         assert_eq!(
-            DRIVER.sql_writer().sql_create_table::<SomeEntity>(&mut query, true),
-            "CREATE TABLE IF NOT EXISTS custom_table_name(first UHUGEINT NOT NULL, second TIME, third DATE)"
+            DRIVER
+                .sql_writer()
+                .sql_create_table::<SomeEntity>(&mut query, true),
+            indoc! {"
+                CREATE TABLE IF NOT EXISTS custom_table_name(
+                first UHUGEINT NOT NULL,
+                second TIME,
+                third DATE
+                )
+            "}
+            .trim()
         );
     }
 
@@ -121,8 +136,19 @@ mod tests {
 
         let mut query = String::new();
         assert_eq!(
-            DRIVER.sql_writer().sql_create_table::<MyEntity>(&mut query, false),
-            "CREATE TABLE a_table(alpha DOUBLE NOT NULL, bravo SMALLINT NOT NULL, charlie DECIMAL, delta INTERVAL NOT NULL, echo DECIMAL(8, 2))"
+            DRIVER
+                .sql_writer()
+                .sql_create_table::<MyEntity>(&mut query, false),
+            indoc! {"
+                CREATE TABLE a_table(
+                alpha DOUBLE NOT NULL,
+                bravo SMALLINT NOT NULL,
+                charlie DECIMAL,
+                delta INTERVAL NOT NULL,
+                echo DECIMAL(8, 2)
+                )
+            "}
+            .trim()
         );
     }
 
@@ -194,8 +220,19 @@ mod tests {
 
         let mut query = String::new();
         assert_eq!(
-            DRIVER.sql_writer().sql_create_table::<Customer>(&mut query, false),
-            "CREATE TABLE customers(transaction_ids UBIGINT[] NOT NULL, preferences VARCHAR[], lifetime_value DECIMAL[], signup_duration INTERVAL NOT NULL, recent_purchases DECIMAL(10, 4)[][])"
+            DRIVER
+                .sql_writer()
+                .sql_create_table::<Customer>(&mut query, false),
+            indoc! {"
+                CREATE TABLE customers(
+                transaction_ids UBIGINT[] NOT NULL,
+                preferences VARCHAR[],
+                lifetime_value DECIMAL[],
+                signup_duration INTERVAL NOT NULL,
+                recent_purchases DECIMAL(10, 4)[][]
+                )
+            "}
+            .trim()
         );
     }
 }

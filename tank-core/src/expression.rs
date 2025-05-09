@@ -15,6 +15,7 @@ pub trait Expression: OpPrecedence + Send {
         &self,
         writer: &W,
         out: &'a mut String,
+        qualify_columns: bool,
     ) -> &'a mut String;
 }
 
@@ -23,6 +24,7 @@ impl Expression for () {
         &self,
         _writer: &W,
         out: &'a mut String,
+        _qualify_columns: bool,
     ) -> &'a mut String {
         out
     }
@@ -51,8 +53,9 @@ impl Expression for Operand {
         &self,
         writer: &W,
         out: &'a mut String,
+        qualify_columns: bool,
     ) -> &'a mut String {
-        writer.sql_expression_operand(out, self)
+        writer.sql_expression_operand(out, self, qualify_columns)
     }
 }
 impl PartialEq for Operand {
@@ -132,8 +135,9 @@ impl<E: Expression> Expression for UnaryOp<E> {
         &self,
         writer: &W,
         out: &'a mut String,
+        qualify_columns: bool,
     ) -> &'a mut String {
-        writer.sql_expression_unary_op(out, self)
+        writer.sql_expression_unary_op(out, self, qualify_columns)
     }
 }
 
@@ -152,8 +156,9 @@ impl<L: Expression, R: Expression> Expression for BinaryOp<L, R> {
         &self,
         writer: &W,
         out: &'a mut String,
+        qualify_columns: bool,
     ) -> &'a mut String {
-        writer.sql_expression_binary_op(out, self)
+        writer.sql_expression_binary_op(out, self, qualify_columns)
     }
 }
 
@@ -167,6 +172,7 @@ impl Expression for Value {
         &self,
         _writer: &W,
         out: &'a mut String,
+        _qualify_columns: bool,
     ) -> &'a mut String {
         out
     }

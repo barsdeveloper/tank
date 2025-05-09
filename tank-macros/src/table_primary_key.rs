@@ -20,7 +20,7 @@ pub(crate) fn table_primary_key(item: &ItemStruct) -> Vec<String> {
                     .map(|v| v.value())
                     .collect::<Vec<_>>())
             }) else {
-                panic!("Error while parsing `primary_key`, use it like #[primary_key(\"first\", \"second\")]");
+                panic!("Error while parsing `primary_key`, use it like `#[primary_key(\"first\", \"second\")]`");
             };
             return Some(v);
         }

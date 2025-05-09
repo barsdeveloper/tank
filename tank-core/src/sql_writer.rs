@@ -1,6 +1,6 @@
 use crate::{
-    BinaryOp, BinaryOpType, ColumnDef, ColumnRef, Entity, Expression, Operand, TableRef, UnaryOp,
-    UnaryOpType, Value,
+    BinaryOp, BinaryOpType, ColumnDef, ColumnRef, DataSet, Entity, Expression, Join, JoinType,
+    Operand, TableRef, UnaryOp, UnaryOpType, Value,
 };
 use std::fmt::Write;
 
@@ -71,12 +71,17 @@ pub trait SqlWriter {
         out
     }
 
-    fn sql_column_ref<'a>(&self, out: &'a mut String, value: &ColumnRef) -> &'a mut String {
-        if !value.schema.is_empty() {
-            out.push_str(&value.schema);
-            out.push('.');
-        }
-        if !value.table.is_empty() {
+    fn sql_column_ref<'a>(
+        &self,
+        out: &'a mut String,
+        value: &ColumnRef,
+        qualify: bool,
+    ) -> &'a mut String {
+        if qualify && !value.table.is_empty() {
+            if !value.schema.is_empty() {
+                out.push_str(&value.schema);
+                out.push('.');
+            }
             out.push_str(&value.table);
             out.push('.');
         }
@@ -123,7 +128,12 @@ pub trait SqlWriter {
         }
     }
 
-    fn sql_expression_operand<'a>(&self, out: &'a mut String, value: &Operand) -> &'a mut String {
+    fn sql_expression_operand<'a>(
+        &self,
+        out: &'a mut String,
+        value: &Operand,
+        qualify_columns: bool,
+    ) -> &'a mut String {
         let _ = match value {
             Operand::LitBool(v) => write!(out, "{}", v),
             Operand::LitFloat(v) => write!(out, "{}", v),
@@ -136,7 +146,7 @@ pub trait SqlWriter {
                     if comma {
                         out.push_str(", ");
                     }
-                    v.sql_write(self, out);
+                    v.sql_write(self, out, qualify_columns);
                     true
                 });
                 out.push(']');
@@ -147,7 +157,7 @@ pub trait SqlWriter {
                 Ok(())
             }
             Operand::Column(v) => {
-                self.sql_column_ref(out, v);
+                self.sql_column_ref(out, v, qualify_columns);
                 Ok(())
             }
             Operand::Type(v) => {
@@ -162,6 +172,7 @@ pub trait SqlWriter {
         &self,
         out: &'a mut String,
         value: &UnaryOp<E>,
+        qualify_columns: bool,
     ) -> &'a mut String {
         let _ = match value.op {
             UnaryOpType::Negative => out.push('-'),
@@ -170,7 +181,7 @@ pub trait SqlWriter {
         sql_possibly_parenthesized!(
             out,
             value.v.precedence(self) <= self.expression_unary_op_precedence(&value.op),
-            value.v.sql_write(self, out)
+            value.v.sql_write(self, out, qualify_columns)
         );
         out
     }
@@ -179,6 +190,7 @@ pub trait SqlWriter {
         &self,
         out: &'a mut String,
         value: &BinaryOp<L, R>,
+        qualify_columns: bool,
     ) -> &'a mut String {
         let (prefix, infix, suffix) = match value.op {
             BinaryOpType::Indexing => ("", "[", "]"),
@@ -214,15 +226,44 @@ pub trait SqlWriter {
         sql_possibly_parenthesized!(
             out,
             value.lhs.precedence(self) < precedence,
-            value.lhs.sql_write(self, out)
+            value.lhs.sql_write(self, out, qualify_columns)
         );
         out.push_str(infix);
         sql_possibly_parenthesized!(
             out,
             value.rhs.precedence(self) <= precedence,
-            value.rhs.sql_write(self, out)
+            value.rhs.sql_write(self, out, qualify_columns)
         );
         out.push_str(suffix);
+        out
+    }
+
+    fn sql_join_type<'a>(&self, out: &'a mut String, join_type: &JoinType) -> &'a mut String {
+        out.push_str(match &join_type {
+            JoinType::Inner => "INNER JOIN",
+            JoinType::Outer => "OUTER JOIN",
+            JoinType::Left => "LEFT JOIN",
+            JoinType::Right => "RIGHT JOIN",
+            JoinType::Cross => "CROSS",
+            JoinType::Natural => "NATURAL JOIN",
+        });
+        out
+    }
+
+    fn sql_join<'a, L: DataSet, R: DataSet, E: Expression>(
+        &self,
+        out: &'a mut String,
+        join: &Join<L, R, E>,
+    ) -> &'a mut String {
+        join.lhs.sql_write(self, out);
+        out.push(' ');
+        self.sql_join_type(out, &join.join);
+        out.push(' ');
+        join.rhs.sql_write(self, out);
+        if let Some(on) = &join.on {
+            out.push_str(" ON ");
+            on.sql_write(self, out, true);
+        }
         out
     }
 
@@ -236,16 +277,16 @@ pub trait SqlWriter {
             out.push_str("IF NOT EXISTS ");
         }
         out.push_str(E::table_name());
-        out.push('(');
+        out.push_str("(\n");
         let mut first = true;
         E::columns().iter().for_each(|c| {
             if !first {
-                out.push_str(", ");
+                out.push_str(",\n");
             }
             self.sql_create_table_column_fragment(out, c);
             first = false;
         });
-        out.push(')');
+        out.push_str("\n)");
         out
     }
 
@@ -275,10 +316,11 @@ pub trait SqlWriter {
         query.push_str(E::table_name());
     }
 
-    fn sql_select<'a, E: Entity, Expr: Expression>(
+    fn sql_select<'a, E: Entity, D: DataSet, Expr: Expression>(
         &self,
         out: &'a mut String,
-        condition: Expr,
+        from: &D,
+        condition: &Expr,
         limit: Option<u32>,
     ) -> &'a mut String {
         out.push_str("SELECT ");
@@ -286,17 +328,16 @@ pub trait SqlWriter {
             if comma {
                 out.push_str(", ");
             }
-            self.sql_column_ref(out, col.into());
+            self.sql_column_ref(out, col.into(), D::QUALIFIED_COLUMNS);
             true
         });
         out.push_str("\nFROM ");
-        self.sql_table_ref(out, E::table_ref());
+        from.sql_write(self, out);
         out.push_str("\nWHERE ");
-        condition.sql_write(self, out);
+        condition.sql_write(self, out, D::QUALIFIED_COLUMNS);
         if let Some(limit) = limit {
             let _ = write!(out, "\nLIMIT {}", limit);
         }
-        out.push(';');
         out
     }
 }

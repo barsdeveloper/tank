@@ -12,12 +12,15 @@ pub(crate) fn column_trait(item: &ItemStruct) -> TokenStream {
             decode_field(&field, &item),
         )
     });
-    let columns_fields_declarations = columns
-        .clone()
-        .map(|(name, _)| quote! { const #name: ::tank::ColumnRef; });
+    let columns_fields_declarations = columns.clone().map(|(name, _)| {
+        quote! {
+            #[allow(non_upper_case_globals)]
+            const #name: &::tank::ColumnRef;
+        }
+    });
     let columns_fields_definitions = columns.clone().map(|(name, def)| {
         let reference = def.reference;
-        quote! { const #name: ::tank::ColumnRef = #reference; }
+        quote! { const #name: &::tank::ColumnRef = &#reference; }
     });
     quote! {
         trait #trait_name {

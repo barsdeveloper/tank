@@ -13,7 +13,7 @@ pub(crate) fn table_name(item: &ItemStruct) -> String {
                     .and_then(|v| v.parse_args::<LitStr>())
                 else {
                     panic!(
-                        "Error while parsing `table_name`, use it like #[table_name(\"{}_table\")]",
+                        "Error while parsing `table_name`, use it like `#[table_name(\"{}_table\")]`",
                         &default_table_name
                     );
                 };

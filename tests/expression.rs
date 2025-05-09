@@ -18,7 +18,7 @@ mod tests {
             }
         ));
         let mut out = String::new();
-        expr.sql_write(&WRITER, &mut out);
+        expr.sql_write(&WRITER, &mut out, false);
         assert_eq!(out, "1 + 2");
 
         let expr = expr!(5 * 1.2);
@@ -31,7 +31,7 @@ mod tests {
             }
         ));
         let mut out = String::new();
-        expr.sql_write(&WRITER, &mut out);
+        expr.sql_write(&WRITER, &mut out, false);
         assert_eq!(out, "5 * 1.2");
 
         let expr = expr!(true && false);
@@ -44,7 +44,7 @@ mod tests {
             }
         ));
         let mut out = String::new();
-        expr.sql_write(&WRITER, &mut out);
+        expr.sql_write(&WRITER, &mut out, false);
         assert_eq!(out, "true AND false");
 
         let expr = expr!(45 | -90);
@@ -60,7 +60,7 @@ mod tests {
             }
         ));
         let mut out = String::new();
-        expr.sql_write(&WRITER, &mut out);
+        expr.sql_write(&WRITER, &mut out, false);
         assert_eq!(out, "45 | -90");
 
         let expr = expr!(true as i32);
@@ -73,7 +73,7 @@ mod tests {
             }
         ));
         let mut out = String::new();
-        expr.sql_write(&WRITER, &mut out);
+        expr.sql_write(&WRITER, &mut out, false);
         assert_eq!(out, "CAST(true AS INTEGER)");
 
         let expr = expr!("1.5" as f64);
@@ -86,7 +86,7 @@ mod tests {
             }
         ));
         let mut out = String::new();
-        expr.sql_write(&WRITER, &mut out);
+        expr.sql_write(&WRITER, &mut out, false);
         assert_eq!(out, "CAST('1.5' AS DOUBLE)");
 
         let expr = expr!(["a", "b", "c"]);
@@ -99,7 +99,7 @@ mod tests {
             ])
         ));
         let mut out = String::new();
-        expr.sql_write(&WRITER, &mut out);
+        expr.sql_write(&WRITER, &mut out, false);
         assert_eq!(out, "['a', 'b', 'c']");
 
         let expr = expr!([11, 22, 33][1]);
@@ -116,7 +116,7 @@ mod tests {
             }
         ));
         let mut out = String::new();
-        expr.sql_write(&WRITER, &mut out);
+        expr.sql_write(&WRITER, &mut out, false);
         assert_eq!(out, "[11, 22, 33][1]");
 
         let expr = expr!("hello" == "hell_" as LIKE);
@@ -129,7 +129,7 @@ mod tests {
             }
         ));
         let mut out = String::new();
-        expr.sql_write(&WRITER, &mut out);
+        expr.sql_write(&WRITER, &mut out, false);
         assert_eq!(out, "'hello' LIKE 'hell_'");
 
         let expr = expr!("abc" != "A%" as LIKE);
@@ -142,7 +142,7 @@ mod tests {
             }
         ));
         let mut out = String::new();
-        expr.sql_write(&WRITER, &mut out);
+        expr.sql_write(&WRITER, &mut out, false);
         assert_eq!(out, "'abc' NOT LIKE 'A%'");
 
         let expr = expr!("log.txt" != "src/**/log.{txt,csv}" as GLOB);
@@ -155,7 +155,7 @@ mod tests {
             }
         ));
         let mut out = String::new();
-        expr.sql_write(&WRITER, &mut out);
+        expr.sql_write(&WRITER, &mut out, false);
         assert_eq!(out, "'log.txt' NOT GLOB 'src/**/log.{txt,csv}'");
 
         let expr = expr!(true as i32);
@@ -168,7 +168,7 @@ mod tests {
             }
         ));
         let mut out = String::new();
-        expr.sql_write(&WRITER, &mut out);
+        expr.sql_write(&WRITER, &mut out, false);
         assert_eq!(out, "CAST(true AS INTEGER)");
 
         let expr = expr!("value" != NULL);
@@ -181,7 +181,7 @@ mod tests {
             }
         ));
         let mut out = String::new();
-        expr.sql_write(&WRITER, &mut out);
+        expr.sql_write(&WRITER, &mut out, false);
         assert_eq!(out, "'value' IS NOT NULL");
     }
 
@@ -212,7 +212,7 @@ mod tests {
             }
         ));
         let mut out = String::new();
-        expr.sql_write(&WRITER, &mut out);
+        expr.sql_write(&WRITER, &mut out, false);
         assert_eq!(out, "90.5 - -0.54 * 2 < 7 / 2");
 
         let expr = expr!((2 + 3) * (4 - 1) >> 1 & (8 | 3));
@@ -245,7 +245,7 @@ mod tests {
             }
         ));
         let mut out = String::new();
-        expr.sql_write(&WRITER, &mut out);
+        expr.sql_write(&WRITER, &mut out, false);
         assert_eq!(out, "(2 + 3) * (4 - 1) >> 1 & (8 | 3)");
 
         let expr = expr!(-(-PI) + 2 * (5 % (2 + 1)) == 7 && !(4 < 2));
@@ -291,7 +291,7 @@ mod tests {
             }
         ));
         let mut out = String::new();
-        expr.sql_write(&WRITER, &mut out);
+        expr.sql_write(&WRITER, &mut out, false);
         assert_eq!(out, "-(-PI) + 2 * (5 % (2 + 1)) = 7 AND NOT 4 < 2");
     }
 
@@ -314,14 +314,32 @@ mod tests {
                 rhs: Operand::LitInt(2),
             }
         ));
+
         let Operand::Column(ref col) = expr.lhs else {
             panic!("Unexpected error")
         };
         assert_eq!(col.name, "first");
         assert_eq!(col.table, "the_table");
         assert_eq!(col.schema, "");
-        let mut out = String::new();
-        expr.sql_write(&WRITER, &mut out);
-        assert_eq!(out, "the_table.first + 2");
+        {
+            let mut out = String::new();
+            expr.sql_write(&WRITER, &mut out, false);
+            assert_eq!(out, "first + 2");
+        }
+        {
+            let mut out = String::new();
+            expr.sql_write(&WRITER, &mut out, true);
+            assert_eq!(out, "the_table.first + 2");
+        }
+
+        let expr = expr!(MyEntity::_first != NULL);
+        assert!(matches!(
+            expr,
+            BinaryOp {
+                op: BinaryOpType::IsNot,
+                lhs: Operand::Column(..),
+                rhs: Operand::Null,
+            }
+        ));
     }
 }

@@ -1,9 +1,9 @@
 [workspace]
 members = [
     ".",
+    "tank-core",
     "tank-duckdb",
     "tank-macros",
-    "tank-core",
 ]
 
 [workspace.package]
@@ -18,13 +18,14 @@ categories = ["database", "orm", "async"]
 anyhow = { version = "1.0.97", features = ["backtrace"] }
 convert_case = "0.7.1"
 futures = "0.3.31"
+indoc = "2.0.6"
 proc-macro2 = "1.0.93"
 quote = "1.0.38"
 rust_decimal = "1.37.1"
 syn = { version = "2.0.96", features = ["full"] }
+tank-core = { path = "tank-core" }
 tank-duckdb = { path = "tank-duckdb" }
 tank-macros = { path = "tank-macros" }
-tank-core = { path = "tank-core" }
 time = "0.3.41"
 uuid = "1.16.0"
 
@@ -40,11 +41,12 @@ edition.workspace = true
 repository.workspace = true
 
 [dependencies]
+tank-core = { workspace = true }
 tank-duckdb = { workspace = true }
 tank-macros = { workspace = true }
-tank-core = { workspace = true }
 
 [dev-dependencies]
+indoc = { workspace = true }
 rust_decimal = { workspace = true }
 time = { workspace = true }
 tokio = { version = "1.44.2", features = ["full"] }

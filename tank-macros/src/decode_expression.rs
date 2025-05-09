@@ -118,7 +118,7 @@ pub fn decode_expression(condition: &Expr) -> TokenStream {
                     }
                     decode_type(path).0.into_token_stream()
                 }
-                _ => panic!("Unexpected cast type, cast can only be a type or the special keyworkds: `LIKE`, `REGEXP`, `GLOB`"),
+                _ => panic!("Unexpected cast type, cast can only be a type or the special keyworkds: `IS`, `LIKE`, `REGEXP`, `GLOB`"),
             };
             quote! {
                 ::tank::BinaryOp {

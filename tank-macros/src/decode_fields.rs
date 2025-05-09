@@ -1,9 +1,7 @@
+use crate::{schema_name, table_name};
 use std::borrow::Cow;
-
 use syn::{Field, ItemStruct, LitStr, Type};
 use tank_core::{decode_type, ColumnDef, ColumnRef, Value};
-
-use crate::{schema_name, table_name};
 
 pub fn decode_field(field: &Field, item: &ItemStruct) -> ColumnDef {
     let (value, nullable) = if let Type::Path(type_path) = &field.ty {
@@ -42,32 +40,34 @@ pub fn decode_field(field: &Field, item: &ItemStruct) -> ColumnDef {
         if meta.path().is_ident("default_value") {
             let Ok(v) = meta.require_list().and_then(|v| v.parse_args::<LitStr>()) else {
                 panic!(
-                    "Error while parsing `default_value`, use it like #[default_value(\"some\")]",
+                    "Error while parsing `default_value`, use it like `#[default_value(\"some\")]`",
                 );
             };
             result.default = Some(v.value());
         } else if meta.path().is_ident("column_name") {
             let Ok(v) = meta.require_list().and_then(|v| v.parse_args::<LitStr>()) else {
                 panic!(
-                    "Error while parsing `column_name`, use it like #[column_name(\"my_column\")]"
+                    "Error while parsing `column_name`, use it like `#[column_name(\"my_column\")]`"
                 );
             };
             result.reference.name = v.value().into();
         } else if meta.path().is_ident("column_type") {
             let Ok(v) = meta.require_list().and_then(|v| v.parse_args::<LitStr>()) else {
                 panic!(
-                    "Error while parsing `column_type`, use it like #[column_type(\"VARCHAR\")]"
+                    "Error while parsing `column_type`, use it like `#[column_type(\"VARCHAR\")]`"
                 );
             };
             result.column_type = v.value().into();
         } else if meta.path().is_ident("primary_key") {
             let Ok(..) = meta.require_path_only() else {
-                panic!("Error while parsing `primary_key`, use it like #[primary_key] on a field");
+                panic!(
+                    "Error while parsing `primary_key`, use it like `#[primary_key]` on a field"
+                );
             };
             result.primary_key = true;
         } else if meta.path().is_ident("unique") {
             let Ok(..) = meta.require_path_only() else {
-                panic!("Error while parsing `unique`, use it like #[unique] on a field");
+                panic!("Error while parsing `unique`, use it like `#[unique]` on a field");
             };
             result.unique = true;
         }

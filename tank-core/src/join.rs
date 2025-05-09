@@ -1,7 +1,6 @@
 use crate::{DataSet, Expression};
 use proc_macro2::{TokenStream, TokenTree};
 use quote::{quote, ToTokens, TokenStreamExt};
-use std::fmt::{self, Display, Formatter};
 use syn::{
     parse::{Parse, ParseStream},
     Ident,
@@ -25,18 +24,14 @@ pub enum JoinType {
     Natural,
 }
 
-impl<L: DataSet, R: DataSet, E: Expression> DataSet for Join<L, R, E> {}
-
-impl Display for JoinType {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        Ok(f.write_str(match self {
-            JoinType::Inner => "INNER JOIN",
-            JoinType::Outer => "OUTER JOIN",
-            JoinType::Left => "LEFT JOIN",
-            JoinType::Right => "RIGHT JOIN",
-            JoinType::Cross => "CROSS",
-            JoinType::Natural => "NATURAL JOIN",
-        })?)
+impl<L: DataSet, R: DataSet, E: Expression> DataSet for Join<L, R, E> {
+    const QUALIFIED_COLUMNS: bool = true;
+    fn sql_write<'a, W: crate::SqlWriter + ?Sized>(
+        &self,
+        writer: &W,
+        out: &'a mut String,
+    ) -> &'a mut String {
+        writer.sql_join(out, self)
     }
 }
 

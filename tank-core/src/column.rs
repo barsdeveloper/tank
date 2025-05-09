@@ -42,11 +42,18 @@ impl ColumnDef {
     }
 }
 
+impl From<&ColumnRef> for ColumnRef {
+    fn from(value: &ColumnRef) -> Self {
+        value.clone()
+    }
+}
+
 impl From<ColumnDef> for ColumnRef {
     fn from(value: ColumnDef) -> Self {
         value.reference
     }
 }
+
 impl<'a> From<&'a ColumnDef> for &'a ColumnRef {
     fn from(value: &'a ColumnDef) -> Self {
         &value.reference

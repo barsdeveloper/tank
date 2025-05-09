@@ -39,5 +39,13 @@ impl ToTokens for TableRef {
     }
 }
 
-impl DataSet for TableRef {}
-impl<T: DataSet> DataSet for &T {}
+impl DataSet for TableRef {
+    const QUALIFIED_COLUMNS: bool = false;
+    fn sql_write<'a, W: crate::SqlWriter + ?Sized>(
+        &self,
+        writer: &W,
+        out: &'a mut String,
+    ) -> &'a mut String {
+        writer.sql_table_ref(out, self)
+    }
+}
