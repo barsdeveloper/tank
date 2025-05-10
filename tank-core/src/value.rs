@@ -1,3 +1,4 @@
+use core::panic;
 use quote::{quote, ToTokens};
 use rust_decimal::Decimal;
 use std::collections::HashMap;
@@ -86,74 +87,100 @@ impl Value {
 }
 
 pub fn decode_type(path: &Path) -> (Value, bool) {
-    let arguments = &path.segments.last().unwrap().arguments;
-    let ident = &path.segments.last().unwrap().ident;
-    let mut nullable = ident == "Option";
-    let data_type = if ident == "String" {
-        Value::Varchar(None)
-    } else if ident == "i8" {
-        Value::Int8(None)
-    } else if ident == "i16" {
-        Value::Int16(None)
-    } else if ident == "i32" {
-        Value::Int32(None)
-    } else if ident == "i64" {
-        Value::Int64(None)
-    } else if ident == "i128" {
-        Value::Int128(None)
-    } else if ident == "u8" {
-        Value::UInt8(None)
-    } else if ident == "u16" {
-        Value::UInt16(None)
-    } else if ident == "u32" {
-        Value::UInt32(None)
-    } else if ident == "u64" {
-        Value::UInt64(None)
-    } else if ident == "u128" {
-        Value::UInt128(None)
-    } else if ident == "f32" {
-        Value::Float32(None)
-    } else if ident == "f64" {
-        Value::Float64(None)
-    } else if ident == "Decimal" {
-        Value::Decimal(None, 0, 0)
-    } else if ident == "Time" {
-        Value::Time(None)
-    } else if ident == "Date" {
-        Value::Date(None)
-    } else if ident == "Duration" {
-        Value::Interval(None)
-    } else if ident == "Vec" {
-        match &arguments {
-            PathArguments::AngleBracketed(bracketed) => {
-                if let GenericArgument::Type(Type::Path(type_path)) =
-                    bracketed.args.first().unwrap()
-                {
-                    let nested_type = decode_type(&type_path.path);
-                    Value::List(None, Box::new(nested_type.0))
-                } else {
-                    panic!("{} must have a type as the first generic argument", ident)
+    let mut nullable = false;
+    let data_type = 'data_type: {
+        let ident = path.get_ident();
+        if let Some(ident) = ident {
+            if ident == "bool" {
+                break 'data_type Value::Boolean(None);
+            } else if ident == "i8" {
+                break 'data_type Value::Int8(None);
+            } else if ident == "i16" {
+                break 'data_type Value::Int16(None);
+            } else if ident == "i32" {
+                break 'data_type Value::Int32(None);
+            } else if ident == "i64" {
+                break 'data_type Value::Int64(None);
+            } else if ident == "i128" {
+                break 'data_type Value::Int128(None);
+            } else if ident == "u8" {
+                break 'data_type Value::UInt8(None);
+            } else if ident == "u16" {
+                break 'data_type Value::UInt16(None);
+            } else if ident == "u32" {
+                break 'data_type Value::UInt32(None);
+            } else if ident == "u64" {
+                break 'data_type Value::UInt64(None);
+            } else if ident == "u128" {
+                break 'data_type Value::UInt128(None);
+            } else if ident == "f32" {
+                break 'data_type Value::Float32(None);
+            } else if ident == "f64" {
+                break 'data_type Value::Float64(None);
+            }
+        }
+        macro_rules! matches_path {
+            ($vec:ident, $array:expr) => {
+                $vec.iter().eq($array.iter().rev().take($vec.len()))
+            };
+        }
+        let segments = path
+            .segments
+            .iter()
+            .rev()
+            .map(|v| v.ident.to_string())
+            .collect::<Vec<_>>();
+        if matches_path!(segments, ["std", "string", "String"]) {
+            break 'data_type Value::Varchar(None);
+        } else if matches_path!(segments, ["rust_decimal", "Decimal"]) {
+            break 'data_type Value::Decimal(None, 0, 0);
+        } else if matches_path!(segments, ["time", "Time"]) {
+            break 'data_type Value::Time(None);
+        } else if matches_path!(segments, ["time", "Date"]) {
+            break 'data_type Value::Date(None);
+        } else if matches_path!(segments, ["time", "PrimitiveDateTime"]) {
+            break 'data_type Value::Date(None);
+        } else if matches_path!(segments, ["std", "time", "Duration"]) {
+            break 'data_type Value::Interval(None);
+        } else if matches_path!(segments, ["uuid", "Uuid"]) {
+            break 'data_type Value::Uuid(None);
+        } else if matches_path!(segments, ["uuid", "Uuid"]) {
+            break 'data_type Value::Uuid(None);
+        } else {
+            let is_option = matches_path!(segments, ["std", "option", "Option"]);
+            let is_list = matches_path!(segments, ["std", "vec", "Vec"]);
+            let is_wrapper = is_option
+                || matches_path!(segments, ["std", "boxed", "Box"])
+                || matches_path!(segments, ["std", "sync", "Arc"]);
+            if is_list || is_wrapper {
+                match &path.segments.last().unwrap().arguments {
+                    PathArguments::AngleBracketed(bracketed) => {
+                        if let GenericArgument::Type(Type::Path(type_path)) =
+                            bracketed.args.first().unwrap()
+                        {
+                            let nested_type = decode_type(&type_path.path);
+                            if is_wrapper {
+                                nullable = if is_option {
+                                    true
+                                } else {
+                                    nullable || nested_type.1
+                                };
+                                break 'data_type nested_type.0;
+                            } else if is_list {
+                                break 'data_type Value::List(None, Box::new(nested_type.0));
+                            }
+                        } else {
+                            panic!(
+                                "{} must have a type as the first generic argument",
+                                path.to_token_stream()
+                            )
+                        }
+                    }
+                    _ => panic!("{} must have a generic argument", path.to_token_stream()),
                 }
             }
-            _ => panic!("{} must have a generic argument", ident),
         }
-    } else if ident == "Option" || ident == "Box" || ident == "Arc" {
-        match &arguments {
-            PathArguments::AngleBracketed(bracketed) => {
-                if let GenericArgument::Type(Type::Path(type_path)) =
-                    bracketed.args.first().unwrap()
-                {
-                    let nested_type = decode_type(&type_path.path);
-                    nullable = nullable || nested_type.1;
-                    nested_type.0
-                } else {
-                    panic!("{} must have a type as the first generic argument", ident)
-                }
-            }
-            _ => panic!("{} must have a generic argument", ident),
-        }
-    } else {
-        panic!("Unknown type `{}`", ident)
+        panic!("Unknown type `{}`", path.to_token_stream());
     };
     (data_type, nullable)
 }
@@ -162,7 +189,7 @@ impl ToTokens for Value {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let ts = match self {
             Value::Null => quote! { ::tank::Value::Null },
-            Value::Boolean(value) => quote! { ::tank::Value::Boolean(#value.into()) },
+            Value::Boolean(..) => quote! { ::tank::Value::Boolean(None) },
             Value::Int8(..) => quote! { ::tank::Value::Int8(None) },
             Value::Int16(..) => quote! { ::tank::Value::Int16(None) },
             Value::Int32(..) => quote! { ::tank::Value::Int32(None) },

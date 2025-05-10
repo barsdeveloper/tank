@@ -10,6 +10,7 @@ mod join;
 mod query;
 mod sql_writer;
 mod table_ref;
+mod util;
 mod value;
 
 pub use column::*;
@@ -24,5 +25,6 @@ pub use join::*;
 pub use query::*;
 pub use sql_writer::*;
 pub use table_ref::*;
+pub use util::*;
 pub use value::*;
 pub type Result<T> = anyhow::Result<T>;

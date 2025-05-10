@@ -1,4 +1,4 @@
-use crate::Value;
+use crate::{quote_cow, Value};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens, TokenStreamExt};
 use std::borrow::Cow;
@@ -60,20 +60,11 @@ impl<'a> From<&'a ColumnDef> for &'a ColumnRef {
     }
 }
 
-macro_rules! cow_to_tokens {
-    ($value:expr) => {
-        match $value {
-            Cow::Borrowed(v) => quote! { ::std::borrow::Cow::Borrowed(#v) },
-            Cow::Owned(v) => quote! { ::std::borrow::Cow::Borrowed(#v) },
-        }
-    };
-}
-
 impl ToTokens for ColumnRef {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let name = cow_to_tokens!(&self.name);
-        let table = cow_to_tokens!(&self.table);
-        let schema = cow_to_tokens!(&self.schema);
+        let name = quote_cow(&self.name);
+        let table = quote_cow(&self.table);
+        let schema = quote_cow(&self.schema);
         tokens.append_all(quote! {
             ::tank::ColumnRef {
                 name: #name,
@@ -93,7 +84,7 @@ impl ToTokens for ColumnDef {
             Some(v) => quote! {Some(#v)},
             None => quote! {None},
         };
-        let column_type = cow_to_tokens!(&self.column_type);
+        let column_type = quote_cow(&self.column_type);
         let primary_key = &self.primary_key;
         let unique = &self.unique;
         tokens.append_all(quote! {

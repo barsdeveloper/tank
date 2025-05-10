@@ -27,11 +27,13 @@ mod tests {
                 lhs: TableRef {
                     name: Cow::Borrowed("alpha"),
                     schema: Cow::Borrowed("my_data"),
+                    alias: Cow::Borrowed(""),
                     ..
                 },
                 rhs: TableRef {
                     name: Cow::Borrowed("bravo"),
                     schema: Cow::Borrowed(""),
+                    alias: Cow::Borrowed(""),
                     ..
                 },
                 on: Some(BinaryOp {

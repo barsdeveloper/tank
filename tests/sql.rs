@@ -1,11 +1,13 @@
 #[cfg(test)]
 mod tests {
     use indoc::indoc;
+    use rust_decimal::Decimal;
     use tank::expr;
-    use tank::join;
     use tank::Entity;
     use tank::SqlWriter;
     use tank_duckdb::DuckDBSqlWriter;
+    use time::PrimitiveDateTime;
+    use uuid::Uuid;
 
     const WRITER: DuckDBSqlWriter = DuckDBSqlWriter::new();
 
@@ -56,6 +58,27 @@ mod tests {
                 "}
                 .trim()
             )
+        }
+    }
+
+    fn test_2() {
+        #[derive(Entity)]
+        #[table_name("cart")]
+        struct Cart {
+            id: Uuid,
+            user_id: Uuid,
+            created_at: PrimitiveDateTime,
+            items: Vec<u32>,
+            is_active: bool,
+            total_price: Decimal, // (Decimal, prec, scale)
+        }
+
+        #[derive(Debug)]
+        struct CartItem {
+            product_id: Uuid,
+            quantity: u32,
+            price_each: f64,
+            notes: Option<String>,
         }
     }
 }

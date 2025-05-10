@@ -84,6 +84,7 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                 static TABLE_REF: ::tank::TableRef = ::tank::TableRef {
                     name: ::std::borrow::Cow::Borrowed(#table_name),
                     schema: ::std::borrow::Cow::Borrowed(#schema_name),
+                    alias: ::std::borrow::Cow::Borrowed(""),
                 };
                 &TABLE_REF
             }

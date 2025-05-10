@@ -907,6 +907,7 @@ dependencies = [
  "tank-macros",
  "time",
  "tokio",
+ "uuid",
 ]
 
 [[package]]
