@@ -141,9 +141,9 @@ checksum = "d71b6127be86fdcfddb610f7182ac57211d4b18a3e9c82eb2d17662f2227ad6a"
 
 [[package]]
 name = "cc"
-version = "1.2.19"
+version = "1.2.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8e3a13707ac958681c13b39b458c073d0d9bc8a22cb1b2f4c8e55eb72c13f362"
+checksum = "32db95edf998450acc7881c932f94cd9b05c87b4b2599e8bab064753da4acfd1"
 dependencies = [
  "jobserver",
  "libc",
@@ -202,7 +202,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "976dd42dc7e85965fe702eb8164f21f450704bdde31faefd6471dba214cb594e"
 dependencies = [
  "libc",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -349,9 +349,9 @@ dependencies = [
 
 [[package]]
 name = "getrandom"
-version = "0.3.2"
+version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "73fea8450eea4bac3940448fb7ae50d91f034f941199fcd9d909a5a07aa455f0"
+checksum = "26145e563e54f2cadc477553f1ec5ee650b00862f0a58bcd12cbdc5f0ea2d2f4"
 dependencies = [
  "cfg-if",
  "libc",
@@ -408,7 +408,7 @@ version = "0.1.33"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "38f262f097c174adebe41eb73d66ae9c06b2844fb0da69969647bbddd9b0538a"
 dependencies = [
- "getrandom 0.3.2",
+ "getrandom 0.3.3",
  "libc",
 ]
 
@@ -758,15 +758,15 @@ checksum = "719b953e2095829ee67db738b3bfa9fa368c94900df327b3f07fe6e794d2fe1f"
 
 [[package]]
 name = "rustix"
-version = "1.0.5"
+version = "1.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d97817398dd4bb2e6da002002db259209759911da105da92bec29ccb12cf58bf"
+checksum = "c71e83d6afe7ff64890ec6b71d6a69bb8a610ab78ce364b3352876bb4c801266"
 dependencies = [
  "bitflags",
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -902,9 +902,9 @@ version = "0.1.0"
 dependencies = [
  "indoc",
  "rust_decimal",
- "tank-core",
- "tank-duckdb",
- "tank-macros",
+ "tank-core 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tank-duckdb 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tank-macros 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "time",
  "tokio",
  "uuid",
@@ -913,6 +913,22 @@ dependencies = [
 [[package]]
 name = "tank-core"
 version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "futures",
+ "proc-macro2",
+ "quote",
+ "rust_decimal",
+ "syn 2.0.100",
+ "time",
+ "uuid",
+]
+
+[[package]]
+name = "tank-core"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7869dffd5afe854d1a34f92b1ae5cfa1f422322453cee4950e2964fa2e7670a4"
 dependencies = [
  "anyhow",
  "futures",
@@ -934,7 +950,24 @@ dependencies = [
  "libduckdb-sys",
  "log",
  "rust_decimal",
- "tank-core",
+ "tank-core 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "time",
+ "tokio",
+]
+
+[[package]]
+name = "tank-duckdb"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "02e8b0b3d932fda56b945eb8a2bbcac7b189474f7ed4b0734eb7a2caf7b11fb3"
+dependencies = [
+ "anyhow",
+ "flume",
+ "futures",
+ "libduckdb-sys",
+ "log",
+ "rust_decimal",
+ "tank-core 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "time",
  "tokio",
 ]
@@ -948,7 +981,21 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.100",
- "tank-core",
+ "tank-core 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "tank-macros"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d24a970c11a53113689ab2c3296ab338f6ffc5c6c9503c24210a30eadb010dd7"
+dependencies = [
+ "anyhow",
+ "convert_case",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.100",
+ "tank-core 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

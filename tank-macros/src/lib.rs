@@ -40,7 +40,7 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
         let mut column_def = decode_field(&f, &item);
         if column_def.primary_key && !table_primary_key.is_empty() {
             panic!(
-                "Column {} cannot be declared a primary key while the table also specifies one",
+                "Column {} cannot be declared as a primary key while the table also specifies one",
                 column_def.name()
             )
         }

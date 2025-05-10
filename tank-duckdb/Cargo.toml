@@ -1,18 +1,19 @@
 [package]
 name = "tank-duckdb"
-version.workspace = true
+description = "DuckDB driver implementation for Tank: the Rust data layer"
+version = "0.1.0"
 authors.workspace = true
 license.workspace = true
 edition.workspace = true
 repository.workspace = true
 
 [dependencies]
-anyhow = { workspace = true }
-tank-core = { workspace = true }
-futures = { workspace = true }
+anyhow = { version = "1.0.97", features = ["backtrace"] }
 flume = "0.11.1"
-tokio = { version = "1.44.2", features = ["rt-multi-thread"] }
+futures = "0.3.31"
 libduckdb-sys = { version = "1.2.2", features = ["bundled"] }
 log = "0.4.27"
-rust_decimal.workspace = true
-time.workspace = true
+rust_decimal = "1.37.1"
+tank-core = "0.1.0"
+time = "0.3.41"
+tokio = { version = "1.44.2", features = ["rt-multi-thread"] }

@@ -12,7 +12,7 @@ authors = ["barsdeveloper <barsdeveloper@gmail.com>"]
 license = "Apache-2.0"
 edition = "2021"
 repository = "https://github.com/barsdeveloper/tank"
-categories = ["database", "orm", "async"]
+categories = ["database"]
 
 [workspace.dependencies]
 anyhow = { version = "1.0.97", features = ["backtrace"] }
@@ -23,9 +23,8 @@ proc-macro2 = "1.0.93"
 quote = "1.0.38"
 rust_decimal = "1.37.1"
 syn = { version = "2.0.96", features = ["full"] }
-tank-core = { path = "tank-core" }
-tank-duckdb = { path = "tank-duckdb" }
-tank-macros = { path = "tank-macros" }
+tank-core = "0.1.0"
+tank-duckdb = "0.1.0"
 time = "0.3.41"
 uuid = "1.16.0"
 
@@ -34,6 +33,7 @@ tank-macros.workspace = true
 
 [package]
 name = "tank"
+description = "Tank (Table Abstraction and Navigation Kit): the Rust data layer. A simple and extensible ORM for Rust"
 version.workspace = true
 authors.workspace = true
 license.workspace = true
@@ -41,9 +41,9 @@ edition.workspace = true
 repository.workspace = true
 
 [dependencies]
-tank-core = { workspace = true }
-tank-duckdb = { workspace = true }
-tank-macros = { workspace = true }
+tank-core = "0.1.0"
+tank-duckdb = "0.1.0"
+tank-macros = "0.1.0"
 
 [dev-dependencies]
 indoc = { workspace = true }
