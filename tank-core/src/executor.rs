@@ -1,39 +1,41 @@
 use crate::{Count, Driver, Query, QueryResult, Result, Row};
-use futures::{future::BoxFuture, stream::BoxStream, FutureExt, StreamExt, TryStreamExt};
-use std::fmt::Debug;
+use futures::{Stream, StreamExt, TryStreamExt};
+use std::{fmt::Debug, future::Future};
 
 pub trait Executor: Send + Debug + Sized {
     type Driver: Driver;
 
     fn driver(&self) -> &Self::Driver;
 
-    /// Execute the query and returns the results.
-    fn run<'a>(
+    fn prepare(
+        &mut self,
+        query: String,
+    ) -> impl Future<Output = Result<<Self::Driver as Driver>::Prepared>> + Send;
+
+    fn run(
         &mut self,
         query: Query<<Self::Driver as Driver>::Prepared>,
-    ) -> BoxStream<'a, Result<QueryResult>>;
+    ) -> impl Stream<Item = Result<QueryResult>> + Send;
 
     /// Execute the query and returns the rows.
-    fn fetch<'a>(
+    fn fetch(
         &mut self,
         query: Query<<Self::Driver as Driver>::Prepared>,
-    ) -> BoxStream<'a, Result<Row>> {
-        self.run(query)
-            .filter_map(|v| async move {
-                match v {
-                    Ok(QueryResult::Row(v)) => Some(Ok(v)),
-                    Err(e) => Some(Err(e)),
-                    _ => None,
-                }
-            })
-            .boxed()
+    ) -> impl Stream<Item = Result<Row>> + Send {
+        self.run(query).filter_map(|v| async move {
+            match v {
+                Ok(QueryResult::Row(v)) => Some(Ok(v)),
+                Err(e) => Some(Err(e)),
+                _ => None,
+            }
+        })
     }
 
     /// Execute the query and return the total number of rows affected.
-    fn execute<'a>(
+    fn execute(
         &mut self,
         query: Query<<Self::Driver as Driver>::Prepared>,
-    ) -> BoxFuture<'a, Result<Count>> {
+    ) -> impl Future<Output = Result<Count>> + Send {
         self.run(query)
             .filter_map(|v| async move {
                 match v {
@@ -43,6 +45,5 @@ pub trait Executor: Send + Debug + Sized {
                 }
             })
             .try_collect()
-            .boxed()
     }
 }

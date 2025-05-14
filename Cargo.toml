@@ -45,6 +45,11 @@ tank-core = "0.1.0"
 tank-duckdb = "0.1.0"
 tank-macros = "0.1.0"
 
+[patch.crates-io]
+tank-core = { path = "tank-core" }
+tank-duckdb = { path = "tank-duckdb" }
+tank-macros = { path = "tank-macros" }
+
 [dev-dependencies]
 indoc = { workspace = true }
 rust_decimal = { workspace = true }

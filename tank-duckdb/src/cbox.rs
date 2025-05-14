@@ -1,6 +1,5 @@
 use libduckdb_sys::duckdb_result;
 use std::{
-    mem::ManuallyDrop,
     ops::{Deref, DerefMut},
     sync::atomic::AtomicPtr,
 };
@@ -47,26 +46,13 @@ impl NullCheck for duckdb_result {
 
 #[derive(Debug)]
 pub(crate) struct CBox<T: NullCheck> {
-    ptr: T,
+    pub(crate) ptr: T,
     dealloc: fn(T),
 }
 
 impl<T: NullCheck> CBox<T> {
     pub fn new(ptr: T, dealloc: fn(T)) -> Self {
         Self { ptr, dealloc }
-    }
-
-    pub fn as_ref(&self) -> CBox<&T> {
-        CBox::new(&self.ptr, |_| {})
-    }
-
-    pub fn as_mut(&mut self) -> CBox<&mut T> {
-        CBox::new(&mut self.ptr, |_| {})
-    }
-
-    pub fn into_raw(self) -> T {
-        let this = ManuallyDrop::new(self);
-        unsafe { std::ptr::read(&this.ptr) }
     }
 }
 

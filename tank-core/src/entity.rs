@@ -1,4 +1,5 @@
 use crate::{ColumnDef, Executor, Expression, Result, TableRef};
+use std::future::Future;
 
 pub trait Entity: Send {
     type PrimaryKey;
@@ -9,27 +10,27 @@ pub trait Entity: Send {
     fn columns() -> &'static [ColumnDef];
     fn primary_key() -> &'static [ColumnDef];
 
-    fn create_table<E: Executor>(
-        executor: &mut E,
+    fn create_table<Exec: Executor>(
+        executor: &mut Exec,
         if_not_exists: bool,
-    ) -> impl std::future::Future<Output = Result<()>> + Send;
+    ) -> impl Future<Output = Result<()>> + Send;
 
-    fn drop_table<E: Executor>(
-        executor: &mut E,
+    fn drop_table<Exec: Executor>(
+        executor: &mut Exec,
         if_exists: bool,
-    ) -> impl std::future::Future<Output = Result<()>> + Send;
+    ) -> impl Future<Output = Result<()>> + Send;
 
-    fn find_by_key<E: Executor>(
-        executor: &mut E,
+    fn find_by_key<Exec: Executor>(
+        executor: &mut Exec,
         primary_key: &Self::PrimaryKey,
-    ) -> impl std::future::Future<Output = Result<Self>> + Send
+    ) -> impl Future<Output = Result<Self>> + Send
     where
         Self: Sized;
 
-    fn find_by_condition<E: Executor, Expr: Expression>(
-        executor: &mut E,
+    fn find_by_condition<Exec: Executor, Expr: Expression>(
+        executor: &mut Exec,
         condition: Expr,
-    ) -> impl std::future::Future<Output = Result<Self>> + Send
+    ) -> impl Future<Output = Result<Self>> + Send
     where
         Self: Sized;
 }

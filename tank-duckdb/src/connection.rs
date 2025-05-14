@@ -1,24 +1,51 @@
 use crate::{cbox::CBox, driver::DuckDBDriver, extract_value::extract_value, DuckDBPrepared};
-use anyhow::{anyhow, Error, Result};
-use futures::{stream::BoxStream, StreamExt};
+use anyhow::{anyhow, Context, Error};
+use futures::Stream;
 use libduckdb_sys::*;
 use std::{
-    ffi::{CStr, CString},
+    collections::BTreeMap,
+    ffi::{c_char, c_void, CStr, CString},
+    fmt::Debug,
     mem,
     ops::DerefMut,
     ptr,
     sync::{
         atomic::{AtomicPtr, Ordering},
-        Arc,
+        Arc, LazyLock,
     },
 };
-use tank_core::{Connection, Count, Executor, Query, QueryResult, Row};
-use tokio::task::spawn_blocking;
+use tank_core::{Connection, Count, Executor, Query, QueryResult, Result, Row};
+use tokio::{sync::RwLock, task::spawn_blocking};
+use urlencoding::decode;
 
-#[derive(Debug)]
 pub struct DuckDBConnection {
     pub(crate) connection: CBox<duckdb_connection>,
     pub(crate) transaction: bool,
+    prepared_cache: RwLock<BTreeMap<String, DuckDBPrepared>>,
+}
+
+impl DuckDBConnection {
+    pub(crate) fn database_cache() -> &'static AtomicPtr<_duckdb_instance_cache> {
+        static DATABASE_CACHE: LazyLock<CBox<AtomicPtr<_duckdb_instance_cache>>> =
+            LazyLock::new(|| {
+                CBox::new(
+                    AtomicPtr::new(unsafe { duckdb_create_instance_cache() }),
+                    |ptr| unsafe {
+                        duckdb_destroy_instance_cache(&mut ptr.load(Ordering::Relaxed))
+                    },
+                )
+            });
+        &**DATABASE_CACHE
+    }
+}
+
+impl Debug for DuckDBConnection {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DuckDBConnection")
+            .field("connection", &self.connection)
+            .field("transaction", &self.transaction)
+            .finish()
+    }
 }
 
 impl Executor for DuckDBConnection {
@@ -28,13 +55,54 @@ impl Executor for DuckDBConnection {
         &DuckDBDriver {}
     }
 
-    fn run<'a>(&mut self, mut query: Query<DuckDBPrepared>) -> BoxStream<'a, Result<QueryResult>> {
+    async fn prepare(&mut self, query: String) -> Result<DuckDBPrepared> {
+        if let Some(prepared) = self.prepared_cache.read().await.get(&query) {
+            return Ok(prepared.clone());
+        }
+        let connection = AtomicPtr::new(*self.connection);
+        let source = query.clone();
+        let prepared = spawn_blocking(move || unsafe {
+            let mut prepared = CBox::new(ptr::null_mut(), |mut p| unsafe {
+                duckdb_destroy_prepare(&mut p)
+            });
+            let source = match CString::new(source.as_bytes()) {
+                Ok(query) => query,
+                Err(e) => {
+                    return Err(
+                        Error::new(e).context("Could not create a CString from the query String")
+                    );
+                }
+            };
+            let rc = duckdb_prepare(
+                connection.load(Ordering::Relaxed),
+                source.as_ptr(),
+                &mut *prepared,
+            );
+            if rc != duckdb_state_DuckDBSuccess {
+                return Err(anyhow!(CStr::from_ptr(duckdb_prepare_error(*prepared))
+                    .to_str()
+                    .unwrap()));
+            }
+            Ok(prepared)
+        })
+        .await?;
+        let prepared = DuckDBPrepared::new(prepared?);
+        self.prepared_cache
+            .write()
+            .await
+            .insert(query, prepared.clone());
+        Ok(prepared)
+    }
+
+    fn run(&mut self, mut query: Query<DuckDBPrepared>) -> impl Stream<Item = Result<QueryResult>> {
         let (tx, rx) = flume::unbounded::<Result<QueryResult>>();
         let connection = AtomicPtr::new(*self.connection);
         spawn_blocking(move || unsafe {
             if let Query::Raw(v) = query {
                 query = Query::Prepared({
-                    let mut prepared: duckdb_prepared_statement = ptr::null_mut();
+                    let mut prepared = CBox::new(ptr::null_mut(), |mut ptr| unsafe {
+                        duckdb_destroy_prepare(&mut ptr)
+                    });
                     let query = match CString::new(v.as_bytes()) {
                         Ok(query) => query,
                         Err(e) => {
@@ -46,10 +114,10 @@ impl Executor for DuckDBConnection {
                     let rc = duckdb_prepare(
                         connection.load(Ordering::Relaxed),
                         query.as_ptr(),
-                        &mut prepared,
+                        &mut *prepared,
                     );
                     if rc != duckdb_state_DuckDBSuccess {
-                        let message = CStr::from_ptr(duckdb_prepare_error(prepared))
+                        let message = CStr::from_ptr(duckdb_prepare_error(*prepared))
                             .to_str()
                             .unwrap()
                             .to_string();
@@ -68,6 +136,7 @@ impl Executor for DuckDBConnection {
                 let _ = tx.send(Err(anyhow!("Error while executing the query")));
             }
             let statement_type = duckdb_result_statement_type(*result);
+            #[allow(non_upper_case_globals)]
             if matches!(
                 statement_type,
                 duckdb_statement_type_DUCKDB_STATEMENT_TYPE_INSERT
@@ -131,8 +200,102 @@ impl Executor for DuckDBConnection {
                 });
             }
         });
-        rx.into_stream().boxed()
+        rx.into_stream()
     }
 }
 
-impl Connection for DuckDBConnection {}
+fn as_c_string<S: Into<Vec<u8>>>(str: S) -> CString {
+    CString::new(str.into()).expect("Expected a valid C string")
+}
+
+impl Connection for DuckDBConnection {
+    const PREFIX: &'static str = "duckdb";
+
+    #[allow(refining_impl_trait)]
+    async fn connect(url: &str) -> Result<DuckDBConnection> {
+        let prefix = format!("{}://", Self::PREFIX);
+        if !url.starts_with(&prefix) {
+            return Err(anyhow!(
+                "Expected duckdb connection url to start with `{}`",
+                &prefix
+            ));
+        }
+        let mut parts = url.trim_start_matches(&prefix).splitn(2, '?');
+        let path = parts.next().ok_or(anyhow!(
+            "Expected database file path or `:memory:` in the connection URL: `{}`",
+            url
+        ))?;
+        let params = parts.next().unwrap_or_default();
+        let context = || format!("Error while decoding connection URL: `{}`", url);
+        let path = decode(path)
+            .with_context(context)
+            .and_then(|v| CString::new(&*v).with_context(context))?;
+        let mut config: CBox<duckdb_config> = CBox::new(ptr::null_mut(), |mut p| unsafe {
+            duckdb_destroy_config(&mut p)
+        });
+        unsafe {
+            let rc = duckdb_create_config(&mut *config);
+            if rc != duckdb_state_DuckDBSuccess {
+                return Err(anyhow!("Error while creating the duckdb_config object"));
+            }
+        };
+        for (key, value) in url::form_urlencoded::parse(params.as_bytes()) {
+            let rc = unsafe {
+                match &*key {
+                    "mode" => duckdb_set_config(
+                        *config,
+                        c"access_mode".as_ptr(),
+                        match &*value {
+                            "ro" => c"READ_ONLY",
+                            "rw" => c"READ_WRITE",
+                            _ => {
+                                return Err(anyhow!("Unknown value {value:?} for `mode`, expected one of: `ro`, `rw`"));
+                            }
+                        }
+                        .as_ptr(),
+                    ),
+                    _ => duckdb_set_config(
+                        *config,
+                        as_c_string(&*key).as_ptr(),
+                        as_c_string(&*value).as_ptr(),
+                    ),
+                }
+            };
+            if rc != duckdb_state_DuckDBSuccess {
+                return Err(anyhow!("Error while setting config `{}={}`", key, value));
+            }
+        }
+        let mut database: duckdb_database = ptr::null_mut();
+        let mut connection: CBox<duckdb_connection>;
+        let mut error: CBox<*mut c_char> = CBox::new(ptr::null_mut(), |p| unsafe {
+            duckdb_free(p as *mut c_void)
+        });
+        let db_cache = Self::database_cache().load(Ordering::Relaxed);
+        unsafe {
+            let rc = duckdb_get_or_create_from_cache(
+                db_cache,
+                path.as_ptr(),
+                &mut database,
+                *config,
+                &mut *error,
+            );
+            if rc != duckdb_state_DuckDBSuccess {
+                let error = CStr::from_ptr(error.ptr)
+                    .to_str()
+                    .context("While reading the error from `duckdb_get_or_create_from_cache`")?
+                    .to_owned();
+                return Err(anyhow!(error));
+            };
+            connection = CBox::new(ptr::null_mut(), |mut p| duckdb_disconnect(&mut p));
+            let rc = duckdb_connect(database, &mut *connection);
+            if rc != duckdb_state_DuckDBSuccess {
+                return Err(anyhow!("Could not connect to the database"));
+            };
+        };
+        Ok(DuckDBConnection {
+            connection,
+            transaction: false,
+            prepared_cache: Default::default(),
+        })
+    }
+}

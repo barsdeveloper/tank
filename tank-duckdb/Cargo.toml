@@ -16,4 +16,9 @@ log = "0.4.27"
 rust_decimal = "1.37.1"
 tank-core = "0.1.0"
 time = "0.3.41"
-tokio = { version = "1.44.2", features = ["rt-multi-thread"] }
+tokio = { version = "1.44.2", features = ["fs", "macros", "rt-multi-thread", "sync"] }
+url = "2.5.4"
+urlencoding = "2.1.3"
+
+[patch.crates-io]
+tank-core = { path = "tank-core" }

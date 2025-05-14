@@ -5,7 +5,7 @@ pub trait Prepared: Clone {}
 
 #[derive(Clone)]
 pub enum Query<P: Prepared> {
-    Raw(Arc<String>),
+    Raw(Arc<str>),
     Prepared(P),
 }
 
