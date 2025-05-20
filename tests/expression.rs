@@ -296,6 +296,25 @@ mod tests {
     }
 
     #[test]
+    fn variables() {
+        let one = 1;
+        let three = 3;
+        let expr = expr!(#one + 2 == three);
+        assert!(matches!(
+            expr,
+            BinaryOp {
+                op: BinaryOpType::Equal,
+                lhs: BinaryOp {
+                    op: BinaryOpType::Addition,
+                    lhs: Operand::Variable(Value::Int32(Some(1))),
+                    rhs: Operand::LitInt(2),
+                },
+                rhs: Operand::LitIdent("three"),
+            }
+        ));
+    }
+
+    #[test]
     fn columns() {
         #[derive(Entity)]
         #[table_name("the_table")]

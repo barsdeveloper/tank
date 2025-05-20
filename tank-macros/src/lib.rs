@@ -10,7 +10,8 @@ use column_trait::column_trait;
 use decode_expression::decode_expression;
 use decode_fields::decode_field;
 use decode_join::JoinParsed;
-use proc_macro::TokenStream;
+use proc_macro::{Delimiter, Group, Spacing, TokenStream, TokenTree};
+use proc_macro2::Ident as Ident2;
 use quote::{quote, ToTokens};
 use schema_name::schema_name;
 use syn::{parse_macro_input, punctuated::Punctuated, token::Comma, Expr, ItemStruct};
@@ -141,15 +142,37 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                 todo!("find_by_condition")
             }
         }
-
     }
     .into()
 }
 
 #[proc_macro]
 pub fn expr(input: TokenStream) -> TokenStream {
-    let input: Expr = parse_macro_input!(input as Expr);
-    let parsed = decode_expression(&input);
+    let mut iter = input.into_iter().peekable();
+    let input = std::iter::from_fn(move || {
+        while let Some(token) = iter.next() {
+            let next = iter.peek();
+            match (&token, next) {
+                (TokenTree::Punct(p), Some(TokenTree::Ident(ident)))
+                    if p.as_char() == '#' && p.spacing() == Spacing::Alone =>
+                {
+                    let ident = Ident2::new(&ident.to_string(), ident.span().into());
+                    let wrapped: TokenStream = quote!(tank::evaluated!(#ident)).into();
+                    iter.next();
+                    return Some(TokenTree::Group(Group::new(
+                        Delimiter::None,
+                        wrapped.into(),
+                    )));
+                }
+                _ => {}
+            }
+            return Some(token);
+        }
+        None
+    })
+    .collect();
+    let expr = parse_macro_input!(input as Expr);
+    let parsed = decode_expression(&expr);
     quote!(#parsed).into()
 }
 

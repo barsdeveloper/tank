@@ -231,3 +231,41 @@ impl ToTokens for Value {
         tokens.extend(ts);
     }
 }
+
+macro_rules! impl_from {
+    ($source:ty, $into:path $(, $args:tt)* $(,)?) => {
+        impl From<$source> for Value {
+            fn from(value: $source) -> Self {
+                $into(Some(value))
+            }
+        }
+    };
+}
+
+impl_from!(bool, Value::Boolean);
+impl_from!(i8, Value::Int8);
+impl_from!(i16, Value::Int16);
+impl_from!(i32, Value::Int32);
+impl_from!(i64, Value::Int64);
+impl_from!(i128, Value::Int128);
+impl_from!(u8, Value::UInt8);
+impl_from!(u16, Value::UInt16);
+impl_from!(u32, Value::UInt32);
+impl_from!(u64, Value::UInt64);
+impl_from!(u128, Value::UInt128);
+impl_from!(f32, Value::Float32);
+impl_from!(f64, Value::Float64);
+impl_from!(String, Value::Varchar);
+impl_from!(Box<[u8]>, Value::Blob);
+impl_from!(time::Date, Value::Date);
+impl_from!(time::Time, Value::Time);
+impl_from!(time::PrimitiveDateTime, Value::Timestamp);
+impl_from!(time::OffsetDateTime, Value::TimestampWithTimezone);
+impl_from!(Interval, Value::Interval);
+impl_from!(uuid::Uuid, Value::Uuid);
+
+impl From<Decimal> for Value {
+    fn from(value: Decimal) -> Self {
+        Value::Decimal(Some(value), 18, value.scale() as u8)
+    }
+}

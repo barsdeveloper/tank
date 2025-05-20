@@ -42,6 +42,7 @@ pub enum Operand {
     Null,
     Column(ColumnRef),
     Type(Value),
+    Variable(Value),
 }
 impl OpPrecedence for Operand {
     fn precedence<W: SqlWriter + ?Sized>(&self, _writer: &W) -> i32 {

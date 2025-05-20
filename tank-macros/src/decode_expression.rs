@@ -2,12 +2,12 @@ use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn::{
     punctuated::Punctuated, spanned::Spanned, token::Comma, BinOp, Expr, ExprGroup, ExprLit,
-    ExprPath, LitStr, Path, Type, TypePath,
+    ExprMacro, ExprPath, LitStr, Macro, Path, Type, TypePath,
 };
 use tank_core::decode_type;
 
-pub fn decode_expression(condition: &Expr) -> TokenStream {
-    match condition {
+pub fn decode_expression(expr: &Expr) -> TokenStream {
+    match expr {
         Expr::Binary(v) => {
             let lhs = v.left.as_ref();
             let mut rhs = v.right.as_ref();
@@ -157,6 +157,21 @@ pub fn decode_expression(condition: &Expr) -> TokenStream {
             };
             quote! { #v }
         }
+        Expr::Macro(ExprMacro {
+            mac: Macro { path, tokens, .. },
+            ..
+        }) => {
+            if path
+                .segments
+                .iter()
+                .map(|v| v.ident.to_string())
+                .eq(["tank", "evaluated"].into_iter())
+            {
+                quote! { ::tank::Operand::Variable(#tokens.into()) }
+            } else {
+                quote! { #path!(#tokens) }
+            }
+        }
         Expr::MethodCall(expr_method_call) => todo!("Expr::MethodCall"),
         Expr::Paren(v) => decode_expression(&v.expr),
         Expr::Path(ExprPath { path, .. }) => {
@@ -185,7 +200,7 @@ pub fn decode_expression(condition: &Expr) -> TokenStream {
         Expr::Group(ExprGroup { expr, .. }) => decode_expression(&expr),
         _ => panic!(
             "Unexpected expression `{}`",
-            condition.to_token_stream().to_string()
+            expr.to_token_stream().to_string()
         ),
     }
 }

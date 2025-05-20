@@ -66,6 +66,82 @@ pub trait SqlWriter {
         out
     }
 
+    fn sql_value<'a>(&self, out: &'a mut String, value: &Value) -> &'a mut String {
+        match value {
+            Value::Boolean(Some(v), ..) => write!(out, "{}", v),
+            Value::Int8(Some(v), ..) => write!(out, "{}", v),
+            Value::Int16(Some(v), ..) => write!(out, "{}", v),
+            Value::Int32(Some(v), ..) => write!(out, "{}", v),
+            Value::Int64(Some(v), ..) => write!(out, "{}", v),
+            Value::Int128(Some(v), ..) => write!(out, "{}", v),
+            Value::UInt8(Some(v), ..) => write!(out, "{}", v),
+            Value::UInt16(Some(v), ..) => write!(out, "{}", v),
+            Value::UInt32(Some(v), ..) => write!(out, "{}", v),
+            Value::UInt64(Some(v), ..) => write!(out, "{}", v),
+            Value::UInt128(Some(v), ..) => write!(out, "{}", v),
+            Value::Float32(Some(v), ..) => write!(out, "{}", v),
+            Value::Float64(Some(v), ..) => write!(out, "{}", v),
+            Value::Decimal(Some(v), ..) => write!(out, "{}", v),
+            Value::Varchar(Some(v), ..) => write!(out, "\"{}\"", v),
+            Value::Blob(Some(v), ..) => {
+                out.push('\'');
+                v.iter().for_each(|b| {
+                    write!(out, "\\{:X}", b);
+                });
+                out.push('\'');
+                Ok(())
+            }
+            Value::Date(Some(v), ..) => {
+                out.push('\'');
+                write!(out, "{}", v);
+                out.push('\'');
+                Ok(())
+            }
+            Value::Time(Some(v), ..) => {
+                out.push('\'');
+                write!(out, "{}", v);
+                out.push('\'');
+                Ok(())
+            }
+            Value::Timestamp(Some(v), ..) => {
+                out.push('\'');
+                write!(out, "{}", v);
+                out.push('\'');
+                Ok(())
+            }
+            Value::TimestampWithTimezone(Some(v), ..) => {
+                out.push('\'');
+                write!(out, "{}", v);
+                out.push('\'');
+                Ok(())
+            }
+            // Value::Interval(Some(v), ..) => {
+            //     out.push('\'');
+            //     write!(out, "{}", v);
+            //     out.push('\'');
+            //     Ok(())
+            // }
+            // Value::Uuid(..) => out.push_str("UUID"),
+            // Value::Array(.., inner, size) => {
+            //     self.sql_type(out, inner);
+            //     let _ = write!(out, "[{}]", size);
+            // }
+            // Value::List(.., inner) => {
+            //     self.sql_type(out, inner);
+            //     out.push_str("[]");
+            // }
+            // Value::Map(.., key, value) => {
+            //     out.push_str("MAP(");
+            //     self.sql_type(out, key);
+            //     out.push_str(", ");
+            //     self.sql_type(out, value);
+            //     out.push(')');
+            // }
+            _ => panic!("Unexpected tank::Value, cannot get the sql type"),
+        };
+        out
+    }
+
     fn sql_table_ref<'a>(&self, out: &'a mut String, value: &TableRef) -> &'a mut String {
         out.push_str(&value.full_name());
         out
@@ -162,6 +238,10 @@ pub trait SqlWriter {
             }
             Operand::Type(v) => {
                 self.sql_type(out, v);
+                Ok(())
+            }
+            Operand::Variable(v) => {
+                self.sql_value(out, v);
                 Ok(())
             }
         };
