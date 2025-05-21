@@ -299,7 +299,7 @@ mod tests {
     fn variables() {
         let one = 1;
         let three = 3;
-        let expr = expr!(#one + 2 == three);
+        let expr = expr!(#one + 2 == #three);
         assert!(matches!(
             expr,
             BinaryOp {
@@ -309,9 +309,34 @@ mod tests {
                     lhs: Operand::Variable(Value::Int32(Some(1))),
                     rhs: Operand::LitInt(2),
                 },
-                rhs: Operand::LitIdent("three"),
+                rhs: Operand::Variable(Value::Int32(Some(3))),
             }
         ));
+
+        let vec = vec![-1, -2, -3, -4];
+        let index = 2;
+        let expr = expr!(#vec[#index + 1] + 60);
+        assert!(matches!(
+                expr,
+                BinaryOp {
+                    op: BinaryOpType::Addition,
+                    lhs: BinaryOp {
+                        op: BinaryOpType::Indexing,
+                        lhs: Operand::Variable(Value::List(Some(ref vec), ..)),
+                        rhs: BinaryOp {
+                            op: BinaryOpType::Addition,
+                            lhs: Operand::Variable(Value::Int32(Some(2))),
+                            rhs: Operand::LitInt(1),
+                        },
+                    },
+                    rhs: Operand::LitInt(60),
+                }if vec.as_slice() == &[
+            Value::Int32(Some(-1)),
+            Value::Int32(Some(-2)),
+            Value::Int32(Some(-3)),
+            Value::Int32(Some(-4)),
+        ]
+            ));
     }
 
     #[test]

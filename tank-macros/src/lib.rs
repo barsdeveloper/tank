@@ -148,29 +148,36 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
 
 #[proc_macro]
 pub fn expr(input: TokenStream) -> TokenStream {
-    let mut iter = input.into_iter().peekable();
-    let input = std::iter::from_fn(move || {
-        while let Some(token) = iter.next() {
-            let next = iter.peek();
-            match (&token, next) {
-                (TokenTree::Punct(p), Some(TokenTree::Ident(ident)))
-                    if p.as_char() == '#' && p.spacing() == Spacing::Alone =>
-                {
-                    let ident = Ident2::new(&ident.to_string(), ident.span().into());
-                    let wrapped: TokenStream = quote!(tank::evaluated!(#ident)).into();
-                    iter.next();
-                    return Some(TokenTree::Group(Group::new(
-                        Delimiter::None,
-                        wrapped.into(),
-                    )));
+    fn flag_evaluations(input: TokenStream) -> TokenStream {
+        let mut iter = input.into_iter().peekable();
+        std::iter::from_fn(move || {
+            while let Some(token) = iter.next() {
+                let next = iter.peek();
+                match (&token, next) {
+                    (TokenTree::Punct(p), Some(TokenTree::Ident(ident)))
+                        if p.as_char() == '#' && p.spacing() == Spacing::Alone =>
+                    {
+                        let ident = Ident2::new(&ident.to_string(), ident.span().into());
+                        iter.next();
+                        let wrapped: TokenStream = quote!(tank::evaluated!(#ident)).into();
+                        return Some(TokenTree::Group(Group::new(
+                            Delimiter::None,
+                            wrapped.into(),
+                        )));
+                    }
+                    (TokenTree::Group(group), ..) => {
+                        let content = flag_evaluations(group.stream());
+                        return Some(TokenTree::Group(Group::new(group.delimiter(), content)));
+                    }
+                    _ => {}
                 }
-                _ => {}
+                return Some(token);
             }
-            return Some(token);
-        }
-        None
-    })
-    .collect();
+            None
+        })
+        .collect()
+    }
+    let input = flag_evaluations(input);
     let expr = parse_macro_input!(input as Expr);
     let parsed = decode_expression(&expr);
     quote!(#parsed).into()

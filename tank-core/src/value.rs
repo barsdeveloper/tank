@@ -1,7 +1,7 @@
 use core::panic;
 use quote::{quote, ToTokens};
 use rust_decimal::Decimal;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use syn::{GenericArgument, Path, PathArguments, Type};
 use time::{Date, OffsetDateTime, PrimitiveDateTime, Time};
 use uuid::Uuid;
@@ -41,10 +41,45 @@ pub enum Value {
     ),
     List(Option<Vec<Value>>, /* type: */ Box<Value>),
     Map(
-        Option<HashMap<Value, Value>>,
+        Option<BTreeMap<Value, Value>>,
         /* key: */ Box<Value>,
         /* value: */ Box<Value>,
     ),
+}
+
+impl PartialEq for Value {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Boolean(l), Self::Boolean(r)) => l == r,
+            (Self::Int8(l), Self::Int8(r)) => l == r,
+            (Self::Int16(l), Self::Int16(r)) => l == r,
+            (Self::Int32(l), Self::Int32(r)) => l == r,
+            (Self::Int64(l), Self::Int64(r)) => l == r,
+            (Self::Int128(l), Self::Int128(r)) => l == r,
+            (Self::UInt8(l), Self::UInt8(r)) => l == r,
+            (Self::UInt16(l), Self::UInt16(r)) => l == r,
+            (Self::UInt32(l), Self::UInt32(r)) => l == r,
+            (Self::UInt64(l), Self::UInt64(r)) => l == r,
+            (Self::UInt128(l), Self::UInt128(r)) => l == r,
+            (Self::Float32(l), Self::Float32(r)) => l == r,
+            (Self::Float64(l), Self::Float64(r)) => l == r,
+            (Self::Decimal(l, l_prec, l_scale), Self::Decimal(r, r_prec, r_scale)) => {
+                l == r && l_prec == r_prec && l_scale == r_scale
+            }
+            (Self::Varchar(l), Self::Varchar(r)) => l == r,
+            (Self::Blob(l), Self::Blob(r)) => l == r,
+            (Self::Date(l), Self::Date(r)) => l == r,
+            (Self::Time(l), Self::Time(r)) => l == r,
+            (Self::Timestamp(l), Self::Timestamp(r)) => l == r,
+            (Self::TimestampWithTimezone(l), Self::TimestampWithTimezone(r)) => l == r,
+            (Self::Interval(l), Self::Interval(r)) => l == r,
+            (Self::Uuid(l), Self::Uuid(r)) => l == r,
+            (Self::Array(l, ..), Self::Array(r, ..)) => l == r && self.same_type(other),
+            (Self::List(l, ..), Self::List(r, ..)) => l == r && self.same_type(other),
+            (Self::Map(l, ..), Self::Map(r, ..)) => l == r && self.same_type(other),
+            _ => core::mem::discriminant(self) == core::mem::discriminant(other),
+        }
+    }
 }
 
 impl Value {
@@ -232,40 +267,89 @@ impl ToTokens for Value {
     }
 }
 
-macro_rules! impl_from {
+trait AsValue {
+    fn as_empty_value() -> Value;
+    fn as_value(self) -> Value;
+}
+
+macro_rules! impl_as_value {
     ($source:ty, $into:path $(, $args:tt)* $(,)?) => {
-        impl From<$source> for Value {
-            fn from(value: $source) -> Self {
-                $into(Some(value))
+        impl AsValue for $source {
+            fn as_empty_value() -> Value {
+                $into(None)
+            }
+            fn as_value(self) -> Value {
+                $into(Some(self, $($args),*))
             }
         }
     };
 }
 
-impl_from!(bool, Value::Boolean);
-impl_from!(i8, Value::Int8);
-impl_from!(i16, Value::Int16);
-impl_from!(i32, Value::Int32);
-impl_from!(i64, Value::Int64);
-impl_from!(i128, Value::Int128);
-impl_from!(u8, Value::UInt8);
-impl_from!(u16, Value::UInt16);
-impl_from!(u32, Value::UInt32);
-impl_from!(u64, Value::UInt64);
-impl_from!(u128, Value::UInt128);
-impl_from!(f32, Value::Float32);
-impl_from!(f64, Value::Float64);
-impl_from!(String, Value::Varchar);
-impl_from!(Box<[u8]>, Value::Blob);
-impl_from!(time::Date, Value::Date);
-impl_from!(time::Time, Value::Time);
-impl_from!(time::PrimitiveDateTime, Value::Timestamp);
-impl_from!(time::OffsetDateTime, Value::TimestampWithTimezone);
-impl_from!(Interval, Value::Interval);
-impl_from!(uuid::Uuid, Value::Uuid);
+impl_as_value!(bool, Value::Boolean);
+impl_as_value!(i8, Value::Int8);
+impl_as_value!(i16, Value::Int16);
+impl_as_value!(i32, Value::Int32);
+impl_as_value!(i64, Value::Int64);
+impl_as_value!(i128, Value::Int128);
+impl_as_value!(u8, Value::UInt8);
+impl_as_value!(u16, Value::UInt16);
+impl_as_value!(u32, Value::UInt32);
+impl_as_value!(u64, Value::UInt64);
+impl_as_value!(u128, Value::UInt128);
+impl_as_value!(f32, Value::Float32);
+impl_as_value!(f64, Value::Float64);
+impl_as_value!(String, Value::Varchar);
+impl_as_value!(Box<[u8]>, Value::Blob);
+impl_as_value!(time::Date, Value::Date);
+impl_as_value!(time::Time, Value::Time);
+impl_as_value!(time::PrimitiveDateTime, Value::Timestamp);
+impl_as_value!(time::OffsetDateTime, Value::TimestampWithTimezone);
+impl_as_value!(Interval, Value::Interval);
+impl_as_value!(uuid::Uuid, Value::Uuid);
 
-impl From<Decimal> for Value {
-    fn from(value: Decimal) -> Self {
-        Value::Decimal(Some(value), 18, value.scale() as u8)
+impl<T: AsValue> AsValue for Option<T> {
+    fn as_empty_value() -> Value {
+        T::as_empty_value()
+    }
+
+    fn as_value(self) -> Value {
+        match self {
+            Some(v) => v.as_value(),
+            None => T::as_empty_value(),
+        }
+    }
+}
+
+macro_rules! impl_as_value {
+    ($wrapper:ident) => {
+        impl<T: AsValue> AsValue for $wrapper<T> {
+            fn as_empty_value() -> Value {
+                T::as_empty_value()
+            }
+
+            fn as_value(self) -> Value {
+                (*self).as_value()
+            }
+        }
+    };
+}
+impl_as_value!(Box);
+
+impl<T: AsValue> AsValue for Vec<T> {
+    fn as_value(self) -> Value {
+        Value::List(
+            Some(self.into_iter().map(AsValue::as_value).collect()),
+            Box::new(T::as_empty_value()),
+        )
+    }
+
+    fn as_empty_value() -> Value {
+        Value::List(None, Box::new(T::as_empty_value()))
+    }
+}
+
+impl<T: AsValue> From<T> for Value {
+    fn from(value: T) -> Self {
+        value.as_value()
     }
 }
