@@ -1,7 +1,13 @@
 use core::panic;
 use quote::{quote, ToTokens};
 use rust_decimal::Decimal;
-use std::collections::BTreeMap;
+use std::{
+    collections::{BTreeMap, HashMap},
+    hash::Hash,
+    mem::discriminant,
+    rc::Rc,
+    sync::Arc,
+};
 use syn::{GenericArgument, Path, PathArguments, Type};
 use time::{Date, OffsetDateTime, PrimitiveDateTime, Time};
 use uuid::Uuid;
@@ -41,15 +47,34 @@ pub enum Value {
     ),
     List(Option<Vec<Value>>, /* type: */ Box<Value>),
     Map(
-        Option<BTreeMap<Value, Value>>,
+        Option<HashMap<Value, Value>>,
         /* key: */ Box<Value>,
         /* value: */ Box<Value>,
     ),
 }
 
+impl Value {
+    pub fn same_type(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Decimal(.., l_prec, l_scale), Self::Decimal(.., r_prec, r_scale)) => {
+                l_prec == r_prec && l_scale == r_scale
+            }
+            (Self::Array(.., l_type, l_len), Self::Array(.., r_type, r_len)) => {
+                l_len == r_len && l_type.same_type(&r_type)
+            }
+            (Self::List(.., l), Self::List(.., r)) => l.same_type(r),
+            (Self::Map(.., l_key, l_value), Self::Map(.., r_key, r_value)) => {
+                l_key.same_type(r_key) && l_value.same_type(&r_value)
+            }
+            _ => discriminant(self) == discriminant(other),
+        }
+    }
+}
+
 impl PartialEq for Value {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
+            (Self::Null, Self::Null) => true,
             (Self::Boolean(l), Self::Boolean(r)) => l == r,
             (Self::Int8(l), Self::Int8(r)) => l == r,
             (Self::Int16(l), Self::Int16(r)) => l == r,
@@ -61,8 +86,16 @@ impl PartialEq for Value {
             (Self::UInt32(l), Self::UInt32(r)) => l == r,
             (Self::UInt64(l), Self::UInt64(r)) => l == r,
             (Self::UInt128(l), Self::UInt128(r)) => l == r,
-            (Self::Float32(l), Self::Float32(r)) => l == r,
-            (Self::Float64(l), Self::Float64(r)) => l == r,
+            (Self::Float32(l), Self::Float32(r)) => {
+                l == r
+                    || l.and_then(|l| r.and_then(|r| Some(l.is_nan() && r.is_nan())))
+                        .unwrap_or_default()
+            }
+            (Self::Float64(l), Self::Float64(r)) => {
+                l == r
+                    || l.and_then(|l| r.and_then(|r| Some(l.is_nan() && r.is_nan())))
+                        .unwrap_or_default()
+            }
             (Self::Decimal(l, l_prec, l_scale), Self::Decimal(r, r_prec, r_scale)) => {
                 l == r && l_prec == r_prec && l_scale == r_scale
             }
@@ -76,47 +109,95 @@ impl PartialEq for Value {
             (Self::Uuid(l), Self::Uuid(r)) => l == r,
             (Self::Array(l, ..), Self::Array(r, ..)) => l == r && self.same_type(other),
             (Self::List(l, ..), Self::List(r, ..)) => l == r && self.same_type(other),
-            (Self::Map(l, ..), Self::Map(r, ..)) => l == r && self.same_type(other),
-            _ => core::mem::discriminant(self) == core::mem::discriminant(other),
+            (Self::Map(None, ..), Self::Map(None, ..)) => self.same_type(other),
+            (Self::Map(Some(l), ..), Self::Map(Some(r), ..)) => {
+                l.is_empty() && r.is_empty() && self.same_type(other)
+            }
+            (Self::Map(..), Self::Map(..)) => false,
+            _ => false,
         }
     }
 }
 
-impl Value {
-    pub fn same_type(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Self::Boolean(..), Self::Boolean(..)) => true,
-            (Self::Int8(..), Self::Int8(..)) => true,
-            (Self::Int16(..), Self::Int16(..)) => true,
-            (Self::Int32(..), Self::Int32(..)) => true,
-            (Self::Int64(..), Self::Int64(..)) => true,
-            (Self::Int128(..), Self::Int128(..)) => true,
-            (Self::UInt8(..), Self::UInt8(..)) => true,
-            (Self::UInt16(..), Self::UInt16(..)) => true,
-            (Self::UInt32(..), Self::UInt32(..)) => true,
-            (Self::UInt64(..), Self::UInt64(..)) => true,
-            (Self::UInt128(..), Self::UInt128(..)) => true,
-            (Self::Float32(..), Self::Float32(..)) => true,
-            (Self::Float64(..), Self::Float64(..)) => true,
-            (Self::Decimal(.., l_prec, l_scale), Self::Decimal(.., r_prec, r_scale)) => {
-                l_prec == r_prec && l_scale == r_scale
+impl Eq for Value {}
+
+impl Hash for Value {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        use Value::*;
+        discriminant(self).hash(state);
+        match self {
+            Null => {}
+            Boolean(v) => v.hash(state),
+            Int8(v) => v.hash(state),
+            Int16(v) => v.hash(state),
+            Int32(v) => v.hash(state),
+            Int64(v) => v.hash(state),
+            Int128(v) => v.hash(state),
+
+            UInt8(v) => v.hash(state),
+            UInt16(v) => v.hash(state),
+            UInt32(v) => v.hash(state),
+            UInt64(v) => v.hash(state),
+            UInt128(v) => v.hash(state),
+
+            Float32(Some(v)) => {
+                if v.is_nan() {
+                    // NaNs must be hashed consistently
+                    0u8.hash(state);
+                } else {
+                    v.to_bits().hash(state);
+                }
             }
-            (Self::Varchar(..), Self::Varchar(..)) => true,
-            (Self::Blob(..), Self::Blob(..)) => true,
-            (Self::Date(..), Self::Date(..)) => true,
-            (Self::Time(..), Self::Time(..)) => true,
-            (Self::Timestamp(..), Self::Timestamp(..)) => true,
-            (Self::TimestampWithTimezone(..), Self::TimestampWithTimezone(..)) => true,
-            (Self::Interval(..), Self::Interval(..)) => true,
-            (Self::Uuid(..), Self::Uuid(..)) => true,
-            (Self::Array(.., l_type, l_len), Self::Array(.., r_type, r_len)) => {
-                l_len == r_len && l_type.same_type(&r_type)
+            Float32(None) => None::<u32>.hash(state),
+
+            Float64(Some(v)) => {
+                if v.is_nan() {
+                    0u8.hash(state);
+                } else {
+                    v.to_bits().hash(state);
+                }
             }
-            (Self::List(.., l), Self::List(.., r)) => l.same_type(r),
-            (Self::Map(.., l_key, l_value), Self::Map(.., r_key, r_value)) => {
-                l_key.same_type(r_key) && l_value.same_type(&r_value)
+            Float64(None) => None::<u64>.hash(state),
+
+            Decimal(v, prec, scale) => {
+                v.hash(state);
+                prec.hash(state);
+                scale.hash(state);
             }
-            _ => core::mem::discriminant(self) == core::mem::discriminant(other),
+
+            Varchar(v) => v.hash(state),
+            Blob(v) => v.hash(state),
+            Date(v) => v.hash(state),
+            Time(v) => v.hash(state),
+            Timestamp(v) => v.hash(state),
+            TimestampWithTimezone(v) => v.hash(state),
+            Interval(v) => v.hash(state),
+            Uuid(v) => v.hash(state),
+
+            Array(v, typ, len) => {
+                v.hash(state);
+                typ.hash(state);
+                len.hash(state);
+            }
+
+            List(v, typ) => {
+                v.hash(state);
+                typ.hash(state);
+            }
+
+            Map(opt_map, k, v) => {
+                match opt_map {
+                    Some(map) => {
+                        for (key, val) in map {
+                            key.hash(state);
+                            val.hash(state);
+                        }
+                    }
+                    None => {}
+                }
+                k.hash(state);
+                v.hash(state);
+            }
         }
     }
 }
@@ -307,34 +388,6 @@ impl_as_value!(time::OffsetDateTime, Value::TimestampWithTimezone);
 impl_as_value!(Interval, Value::Interval);
 impl_as_value!(uuid::Uuid, Value::Uuid);
 
-impl<T: AsValue> AsValue for Option<T> {
-    fn as_empty_value() -> Value {
-        T::as_empty_value()
-    }
-
-    fn as_value(self) -> Value {
-        match self {
-            Some(v) => v.as_value(),
-            None => T::as_empty_value(),
-        }
-    }
-}
-
-macro_rules! impl_as_value {
-    ($wrapper:ident) => {
-        impl<T: AsValue> AsValue for $wrapper<T> {
-            fn as_empty_value() -> Value {
-                T::as_empty_value()
-            }
-
-            fn as_value(self) -> Value {
-                (*self).as_value()
-            }
-        }
-    };
-}
-impl_as_value!(Box);
-
 impl<T: AsValue> AsValue for Vec<T> {
     fn as_value(self) -> Value {
         Value::List(
@@ -348,8 +401,66 @@ impl<T: AsValue> AsValue for Vec<T> {
     }
 }
 
+impl<K: AsValue, V: AsValue> AsValue for BTreeMap<K, V> {
+    fn as_empty_value() -> Value {
+        Value::Map(None, K::as_empty_value().into(), V::as_empty_value().into())
+    }
+
+    fn as_value(self) -> Value {
+        let mut map = HashMap::new();
+        for (k, v) in self {
+            map.insert(k.as_value(), v.as_value());
+        }
+        Value::Map(
+            Some(map),
+            K::as_empty_value().into(),
+            V::as_empty_value().into(),
+        )
+    }
+}
+
 impl<T: AsValue> From<T> for Value {
     fn from(value: T) -> Self {
         value.as_value()
     }
 }
+
+impl<T: AsValue> AsValue for Option<T> {
+    fn as_empty_value() -> Value {
+        T::as_empty_value()
+    }
+
+    fn as_value(self) -> Value {
+        match self {
+            Some(v) => v.as_value(),
+            None => T::as_empty_value(),
+        }
+    }
+}
+
+impl<T: AsValue> AsValue for Box<T> {
+    fn as_empty_value() -> Value {
+        T::as_empty_value()
+    }
+
+    fn as_value(self) -> Value {
+        (*self).as_value()
+    }
+}
+
+macro_rules! impl_as_value {
+    ($wrapper:ident) => {
+        impl<T: AsValue + Clone> AsValue for $wrapper<T> {
+            fn as_empty_value() -> Value {
+                T::as_empty_value()
+            }
+
+            fn as_value(self) -> Value {
+                (*self).clone().as_value()
+            }
+        }
+    };
+}
+
+impl_as_value!(Arc);
+impl_as_value!(Rc);
