@@ -1,6 +1,6 @@
 use crate::{
-    BinaryOp, BinaryOpType, ColumnDef, ColumnRef, DataSet, Entity, Expression, Join, JoinType,
-    Operand, TableRef, UnaryOp, UnaryOpType, Value,
+    BinaryOp, BinaryOpType, ColumnDef, ColumnRef, DataSet, Entity, Expression, Interval, Join,
+    JoinType, Operand, TableRef, UnaryOp, UnaryOpType, Value,
 };
 use std::fmt::Write;
 
@@ -67,7 +67,7 @@ pub trait SqlWriter {
     }
 
     fn sql_value<'a>(&self, out: &'a mut String, value: &Value) -> &'a mut String {
-        match value {
+        let _ = match value {
             Value::Boolean(Some(v), ..) => write!(out, "{}", v),
             Value::Int8(Some(v), ..) => write!(out, "{}", v),
             Value::Int16(Some(v), ..) => write!(out, "{}", v),
@@ -86,57 +86,101 @@ pub trait SqlWriter {
             Value::Blob(Some(v), ..) => {
                 out.push('\'');
                 v.iter().for_each(|b| {
-                    write!(out, "\\{:X}", b);
+                    let _ = write!(out, "\\{:X}", b);
                 });
                 out.push('\'');
                 Ok(())
             }
             Value::Date(Some(v), ..) => {
                 out.push('\'');
-                write!(out, "{}", v);
+                let _ = write!(out, "{}", v);
                 out.push('\'');
                 Ok(())
             }
             Value::Time(Some(v), ..) => {
                 out.push('\'');
-                write!(out, "{}", v);
+                let _ = write!(out, "{}", v);
                 out.push('\'');
                 Ok(())
             }
             Value::Timestamp(Some(v), ..) => {
                 out.push('\'');
-                write!(out, "{}", v);
+                let _ = write!(out, "{}", v);
                 out.push('\'');
                 Ok(())
             }
             Value::TimestampWithTimezone(Some(v), ..) => {
                 out.push('\'');
-                write!(out, "{}", v);
+                let _ = write!(out, "{}", v);
                 out.push('\'');
                 Ok(())
             }
-            // Value::Interval(Some(v), ..) => {
-            //     out.push('\'');
-            //     write!(out, "{}", v);
-            //     out.push('\'');
-            //     Ok(())
-            // }
-            // Value::Uuid(..) => out.push_str("UUID"),
-            // Value::Array(.., inner, size) => {
-            //     self.sql_type(out, inner);
-            //     let _ = write!(out, "[{}]", size);
-            // }
-            // Value::List(.., inner) => {
-            //     self.sql_type(out, inner);
-            //     out.push_str("[]");
-            // }
-            // Value::Map(.., key, value) => {
-            //     out.push_str("MAP(");
-            //     self.sql_type(out, key);
-            //     out.push_str(", ");
-            //     self.sql_type(out, value);
-            //     out.push(')');
-            // }
+            Value::Interval(Some(v), ..) => {
+                let _ = out.write_str("INTERVAL");
+                let quote_position = out.len() + 1;
+                macro_rules! write_unit {
+                    ($out:ident, $val:expr, $unit:expr) => {
+                        let _ = write!(
+                            $out,
+                            " {} {}{}",
+                            $val,
+                            $unit,
+                            if $val > 1 { "S" } else { "" }
+                        );
+                    };
+                }
+
+                let mut units = 0;
+                if v.months != 0 {
+                    if v.months % 12 == 0 {
+                        write_unit!(out, v.months / 12, "YEAR");
+                        units += 1;
+                    } else {
+                        write_unit!(out, v.months, "MONTH");
+                        units += 1;
+                    }
+                }
+                let nanos = v.nanos + v.days as i128 * Interval::NANOS_IN_DAY;
+                const UNITS: &[(&str, i128)] = &[
+                    ("DAY", Interval::NANOS_IN_DAY),
+                    ("HOUR", Interval::NANOS_IN_SEC * 3600),
+                    ("MINUTE", Interval::NANOS_IN_SEC * 60),
+                    ("SECOND", Interval::NANOS_IN_SEC),
+                    ("MICROSECOND", 1_000),
+                    ("NANOSECOND", 1),
+                ];
+                for &(name, factor) in UNITS {
+                    if nanos % factor == 0 {
+                        write_unit!(out, nanos / factor, name);
+                        units += 1;
+                        break;
+                    }
+                }
+                if units > 1 {
+                    out.insert(quote_position, '\'');
+                    out.push('\'');
+                }
+                Ok(())
+            }
+            Value::Uuid(Some(v), ..) => write!(out, "'{}'", v),
+            Value::Array(.., inner, size) => {
+                self.sql_type(out, inner);
+                let _ = write!(out, "[{}]", size);
+                Ok(())
+            }
+            Value::List(.., inner) => {
+                self.sql_type(out, inner);
+                out.push_str("[]");
+                Ok(())
+            }
+            Value::Map(.., key, value) => {
+                out.push_str("MAP(");
+                self.sql_type(out, key);
+                out.push_str(", ");
+                self.sql_type(out, value);
+                out.push(')');
+                Ok(())
+            }
             _ => panic!("Unexpected tank::Value, cannot get the sql type"),
         };
         out

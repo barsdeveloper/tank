@@ -5,7 +5,7 @@ use libduckdb_sys::*;
 use std::{
     collections::BTreeMap,
     ffi::{c_char, c_void, CStr, CString},
-    fmt::Debug,
+    fmt::{self, Debug, Formatter},
     mem,
     ops::DerefMut,
     ptr,
@@ -40,7 +40,7 @@ impl DuckDBConnection {
 }
 
 impl Debug for DuckDBConnection {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("DuckDBConnection")
             .field("connection", &self.connection)
             .field("transaction", &self.transaction)
