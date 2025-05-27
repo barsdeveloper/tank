@@ -2,7 +2,7 @@ use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn::{
     punctuated::Punctuated, spanned::Spanned, token::Comma, BinOp, Expr, ExprGroup, ExprLit,
-    ExprMacro, ExprPath, LitStr, Macro, Path, Type, TypePath,
+    ExprMacro, ExprPath, LitStr, Macro, Member, Path, Type, TypePath,
 };
 use tank_core::decode_type;
 
@@ -188,6 +188,33 @@ pub fn decode_expression(expr: &Expr) -> TokenStream {
                     quote! { ::tank::Operand::LitIdent(#v) }
                 }
             }
+        }
+        Expr::Field(v) => {
+            let mut current = expr;
+            let mut segments = Vec::new();
+            let do_panic = || {
+                panic!("Unexpected field expression {}, it should dot separated names like: namespace.table.column", v.to_token_stream().to_string())
+            };
+            loop {
+                match current {
+                    Expr::Field(field) => {
+                        match &field.member {
+                            Member::Named(ident) => segments.push(ident.to_string()),
+                            _ => do_panic(),
+                        }
+                        current = &field.base;
+                    }
+                    Expr::Path(path) => {
+                        for segment in path.path.segments.iter().rev() {
+                            segments.push(segment.ident.to_string());
+                        }
+                        break;
+                    }
+                    _ => do_panic(),
+                }
+            }
+            let segments = segments.into_iter().rev().collect::<Vec<_>>();
+            quote! { ::tank::Operand::LitField(&[#(#segments),*]) }
         }
         Expr::Array(v) => {
             let v = v

@@ -258,6 +258,7 @@ pub trait SqlWriter {
             Operand::LitBool(v) => write!(out, "{}", v),
             Operand::LitFloat(v) => write!(out, "{}", v),
             Operand::LitIdent(v) => write!(out, "{}", v),
+            Operand::LitField(v) => Ok(out.push_str(&v.join("."))),
             Operand::LitInt(v) => write!(out, "{}", v),
             Operand::LitStr(v) => write!(out, "'{}'", v),
             Operand::LitArray(v) => {
@@ -272,10 +273,7 @@ pub trait SqlWriter {
                 out.push(']');
                 Ok(())
             }
-            Operand::Null => {
-                out.push_str("NULL");
-                Ok(())
-            }
+            Operand::Null => Ok(out.push_str("NULL")),
             Operand::Column(v) => {
                 self.sql_column_ref(out, v, qualify_columns);
                 Ok(())

@@ -2,6 +2,7 @@ use crate::{quote_cow, DataSet};
 use quote::{quote, ToTokens, TokenStreamExt};
 use std::borrow::Cow;
 
+#[derive(Clone)]
 pub struct TableRef {
     pub name: Cow<'static, str>,
     pub schema: Cow<'static, str>,
@@ -20,6 +21,11 @@ impl TableRef {
             }
             result.push_str(&self.name);
         }
+        result
+    }
+    pub fn with_alias(&self, alias: Cow<'static, str>) -> Self {
+        let mut result = self.clone();
+        result.alias = alias;
         result
     }
 }

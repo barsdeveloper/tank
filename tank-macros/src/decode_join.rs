@@ -130,13 +130,22 @@ impl Parse for JoinParsed {
 impl Parse for JoinMemberParsed {
     fn parse(input: ParseStream) -> Result<Self> {
         if let Ok(join) = input.parse::<JoinParsed>() {
-            Ok(Self(join.0))
-        } else if let Ok(table) = input.parse::<Path>() {
-            Ok(Self(quote! { #table::table_ref() }))
+            return Ok(Self(join.0));
+        }
+        let table: Path = if let Ok(table) = input.parse::<Path>() {
+            table
         } else if let Ok(table) = input.parse::<Ident>() {
-            Ok(Self(quote! { #table::table_ref() }))
+            table.into()
         } else {
-            Err(input.error("Expected a table or some nested join"))
+            return Err(input.error("Expected a table or some nested join"));
+        };
+        if input.peek(Ident) {
+            let alias = input.parse::<Ident>()?;
+            Ok(Self(
+                quote! { #table::table_ref().with_alias(stringify!(#alias).into()) },
+            ))
+        } else {
+            Ok(Self(quote! { #table::table_ref() }))
         }
     }
 }

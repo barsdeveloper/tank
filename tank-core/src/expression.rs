@@ -36,6 +36,7 @@ pub enum Operand {
     LitBool(bool),
     LitFloat(f64),
     LitIdent(&'static str),
+    LitField(&'static [&'static str]),
     LitInt(i128),
     LitStr(&'static str),
     LitArray(&'static [Operand]),

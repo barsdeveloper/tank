@@ -19,7 +19,7 @@ mod tests {
 
     #[test]
     fn join_simple() {
-        let join = join!(Alpha JOIN crate::tests::Bravo ON Alpha::_a == Bravo::_first);
+        let join = join!(Alpha AA JOIN crate::tests::Bravo BB ON AA.a == BB.first);
         assert!(matches!(
             join,
             Join {
@@ -27,29 +27,19 @@ mod tests {
                 lhs: TableRef {
                     name: Cow::Borrowed("alpha"),
                     schema: Cow::Borrowed("my_data"),
-                    alias: Cow::Borrowed(""),
+                    alias: Cow::Borrowed("AA"),
                     ..
                 },
                 rhs: TableRef {
                     name: Cow::Borrowed("bravo"),
                     schema: Cow::Borrowed(""),
-                    alias: Cow::Borrowed(""),
+                    alias: Cow::Borrowed("BB"),
                     ..
                 },
                 on: Some(BinaryOp {
                     op: BinaryOpType::Equal,
-                    lhs: Operand::Column(ColumnRef {
-                        name: Cow::Borrowed("a"),
-                        table: Cow::Borrowed("alpha"),
-                        schema: Cow::Borrowed("my_data"),
-                        ..
-                    }),
-                    rhs: Operand::Column(ColumnRef {
-                        name: Cow::Borrowed("first"),
-                        table: Cow::Borrowed("bravo"),
-                        schema: Cow::Borrowed(""),
-                        ..
-                    }),
+                    lhs: Operand::LitField(["AA", "a"]),
+                    rhs: Operand::LitField(["BB", "first"]),
                     ..
                 }),
                 ..
@@ -280,7 +270,7 @@ mod tests {
         struct Some {
             col: Box<i64>,
         }
-        let join = join!(Alpha FULL OUTER JOIN Bravo ON Alpha::_b >= Bravo::_second RIGHT JOIN Some ON Some::col == Bravo::_first);
+        let join = join!(Alpha A FULL OUTER JOIN Bravo ON Alpha::_b >= Bravo::_second RIGHT JOIN Some ON Some::col == Bravo::_first);
         assert!(matches!(
             join,
             Join {
@@ -290,10 +280,12 @@ mod tests {
                     lhs: TableRef {
                         name: Cow::Borrowed("alpha"),
                         schema: Cow::Borrowed("my_data"),
+                        alias: Cow::Borrowed("A"),
                         ..
                     },
                     rhs: TableRef {
                         name: Cow::Borrowed("bravo"),
+                        alias: Cow::Borrowed(""),
                         ..
                     },
                     on: Some(BinaryOp {
