@@ -25,7 +25,7 @@ rust_decimal = "1.37.1"
 syn = { version = "2.0.96", features = ["full"] }
 tank-core = "0.1.0"
 tank-duckdb = "0.1.0"
-time = "0.3.41"
+time = { version = "0.3.41", features = ["macros", "parsing"] }
 uuid = "1.16.0"
 
 [workspace.dev-dependencies]
@@ -42,12 +42,10 @@ repository.workspace = true
 
 [dependencies]
 tank-core = "0.1.0"
-tank-duckdb = "0.1.0"
 tank-macros = "0.1.0"
 
 [patch.crates-io]
 tank-core = { path = "tank-core" }
-tank-duckdb = { path = "tank-duckdb" }
 tank-macros = { path = "tank-macros" }
 
 [dev-dependencies]

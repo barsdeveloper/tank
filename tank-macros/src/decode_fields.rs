@@ -4,8 +4,8 @@ use syn::{Field, ItemStruct, LitStr, Type};
 use tank_core::{decode_type, ColumnDef, ColumnRef, Value};
 
 pub fn decode_field(field: &Field, item: &ItemStruct) -> ColumnDef {
-    let (value, nullable) = if let Type::Path(type_path) = &field.ty {
-        decode_type(&type_path.path)
+    let (value, nullable) = if let Type::Path(..) = &field.ty {
+        decode_type(&field.ty)
     } else {
         (Value::Varchar(None), true)
     };

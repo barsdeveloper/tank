@@ -1,15 +1,13 @@
 #[cfg(test)]
 mod tests {
     use indoc::indoc;
-    use std::sync::Arc;
-    use std::time::Duration;
-    use tank::Driver;
-    use tank::Entity;
-    use tank::SqlWriter;
-    use tank::Value;
-    use tank_duckdb::DuckDBDriver;
+    use std::{sync::Arc, time::Duration};
+    use tank::{Entity, RowValues, SqlWriter, Value};
 
-    const DRIVER: DuckDBDriver = DuckDBDriver::new();
+    struct Writer;
+    impl SqlWriter for Writer {}
+
+    const WRITER: Writer = Writer {};
 
     #[tokio::test]
     async fn test_1() {
@@ -19,6 +17,11 @@ mod tests {
             b: String,
         }
         let columns = SomeEntity::columns();
+        impl SomeEntity {
+            fn aaa(&self) -> RowValues {
+                [self.a.clone().into(), self.b.clone().into()].into()
+            }
+        }
 
         assert_eq!(SomeEntity::table_name(), "some_entity");
         assert_eq!(SomeEntity::primary_key().len(), 0);
@@ -33,9 +36,7 @@ mod tests {
 
         let mut query = String::new();
         assert_eq!(
-            DRIVER
-                .sql_writer()
-                .sql_create_table::<SomeEntity>(&mut query, false),
+            WRITER.sql_create_table::<SomeEntity>(&mut query, false),
             indoc! {"
                 CREATE TABLE some_entity(
                 a TINYINT NOT NULL,
@@ -76,9 +77,7 @@ mod tests {
 
         let mut query = String::new();
         assert_eq!(
-            DRIVER
-                .sql_writer()
-                .sql_create_table::<SomeEntity>(&mut query, true),
+            WRITER.sql_create_table::<SomeEntity>(&mut query, true),
             indoc! {"
                 CREATE TABLE IF NOT EXISTS custom_table_name(
                 first UHUGEINT NOT NULL,
@@ -136,9 +135,7 @@ mod tests {
 
         let mut query = String::new();
         assert_eq!(
-            DRIVER
-                .sql_writer()
-                .sql_create_table::<MyEntity>(&mut query, false),
+            WRITER.sql_create_table::<MyEntity>(&mut query, false),
             indoc! {"
                 CREATE TABLE a_table(
                 alpha DOUBLE NOT NULL,
@@ -220,9 +217,7 @@ mod tests {
 
         let mut query = String::new();
         assert_eq!(
-            DRIVER
-                .sql_writer()
-                .sql_create_table::<Customer>(&mut query, false),
+            WRITER.sql_create_table::<Customer>(&mut query, false),
             indoc! {"
                 CREATE TABLE customers(
                 transaction_ids UBIGINT[] NOT NULL,

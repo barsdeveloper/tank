@@ -1,4 +1,4 @@
-use crate::{ColumnDef, Executor, Expression, Result, TableRef};
+use crate::{ColumnDef, Executor, Expression, Result, RowValues, TableRef};
 use std::future::Future;
 
 pub trait Entity: Send {
@@ -33,4 +33,17 @@ pub trait Entity: Send {
     ) -> impl Future<Output = Result<Self>> + Send
     where
         Self: Sized;
+
+    fn row_values(&self) -> RowValues {
+        Self::columns()
+            .iter()
+            .map(|c| {
+                let value = c.value.clone();
+
+                value
+            })
+            .collect::<Box<_>>()
+    }
+
+    fn save<Exec: Executor>(&self, executor: &mut Exec) -> impl Future<Output = Result<()>> + Send;
 }

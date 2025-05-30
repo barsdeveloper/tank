@@ -68,52 +68,73 @@ pub trait SqlWriter {
 
     fn sql_value<'a>(&self, out: &'a mut String, value: &Value) -> &'a mut String {
         let _ = match value {
-            Value::Boolean(Some(v), ..) => write!(out, "{}", v),
-            Value::Int8(Some(v), ..) => write!(out, "{}", v),
-            Value::Int16(Some(v), ..) => write!(out, "{}", v),
-            Value::Int32(Some(v), ..) => write!(out, "{}", v),
-            Value::Int64(Some(v), ..) => write!(out, "{}", v),
-            Value::Int128(Some(v), ..) => write!(out, "{}", v),
-            Value::UInt8(Some(v), ..) => write!(out, "{}", v),
-            Value::UInt16(Some(v), ..) => write!(out, "{}", v),
-            Value::UInt32(Some(v), ..) => write!(out, "{}", v),
-            Value::UInt64(Some(v), ..) => write!(out, "{}", v),
-            Value::UInt128(Some(v), ..) => write!(out, "{}", v),
-            Value::Float32(Some(v), ..) => write!(out, "{}", v),
-            Value::Float64(Some(v), ..) => write!(out, "{}", v),
-            Value::Decimal(Some(v), ..) => write!(out, "{}", v),
-            Value::Varchar(Some(v), ..) => write!(out, "\"{}\"", v),
+            Value::Null
+            | Value::Boolean(None, ..)
+            | Value::Int8(None, ..)
+            | Value::Int16(None, ..)
+            | Value::Int32(None, ..)
+            | Value::Int64(None, ..)
+            | Value::Int128(None, ..)
+            | Value::UInt8(None, ..)
+            | Value::UInt16(None, ..)
+            | Value::UInt32(None, ..)
+            | Value::UInt64(None, ..)
+            | Value::UInt128(None, ..)
+            | Value::Float32(None, ..)
+            | Value::Float64(None, ..)
+            | Value::Decimal(None, ..)
+            | Value::Varchar(None, ..)
+            | Value::Blob(None, ..)
+            | Value::Date(None, ..)
+            | Value::Time(None, ..)
+            | Value::Timestamp(None, ..)
+            | Value::TimestampWithTimezone(None, ..)
+            | Value::Interval(None, ..)
+            | Value::Uuid(None, ..)
+            | Value::Array(None, ..)
+            | Value::List(None, ..)
+            | Value::Map(None, ..) => out.push_str("NULL"),
+            Value::Boolean(Some(v), ..) => drop(write!(out, "{}", v)),
+            Value::Int8(Some(v), ..) => drop(write!(out, "{}", v)),
+            Value::Int16(Some(v), ..) => drop(write!(out, "{}", v)),
+            Value::Int32(Some(v), ..) => drop(write!(out, "{}", v)),
+            Value::Int64(Some(v), ..) => drop(write!(out, "{}", v)),
+            Value::Int128(Some(v), ..) => drop(write!(out, "{}", v)),
+            Value::UInt8(Some(v), ..) => drop(write!(out, "{}", v)),
+            Value::UInt16(Some(v), ..) => drop(write!(out, "{}", v)),
+            Value::UInt32(Some(v), ..) => drop(write!(out, "{}", v)),
+            Value::UInt64(Some(v), ..) => drop(write!(out, "{}", v)),
+            Value::UInt128(Some(v), ..) => drop(write!(out, "{}", v)),
+            Value::Float32(Some(v), ..) => drop(write!(out, "{}", v)),
+            Value::Float64(Some(v), ..) => drop(write!(out, "{}", v)),
+            Value::Decimal(Some(v), ..) => drop(write!(out, "{}", v)),
+            Value::Varchar(Some(v), ..) => drop(write!(out, "\"{}\"", v)),
             Value::Blob(Some(v), ..) => {
                 out.push('\'');
                 v.iter().for_each(|b| {
                     let _ = write!(out, "\\{:X}", b);
                 });
                 out.push('\'');
-                Ok(())
             }
             Value::Date(Some(v), ..) => {
                 out.push('\'');
                 let _ = write!(out, "{}", v);
                 out.push('\'');
-                Ok(())
             }
             Value::Time(Some(v), ..) => {
                 out.push('\'');
                 let _ = write!(out, "{}", v);
                 out.push('\'');
-                Ok(())
             }
             Value::Timestamp(Some(v), ..) => {
                 out.push('\'');
                 let _ = write!(out, "{}", v);
                 out.push('\'');
-                Ok(())
             }
             Value::TimestampWithTimezone(Some(v), ..) => {
                 out.push('\'');
                 let _ = write!(out, "{}", v);
                 out.push('\'');
-                Ok(())
             }
             Value::Interval(Some(v), ..) => {
                 let _ = out.write_str("INTERVAL");
@@ -160,18 +181,15 @@ pub trait SqlWriter {
                     out.insert(quote_position, '\'');
                     out.push('\'');
                 }
-                Ok(())
             }
-            Value::Uuid(Some(v), ..) => write!(out, "'{}'", v),
+            Value::Uuid(Some(v), ..) => drop(write!(out, "'{}'", v)),
             Value::Array(.., inner, size) => {
                 self.sql_type(out, inner);
                 let _ = write!(out, "[{}]", size);
-                Ok(())
             }
             Value::List(.., inner) => {
                 self.sql_type(out, inner);
                 out.push_str("[]");
-                Ok(())
             }
             Value::Map(.., key, value) => {
                 out.push_str("MAP(");
@@ -179,9 +197,7 @@ pub trait SqlWriter {
                 out.push_str(", ");
                 self.sql_type(out, value);
                 out.push(')');
-                Ok(())
             }
-            _ => panic!("Unexpected tank::Value, cannot get the sql type"),
         };
         out
     }
@@ -460,6 +476,41 @@ pub trait SqlWriter {
         if let Some(limit) = limit {
             let _ = write!(out, "\nLIMIT {}", limit);
         }
+        out
+    }
+
+    fn sql_insert<'a, E: Entity>(
+        &self,
+        out: &'a mut String,
+        entity: &E,
+        replace: bool,
+    ) -> &'a mut String {
+        out.push_str("INSERT");
+        if replace {
+            out.push_str(" OR REPLACE");
+        }
+        out.push_str(" INTO ");
+        out.push_str(E::table_name());
+        out.push_str(" (");
+        E::columns()
+            .iter()
+            .map(|c| c.name())
+            .fold(false, |comma, col| {
+                if comma {
+                    out.push_str(", ");
+                }
+                out.push_str(&col);
+                true
+            });
+        out.push_str(")\nVALUES (");
+        entity.row_values().iter().fold(false, |comma, value| {
+            if comma {
+                out.push_str(", ");
+            }
+            self.sql_value(out, value);
+            true
+        });
+        out.push(')');
         out
     }
 }

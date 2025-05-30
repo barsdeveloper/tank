@@ -1,10 +1,14 @@
 #[cfg(test)]
 mod tests {
-    use tank::{BinaryOp, BinaryOpType, Expression, Operand, UnaryOp, UnaryOpType, Value};
-    use tank_duckdb::DuckDBSqlWriter;
+    use tank::{
+        BinaryOp, BinaryOpType, Expression, Operand, SqlWriter, UnaryOp, UnaryOpType, Value,
+    };
     use tank_macros::{expr, Entity};
 
-    const WRITER: DuckDBSqlWriter = DuckDBSqlWriter::new();
+    struct Writer;
+    impl SqlWriter for Writer {}
+
+    const WRITER: Writer = Writer {};
 
     #[test]
     fn simple() {

@@ -175,3 +175,15 @@ impl SubAssign for Interval {
         *self = sum_intervals!(self - rhs);
     }
 }
+
+impl From<Duration> for Interval {
+    fn from(value: Duration) -> Self {
+        Self {
+            months: 0,
+            days: value.as_secs() as i64 / Interval::SECS_IN_DAY,
+            nanos: (value.as_secs() as i64 % Interval::SECS_IN_DAY) as i128
+                * Interval::NANOS_IN_SEC
+                + value.subsec_nanos() as i128,
+        }
+    }
+}

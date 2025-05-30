@@ -68,6 +68,13 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
         .collect::<Punctuated<_, Comma>>();
     let primary_keys = primary_keys.collect::<Punctuated<_, Comma>>();
     let column = column_trait(&item);
+    let row_values = fields
+        .clone()
+        .map(|f| {
+            let name = &f.ident;
+            quote! ( self.#name.clone().into() )
+        })
+        .collect::<Punctuated<_, Comma>>();
     quote! {
         #column
         impl ::tank::Entity for #name {
@@ -140,6 +147,17 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                 condition: Expr,
             ) -> ::tank::Result<Self> {
                 todo!("find_by_condition")
+            }
+
+            fn row_values(&self) -> ::tank::RowValues {
+                [#row_values].into()
+            }
+
+            async fn save<E: ::tank::Executor>(
+                &self,
+                executor: &mut E,
+            ) -> ::tank::Result<()> {
+                Ok(())
             }
         }
     }

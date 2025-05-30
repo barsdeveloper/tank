@@ -15,13 +15,16 @@ pub struct Count {
     pub last_insert_id: Option<u64>,
 }
 
+pub type RowNames = Arc<[String]>;
+pub type RowValues = Box<[Value]>;
+
 pub struct Row {
-    names: Arc<[String]>,
-    values: Box<[Value]>,
+    names: RowNames,
+    values: RowValues,
 }
 
 impl Row {
-    pub fn new(names: Arc<[String]>, values: Box<[Value]>) -> Self {
+    pub fn new(names: RowNames, values: RowValues) -> Self {
         Self { names, values }
     }
 

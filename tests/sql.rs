@@ -5,15 +5,17 @@ mod tests {
     use tank::expr;
     use tank::Entity;
     use tank::SqlWriter;
-    use tank_duckdb::DuckDBSqlWriter;
     use time::PrimitiveDateTime;
     use uuid::Uuid;
 
-    const WRITER: DuckDBSqlWriter = DuckDBSqlWriter::new();
+    struct Writer;
+    impl SqlWriter for Writer {}
+
+    const WRITER: Writer = Writer {};
 
     #[test]
     fn test_1() {
-        #[derive(Entity)]
+        #[derive(Default, Entity)]
         #[table_name("my_table")]
         struct Table {
             #[column_name("special_column")]
@@ -59,6 +61,19 @@ mod tests {
                 .trim()
             )
         }
+        {
+            let mut out = String::new();
+            let table = Table::default();
+            WRITER.sql_insert(&mut out, &table, false);
+            assert_eq!(
+                out,
+                indoc! {"
+                    INSERT INTO my_table (special_column, second_column, third_column)
+                    VALUES (NULL, 0, 0)
+                "}
+                .trim()
+            )
+        }
     }
 
     fn test_2() {
@@ -70,7 +85,7 @@ mod tests {
             created_at: PrimitiveDateTime,
             items: Vec<u32>,
             is_active: bool,
-            total_price: Decimal, // (Decimal, prec, scale)
+            total_price: Decimal, // (Decimal, width, scale)
         }
 
         #[derive(Debug)]

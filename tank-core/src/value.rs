@@ -8,7 +8,9 @@ use std::{
     rc::Rc,
     sync::Arc,
 };
-use syn::{GenericArgument, Path, PathArguments, Type};
+use syn::{
+    Expr, ExprLit, GenericArgument, Lit, PathArguments, Type, TypeArray, TypePath, TypeSlice,
+};
 use time::{Date, OffsetDateTime, PrimitiveDateTime, Time};
 use uuid::Uuid;
 
@@ -31,7 +33,7 @@ pub enum Value {
     UInt128(Option<u128>),
     Float32(Option<f32>),
     Float64(Option<f64>),
-    Decimal(Option<Decimal>, /* prec: */ u8, /* scale: */ u8),
+    Decimal(Option<Decimal>, /* width: */ u8, /* scale: */ u8),
     Varchar(Option<String>),
     Blob(Option<Box<[u8]>>),
     Date(Option<Date>),
@@ -56,8 +58,9 @@ pub enum Value {
 impl Value {
     pub fn same_type(&self, other: &Self) -> bool {
         match (self, other) {
-            (Self::Decimal(.., l_prec, l_scale), Self::Decimal(.., r_prec, r_scale)) => {
-                l_prec == r_prec && l_scale == r_scale
+            (Self::Decimal(.., l_width, l_scale), Self::Decimal(.., r_width, r_scale)) => {
+                (*l_width == 0 || *r_width == 0 || l_width == r_width)
+                    && (*l_scale == 0 || *r_scale == 0 || l_scale == r_scale)
             }
             (Self::Array(.., l_type, l_len), Self::Array(.., r_type, r_len)) => {
                 l_len == r_len && l_type.same_type(&r_type)
@@ -96,8 +99,8 @@ impl PartialEq for Value {
                     || l.and_then(|l| r.and_then(|r| Some(l.is_nan() && r.is_nan())))
                         .unwrap_or_default()
             }
-            (Self::Decimal(l, l_prec, l_scale), Self::Decimal(r, r_prec, r_scale)) => {
-                l == r && l_prec == r_prec && l_scale == r_scale
+            (Self::Decimal(l, l_width, l_scale), Self::Decimal(r, r_width, r_scale)) => {
+                l == r && l_width == r_width && l_scale == r_scale
             }
             (Self::Varchar(l), Self::Varchar(r)) => l == r,
             (Self::Blob(l), Self::Blob(r)) => l == r,
@@ -159,9 +162,9 @@ impl Hash for Value {
             }
             Float64(None) => None::<u64>.hash(state),
 
-            Decimal(v, prec, scale) => {
+            Decimal(v, width, scale) => {
                 v.hash(state);
-                prec.hash(state);
+                width.hash(state);
                 scale.hash(state);
             }
 
@@ -202,101 +205,143 @@ impl Hash for Value {
     }
 }
 
-pub fn decode_type(path: &Path) -> (Value, bool) {
+pub fn decode_type(ty: &Type) -> (Value, bool) {
     let mut nullable = false;
     let data_type = 'data_type: {
-        let ident = path.get_ident();
-        if let Some(ident) = ident {
-            if ident == "bool" {
-                break 'data_type Value::Boolean(None);
-            } else if ident == "i8" {
-                break 'data_type Value::Int8(None);
-            } else if ident == "i16" {
-                break 'data_type Value::Int16(None);
-            } else if ident == "i32" {
-                break 'data_type Value::Int32(None);
-            } else if ident == "i64" {
-                break 'data_type Value::Int64(None);
-            } else if ident == "i128" {
-                break 'data_type Value::Int128(None);
-            } else if ident == "u8" {
-                break 'data_type Value::UInt8(None);
-            } else if ident == "u16" {
-                break 'data_type Value::UInt16(None);
-            } else if ident == "u32" {
-                break 'data_type Value::UInt32(None);
-            } else if ident == "u64" {
-                break 'data_type Value::UInt64(None);
-            } else if ident == "u128" {
-                break 'data_type Value::UInt128(None);
-            } else if ident == "f32" {
-                break 'data_type Value::Float32(None);
-            } else if ident == "f64" {
-                break 'data_type Value::Float64(None);
-            }
-        }
-        macro_rules! matches_path {
-            ($vec:ident, $array:expr) => {
-                $vec.iter().eq($array.iter().rev().take($vec.len()))
-            };
-        }
-        let segments = path
-            .segments
-            .iter()
-            .rev()
-            .map(|v| v.ident.to_string())
-            .collect::<Vec<_>>();
-        if matches_path!(segments, ["std", "string", "String"]) {
-            break 'data_type Value::Varchar(None);
-        } else if matches_path!(segments, ["rust_decimal", "Decimal"]) {
-            break 'data_type Value::Decimal(None, 0, 0);
-        } else if matches_path!(segments, ["time", "Time"]) {
-            break 'data_type Value::Time(None);
-        } else if matches_path!(segments, ["time", "Date"]) {
-            break 'data_type Value::Date(None);
-        } else if matches_path!(segments, ["time", "PrimitiveDateTime"]) {
-            break 'data_type Value::Date(None);
-        } else if matches_path!(segments, ["std", "time", "Duration"]) {
-            break 'data_type Value::Interval(None);
-        } else if matches_path!(segments, ["uuid", "Uuid"]) {
-            break 'data_type Value::Uuid(None);
-        } else if matches_path!(segments, ["uuid", "Uuid"]) {
-            break 'data_type Value::Uuid(None);
-        } else {
-            let is_option = matches_path!(segments, ["std", "option", "Option"]);
-            let is_list = matches_path!(segments, ["std", "vec", "Vec"]);
-            let is_wrapper = is_option
-                || matches_path!(segments, ["std", "boxed", "Box"])
-                || matches_path!(segments, ["std", "sync", "Arc"]);
-            if is_list || is_wrapper {
-                match &path.segments.last().unwrap().arguments {
-                    PathArguments::AngleBracketed(bracketed) => {
-                        if let GenericArgument::Type(Type::Path(type_path)) =
-                            bracketed.args.first().unwrap()
-                        {
-                            let nested_type = decode_type(&type_path.path);
-                            if is_wrapper {
-                                nullable = if is_option {
-                                    true
-                                } else {
-                                    nullable || nested_type.1
-                                };
-                                break 'data_type nested_type.0;
-                            } else if is_list {
-                                break 'data_type Value::List(None, Box::new(nested_type.0));
-                            }
-                        } else {
-                            panic!(
-                                "{} must have a type as the first generic argument",
-                                path.to_token_stream()
-                            )
-                        }
-                    }
-                    _ => panic!("{} must have a generic argument", path.to_token_stream()),
+        if let Type::Path(TypePath { path, .. }) = ty {
+            let ident = path.get_ident();
+            if let Some(ident) = ident {
+                if ident == "bool" {
+                    break 'data_type Value::Boolean(None);
+                } else if ident == "i8" {
+                    break 'data_type Value::Int8(None);
+                } else if ident == "i16" {
+                    break 'data_type Value::Int16(None);
+                } else if ident == "i32" {
+                    break 'data_type Value::Int32(None);
+                } else if ident == "i64" {
+                    break 'data_type Value::Int64(None);
+                } else if ident == "i128" {
+                    break 'data_type Value::Int128(None);
+                } else if ident == "u8" {
+                    break 'data_type Value::UInt8(None);
+                } else if ident == "u16" {
+                    break 'data_type Value::UInt16(None);
+                } else if ident == "u32" {
+                    break 'data_type Value::UInt32(None);
+                } else if ident == "u64" {
+                    break 'data_type Value::UInt64(None);
+                } else if ident == "u128" {
+                    break 'data_type Value::UInt128(None);
+                } else if ident == "f32" {
+                    break 'data_type Value::Float32(None);
+                } else if ident == "f64" {
+                    break 'data_type Value::Float64(None);
                 }
             }
+            macro_rules! matches_path {
+                ($vec:ident, $array:expr) => {
+                    $vec.iter().eq($array.iter().rev().take($vec.len()))
+                };
+            }
+            let segments = path
+                .segments
+                .iter()
+                .rev()
+                .map(|v| v.ident.to_string())
+                .collect::<Vec<_>>();
+            if matches_path!(segments, ["std", "string", "String"]) {
+                break 'data_type Value::Varchar(None);
+            } else if matches_path!(segments, ["rust_decimal", "Decimal"]) {
+                break 'data_type Value::Decimal(None, 0, 0);
+            } else if matches_path!(segments, ["time", "Time"]) {
+                break 'data_type Value::Time(None);
+            } else if matches_path!(segments, ["time", "Date"]) {
+                break 'data_type Value::Date(None);
+            } else if matches_path!(segments, ["time", "PrimitiveDateTime"]) {
+                break 'data_type Value::Date(None);
+            } else if matches_path!(segments, ["std", "time", "Duration"]) {
+                break 'data_type Value::Interval(None);
+            } else if matches_path!(segments, ["uuid", "Uuid"]) {
+                break 'data_type Value::Uuid(None);
+            } else if matches_path!(segments, ["uuid", "Uuid"]) {
+                break 'data_type Value::Uuid(None);
+            } else {
+                let is_option = matches_path!(segments, ["std", "option", "Option"]);
+                let is_list = matches_path!(segments, ["std", "vec", "Vec"]);
+                let is_map = matches_path!(segments, ["std", "collections", "HashMap"])
+                    || matches_path!(segments, ["std", "collections", "BTreeMap"]);
+                let is_wrapper = is_option
+                    || matches_path!(segments, ["std", "boxed", "Box"])
+                    || matches_path!(segments, ["std", "sync", "Arc"]);
+                if is_wrapper || is_list || is_map {
+                    match &path.segments.last().unwrap().arguments {
+                        PathArguments::AngleBracketed(bracketed) => {
+                            if let GenericArgument::Type(first_type) =
+                                bracketed.args.first().unwrap()
+                            {
+                                let first_type = decode_type(&first_type);
+                                if is_wrapper {
+                                    nullable = if is_option {
+                                        true
+                                    } else {
+                                        nullable || first_type.1
+                                    };
+                                    break 'data_type first_type.0;
+                                } else if is_list {
+                                    break 'data_type Value::List(None, Box::new(first_type.0));
+                                } else if is_map {
+                                    let panic_msg = &format!(
+                                        "Type `{}` must have two generic arguments at lease",
+                                        path.to_token_stream().to_string()
+                                    );
+                                    let GenericArgument::Type(second_type) =
+                                        bracketed.args.get(1).expect(panic_msg)
+                                    else {
+                                        panic!("{}", panic_msg);
+                                    };
+                                    let second_type = decode_type(second_type);
+                                    break 'data_type Value::Map(
+                                        None,
+                                        Box::new(first_type.0),
+                                        Box::new(second_type.0),
+                                    );
+                                }
+                            } else {
+                                panic!(
+                                    "{} must have a type as the first generic argument",
+                                    path.to_token_stream()
+                                )
+                            }
+                        }
+                        _ => panic!("{} must have a generic argument", path.to_token_stream()),
+                    }
+                }
+            }
+            panic!("Unknown type `{}`", path.to_token_stream());
+        } else if let Type::Array(TypeArray {
+            elem,
+            len:
+                Expr::Lit(ExprLit {
+                    lit: Lit::Int(len, ..),
+                    ..
+                }),
+            ..
+        }) = ty
+        {
+            break 'data_type Value::Array(
+                None,
+                Box::new(decode_type(&*elem).0),
+                len.base10_parse().expect(&format!(
+                    "Expected a integer literal array length in `{}`",
+                    ty.to_token_stream().to_string()
+                )),
+            );
+        } else if let Type::Slice(TypeSlice { elem, .. }) = ty {
+            break 'data_type Value::List(None, Box::new(decode_type(&*elem).0));
+        } else {
+            panic!("")
         }
-        panic!("Unknown type `{}`", path.to_token_stream());
     };
     (data_type, nullable)
 }
@@ -318,8 +363,8 @@ impl ToTokens for Value {
             Value::UInt128(..) => quote! { ::tank::Value::UInt128(None) },
             Value::Float32(..) => quote! { ::tank::Value::Float32(None) },
             Value::Float64(..) => quote! { ::tank::Value::Float64(None) },
-            Value::Decimal(.., precision, scale) => {
-                quote! { ::tank::Value::Decimal(None, #precision, #scale) }
+            Value::Decimal(.., width, scale) => {
+                quote! { ::tank::Value::Decimal(None, #width, #scale) }
             }
             Value::Varchar(..) => quote! { ::tank::Value::Varchar(None) },
             Value::Blob(..) => quote! { ::tank::Value::Blob(None) },
@@ -341,7 +386,7 @@ impl ToTokens for Value {
             Value::Map(.., key, value) => {
                 let key = key.as_ref().to_token_stream();
                 let value = value.as_ref().to_token_stream();
-                quote! { ::tank::Value::Map<#key, #value>(None, Box::new(#key), Box::new(#value)) }
+                quote! { ::tank::Value::Map(None, Box::new(#key), Box::new(#value)) }
             }
         };
         tokens.extend(ts);
@@ -360,7 +405,7 @@ macro_rules! impl_as_value {
                 $into(None)
             }
             fn as_value(self) -> Value {
-                $into(Some(self, $($args),*))
+                $into(Some(self.into(), $($args),*))
             }
         }
     };
@@ -386,18 +431,27 @@ impl_as_value!(time::Time, Value::Time);
 impl_as_value!(time::PrimitiveDateTime, Value::Timestamp);
 impl_as_value!(time::OffsetDateTime, Value::TimestampWithTimezone);
 impl_as_value!(Interval, Value::Interval);
+impl_as_value!(std::time::Duration, Value::Interval);
 impl_as_value!(uuid::Uuid, Value::Uuid);
 
+impl AsValue for rust_decimal::Decimal {
+    fn as_empty_value() -> Value {
+        Value::Decimal(None, 0, 0)
+    }
+    fn as_value(self) -> Value {
+        Value::Decimal(Some(self), 0, self.scale() as _)
+    }
+}
+
 impl<T: AsValue> AsValue for Vec<T> {
+    fn as_empty_value() -> Value {
+        Value::List(None, Box::new(T::as_empty_value()))
+    }
     fn as_value(self) -> Value {
         Value::List(
             Some(self.into_iter().map(AsValue::as_value).collect()),
             Box::new(T::as_empty_value()),
         )
-    }
-
-    fn as_empty_value() -> Value {
-        Value::List(None, Box::new(T::as_empty_value()))
     }
 }
 
@@ -405,23 +459,33 @@ impl<K: AsValue, V: AsValue> AsValue for BTreeMap<K, V> {
     fn as_empty_value() -> Value {
         Value::Map(None, K::as_empty_value().into(), V::as_empty_value().into())
     }
-
     fn as_value(self) -> Value {
-        let mut map = HashMap::new();
-        for (k, v) in self {
-            map.insert(k.as_value(), v.as_value());
-        }
         Value::Map(
-            Some(map),
+            Some(
+                self.into_iter()
+                    .map(|(k, v)| (k.as_value(), v.as_value()))
+                    .collect(),
+            ),
             K::as_empty_value().into(),
             V::as_empty_value().into(),
         )
     }
 }
 
-impl<T: AsValue> From<T> for Value {
-    fn from(value: T) -> Self {
-        value.as_value()
+impl<K: AsValue, V: AsValue> AsValue for HashMap<K, V> {
+    fn as_empty_value() -> Value {
+        Value::Map(None, K::as_empty_value().into(), V::as_empty_value().into())
+    }
+    fn as_value(self) -> Value {
+        Value::Map(
+            Some(
+                self.into_iter()
+                    .map(|(k, v)| (k.as_value(), v.as_value()))
+                    .collect(),
+            ),
+            K::as_empty_value().into(),
+            V::as_empty_value().into(),
+        )
     }
 }
 
@@ -429,7 +493,6 @@ impl<T: AsValue> AsValue for Option<T> {
     fn as_empty_value() -> Value {
         T::as_empty_value()
     }
-
     fn as_value(self) -> Value {
         match self {
             Some(v) => v.as_value(),
@@ -442,7 +505,6 @@ impl<T: AsValue> AsValue for Box<T> {
     fn as_empty_value() -> Value {
         T::as_empty_value()
     }
-
     fn as_value(self) -> Value {
         (*self).as_value()
     }
@@ -464,3 +526,9 @@ macro_rules! impl_as_value {
 
 impl_as_value!(Arc);
 impl_as_value!(Rc);
+
+impl<T: AsValue> From<T> for Value {
+    fn from(value: T) -> Self {
+        value.as_value()
+    }
+}
