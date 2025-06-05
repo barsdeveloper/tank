@@ -23,12 +23,14 @@ pub enum DefaultValue {
 #[derive(Default, Debug, Clone)]
 pub struct ColumnDef {
     pub reference: ColumnRef,
+    pub column_type: Cow<'static, str>,
     pub value: Value,
     pub nullable: bool,
     pub default: Option<String>,
     pub primary_key: bool,
     pub unique: bool,
-    pub column_type: Cow<'static, str>,
+    pub auto_increment: bool,
+    pub passive: bool,
 }
 impl ColumnDef {
     pub fn name(&self) -> &Cow<'static, str> {
@@ -78,24 +80,28 @@ impl ToTokens for ColumnRef {
 impl ToTokens for ColumnDef {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let reference = &self.reference;
+        let column_type = quote_cow(&self.column_type);
         let value = self.value.to_token_stream();
         let nullable = self.nullable;
         let default = match &self.default {
             Some(v) => quote! {Some(#v)},
             None => quote! {None},
         };
-        let column_type = quote_cow(&self.column_type);
         let primary_key = &self.primary_key;
         let unique = &self.unique;
+        let auto_increment = &self.auto_increment;
+        let passive = &self.passive;
         tokens.append_all(quote! {
             ::tank::ColumnDef {
                 reference: #reference,
+                column_type: #column_type,
                 value: #value,
                 nullable: #nullable,
                 default: #default,
-                column_type: #column_type,
                 primary_key: #primary_key,
                 unique: #unique,
+                auto_increment: #auto_increment,
+                passive: #passive,
             }
         });
     }

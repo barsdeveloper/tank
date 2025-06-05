@@ -14,6 +14,7 @@ use proc_macro::{Delimiter, Group, Spacing, TokenStream, TokenTree};
 use proc_macro2::Ident as Ident2;
 use quote::{quote, ToTokens};
 use schema_name::schema_name;
+use std::iter::zip;
 use syn::{parse_macro_input, punctuated::Punctuated, token::Comma, Expr, ItemStruct};
 use table_name::table_name;
 use table_primary_key::table_primary_key;
@@ -27,7 +28,8 @@ use table_primary_key::table_primary_key;
         column_type,
         default,
         primary_key,
-        unique
+        unique,
+        auto_increment,
     )
 )]
 pub fn derive_entity(input: TokenStream) -> TokenStream {
@@ -35,29 +37,47 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
     let name = &item.ident;
     let schema_name = schema_name(&item);
     let table_name = table_name(&item);
-    let table_primary_key = table_primary_key(&item);
+    let primary_keys = table_primary_key(&item);
     let fields = item.fields.iter();
-    let columns_defs = fields.clone().map(|f| {
-        let mut column_def = decode_field(&f, &item);
-        if column_def.primary_key && !table_primary_key.is_empty() {
+    let col_and_filter = fields.clone().map(|f| {
+        let (mut column_def, filter_passive) = decode_field(&f, &item);
+        if column_def.primary_key && !primary_keys.clone().is_empty() {
             panic!(
                 "Column {} cannot be declared as a primary key while the table also specifies one",
                 column_def.name()
             )
         }
-        if table_primary_key.contains(&column_def.name().to_string()) {
-            column_def.primary_key = true;
+        if primary_keys
+            .iter()
+            .find(|pk| pk.name() == column_def.name())
+            .is_some()
+        {
+            if primary_keys.len() == 1 {
+                column_def.primary_key = true;
+            }
         }
-        column_def
+        let filter_passive = if let Some(filter_passive) = filter_passive {
+            let field = &f.ident;
+            filter_passive(quote!(self.#field))
+        } else {
+            quote!(true)
+        };
+        (column_def, filter_passive)
     });
-    let columns = columns_defs.clone().collect::<Punctuated<_, Comma>>();
-    let primary_keys = columns_defs.clone().filter(|c| c.primary_key);
+    let primary_keys = if primary_keys.is_empty() {
+        col_and_filter
+            .clone()
+            .filter_map(|(c, f)| if c.primary_key { Some(c.clone()) } else { None })
+            .collect()
+    } else {
+        primary_keys.clone()
+    };
     let primary_key_tuple = primary_keys
-        .clone()
+        .iter()
         .map(|key| {
             fields
                 .clone()
-                .find(|f| decode_field(f, &item).name() == key.name())
+                .find(|f| decode_field(f, &item).0.name() == key.name())
                 .expect(&format!(
                     "Could not find the primary key \"{}\" among the fields",
                     key.name()
@@ -66,15 +86,23 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                 .to_token_stream()
         })
         .collect::<Punctuated<_, Comma>>();
-    let primary_keys = primary_keys.collect::<Punctuated<_, Comma>>();
+    let primary_keys = primary_keys.into_iter().collect::<Punctuated<_, Comma>>();
     let column = column_trait(&item);
-    let row_values = fields
-        .clone()
-        .map(|f| {
-            let name = &f.ident;
-            quote! ( self.#name.clone().into() )
-        })
-        .collect::<Punctuated<_, Comma>>();
+    let value_and_filter =
+        zip(fields.clone(), col_and_filter.clone()).map(|(field, (_, filter))| {
+            let name = &field.ident;
+            quote!((self.#name.clone().into(), #filter))
+        });
+    let value_and_filter2 =
+        zip(fields.clone(), col_and_filter.clone()).map(|(field, (_, filter))| {
+            let name = &field.ident;
+            quote!((self.#name.clone().into(), #filter))
+        });
+    let label_and_filter = col_and_filter.clone().map(|(column, filter)| {
+        let name = column.name();
+        quote!((#name.into(), #filter))
+    });
+    let columns = col_and_filter.clone().map(|(c, f)| c);
     quote! {
         #column
         impl ::tank::Entity for #name {
@@ -99,7 +127,7 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
 
             fn columns() -> &'static [::tank::ColumnDef] {
                 static RESULT: ::std::sync::LazyLock::<Vec<::tank::ColumnDef>> =
-                    ::std::sync::LazyLock::new(|| { vec![#columns] });
+                    ::std::sync::LazyLock::new(|| { vec![#(#columns),*] });
                 &RESULT
             }
 
@@ -149,8 +177,21 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                 todo!("find_by_condition")
             }
 
-            fn row_values(&self) -> ::tank::RowValues {
-                [#row_values].into()
+            fn row_labeled(&self) -> ::tank::RowLabeled {
+                ::tank::RowLabeled {
+                    labels: [#(#label_and_filter),*]
+                        .into_iter()
+                        .filter_map(|(v, f)| if f { Some(v) } else { None })
+                        .collect::<::tank::RowNames>(),
+                    values: self.row(),
+                }
+            }
+
+            fn row(&self) -> ::tank::Row {
+                [#(#value_and_filter),*]
+                    .into_iter()
+                    .filter_map(|(v, f)| if f { Some(v) } else { None })
+                    .collect::<::tank::Row>()
             }
 
             async fn save<E: ::tank::Executor>(

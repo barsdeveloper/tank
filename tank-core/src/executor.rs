@@ -1,4 +1,4 @@
-use crate::{Count, Driver, Query, QueryResult, Result, Row};
+use crate::{Count, Driver, Query, QueryResult, Result, RowLabeled};
 use futures::{Stream, StreamExt, TryStreamExt};
 use std::{fmt::Debug, future::Future};
 
@@ -21,10 +21,10 @@ pub trait Executor: Send + Debug + Sized {
     fn fetch(
         &mut self,
         query: Query<<Self::Driver as Driver>::Prepared>,
-    ) -> impl Stream<Item = Result<Row>> + Send {
+    ) -> impl Stream<Item = Result<RowLabeled>> + Send {
         self.run(query).filter_map(|v| async move {
             match v {
-                Ok(QueryResult::Row(v)) => Some(Ok(v)),
+                Ok(QueryResult::RowLabeled(v)) => Some(Ok(v)),
                 Err(e) => Some(Err(e)),
                 _ => None,
             }

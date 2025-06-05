@@ -116,7 +116,7 @@ pub fn decode_expression(expr: &Expr) -> TokenStream {
                             break 'r quote! {};
                         }
                     }
-                    decode_type(&v.ty).0.into_token_stream()
+                    decode_type(&v.ty).0.value.into_token_stream()
                 }
                 _ => panic!("Unexpected cast type, cast can only be a type or the special keyworkds: `IS`, `LIKE`, `REGEXP`, `GLOB`"),
             };

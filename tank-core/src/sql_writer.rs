@@ -2,7 +2,7 @@ use crate::{
     BinaryOp, BinaryOpType, ColumnDef, ColumnRef, DataSet, Entity, Expression, Interval, Join,
     JoinType, Operand, TableRef, UnaryOp, UnaryOpType, Value,
 };
-use std::fmt::Write;
+use std::{fmt::Write, iter::zip};
 
 macro_rules! sql_possibly_parenthesized {
     ($out:ident, $cond:expr, $v:expr) => {
@@ -14,6 +14,20 @@ macro_rules! sql_possibly_parenthesized {
             $v;
         }
     };
+}
+
+pub fn separated_by<T, F>(out: &mut String, it: impl Iterator<Item = T>, mut f: F, separator: &str)
+where
+    F: FnMut(&mut String, &T),
+{
+    it.fold(usize::MAX, |mut len, v| {
+        if len < out.len() {
+            out.push_str(separator);
+        }
+        len = out.len();
+        f(out, &v);
+        len
+    });
 }
 
 pub trait SqlWriter {
@@ -108,7 +122,7 @@ pub trait SqlWriter {
             Value::Float32(Some(v), ..) => drop(write!(out, "{}", v)),
             Value::Float64(Some(v), ..) => drop(write!(out, "{}", v)),
             Value::Decimal(Some(v), ..) => drop(write!(out, "{}", v)),
-            Value::Varchar(Some(v), ..) => drop(write!(out, "\"{}\"", v)),
+            Value::Varchar(Some(v), ..) => drop(write!(out, "'{}'", v)),
             Value::Blob(Some(v), ..) => {
                 out.push('\'');
                 v.iter().for_each(|b| {
@@ -187,9 +201,17 @@ pub trait SqlWriter {
                 self.sql_type(out, inner);
                 let _ = write!(out, "[{}]", size);
             }
-            Value::List(.., inner) => {
-                self.sql_type(out, inner);
-                out.push_str("[]");
+            Value::List(Some(v), ..) => {
+                out.push('[');
+                separated_by(
+                    out,
+                    v.iter(),
+                    |out, v| {
+                        self.sql_value(out, v);
+                    },
+                    ",",
+                );
+                out.push(']');
             }
             Value::Map(.., key, value) => {
                 out.push_str("MAP(");
@@ -279,13 +301,14 @@ pub trait SqlWriter {
             Operand::LitStr(v) => write!(out, "'{}'", v),
             Operand::LitArray(v) => {
                 out.push('[');
-                v.iter().fold(false, |comma, v| {
-                    if comma {
-                        out.push_str(", ");
-                    }
-                    v.sql_write(self, out, qualify_columns);
-                    true
-                });
+                separated_by(
+                    out,
+                    v.iter(),
+                    |out, v| {
+                        v.sql_write(self, out, qualify_columns);
+                    },
+                    ", ",
+                );
                 out.push(']');
                 Ok(())
             }
@@ -416,15 +439,20 @@ pub trait SqlWriter {
         }
         out.push_str(E::table_name());
         out.push_str("(\n");
-        let mut first = true;
-        E::columns().iter().for_each(|c| {
-            if !first {
-                out.push_str(",\n");
-            }
-            self.sql_create_table_column_fragment(out, c);
-            first = false;
-        });
+        separated_by(
+            out,
+            E::columns().iter(),
+            |out, v| {
+                self.sql_create_table_column_fragment(out, v);
+            },
+            ",\n",
+        );
         out.push_str("\n)");
+        out
+    }
+
+    fn sql_autoincrement_fragment<'a>(&self, out: &'a mut String) -> &'a mut String {
+        out.push_str("AUTOINCREMENT");
         out
     }
 
@@ -440,8 +468,14 @@ pub trait SqlWriter {
         } else {
             self.sql_type(out, &column.value);
         }
-        if !column.nullable {
+        if column.primary_key {
+            out.push_str(" PRIMARY KEY");
+        } else if !column.nullable {
             out.push_str(" NOT NULL");
+        }
+        if column.auto_increment {
+            out.push(' ');
+            self.sql_autoincrement_fragment(out);
         }
         out
     }
@@ -462,13 +496,14 @@ pub trait SqlWriter {
         limit: Option<u32>,
     ) -> &'a mut String {
         out.push_str("SELECT ");
-        E::columns().iter().fold(false, |comma, col| {
-            if comma {
-                out.push_str(", ");
-            }
-            self.sql_column_ref(out, col.into(), D::QUALIFIED_COLUMNS);
-            true
-        });
+        separated_by(
+            out,
+            E::columns().iter(),
+            |out, col| {
+                self.sql_column_ref(out, (*col).into(), D::QUALIFIED_COLUMNS);
+            },
+            ", ",
+        );
         out.push_str("\nFROM ");
         from.sql_write(self, out);
         out.push_str("\nWHERE ");
@@ -492,24 +527,23 @@ pub trait SqlWriter {
         out.push_str(" INTO ");
         out.push_str(E::table_name());
         out.push_str(" (");
-        E::columns()
-            .iter()
-            .map(|c| c.name())
-            .fold(false, |comma, col| {
-                if comma {
-                    out.push_str(", ");
-                }
-                out.push_str(&col);
-                true
-            });
+        let row = entity.row_labeled();
+        let fields = zip(row.labels.iter(), row.values.iter()).filter(|(t, v)| true);
+        separated_by(
+            out,
+            fields.clone().map(|(name, _)| name),
+            |out, v| out.push_str(v),
+            ", ",
+        );
         out.push_str(")\nVALUES (");
-        entity.row_values().iter().fold(false, |comma, value| {
-            if comma {
-                out.push_str(", ");
-            }
-            self.sql_value(out, value);
-            true
-        });
+        separated_by(
+            out,
+            fields.clone().map(|(_, value)| value),
+            |out, v| {
+                self.sql_value(out, v);
+            },
+            ", ",
+        );
         out.push(')');
         out
     }

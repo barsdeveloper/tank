@@ -14,7 +14,7 @@ use std::{
         Arc, LazyLock,
     },
 };
-use tank_core::{Connection, Count, Executor, Query, QueryResult, Result, Row};
+use tank_core::{Connection, Count, Executor, Query, QueryResult, Result, RowLabeled};
 use tokio::{sync::RwLock, task::spawn_blocking};
 use urlencoding::decode;
 
@@ -62,9 +62,7 @@ impl Executor for DuckDBConnection {
         let connection = AtomicPtr::new(*self.connection);
         let source = query.clone();
         let prepared = spawn_blocking(move || unsafe {
-            let mut prepared = CBox::new(ptr::null_mut(), |mut p| unsafe {
-                duckdb_destroy_prepare(&mut p)
-            });
+            let mut prepared = CBox::new(ptr::null_mut(), |mut p| duckdb_destroy_prepare(&mut p));
             let source = match CString::new(source.as_bytes()) {
                 Ok(query) => query,
                 Err(e) => {
@@ -100,9 +98,8 @@ impl Executor for DuckDBConnection {
         spawn_blocking(move || unsafe {
             if let Query::Raw(v) = query {
                 query = Query::Prepared({
-                    let mut prepared = CBox::new(ptr::null_mut(), |mut ptr| unsafe {
-                        duckdb_destroy_prepare(&mut ptr)
-                    });
+                    let mut prepared =
+                        CBox::new(ptr::null_mut(), |mut ptr| duckdb_destroy_prepare(&mut ptr));
                     let query = match CString::new(v.as_bytes()) {
                         Ok(query) => query,
                         Err(e) => {
@@ -195,8 +192,9 @@ impl Executor for DuckDBConnection {
                             info.4,
                         )?)
                     });
-                    let row = Row::new(names.clone(), columns.collect::<Result<_>>().unwrap());
-                    let _ = tx.send(Ok(QueryResult::Row(row)));
+                    let row =
+                        RowLabeled::new(names.clone(), columns.collect::<Result<_>>().unwrap());
+                    let _ = tx.send(Ok(QueryResult::RowLabeled(row)));
                 });
             }
         });

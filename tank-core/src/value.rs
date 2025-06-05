@@ -1,4 +1,6 @@
+use crate::{interval::Interval, matches_path, Passive};
 use core::panic;
+use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use rust_decimal::Decimal;
 use std::{
@@ -13,8 +15,6 @@ use syn::{
 };
 use time::{Date, OffsetDateTime, PrimitiveDateTime, Time};
 use uuid::Uuid;
-
-use crate::interval::Interval;
 
 #[derive(Default, Debug, Clone)]
 pub enum Value {
@@ -70,6 +70,38 @@ impl Value {
                 l_key.same_type(r_key) && l_value.same_type(&r_value)
             }
             _ => discriminant(self) == discriminant(other),
+        }
+    }
+
+    pub fn is_null(&self) -> bool {
+        match self {
+            Value::Null
+            | Value::Boolean(None, ..)
+            | Value::Int8(None, ..)
+            | Value::Int16(None, ..)
+            | Value::Int32(None, ..)
+            | Value::Int64(None, ..)
+            | Value::Int128(None, ..)
+            | Value::UInt8(None, ..)
+            | Value::UInt16(None, ..)
+            | Value::UInt32(None, ..)
+            | Value::UInt64(None, ..)
+            | Value::UInt128(None, ..)
+            | Value::Float32(None, ..)
+            | Value::Float64(None, ..)
+            | Value::Decimal(None, ..)
+            | Value::Varchar(None, ..)
+            | Value::Blob(None, ..)
+            | Value::Date(None, ..)
+            | Value::Time(None, ..)
+            | Value::Timestamp(None, ..)
+            | Value::TimestampWithTimezone(None, ..)
+            | Value::Interval(None, ..)
+            | Value::Uuid(None, ..)
+            | Value::Array(None, ..)
+            | Value::List(None, ..)
+            | Value::Map(None, ..) => true,
+            _ => false,
         }
     }
 }
@@ -205,8 +237,18 @@ impl Hash for Value {
     }
 }
 
-pub fn decode_type(ty: &Type) -> (Value, bool) {
+#[derive(Default)]
+pub struct TypeDecoded {
+    pub value: Value,
+    pub nullable: bool,
+    pub passive: bool,
+}
+
+pub type CheckPassive = Box<dyn Fn(TokenStream) -> TokenStream>;
+
+pub fn decode_type(ty: &Type) -> (TypeDecoded, Option<CheckPassive>) {
     let mut nullable = false;
+    let mut filter_passive = None;
     let data_type = 'data_type: {
         if let Type::Path(TypePath { path, .. }) = ty {
             let ident = path.get_ident();
@@ -239,41 +281,32 @@ pub fn decode_type(ty: &Type) -> (Value, bool) {
                     break 'data_type Value::Float64(None);
                 }
             }
-            macro_rules! matches_path {
-                ($vec:ident, $array:expr) => {
-                    $vec.iter().eq($array.iter().rev().take($vec.len()))
-                };
-            }
-            let segments = path
-                .segments
-                .iter()
-                .rev()
-                .map(|v| v.ident.to_string())
-                .collect::<Vec<_>>();
-            if matches_path!(segments, ["std", "string", "String"]) {
+            if matches_path(path, &["std", "string", "String"]) {
                 break 'data_type Value::Varchar(None);
-            } else if matches_path!(segments, ["rust_decimal", "Decimal"]) {
+            } else if matches_path(path, &["rust_decimal", "Decimal"]) {
                 break 'data_type Value::Decimal(None, 0, 0);
-            } else if matches_path!(segments, ["time", "Time"]) {
+            } else if matches_path(path, &["time", "Time"]) {
                 break 'data_type Value::Time(None);
-            } else if matches_path!(segments, ["time", "Date"]) {
+            } else if matches_path(path, &["time", "Date"]) {
                 break 'data_type Value::Date(None);
-            } else if matches_path!(segments, ["time", "PrimitiveDateTime"]) {
-                break 'data_type Value::Date(None);
-            } else if matches_path!(segments, ["std", "time", "Duration"]) {
+            } else if matches_path(path, &["time", "PrimitiveDateTime"]) {
+                break 'data_type Value::Timestamp(None);
+            } else if matches_path(path, &["std", "time", "Duration"]) {
                 break 'data_type Value::Interval(None);
-            } else if matches_path!(segments, ["uuid", "Uuid"]) {
+            } else if matches_path(path, &["uuid", "Uuid"]) {
                 break 'data_type Value::Uuid(None);
-            } else if matches_path!(segments, ["uuid", "Uuid"]) {
+            } else if matches_path(path, &["uuid", "Uuid"]) {
                 break 'data_type Value::Uuid(None);
             } else {
-                let is_option = matches_path!(segments, ["std", "option", "Option"]);
-                let is_list = matches_path!(segments, ["std", "vec", "Vec"]);
-                let is_map = matches_path!(segments, ["std", "collections", "HashMap"])
-                    || matches_path!(segments, ["std", "collections", "BTreeMap"]);
+                let is_passive = matches_path(path, &["tank", "Passive"]);
+                let is_option = matches_path(path, &["std", "option", "Option"]);
+                let is_list = matches_path(path, &["std", "vec", "Vec"]);
+                let is_map = matches_path(path, &["std", "collections", "HashMap"])
+                    || matches_path(path, &["std", "collections", "BTreeMap"]);
                 let is_wrapper = is_option
-                    || matches_path!(segments, ["std", "boxed", "Box"])
-                    || matches_path!(segments, ["std", "sync", "Arc"]);
+                    || is_passive
+                    || matches_path(path, &["std", "boxed", "Box"])
+                    || matches_path(path, &["std", "sync", "Arc"]);
                 if is_wrapper || is_list || is_map {
                     match &path.segments.last().unwrap().arguments {
                         PathArguments::AngleBracketed(bracketed) => {
@@ -281,15 +314,29 @@ pub fn decode_type(ty: &Type) -> (Value, bool) {
                                 bracketed.args.first().unwrap()
                             {
                                 let first_type = decode_type(&first_type);
+                                if first_type.1.is_some() {
+                                    filter_passive = first_type.1;
+                                }
+                                let first_type = first_type.0;
                                 if is_wrapper {
                                     nullable = if is_option {
                                         true
                                     } else {
-                                        nullable || first_type.1
+                                        nullable || first_type.nullable
                                     };
-                                    break 'data_type first_type.0;
+                                    if is_passive {
+                                        filter_passive = Some(Box::new(|v: TokenStream| {
+                                            quote!(matches!(#v, ::tank::Passive::Set(..)))
+                                        }));
+                                    } else if is_wrapper && filter_passive.is_some() {
+                                        let passive = filter_passive.take();
+                                        filter_passive = Some(Box::new(move |v: TokenStream| {
+                                            passive.as_ref().unwrap()(quote!(*#v))
+                                        }))
+                                    }
+                                    break 'data_type first_type.value;
                                 } else if is_list {
-                                    break 'data_type Value::List(None, Box::new(first_type.0));
+                                    break 'data_type Value::List(None, Box::new(first_type.value));
                                 } else if is_map {
                                     let panic_msg = &format!(
                                         "Type `{}` must have two generic arguments at lease",
@@ -300,11 +347,11 @@ pub fn decode_type(ty: &Type) -> (Value, bool) {
                                     else {
                                         panic!("{}", panic_msg);
                                     };
-                                    let second_type = decode_type(second_type);
+                                    let second_type = decode_type(second_type).0;
                                     break 'data_type Value::Map(
                                         None,
-                                        Box::new(first_type.0),
-                                        Box::new(second_type.0),
+                                        Box::new(first_type.value),
+                                        Box::new(second_type.value),
                                     );
                                 }
                             } else {
@@ -331,19 +378,26 @@ pub fn decode_type(ty: &Type) -> (Value, bool) {
         {
             break 'data_type Value::Array(
                 None,
-                Box::new(decode_type(&*elem).0),
+                Box::new(decode_type(&*elem).0.value),
                 len.base10_parse().expect(&format!(
                     "Expected a integer literal array length in `{}`",
                     ty.to_token_stream().to_string()
                 )),
             );
         } else if let Type::Slice(TypeSlice { elem, .. }) = ty {
-            break 'data_type Value::List(None, Box::new(decode_type(&*elem).0));
+            break 'data_type Value::List(None, Box::new(decode_type(&*elem).0.value));
         } else {
-            panic!("")
+            panic!("Unexpected type `{}`", ty.to_token_stream().to_string())
         }
     };
-    (data_type, nullable)
+    (
+        TypeDecoded {
+            value: data_type,
+            nullable,
+            passive: filter_passive.is_some(),
+        },
+        filter_passive,
+    )
 }
 
 impl ToTokens for Value {
@@ -393,7 +447,7 @@ impl ToTokens for Value {
     }
 }
 
-trait AsValue {
+pub trait AsValue {
     fn as_empty_value() -> Value;
     fn as_value(self) -> Value;
 }
@@ -486,6 +540,18 @@ impl<K: AsValue, V: AsValue> AsValue for HashMap<K, V> {
             K::as_empty_value().into(),
             V::as_empty_value().into(),
         )
+    }
+}
+
+impl<T: AsValue> AsValue for Passive<T> {
+    fn as_empty_value() -> Value {
+        T::as_empty_value()
+    }
+    fn as_value(self) -> Value {
+        match self {
+            Passive::Set(v) => v.as_value(),
+            Passive::NotSet => T::as_empty_value(),
+        }
     }
 }
 

@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod tests {
     use indoc::indoc;
-    use std::{sync::Arc, time::Duration};
-    use tank::{Entity, RowValues, SqlWriter, Value};
+    use std::{borrow::Cow, sync::Arc, time::Duration};
+    use tank::{ColumnDef, ColumnRef, Entity, SqlWriter, Value};
 
     struct Writer;
     impl SqlWriter for Writer {}
@@ -17,11 +17,6 @@ mod tests {
             b: String,
         }
         let columns = SomeEntity::columns();
-        impl SomeEntity {
-            fn aaa(&self) -> RowValues {
-                [self.a.clone().into(), self.b.clone().into()].into()
-            }
-        }
 
         assert_eq!(SomeEntity::table_name(), "some_entity");
         assert_eq!(SomeEntity::primary_key().len(), 0);
@@ -80,7 +75,7 @@ mod tests {
             WRITER.sql_create_table::<SomeEntity>(&mut query, true),
             indoc! {"
                 CREATE TABLE IF NOT EXISTS custom_table_name(
-                first UHUGEINT NOT NULL,
+                first UHUGEINT PRIMARY KEY,
                 second TIME,
                 third DATE
                 )
@@ -113,25 +108,100 @@ mod tests {
             ["bravo", "delta"]
         );
 
-        assert_eq!(columns[0].name(), "alpha");
-        assert!(matches!(columns[0].value, Value::Float64(None, ..)));
-        assert!(columns[0].nullable == false);
+        assert!(matches!(
+            columns[0],
+            ColumnDef {
+                reference: ColumnRef {
+                    name: Cow::Borrowed("alpha"),
+                    table: Cow::Borrowed("a_table"),
+                    schema: Cow::Borrowed(""),
+                },
+                column_type: Cow::Borrowed(""),
+                value: Value::Float64(None, ..),
+                nullable: false,
+                default: None,
+                primary_key: false,
+                unique: false,
+                auto_increment: false,
+                passive: false,
+            }
+        ));
 
-        assert_eq!(columns[1].name(), "bravo");
-        assert!(matches!(columns[1].value, Value::Int16(None, ..)));
-        assert!(columns[1].nullable == false);
+        assert!(matches!(
+            columns[1],
+            ColumnDef {
+                reference: ColumnRef {
+                    name: Cow::Borrowed("bravo"),
+                    table: Cow::Borrowed("a_table"),
+                    schema: Cow::Borrowed(""),
+                },
+                column_type: Cow::Borrowed(""),
+                value: Value::Int16(None, ..),
+                nullable: false,
+                default: None,
+                primary_key: false,
+                // unique: false,
+                // auto_increment: false,
+                ..
+            }
+        ));
 
-        assert_eq!(columns[2].name(), "charlie");
-        assert!(matches!(columns[2].value, Value::Decimal(None, ..)));
-        assert!(columns[2].nullable == true);
+        assert!(matches!(
+            columns[2],
+            ColumnDef {
+                reference: ColumnRef {
+                    name: Cow::Borrowed("charlie"),
+                    table: Cow::Borrowed("a_table"),
+                    schema: Cow::Borrowed(""),
+                },
+                column_type: Cow::Borrowed(""),
+                value: Value::Decimal(None, ..),
+                nullable: true,
+                default: None,
+                primary_key: false,
+                unique: false,
+                auto_increment: false,
+                passive: false,
+            }
+        ));
 
-        assert_eq!(columns[3].name(), "delta");
-        assert!(matches!(columns[3].value, Value::Interval(None, ..)));
-        assert!(columns[3].nullable == false);
+        assert!(matches!(
+            columns[3],
+            ColumnDef {
+                reference: ColumnRef {
+                    name: Cow::Borrowed("delta"),
+                    table: Cow::Borrowed("a_table"),
+                    schema: Cow::Borrowed(""),
+                },
+                // column_type: Cow::Borrowed(""),
+                // value: Value::Interval(None, ..),
+                // nullable: false,
+                // default: None,
+                // primary_key: false,
+                // unique: false,
+                // auto_increment: false,
+                ..
+            }
+        ));
 
-        assert_eq!(columns[4].name(), "echo");
-        assert!(matches!(columns[4].value, Value::Decimal(None, ..)));
-        assert!(columns[4].nullable == true);
+        assert!(matches!(
+            columns[4],
+            ColumnDef {
+                reference: ColumnRef {
+                    name: Cow::Borrowed("echo"),
+                    table: Cow::Borrowed("a_table"),
+                    schema: Cow::Borrowed(""),
+                },
+                column_type: Cow::Borrowed("DECIMAL(8, 2)"),
+                value: Value::Decimal(None, ..),
+                nullable: true,
+                default: None,
+                primary_key: false,
+                unique: false,
+                auto_increment: false,
+                passive: false,
+            }
+        ));
 
         let mut query = String::new();
         assert_eq!(

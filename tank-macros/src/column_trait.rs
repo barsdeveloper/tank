@@ -9,7 +9,7 @@ pub(crate) fn column_trait(item: &ItemStruct) -> TokenStream {
     let columns = item.fields.iter().map(|field| {
         (
             field.ident.as_ref().expect("The field must have a name"),
-            decode_field(&field, &item),
+            decode_field(&field, &item).0,
         )
     });
     let columns_fields_declarations = columns.clone().map(|(name, _)| {

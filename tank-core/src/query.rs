@@ -16,20 +16,23 @@ pub struct Count {
 }
 
 pub type RowNames = Arc<[String]>;
-pub type RowValues = Box<[Value]>;
+pub type Row = Box<[Value]>;
 
-pub struct Row {
-    names: RowNames,
-    values: RowValues,
+pub struct RowLabeled {
+    pub labels: RowNames,
+    pub values: Row,
 }
 
-impl Row {
-    pub fn new(names: RowNames, values: RowValues) -> Self {
-        Self { names, values }
+impl RowLabeled {
+    pub fn new(names: RowNames, values: Row) -> Self {
+        Self {
+            labels: names,
+            values,
+        }
     }
 
     pub fn names(&self) -> &[String] {
-        &self.names
+        &self.labels
     }
 
     pub fn values(&self) -> &[Value] {
@@ -38,7 +41,7 @@ impl Row {
 }
 
 pub enum QueryResult {
-    Row(Row),
+    RowLabeled(RowLabeled),
     Count(Count),
 }
 
