@@ -447,6 +447,16 @@ pub trait SqlWriter {
             },
             ",\n",
         );
+        if E::primary_key().len() > 1 {
+            out.push_str(",\nPRIMARY KEY (");
+            separated_by(
+                out,
+                E::primary_key().iter(),
+                |out, v| out.push_str(v.name()),
+                ", ",
+            );
+            out.push(')');
+        }
         out.push_str("\n)");
         out
     }
@@ -528,7 +538,7 @@ pub trait SqlWriter {
         out.push_str(E::table_name());
         out.push_str(" (");
         let row = entity.row_labeled();
-        let fields = zip(row.labels.iter(), row.values.iter()).filter(|(t, v)| true);
+        let fields = zip(row.labels.iter(), row.values.iter());
         separated_by(
             out,
             fields.clone().map(|(name, _)| name),

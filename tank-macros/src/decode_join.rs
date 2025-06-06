@@ -10,7 +10,6 @@ use syn::{
 use tank_core::JoinType;
 
 pub(crate) struct JoinParsed(pub(crate) TokenStream);
-struct JoinTypeParsed(pub(crate) TokenStream, JoinType);
 struct JoinMemberParsed(pub(crate) TokenStream);
 
 /// Accumulates the tokens until a parser matches.

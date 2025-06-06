@@ -1,8 +1,14 @@
+mod resource {
+    pub mod trade;
+}
+
 #[cfg(test)]
 mod tests {
     use indoc::indoc;
     use std::{borrow::Cow, sync::Arc, time::Duration};
     use tank::{ColumnDef, ColumnRef, Entity, SqlWriter, Value};
+
+    use crate::resource::trade::TradeExecution;
 
     struct Writer;
     impl SqlWriter for Writer {}
@@ -212,7 +218,8 @@ mod tests {
                 bravo SMALLINT NOT NULL,
                 charlie DECIMAL,
                 delta INTERVAL NOT NULL,
-                echo DECIMAL(8, 2)
+                echo DECIMAL(8, 2),
+                PRIMARY KEY (bravo, delta)
                 )
             "}
             .trim()
@@ -299,5 +306,35 @@ mod tests {
             "}
             .trim()
         );
+    }
+
+    #[test]
+    fn test_trade_execution_schema() {
+        assert_eq!(TradeExecution::table_name(), "trade_executions");
+        assert_eq!(TradeExecution::primary_key().len(), 2);
+        {
+            let mut query = String::new();
+            assert_eq!(
+                WRITER.sql_create_table::<TradeExecution>(&mut query, false),
+                indoc! {"
+                CREATE TABLE trade_executions(
+                trade_id UBIGINT NOT NULL,
+                order_id UUID NOT NULL,
+                symbol VARCHAR NOT NULL,
+                price DECIMAL NOT NULL,
+                quantity UINTEGER NOT NULL,
+                execution_time TIMESTAMP NOT NULL,
+                currency VARCHAR,
+                is_internalized BOOLEAN NOT NULL,
+                venue VARCHAR,
+                child_trade_ids BIGINT[],
+                metadata BLOB,
+                tags MAP(VARCHAR, VARCHAR),
+                PRIMARY KEY (trade_id, execution_time)
+                )
+            "}
+                .trim()
+            );
+        }
     }
 }

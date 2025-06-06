@@ -385,6 +385,17 @@ pub fn decode_type(ty: &Type) -> (TypeDecoded, Option<CheckPassive>) {
                 )),
             );
         } else if let Type::Slice(TypeSlice { elem, .. }) = ty {
+            let element_type = decode_type(&*elem).0;
+            if matches!(
+                element_type,
+                TypeDecoded {
+                    value: Value::UInt8(..),
+                    nullable: false,
+                    passive: false,
+                }
+            ) {
+                break 'data_type Value::Blob(None);
+            }
             break 'data_type Value::List(None, Box::new(decode_type(&*elem).0.value));
         } else {
             panic!("Unexpected type `{}`", ty.to_token_stream().to_string())

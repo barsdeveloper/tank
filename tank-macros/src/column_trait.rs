@@ -24,10 +24,10 @@ pub(crate) fn column_trait(item: &ItemStruct) -> TokenStream {
     });
     quote! {
         trait #trait_name {
-            #( #columns_fields_declarations )*
+            #(#columns_fields_declarations)*
         }
         impl #trait_name for #struct_name {
-            #( #columns_fields_definitions )*
+            #(#columns_fields_definitions)*
         }
     }
 }

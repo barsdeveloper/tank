@@ -99,7 +99,7 @@ mod tests {
         struct Cart {
             #[primary_key]
             #[auto_increment]
-            id: Passive<u32>,
+            id: Box<Passive<u32>>,
             user_id: Uuid,
             created_at: PrimitiveDateTime,
             items: Vec<Uuid>,
@@ -107,13 +107,6 @@ mod tests {
             total_price: Decimal,
         }
 
-        #[derive(Debug)]
-        struct CartItem {
-            product_id: Uuid,
-            quantity: u32,
-            price_each: f64,
-            notes: Option<String>,
-        }
         {
             let mut out = String::new();
             WRITER.sql_create_table::<Cart>(&mut out, true);

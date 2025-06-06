@@ -45,7 +45,6 @@ mod tests {
         DuckDBConnection::connect(format!("duckdb://{}?mode=rw", DB_PATH).as_str())
             .await
             .expect("Could not open the database");
-        let format = format_description!("[year]-[month]-[day] [hour]:[minute]:[second]");
         let trade = TradeExecution {
             trade_id: 100001,
             order_id: Uuid::parse_str("a3f1e8b4-4df4-4b8d-8e0e-7b9f5a7e1abc").unwrap(),

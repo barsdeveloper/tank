@@ -15,7 +15,7 @@ use proc_macro2::Ident as Ident2;
 use quote::{quote, ToTokens};
 use schema_name::schema_name;
 use std::iter::zip;
-use syn::{parse_macro_input, punctuated::Punctuated, token::Comma, Expr, ItemStruct};
+use syn::{parse_macro_input, Expr, ItemStruct};
 use table_name::table_name;
 use table_primary_key::table_primary_key;
 
@@ -41,7 +41,7 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
     let fields = item.fields.iter();
     let col_and_filter = fields.clone().map(|f| {
         let (mut column_def, filter_passive) = decode_field(&f, &item);
-        if column_def.primary_key && !primary_keys.clone().is_empty() {
+        if column_def.primary_key && !primary_keys.is_empty() {
             panic!(
                 "Column {} cannot be declared as a primary key while the table also specifies one",
                 column_def.name()
@@ -67,33 +67,24 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
     let primary_keys = if primary_keys.is_empty() {
         col_and_filter
             .clone()
-            .filter_map(|(c, f)| if c.primary_key { Some(c.clone()) } else { None })
+            .filter_map(|(c, _)| if c.primary_key { Some(c.clone()) } else { None })
             .collect()
     } else {
         primary_keys.clone()
     };
-    let primary_key_tuple = primary_keys
-        .iter()
-        .map(|key| {
-            fields
-                .clone()
-                .find(|f| decode_field(f, &item).0.name() == key.name())
-                .expect(&format!(
-                    "Could not find the primary key \"{}\" among the fields",
-                    key.name()
-                ))
-                .ty
-                .to_token_stream()
-        })
-        .collect::<Punctuated<_, Comma>>();
-    let primary_keys = primary_keys.into_iter().collect::<Punctuated<_, Comma>>();
+    let primary_key_types = primary_keys.iter().map(|key| {
+        fields
+            .clone()
+            .find(|f| decode_field(f, &item).0.name() == key.name())
+            .expect(&format!(
+                "Could not find the primary key \"{}\" among the fields",
+                key.name()
+            ))
+            .ty
+            .to_token_stream()
+    });
     let column = column_trait(&item);
     let value_and_filter =
-        zip(fields.clone(), col_and_filter.clone()).map(|(field, (_, filter))| {
-            let name = &field.ident;
-            quote!((self.#name.clone().into(), #filter))
-        });
-    let value_and_filter2 =
         zip(fields.clone(), col_and_filter.clone()).map(|(field, (_, filter))| {
             let name = &field.ident;
             quote!((self.#name.clone().into(), #filter))
@@ -102,11 +93,11 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
         let name = column.name();
         quote!((#name.into(), #filter))
     });
-    let columns = col_and_filter.clone().map(|(c, f)| c);
+    let columns = col_and_filter.clone().map(|(c, _)| c);
     quote! {
         #column
         impl ::tank::Entity for #name {
-            type PrimaryKey = (#primary_key_tuple);
+            type PrimaryKey = (#(#primary_key_types),*);
 
             fn table_name() -> &'static str {
                 #table_name
@@ -133,7 +124,7 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
 
             fn primary_key() -> &'static [::tank::ColumnDef] {
                 static RESULT: ::std::sync::LazyLock::<Vec<::tank::ColumnDef>> =
-                    ::std::sync::LazyLock::new(|| { vec![#primary_keys] });
+                    ::std::sync::LazyLock::new(|| { vec![#(#primary_keys),*] });
                 &RESULT
             }
 
