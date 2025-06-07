@@ -18,5 +18,5 @@ pub struct TradeExecution {
     pub venue: Option<String>,
     pub child_trade_ids: Option<Vec<i64>>,
     pub metadata: Option<Box<[u8]>>,
-    pub tags: Option<std::collections::HashMap<String, String>>,
+    pub tags: Option<std::collections::BTreeMap<String, String>>,
 }

@@ -4,11 +4,14 @@ mod resource {
 
 #[cfg(test)]
 mod tests {
-    use indoc::indoc;
-    use std::{borrow::Cow, sync::Arc, time::Duration};
-    use tank::{ColumnDef, ColumnRef, Entity, SqlWriter, Value};
-
     use crate::resource::trade::TradeExecution;
+    use indoc::indoc;
+    use regex::Regex;
+    use rust_decimal::Decimal;
+    use std::{borrow::Cow, collections::BTreeMap, sync::Arc, time::Duration};
+    use tank::{ColumnDef, ColumnRef, Entity, Passive, SqlWriter, Value};
+    use time::macros::datetime;
+    use uuid::Uuid;
 
     struct Writer;
     impl SqlWriter for Writer {}
@@ -335,6 +338,44 @@ mod tests {
             "}
                 .trim()
             );
+        }
+        {
+            let trade = TradeExecution {
+                trade: 46923,
+                order: Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap(),
+                symbol: "AAPL".to_string(),
+                price: Decimal::new(19255, 2), // 192.55
+                quantity: 50,
+                execution_time: Passive::Set(datetime!(2025-06-07 14:32:00)),
+                currency: Some("USD".to_string()),
+                is_internalized: true,
+                venue: Some("NASDAQ".to_string()),
+                child_trade_ids: Some(vec![36209, 85320]),
+                metadata: Some(b"Metadata Bytes".to_vec().into_boxed_slice()),
+                tags: Some(BTreeMap::from_iter([
+                    ("source".into(), "internal".into()),
+                    ("strategy".into(), "scalping".into()),
+                ])),
+            };
+            {
+                let mut query = String::new();
+                WRITER.sql_insert(&mut query, &trade, false);
+                let expected = [
+                "{'source':'internal','strategy':'scalping'}",
+                "{'strategy':'scalping','source':'internal'}",
+            ]
+            .map(|v| {
+                Regex::new(r" {2,}")
+                    .expect("Regex must be correct")
+                    .replace_all(&format!("
+                        INSERT INTO trade_executions (trade_id, order_id, symbol, price, quantity, execution_time, currency, is_internalized, venue, child_trade_ids, metadata, tags)
+                        VALUES (46923, '550e8400-e29b-41d4-a716-446655440000', 'AAPL', 192.55, 50, '2025-06-07 14:32:00.0', 'USD', TRUE, 'NASDAQ', [36209,85320], '\\4D\\65\\74\\61\\64\\61\\74\\61\\20\\42\\79\\74\\65\\73', {})
+                    ", v), "")
+                    .trim()
+                    .to_string()
+            });
+                assert!(expected.iter().any(|v| query == *v));
+            };
         }
     }
 }

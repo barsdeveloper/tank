@@ -108,7 +108,7 @@ pub trait SqlWriter {
             | Value::Array(None, ..)
             | Value::List(None, ..)
             | Value::Map(None, ..) => out.push_str("NULL"),
-            Value::Boolean(Some(v), ..) => drop(write!(out, "{}", v)),
+            Value::Boolean(Some(v), ..) => out.push_str(["FALSE", "TRUE"][*v as usize]),
             Value::Int8(Some(v), ..) => drop(write!(out, "{}", v)),
             Value::Int16(Some(v), ..) => drop(write!(out, "{}", v)),
             Value::Int32(Some(v), ..) => drop(write!(out, "{}", v)),
@@ -213,12 +213,19 @@ pub trait SqlWriter {
                 );
                 out.push(']');
             }
-            Value::Map(.., key, value) => {
-                out.push_str("MAP(");
-                self.sql_type(out, key);
-                out.push_str(", ");
-                self.sql_type(out, value);
-                out.push(')');
+            Value::Map(Some(v), ..) => {
+                out.push('{');
+                separated_by(
+                    out,
+                    v.iter(),
+                    |out, (k, v)| {
+                        self.sql_value(out, k);
+                        out.push(':');
+                        self.sql_value(out, v);
+                    },
+                    ",",
+                );
+                out.push('}');
             }
         };
         out

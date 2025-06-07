@@ -50,6 +50,7 @@ tank-macros = { path = "tank-macros" }
 
 [dev-dependencies]
 indoc = { workspace = true }
+regex = "1.11.1"
 rust_decimal = { workspace = true }
 time = { workspace = true }
 tokio = { version = "1.44.2", features = ["full"] }
