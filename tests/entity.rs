@@ -8,7 +8,7 @@ mod tests {
     use indoc::indoc;
     use regex::Regex;
     use rust_decimal::Decimal;
-    use std::{borrow::Cow, collections::BTreeMap, sync::Arc, time::Duration};
+    use std::{collections::BTreeMap, sync::Arc, time::Duration};
     use tank::{ColumnDef, ColumnRef, Entity, Passive, SqlWriter, Value};
     use time::macros::datetime;
     use uuid::Uuid;

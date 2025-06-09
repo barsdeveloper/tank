@@ -1,4 +1,4 @@
-use proc_macro2::{Delimiter, Group, Spacing, TokenStream, TokenTree};
+use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn::{
     punctuated::Punctuated, spanned::Spanned, token::Comma, BinOp, Expr, ExprGroup, ExprLit,

@@ -1,10 +1,6 @@
-use crate::{flag_evaluated, ColumnRef, Expression, OpPrecedence, SqlWriter, Value};
+use crate::{ColumnRef, Expression, OpPrecedence, SqlWriter, Value};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens, TokenStreamExt};
-use syn::{
-    parse::{Parse, ParseStream},
-    parse2, Error, ExprArray, Lit, Result,
-};
 
 #[derive(Debug, Clone)]
 pub enum Operand {

@@ -1,4 +1,4 @@
-use crate::{decode_fields::decode_field, encode_column_ref::encode_column_ref};
+use crate::{decode_column::decode_column, encode_column_ref::encode_column_ref};
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{spanned::Spanned, Ident, ItemStruct};
@@ -9,7 +9,7 @@ pub(crate) fn column_trait(item: &ItemStruct) -> TokenStream {
     let columns = item.fields.iter().map(|field| {
         (
             field.ident.as_ref().expect("The field must have a name"),
-            encode_column_ref(&decode_field(field, item)),
+            encode_column_ref(&decode_column(field, item)),
         )
     });
     let columns_fields_declarations = columns.clone().map(|(name, _)| {

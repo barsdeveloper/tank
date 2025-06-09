@@ -1,4 +1,4 @@
-use crate::{decode_fields::ColumnMetadata, encode_column_ref::encode_column_ref};
+use crate::{decode_column::ColumnMetadata, encode_column_ref::encode_column_ref};
 use proc_macro2::TokenStream;
 use quote::quote;
 

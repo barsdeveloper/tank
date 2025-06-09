@@ -1,6 +1,6 @@
 mod column_trait;
+mod decode_column;
 mod decode_expression;
-mod decode_fields;
 mod decode_join;
 mod encode_column_def;
 mod encode_column_ref;
@@ -10,8 +10,8 @@ mod table_primary_key;
 
 use crate::encode_column_def::encode_column_def;
 use column_trait::column_trait;
+use decode_column::decode_column;
 use decode_expression::decode_expression;
-use decode_fields::decode_field;
 use decode_join::JoinParsed;
 use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
@@ -43,7 +43,7 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
     let primary_keys = table_primary_key(&item);
     let fields = item.fields.iter();
     let metadata_and_filter = fields.clone().map(|f| {
-       let mut metadata = decode_field(&f, &item);
+       let mut metadata = decode_column(&f, &item);
         if metadata.primary_key && !primary_keys.is_empty() {
             panic!(
                 "Column `{}` cannot be declared as a primary key while the table also specifies one",
@@ -85,7 +85,7 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
     let primary_key_types = primary_keys.iter().map(|key| {
         fields
             .clone()
-            .find(|f| decode_field(f, &item).name == key.name)
+            .find(|f| decode_column(f, &item).name == key.name)
             .expect(&format!(
                 "Could not find the primary key `{}` among the fields",
                 key.name
@@ -130,14 +130,14 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
             }
 
             fn columns() -> &'static [::tank::ColumnDef] {
-                static RESULT: ::std::sync::LazyLock::<Vec<::tank::ColumnDef>> =
-                    ::std::sync::LazyLock::new(|| { vec![#(#columns),*] });
+                static RESULT: ::std::sync::LazyLock::<Box<[::tank::ColumnDef]>> =
+                    ::std::sync::LazyLock::new(|| { vec![#(#columns),*].into_boxed_slice() });
                 &RESULT
             }
 
             fn primary_key() -> &'static [::tank::ColumnDef] {
-                static RESULT: ::std::sync::LazyLock::<Vec<::tank::ColumnDef>> =
-                    ::std::sync::LazyLock::new(|| { vec![#(#primary_keys),*] });
+                static RESULT: ::std::sync::LazyLock::<Box<[::tank::ColumnDef]>> =
+                    ::std::sync::LazyLock::new(|| { vec![#(#primary_keys),*].into_boxed_slice() });
                 &RESULT
             }
 

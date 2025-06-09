@@ -1,4 +1,4 @@
-use crate::decode_fields::decode_field;
+use crate::decode_column::decode_column;
 use syn::{
     parse::{ParseStream, Parser},
     punctuated::Punctuated,
@@ -22,7 +22,7 @@ pub(crate) fn table_primary_key(item: &ItemStruct) -> Vec<String> {
                 }) else {
                     panic!("Error while parsing `primary_key`, use it like `#[primary_key(\"first\", \"second\")]`");
                 };
-                let columns = item.fields.iter().map(|f| decode_field(f, item));
+                let columns = item.fields.iter().map(|f| decode_column(f, item));
                 let primary_keys = primary_keys.iter().map(|pk| {
                     columns
                         .clone()

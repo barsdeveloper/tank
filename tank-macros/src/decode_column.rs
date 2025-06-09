@@ -18,7 +18,7 @@ pub(crate) struct ColumnMetadata {
     pub(crate) check_passive: Option<CheckPassive>,
 }
 
-pub fn decode_field(field: &Field, item: &ItemStruct) -> ColumnMetadata {
+pub fn decode_column(field: &Field, item: &ItemStruct) -> ColumnMetadata {
     let (
         TypeDecoded {
             value,
