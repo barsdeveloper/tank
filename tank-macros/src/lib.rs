@@ -2,10 +2,13 @@ mod column_trait;
 mod decode_expression;
 mod decode_fields;
 mod decode_join;
+mod encode_column_def;
+mod encode_column_ref;
 mod schema_name;
 mod table_name;
 mod table_primary_key;
 
+use crate::encode_column_def::encode_column_def;
 use column_trait::column_trait;
 use decode_expression::decode_expression;
 use decode_fields::decode_field;
@@ -39,61 +42,71 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
     let table_name = table_name(&item);
     let primary_keys = table_primary_key(&item);
     let fields = item.fields.iter();
-    let col_and_filter = fields.clone().map(|f| {
-        let (mut column_def, filter_passive) = decode_field(&f, &item);
-        if column_def.primary_key && !primary_keys.is_empty() {
+    let metadata_and_filter = fields.clone().map(|f| {
+       let mut metadata = decode_field(&f, &item);
+        if metadata.primary_key && !primary_keys.is_empty() {
             panic!(
                 "Column `{}` cannot be declared as a primary key while the table also specifies one",
-                column_def.name()
+                metadata.name
             )
         }
         if primary_keys
             .iter()
-            .find(|pk| pk.name() == column_def.name())
+            .find(|pk| **pk == metadata.name)
             .is_some()
         {
             if primary_keys.len() == 1 {
-                column_def.primary_key = true;
+                metadata.primary_key = true;
             }
         }
-        let filter_passive = if let Some(filter_passive) = filter_passive {
+        let filter_passive = if let Some(ref filter_passive) = metadata.check_passive {
             let field = &f.ident;
             filter_passive(quote!(self.#field))
         } else {
             quote!(true)
         };
-        (column_def, filter_passive)
-    });
-    let primary_keys = if primary_keys.is_empty() {
-        col_and_filter
-            .clone()
-            .filter_map(|(c, _)| if c.primary_key { Some(c.clone()) } else { None })
+       (metadata, filter_passive)
+    }).collect::<Vec<_>>();
+    let primary_keys: Vec<_> = if primary_keys.is_empty() {
+        metadata_and_filter
+            .iter()
+            .filter_map(|(m, f)| if m.primary_key { Some(m) } else { None })
             .collect()
     } else {
-        primary_keys.clone()
+        primary_keys
+            .iter()
+            .map(|v| {
+                &metadata_and_filter.iter().find(|m| *v == m.0.name).expect(
+                    "Primary keys must exist here, it is being checked in `table_primary_key()`",
+                ).0
+            })
+            .collect()
     };
     let primary_key_types = primary_keys.iter().map(|key| {
         fields
             .clone()
-            .find(|f| decode_field(f, &item).0.name() == key.name())
+            .find(|f| decode_field(f, &item).name == key.name)
             .expect(&format!(
                 "Could not find the primary key `{}` among the fields",
-                key.name()
+                key.name
             ))
             .ty
             .to_token_stream()
     });
+    let primary_keys = primary_keys.iter().map(|v| encode_column_def(&v));
     let column = column_trait(&item);
     let value_and_filter =
-        zip(fields.clone(), col_and_filter.clone()).map(|(field, (_, filter))| {
+        zip(fields.clone(), metadata_and_filter.iter()).map(|(field, (column, filter))| {
             let name = &field.ident;
             quote!((self.#name.clone().into(), #filter))
         });
-    let label_and_filter = col_and_filter.clone().map(|(column, filter)| {
-        let name = column.name();
+    let label_and_filter = metadata_and_filter.iter().map(|(column, filter)| {
+        let name = &column.name;
         quote!((#name.into(), #filter))
     });
-    let columns = col_and_filter.clone().map(|(c, _)| c);
+    let columns = metadata_and_filter
+        .iter()
+        .map(|(c, _)| encode_column_def(&c));
     quote! {
         #column
         impl ::tank::Entity for #name {
@@ -109,8 +122,8 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
 
             fn table_ref() -> &'static ::tank::TableRef {
                 static TABLE_REF: ::tank::TableRef = ::tank::TableRef {
-                    name: ::std::borrow::Cow::Borrowed(#table_name),
-                    schema: ::std::borrow::Cow::Borrowed(#schema_name),
+                    name: #table_name,
+                    schema: #schema_name,
                     alias: ::std::borrow::Cow::Borrowed(""),
                 };
                 &TABLE_REF

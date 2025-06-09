@@ -5,9 +5,8 @@ use syn::{
     token::Comma,
     ItemStruct, LitStr,
 };
-use tank_core::ColumnDef;
 
-pub(crate) fn table_primary_key(item: &ItemStruct) -> Vec<ColumnDef> {
+pub(crate) fn table_primary_key(item: &ItemStruct) -> Vec<String> {
     item.attrs
         .iter()
         .find_map(|attr| {
@@ -23,15 +22,16 @@ pub(crate) fn table_primary_key(item: &ItemStruct) -> Vec<ColumnDef> {
                 }) else {
                     panic!("Error while parsing `primary_key`, use it like `#[primary_key(\"first\", \"second\")]`");
                 };
-                let columns = item.fields.iter().map(|f| decode_field(f, item).0);
+                let columns = item.fields.iter().map(|f| decode_field(f, item));
                 let primary_keys = primary_keys.iter().map(|pk| {
                     columns
                         .clone()
-                        .find(|col| **col.name() == *pk)
+                        .find(|col| col.name == *pk)
                         .expect(&format!(
                             "Primary key `{}` is not a field of the entity",
                             pk
                         ))
+                        .name
                 });
                 return Some(primary_keys.collect());
             }
