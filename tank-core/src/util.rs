@@ -1,4 +1,4 @@
-use proc_macro2::TokenStream;
+use proc_macro2::{Delimiter, Group, Spacing, TokenStream, TokenTree};
 use quote::{quote, ToTokens};
 use std::{borrow::Cow, cmp::min};
 use syn::Path;
@@ -21,4 +21,36 @@ pub fn matches_path(path: &Path, expect: &[&str]) -> bool {
         .take(len)
         .map(|v| &v.ident)
         .eq(expect.iter().rev().take(len))
+}
+
+pub fn flag_evaluated(input: TokenStream) -> TokenStream {
+    fn do_flagging(input: TokenStream) -> TokenStream {
+        let mut iter = input.into_iter().peekable();
+        std::iter::from_fn(move || {
+            while let Some(token) = iter.next() {
+                let next = iter.peek().cloned();
+                match (&token, next) {
+                    (TokenTree::Punct(p), Some(TokenTree::Ident(ident)))
+                        if p.as_char() == '#' && p.spacing() == Spacing::Alone =>
+                    {
+                        iter.next();
+                        let wrapped: TokenStream = quote!(::tank::evaluated!(#ident)).into();
+                        return Some(TokenTree::Group(Group::new(
+                            Delimiter::None,
+                            wrapped.into(),
+                        )));
+                    }
+                    (TokenTree::Group(group), ..) => {
+                        let content = do_flagging(group.stream());
+                        return Some(TokenTree::Group(Group::new(group.delimiter(), content)));
+                    }
+                    _ => {}
+                }
+                return Some(token);
+            }
+            None
+        })
+        .collect()
+    }
+    do_flagging(input)
 }

@@ -1,7 +1,7 @@
 use crate::{schema_name, table_name};
 use std::borrow::Cow;
 use syn::{Field, ItemStruct, LitStr, Type};
-use tank_core::{decode_type, CheckPassive, ColumnDef, ColumnRef, TypeDecoded};
+use tank_core::{decode_type, CheckPassive, ColumnDef, ColumnRef, Operand, TypeDecoded};
 
 pub fn decode_field(field: &Field, item: &ItemStruct) -> (ColumnDef, Option<CheckPassive>) {
     let (
@@ -47,7 +47,7 @@ pub fn decode_field(field: &Field, item: &ItemStruct) -> (ColumnDef, Option<Chec
         if meta.path().is_ident("default_value") {
             let Ok(v) = meta.require_list().and_then(|v| v.parse_args::<LitStr>()) else {
                 panic!(
-                    "Error while parsing `default_value`, use it like `#[default_value(\"some\")]`",
+                    "Error while parsing `default_value`, use it like `#[default_value(SOME_EXPRESSION)]`",
                 );
             };
             column_def.default = Some(v.value());

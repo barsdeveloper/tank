@@ -1,4 +1,4 @@
-use crate::{quote_cow, Value};
+use crate::{quote_cow, Expression, Operand, Value};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens, TokenStreamExt};
 use std::borrow::Cow;
@@ -32,6 +32,7 @@ pub struct ColumnDef {
     pub auto_increment: bool,
     pub passive: bool,
 }
+
 impl ColumnDef {
     pub fn name(&self) -> &Cow<'static, str> {
         &self.reference.name

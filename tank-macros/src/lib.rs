@@ -10,14 +10,14 @@ use column_trait::column_trait;
 use decode_expression::decode_expression;
 use decode_fields::decode_field;
 use decode_join::JoinParsed;
-use proc_macro::{Delimiter, Group, Spacing, TokenStream, TokenTree};
-use proc_macro2::Ident as Ident2;
+use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
 use schema_name::schema_name;
 use std::iter::zip;
 use syn::{parse_macro_input, Expr, ItemStruct};
 use table_name::table_name;
 use table_primary_key::table_primary_key;
+use tank_core::flag_evaluated;
 
 #[proc_macro_derive(
     Entity,
@@ -26,7 +26,7 @@ use table_primary_key::table_primary_key;
         table_name,
         column_name,
         column_type,
-        default,
+        default_value,
         primary_key,
         unique,
         auto_increment,
@@ -43,7 +43,7 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
         let (mut column_def, filter_passive) = decode_field(&f, &item);
         if column_def.primary_key && !primary_keys.is_empty() {
             panic!(
-                "Column {} cannot be declared as a primary key while the table also specifies one",
+                "Column `{}` cannot be declared as a primary key while the table also specifies one",
                 column_def.name()
             )
         }
@@ -77,7 +77,7 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
             .clone()
             .find(|f| decode_field(f, &item).0.name() == key.name())
             .expect(&format!(
-                "Could not find the primary key \"{}\" among the fields",
+                "Could not find the primary key `{}` among the fields",
                 key.name()
             ))
             .ty
@@ -198,36 +198,7 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
 
 #[proc_macro]
 pub fn expr(input: TokenStream) -> TokenStream {
-    fn flag_evaluations(input: TokenStream) -> TokenStream {
-        let mut iter = input.into_iter().peekable();
-        std::iter::from_fn(move || {
-            while let Some(token) = iter.next() {
-                let next = iter.peek();
-                match (&token, next) {
-                    (TokenTree::Punct(p), Some(TokenTree::Ident(ident)))
-                        if p.as_char() == '#' && p.spacing() == Spacing::Alone =>
-                    {
-                        let ident = Ident2::new(&ident.to_string(), ident.span().into());
-                        iter.next();
-                        let wrapped: TokenStream = quote!(tank::evaluated!(#ident)).into();
-                        return Some(TokenTree::Group(Group::new(
-                            Delimiter::None,
-                            wrapped.into(),
-                        )));
-                    }
-                    (TokenTree::Group(group), ..) => {
-                        let content = flag_evaluations(group.stream());
-                        return Some(TokenTree::Group(Group::new(group.delimiter(), content)));
-                    }
-                    _ => {}
-                }
-                return Some(token);
-            }
-            None
-        })
-        .collect()
-    }
-    let input = flag_evaluations(input);
+    let input: TokenStream = flag_evaluated(input.into()).into();
     let expr = parse_macro_input!(input as Expr);
     let parsed = decode_expression(&expr);
     quote!(#parsed).into()
