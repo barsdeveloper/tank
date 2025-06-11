@@ -20,7 +20,7 @@ use std::iter::zip;
 use syn::{parse_macro_input, Expr, ItemStruct};
 use table_name::table_name;
 use table_primary_key::table_primary_key;
-use tank_core::flag_evaluated;
+use tank_core::{flag_evaluated, PrimaryKeyType};
 
 #[proc_macro_derive(
     Entity,
@@ -42,61 +42,62 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
     let table_name = table_name(&item);
     let primary_keys = table_primary_key(&item);
     let fields = item.fields.iter();
-    let metadata_and_filter = fields.clone().map(|f| {
-       let mut metadata = decode_column(&f, &item);
-        if metadata.primary_key && !primary_keys.is_empty() {
-            panic!(
-                "Column `{}` cannot be declared as a primary key while the table also specifies one",
-                metadata.name
-            )
-        }
-        if primary_keys
-            .iter()
-            .find(|pk| **pk == metadata.name)
-            .is_some()
-        {
-            if primary_keys.len() == 1 {
-                metadata.primary_key = true;
+    let metadata_and_filter = fields
+        .clone()
+        .map(|f| {
+            let mut metadata = decode_column(&f, &item);
+            if metadata.primary_key == PrimaryKeyType::PrimaryKey && !primary_keys.is_empty() {
+                panic!(
+                    "Column `{}` cannot be declared as a primary key while the table also specifies one",
+                    metadata.name
+                )
             }
-        }
-        let filter_passive = if let Some(ref filter_passive) = metadata.check_passive {
-            let field = &f.ident;
-            filter_passive(quote!(self.#field))
-        } else {
-            quote!(true)
-        };
-       (metadata, filter_passive)
-    }).collect::<Vec<_>>();
-    let primary_keys: Vec<_> = if primary_keys.is_empty() {
-        metadata_and_filter
+            if primary_keys
+                .iter()
+                .find(|pk| **pk == metadata.name)
+                .is_some()
+            {
+                metadata.primary_key = if primary_keys.len() == 1 {
+                    PrimaryKeyType::PrimaryKey
+                } else {
+                    PrimaryKeyType::PartOfPrimaryKey
+                };
+            }
+            let filter_passive = if let Some(ref filter_passive) = metadata.check_passive {
+                let field = &f.ident;
+                filter_passive(quote!(self.#field))
+            } else {
+                quote!(true)
+            };
+            (metadata, filter_passive)
+        })
+        .collect::<Vec<_>>();
+    let primary_keys_indexes: Vec<_> = metadata_and_filter
+        .iter()
+        .enumerate()
+        .filter_map(|(i, (m, _))| {
+            if matches!(
+                m.primary_key,
+                PrimaryKeyType::PrimaryKey | PrimaryKeyType::PartOfPrimaryKey
+            ) {
+                Some(i)
+            } else {
+                None
+            }
+        })
+        .collect();
+    let primary_keys = primary_keys_indexes.iter().map(|i| quote!(columns[#i]));
+    let primary_key_types = primary_keys_indexes.iter().map(|i| {
+        item.fields
             .iter()
-            .filter_map(|(m, f)| if m.primary_key { Some(m) } else { None })
-            .collect()
-    } else {
-        primary_keys
-            .iter()
-            .map(|v| {
-                &metadata_and_filter.iter().find(|m| *v == m.0.name).expect(
-                    "Primary keys must exist here, it is being checked in `table_primary_key()`",
-                ).0
-            })
-            .collect()
-    };
-    let primary_key_types = primary_keys.iter().map(|key| {
-        fields
-            .clone()
-            .find(|f| decode_column(f, &item).name == key.name)
-            .expect(&format!(
-                "Could not find the primary key `{}` among the fields",
-                key.name
-            ))
+            .nth(*i)
+            .expect("The primary key should be present")
             .ty
             .to_token_stream()
     });
-    let primary_keys = primary_keys.iter().map(|v| encode_column_def(&v));
     let column = column_trait(&item);
     let value_and_filter =
-        zip(fields.clone(), metadata_and_filter.iter()).map(|(field, (column, filter))| {
+        zip(fields.clone(), metadata_and_filter.iter()).map(|(field, (_, filter))| {
             let name = &field.ident;
             quote!((self.#name.clone().into(), #filter))
         });
@@ -104,9 +105,10 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
         let name = &column.name;
         quote!((#name.into(), #filter))
     });
-    let columns = metadata_and_filter
-        .iter()
-        .map(|(c, _)| encode_column_def(&c));
+    let columns = metadata_and_filter.iter().map(|(c, _)| {
+        let field = &c.ident;
+        encode_column_def(&c, quote!(#name::#field))
+    });
     quote! {
         #column
         impl ::tank::Entity for #name {
@@ -130,41 +132,50 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
             }
 
             fn columns() -> &'static [::tank::ColumnDef] {
-                static RESULT: ::std::sync::LazyLock::<Box<[::tank::ColumnDef]>> =
-                    ::std::sync::LazyLock::new(|| { vec![#(#columns),*].into_boxed_slice() });
+                static RESULT: ::std::sync::LazyLock<Box<[::tank::ColumnDef]>> =
+                    ::std::sync::LazyLock::new(|| vec![#(#columns),*].into_boxed_slice());
                 &RESULT
             }
 
-            fn primary_key() -> &'static [::tank::ColumnDef] {
-                static RESULT: ::std::sync::LazyLock::<Box<[::tank::ColumnDef]>> =
-                    ::std::sync::LazyLock::new(|| { vec![#(#primary_keys),*].into_boxed_slice() });
+            fn primary_key() -> &'static [&'static ::tank::ColumnDef] {
+                static RESULT: ::std::sync::LazyLock<Box<[&::tank::ColumnDef]>> =
+                    ::std::sync::LazyLock::new(|| {
+                        let columns = #name::columns();
+                        vec![#(&#primary_keys),*].into_boxed_slice()
+                    });
                 &RESULT
             }
 
             async fn create_table<E: ::tank::Executor>(
                 executor: &mut E,
-                if_not_exists: bool
+                if_not_exists: bool,
             ) -> ::tank::Result<()> {
                 let mut query = String::with_capacity(512);
                 ::tank::SqlWriter::sql_create_table::<#name>(
                     &::tank::Driver::sql_writer(executor.driver()),
                     &mut query,
-                    if_not_exists
+                    if_not_exists,
                 );
-                executor.execute(::tank::Query::Raw(query.into())).await.map(|_| {()})
+                executor
+                    .execute(::tank::Query::Raw(query.into()))
+                    .await
+                    .map(|_| ())
             }
 
             async fn drop_table<E: ::tank::Executor>(
                 executor: &mut E,
-                if_exists: bool
+                if_exists: bool,
             ) -> ::tank::Result<()> {
                 let mut query = String::with_capacity(64);
                 ::tank::SqlWriter::sql_drop_table::<#name>(
                     &::tank::Driver::sql_writer(executor.driver()),
                     &mut query,
-                    if_exists
+                    if_exists,
                 );
-                executor.execute(::tank::Query::Raw(query.into())).await.map(|_| {()})
+                executor
+                    .execute(::tank::Query::Raw(query.into()))
+                    .await
+                    .map(|_| ())
             }
 
             async fn find_by_key<E: ::tank::Executor>(
@@ -198,10 +209,7 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                     .collect::<::tank::Row>()
             }
 
-            async fn save<E: ::tank::Executor>(
-                &self,
-                executor: &mut E,
-            ) -> ::tank::Result<()> {
+            async fn save<E: ::tank::Executor>(&self, executor: &mut E) -> ::tank::Result<()> {
                 Ok(())
             }
         }

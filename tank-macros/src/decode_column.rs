@@ -1,9 +1,9 @@
 use crate::{schema_name, table_name};
-use syn::{Field, ItemStruct, LitStr, Type};
-use tank_core::{decode_type, CheckPassive, TypeDecoded, Value};
+use syn::{Field, Ident, ItemStruct, LitStr, Type};
+use tank_core::{decode_type, CheckPassive, PrimaryKeyType, TypeDecoded, Value};
 
-#[derive(Default)]
 pub(crate) struct ColumnMetadata {
+    pub(crate) ident: Ident,
     pub(crate) name: String,
     pub(crate) table: String,
     pub(crate) schema: String,
@@ -11,7 +11,7 @@ pub(crate) struct ColumnMetadata {
     pub(crate) value: Value,
     pub(crate) nullable: bool,
     pub(crate) default: Option<String>,
-    pub(crate) primary_key: bool,
+    pub(crate) primary_key: PrimaryKeyType,
     pub(crate) unique: bool,
     pub(crate) auto_increment: bool,
     pub(crate) passive: bool,
@@ -31,7 +31,12 @@ pub fn decode_column(field: &Field, item: &ItemStruct) -> ColumnMetadata {
     } else {
         Default::default()
     };
+    let ident = field
+        .ident
+        .clone()
+        .expect("Field is expected to have a name");
     let mut metadata = ColumnMetadata {
+        ident,
         name: field
             .ident
             .as_ref()
@@ -40,11 +45,15 @@ pub fn decode_column(field: &Field, item: &ItemStruct) -> ColumnMetadata {
             .into(),
         table: table_name(item).into(),
         schema: schema_name(item).into(),
+        column_type: "".into(),
         value,
         nullable,
+        default: None,
+        primary_key: PrimaryKeyType::None,
+        unique: false,
+        auto_increment: false,
         passive,
         check_passive,
-        ..Default::default()
     };
     if metadata.name.starts_with('_') {
         metadata.name.remove(0);
@@ -79,7 +88,7 @@ pub fn decode_column(field: &Field, item: &ItemStruct) -> ColumnMetadata {
                     "Error while parsing `primary_key`, use it like `#[primary_key]` on a field"
                 );
             };
-            metadata.primary_key = true;
+            metadata.primary_key = PrimaryKeyType::PrimaryKey;
             metadata.nullable = false;
         } else if meta.path().is_ident("unique") {
             let Ok(..) = meta.require_path_only() else {

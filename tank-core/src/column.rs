@@ -19,6 +19,25 @@ pub enum DefaultValue {
     Custom(String),
 }
 
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum PrimaryKeyType {
+    PrimaryKey,
+    PartOfPrimaryKey,
+    #[default]
+    None,
+}
+
+impl ToTokens for PrimaryKeyType {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        use PrimaryKeyType::*;
+        tokens.append_all(match self {
+            PrimaryKey => quote!(::tank::PrimaryKeyType::PrimaryKey),
+            PartOfPrimaryKey => quote!(::tank::PrimaryKeyType::PartOfPrimaryKey),
+            None => quote!(::tank::PrimaryKeyType::None),
+        });
+    }
+}
+
 #[derive(Default, Debug, Clone)]
 pub struct ColumnDef {
     pub reference: ColumnRef,
@@ -26,7 +45,7 @@ pub struct ColumnDef {
     pub value: Value,
     pub nullable: bool,
     pub default: Option<String>,
-    pub primary_key: bool,
+    pub primary_key: PrimaryKeyType,
     pub unique: bool,
     pub auto_increment: bool,
     pub passive: bool,

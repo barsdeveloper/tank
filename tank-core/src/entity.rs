@@ -8,7 +8,7 @@ pub trait Entity: Send {
     fn schema_name() -> &'static str;
     fn table_ref() -> &'static TableRef;
     fn columns() -> &'static [ColumnDef];
-    fn primary_key() -> &'static [ColumnDef];
+    fn primary_key() -> &'static [&'static ColumnDef];
 
     fn create_table<Exec: Executor>(
         executor: &mut Exec,

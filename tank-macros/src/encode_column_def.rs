@@ -1,9 +1,8 @@
-use crate::{decode_column::ColumnMetadata, encode_column_ref::encode_column_ref};
+use crate::decode_column::ColumnMetadata;
 use proc_macro2::TokenStream;
 use quote::quote;
 
-pub fn encode_column_def(metadata: &ColumnMetadata) -> TokenStream {
-    let reference = encode_column_ref(metadata);
+pub fn encode_column_def(metadata: &ColumnMetadata, reference: TokenStream) -> TokenStream {
     let column_type = &metadata.column_type;
     let value = &metadata.value;
     let nullable = &metadata.nullable;

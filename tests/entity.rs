@@ -9,7 +9,7 @@ mod tests {
     use regex::Regex;
     use rust_decimal::Decimal;
     use std::{collections::BTreeMap, sync::Arc, time::Duration};
-    use tank::{ColumnDef, ColumnRef, Entity, Passive, SqlWriter, Value};
+    use tank::{ColumnDef, ColumnRef, Entity, Passive, PrimaryKeyType, SqlWriter, Value};
     use time::macros::datetime;
     use uuid::Uuid;
 
@@ -112,7 +112,7 @@ mod tests {
         assert_eq!(
             MyEntity::primary_key()
                 .iter()
-                .map(|k| k.name().clone())
+                .map(|k| k.name())
                 .collect::<Vec<_>>(),
             ["bravo", "delta"]
         );
@@ -129,7 +129,7 @@ mod tests {
                 value: Value::Float64(None, ..),
                 nullable: false,
                 default: None,
-                primary_key: false,
+                primary_key: PrimaryKeyType::None,
                 unique: false,
                 auto_increment: false,
                 passive: false,
@@ -148,10 +148,10 @@ mod tests {
                 value: Value::Int16(None, ..),
                 nullable: false,
                 default: None,
-                primary_key: false,
-                // unique: false,
-                // auto_increment: false,
-                ..
+                primary_key: PrimaryKeyType::PartOfPrimaryKey,
+                unique: false,
+                auto_increment: false,
+                passive: false,
             }
         ));
 
@@ -167,7 +167,7 @@ mod tests {
                 value: Value::Decimal(None, ..),
                 nullable: true,
                 default: None,
-                primary_key: false,
+                primary_key: PrimaryKeyType::None,
                 unique: false,
                 auto_increment: false,
                 passive: false,
@@ -182,14 +182,14 @@ mod tests {
                     table: "a_table",
                     schema: "",
                 },
-                // column_type: "",
-                // value: Value::Interval(None, ..),
-                // nullable: false,
-                // default: None,
-                // primary_key: false,
-                // unique: false,
-                // auto_increment: false,
-                ..
+                column_type: "",
+                value: Value::Interval(None, ..),
+                nullable: false,
+                default: None,
+                primary_key: PrimaryKeyType::PartOfPrimaryKey,
+                unique: false,
+                auto_increment: false,
+                passive: false,
             }
         ));
 
@@ -205,7 +205,7 @@ mod tests {
                 value: Value::Decimal(None, ..),
                 nullable: true,
                 default: None,
-                primary_key: false,
+                primary_key: PrimaryKeyType::None,
                 unique: false,
                 auto_increment: false,
                 passive: false,

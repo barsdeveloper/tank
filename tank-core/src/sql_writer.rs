@@ -1,6 +1,6 @@
 use crate::{
     BinaryOp, BinaryOpType, ColumnDef, ColumnRef, DataSet, Entity, Expression, Interval, Join,
-    JoinType, Operand, TableRef, UnaryOp, UnaryOpType, Value,
+    JoinType, Operand, PrimaryKeyType, TableRef, UnaryOp, UnaryOpType, Value,
 };
 use std::{fmt::Write, iter::zip};
 
@@ -485,7 +485,7 @@ pub trait SqlWriter {
         } else {
             self.sql_type(out, &column.value);
         }
-        if column.primary_key {
+        if column.primary_key == PrimaryKeyType::PrimaryKey {
             out.push_str(" PRIMARY KEY");
         } else if !column.nullable {
             out.push_str(" NOT NULL");
