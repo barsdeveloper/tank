@@ -9,4 +9,8 @@ impl DuckDBSqlWriter {
     }
 }
 
-impl SqlWriter for DuckDBSqlWriter {}
+impl SqlWriter for DuckDBSqlWriter {
+    fn as_dyn(&self) -> &dyn SqlWriter {
+        self
+    }
+}

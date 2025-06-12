@@ -6,7 +6,10 @@ pub fn encode_column_def(metadata: &ColumnMetadata, reference: TokenStream) -> T
     let column_type = &metadata.column_type;
     let value = &metadata.value;
     let nullable = &metadata.nullable;
-    let default = &metadata.default;
+    let default = metadata
+        .default
+        .as_ref()
+        .map_or(quote!(None), |v| quote!(Some(Box::new(#v))));
     let primary_key = &metadata.primary_key;
     let unique = &metadata.unique;
     let auto_increment = &metadata.auto_increment;
@@ -17,7 +20,7 @@ pub fn encode_column_def(metadata: &ColumnMetadata, reference: TokenStream) -> T
             column_type: #column_type,
             value: #value,
             nullable: #nullable,
-            default: None,
+            default: #default,
             primary_key: #primary_key,
             unique: #unique,
             auto_increment: #auto_increment,

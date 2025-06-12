@@ -1,10 +1,6 @@
 use crate::{ColumnRef, Expression, OpPrecedence, SqlWriter, Value};
-use proc_macro2::TokenStream;
-use quote::{quote, ToTokens, TokenStreamExt};
 
-#[derive(Debug, Clone)]
 pub enum Operand {
-    // Function(String, Vec<String>),
     LitBool(bool),
     LitFloat(f64),
     LitIdent(&'static str),
@@ -16,24 +12,26 @@ pub enum Operand {
     Column(ColumnRef),
     Type(Value),
     Variable(Value),
+    Function(Box<dyn Expression>),
 }
 
 impl OpPrecedence for Operand {
-    fn precedence<W: SqlWriter + ?Sized>(&self, _writer: &W) -> i32 {
+    fn precedence(&self, _writer: &dyn SqlWriter) -> i32 {
         1_000_000_000
     }
 }
 
 impl Expression for Operand {
-    fn sql_write<'a, W: SqlWriter + ?Sized>(
+    fn sql_write<'a>(
         &self,
-        writer: &W,
+        writer: &dyn SqlWriter,
         out: &'a mut String,
         qualify_columns: bool,
     ) -> &'a mut String {
         writer.sql_expression_operand(out, self, qualify_columns)
     }
 }
+
 impl PartialEq for Operand {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
@@ -47,24 +45,5 @@ impl PartialEq for Operand {
             (Self::Type(l), Self::Type(r)) => l.same_type(r),
             _ => false,
         }
-    }
-}
-
-impl ToTokens for Operand {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        use Operand::*;
-        tokens.append_all(match self {
-            LitBool(v) => quote!(::tank::Operand::LitBool(#v)),
-            LitFloat(v) => quote!(::tank::Operand::LitFloat(#v)),
-            LitIdent(v) => quote!(::tank::Operand::LitIdent(#v)),
-            LitField(v) => quote!(::tank::Operand::LitField(#(#v),*)),
-            LitInt(v) => quote!(::tank::Operand::LitInt(#v)),
-            LitStr(v) => quote!(::tank::Operand::LitStr(#v)),
-            LitArray(v) => quote!(::tank::Operand::LitArray([#(#v),*])),
-            Null => quote!(::tank::Operand::Null),
-            Column(v) => quote!(::tank::Operand::Column(#v)),
-            Type(v) => quote!(::tank::Operand::Type(#v)),
-            Variable(v) => quote!(::tank::Operand::Variable(#v)),
-        })
     }
 }

@@ -1,12 +1,12 @@
 use crate::{Expression, OpPrecedence, SqlWriter};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum UnaryOpType {
     Negative,
     Not,
 }
 impl OpPrecedence for UnaryOpType {
-    fn precedence<W: SqlWriter + ?Sized>(&self, writer: &W) -> i32 {
+    fn precedence(&self, writer: &dyn SqlWriter) -> i32 {
         writer.expression_unary_op_precedence(self)
     }
 }
@@ -17,18 +17,25 @@ pub struct UnaryOp<V: Expression> {
 }
 
 impl<E: Expression> OpPrecedence for UnaryOp<E> {
-    fn precedence<W: SqlWriter + ?Sized>(&self, writer: &W) -> i32 {
+    fn precedence(&self, writer: &dyn SqlWriter) -> i32 {
         writer.expression_unary_op_precedence(&self.op)
     }
 }
 
 impl<E: Expression> Expression for UnaryOp<E> {
-    fn sql_write<'a, W: SqlWriter + ?Sized>(
+    fn sql_write<'a>(
         &self,
-        writer: &W,
+        writer: &dyn SqlWriter,
         out: &'a mut String,
         qualify_columns: bool,
     ) -> &'a mut String {
-        writer.sql_expression_unary_op(out, self, qualify_columns)
+        writer.sql_expression_unary_op(
+            out,
+            &UnaryOp {
+                op: self.op,
+                v: &self.v,
+            },
+            qualify_columns,
+        )
     }
 }

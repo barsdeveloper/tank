@@ -1,7 +1,6 @@
-use std::borrow::Cow;
-
-use crate::{quote_cow, DataSet};
+use crate::{quote_cow, DataSet, SqlWriter};
 use quote::{quote, ToTokens, TokenStreamExt};
+use std::borrow::Cow;
 
 #[derive(Clone)]
 pub struct TableRef {
@@ -47,12 +46,13 @@ impl ToTokens for TableRef {
 }
 
 impl DataSet for TableRef {
-    const QUALIFIED_COLUMNS: bool = false;
-    fn sql_write<'a, W: crate::SqlWriter + ?Sized>(
-        &self,
-        writer: &W,
-        out: &'a mut String,
-    ) -> &'a mut String {
+    fn qualified_columns() -> bool
+    where
+        Self: Sized,
+    {
+        false
+    }
+    fn sql_write<'a>(&self, writer: &dyn SqlWriter, out: &'a mut String) -> &'a mut String {
         writer.sql_table_ref(out, self)
     }
 }

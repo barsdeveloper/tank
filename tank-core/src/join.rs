@@ -1,4 +1,4 @@
-use crate::{DataSet, Expression};
+use crate::{DataSet, Expression, SqlWriter};
 use proc_macro2::{TokenStream, TokenTree};
 use quote::{quote, ToTokens, TokenStreamExt};
 use syn::{
@@ -25,13 +25,22 @@ pub enum JoinType {
 }
 
 impl<L: DataSet, R: DataSet, E: Expression> DataSet for Join<L, R, E> {
-    const QUALIFIED_COLUMNS: bool = true;
-    fn sql_write<'a, W: crate::SqlWriter + ?Sized>(
-        &self,
-        writer: &W,
-        out: &'a mut String,
-    ) -> &'a mut String {
-        writer.sql_join(out, self)
+    fn qualified_columns() -> bool
+    where
+        Self: Sized,
+    {
+        true
+    }
+    fn sql_write<'a>(&self, writer: &dyn SqlWriter, out: &'a mut String) -> &'a mut String {
+        writer.sql_join(
+            out,
+            &Join {
+                join: self.join,
+                lhs: &self.lhs,
+                rhs: &self.rhs,
+                on: self.on.as_ref().map(|v| v as &dyn Expression),
+            },
+        )
     }
 }
 

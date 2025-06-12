@@ -1,4 +1,4 @@
-use crate::Value;
+use crate::{Expression, Value};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens, TokenStreamExt};
 
@@ -38,13 +38,13 @@ impl ToTokens for PrimaryKeyType {
     }
 }
 
-#[derive(Default, Debug, Clone)]
+#[derive(Default)]
 pub struct ColumnDef {
     pub reference: ColumnRef,
     pub column_type: &'static str,
     pub value: Value,
     pub nullable: bool,
-    pub default: Option<String>,
+    pub default: Option<Box<dyn Expression>>,
     pub primary_key: PrimaryKeyType,
     pub unique: bool,
     pub auto_increment: bool,
@@ -78,50 +78,5 @@ impl From<ColumnDef> for ColumnRef {
 impl<'a> From<&'a ColumnDef> for &'a ColumnRef {
     fn from(value: &'a ColumnDef) -> Self {
         &value.reference
-    }
-}
-
-impl ToTokens for ColumnRef {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        let name = self.name;
-        let table = self.table;
-        let schema = self.schema;
-        tokens.append_all(quote! {
-            ::tank::ColumnRef {
-                name: #name,
-                table: #table,
-                schema: #schema,
-            }
-        });
-    }
-}
-
-impl ToTokens for ColumnDef {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        let reference = &self.reference;
-        let column_type = self.column_type;
-        let value = self.value.to_token_stream();
-        let nullable = self.nullable;
-        let default = match &self.default {
-            Some(v) => quote! {Some(#v)},
-            None => quote! {None},
-        };
-        let primary_key = &self.primary_key;
-        let unique = &self.unique;
-        let auto_increment = &self.auto_increment;
-        let passive = &self.passive;
-        tokens.append_all(quote! {
-            ::tank::ColumnDef {
-                reference: #reference,
-                column_type: #column_type,
-                value: #value,
-                nullable: #nullable,
-                default: #default,
-                primary_key: #primary_key,
-                unique: #unique,
-                auto_increment: #auto_increment,
-                passive: #passive,
-            }
-        });
     }
 }

@@ -31,6 +31,8 @@ where
 }
 
 pub trait SqlWriter {
+    fn as_dyn(&self) -> &dyn SqlWriter;
+
     fn sql_type<'a>(&self, out: &'a mut String, value: &Value) -> &'a mut String {
         match value {
             Value::Boolean(..) => out.push_str("BOOLEAN"),
@@ -312,7 +314,7 @@ pub trait SqlWriter {
                     out,
                     v.iter(),
                     |out, v| {
-                        v.sql_write(self, out, qualify_columns);
+                        v.sql_write(self.as_dyn(), out, qualify_columns);
                     },
                     ", ",
                 );
@@ -332,14 +334,17 @@ pub trait SqlWriter {
                 self.sql_value(out, v);
                 Ok(())
             }
+            Operand::Function(v) => {
+                todo!()
+            }
         };
         out
     }
 
-    fn sql_expression_unary_op<'a, E: Expression>(
+    fn sql_expression_unary_op<'a>(
         &self,
         out: &'a mut String,
-        value: &UnaryOp<E>,
+        value: &UnaryOp<&dyn Expression>,
         qualify_columns: bool,
     ) -> &'a mut String {
         let _ = match value.op {
@@ -348,16 +353,16 @@ pub trait SqlWriter {
         };
         sql_possibly_parenthesized!(
             out,
-            value.v.precedence(self) <= self.expression_unary_op_precedence(&value.op),
-            value.v.sql_write(self, out, qualify_columns)
+            value.v.precedence(self.as_dyn()) <= self.expression_unary_op_precedence(&value.op),
+            value.v.sql_write(self.as_dyn(), out, qualify_columns)
         );
         out
     }
 
-    fn sql_expression_binary_op<'a, L: Expression, R: Expression>(
+    fn sql_expression_binary_op<'a>(
         &self,
         out: &'a mut String,
-        value: &BinaryOp<L, R>,
+        value: &BinaryOp<&dyn Expression, &dyn Expression>,
         qualify_columns: bool,
     ) -> &'a mut String {
         let (prefix, infix, suffix) = match value.op {
@@ -393,14 +398,14 @@ pub trait SqlWriter {
         out.push_str(prefix);
         sql_possibly_parenthesized!(
             out,
-            value.lhs.precedence(self) < precedence,
-            value.lhs.sql_write(self, out, qualify_columns)
+            value.lhs.precedence(self.as_dyn()) < precedence,
+            value.lhs.sql_write(self.as_dyn(), out, qualify_columns)
         );
         out.push_str(infix);
         sql_possibly_parenthesized!(
             out,
-            value.rhs.precedence(self) <= precedence,
-            value.rhs.sql_write(self, out, qualify_columns)
+            value.rhs.precedence(self.as_dyn()) <= precedence,
+            value.rhs.sql_write(self.as_dyn(), out, qualify_columns)
         );
         out.push_str(suffix);
         out
@@ -418,19 +423,19 @@ pub trait SqlWriter {
         out
     }
 
-    fn sql_join<'a, L: DataSet, R: DataSet, E: Expression>(
+    fn sql_join<'a>(
         &self,
         out: &'a mut String,
-        join: &Join<L, R, E>,
+        join: &Join<&dyn DataSet, &dyn DataSet, &dyn Expression>,
     ) -> &'a mut String {
-        join.lhs.sql_write(self, out);
+        join.lhs.sql_write(self.as_dyn(), out);
         out.push(' ');
         self.sql_join_type(out, &join.join);
         out.push(' ');
-        join.rhs.sql_write(self, out);
+        join.rhs.sql_write(self.as_dyn(), out);
         if let Some(on) = &join.on {
             out.push_str(" ON ");
-            on.sql_write(self, out, true);
+            on.sql_write(self.as_dyn(), out, true);
         }
         out
     }
@@ -439,7 +444,10 @@ pub trait SqlWriter {
         &self,
         out: &'a mut String,
         if_not_exists: bool,
-    ) -> &'a mut String {
+    ) -> &'a mut String
+    where
+        Self: Sized,
+    {
         out.push_str("CREATE TABLE ");
         if if_not_exists {
             out.push_str("IF NOT EXISTS ");
@@ -490,6 +498,10 @@ pub trait SqlWriter {
         } else if !column.nullable {
             out.push_str(" NOT NULL");
         }
+        if let Some(default) = &column.default {
+            out.push_str(" DEFAULT ");
+            default.sql_write(self.as_dyn(), out, true);
+        }
         if column.auto_increment {
             out.push(' ');
             self.sql_autoincrement_fragment(out);
@@ -497,7 +509,10 @@ pub trait SqlWriter {
         out
     }
 
-    fn sql_drop_table<E: Entity>(&self, query: &mut String, if_exists: bool) {
+    fn sql_drop_table<E: Entity>(&self, query: &mut String, if_exists: bool)
+    where
+        Self: Sized,
+    {
         query.push_str("DROP TABLE ");
         if if_exists {
             query.push_str("IF EXISTS ");
@@ -511,20 +526,23 @@ pub trait SqlWriter {
         from: &D,
         condition: &Expr,
         limit: Option<u32>,
-    ) -> &'a mut String {
+    ) -> &'a mut String
+    where
+        Self: Sized,
+    {
         out.push_str("SELECT ");
         separated_by(
             out,
             E::columns().iter(),
             |out, col| {
-                self.sql_column_ref(out, (*col).into(), D::QUALIFIED_COLUMNS);
+                self.sql_column_ref(out, (*col).into(), D::qualified_columns());
             },
             ", ",
         );
         out.push_str("\nFROM ");
         from.sql_write(self, out);
         out.push_str("\nWHERE ");
-        condition.sql_write(self, out, D::QUALIFIED_COLUMNS);
+        condition.sql_write(self, out, D::qualified_columns());
         if let Some(limit) = limit {
             let _ = write!(out, "\nLIMIT {}", limit);
         }
@@ -536,7 +554,10 @@ pub trait SqlWriter {
         out: &'a mut String,
         entity: &E,
         replace: bool,
-    ) -> &'a mut String {
+    ) -> &'a mut String
+    where
+        Self: Sized,
+    {
         out.push_str("INSERT");
         if replace {
             out.push_str(" OR REPLACE");

@@ -1,6 +1,9 @@
 use crate::{Expression, OpPrecedence, SqlWriter};
+use proc_macro2::TokenStream;
+use quote::{quote, ToTokens, TokenStreamExt};
+use std::fmt::{self, Display, Formatter};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BinaryOpType {
     Indexing,
     Cast,
@@ -32,7 +35,7 @@ pub enum BinaryOpType {
 }
 
 impl OpPrecedence for BinaryOpType {
-    fn precedence<W: SqlWriter + ?Sized>(&self, writer: &W) -> i32 {
+    fn precedence(&self, writer: &dyn SqlWriter) -> i32 {
         writer.expression_binary_op_precedence(self)
     }
 }
@@ -44,18 +47,67 @@ pub struct BinaryOp<L: Expression, R: Expression> {
 }
 
 impl<L: Expression, R: Expression> OpPrecedence for BinaryOp<L, R> {
-    fn precedence<W: SqlWriter + ?Sized>(&self, writer: &W) -> i32 {
+    fn precedence(&self, writer: &dyn SqlWriter) -> i32 {
         writer.expression_binary_op_precedence(&self.op)
     }
 }
 
 impl<L: Expression, R: Expression> Expression for BinaryOp<L, R> {
-    fn sql_write<'a, W: SqlWriter + ?Sized>(
+    fn sql_write<'a>(
         &self,
-        writer: &W,
+        writer: &dyn SqlWriter,
         out: &'a mut String,
         qualify_columns: bool,
     ) -> &'a mut String {
-        writer.sql_expression_binary_op(out, self, qualify_columns)
+        writer.sql_expression_binary_op(
+            out,
+            &BinaryOp {
+                op: self.op,
+                lhs: &self.lhs,
+                rhs: &self.rhs,
+            },
+            qualify_columns,
+        )
+    }
+}
+
+impl Display for BinaryOpType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            BinaryOpType::Indexing => "Indexing",
+            BinaryOpType::Cast => "Cast",
+            BinaryOpType::Multiplication => "Multiplication",
+            BinaryOpType::Division => "Division",
+            BinaryOpType::Remainder => "Remainder",
+            BinaryOpType::Addition => "Addition",
+            BinaryOpType::Subtraction => "Subtraction",
+            BinaryOpType::ShiftLeft => "ShiftLeft",
+            BinaryOpType::ShiftRight => "ShiftRight",
+            BinaryOpType::BitwiseAnd => "BitwiseAnd",
+            BinaryOpType::BitwiseOr => "BitwiseOr",
+            BinaryOpType::Is => "Is",
+            BinaryOpType::IsNot => "IsNot",
+            BinaryOpType::Like => "Like",
+            BinaryOpType::NotLike => "NotLike",
+            BinaryOpType::Regexp => "Regexp",
+            BinaryOpType::NotRegexpr => "NotRegexpr",
+            BinaryOpType::Glob => "Glob",
+            BinaryOpType::NotGlob => "NotGlob",
+            BinaryOpType::Equal => "Equal",
+            BinaryOpType::NotEqual => "NotEqual",
+            BinaryOpType::Less => "Less",
+            BinaryOpType::Greater => "Greater",
+            BinaryOpType::LessEqual => "LessEqual",
+            BinaryOpType::GreaterEqual => "GreaterEqual",
+            BinaryOpType::And => "And",
+            BinaryOpType::Or => "Or",
+        })
+    }
+}
+
+impl ToTokens for BinaryOpType {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let v = self.to_string();
+        tokens.append_all(quote!(::tank::BinaryOpType::#v));
     }
 }

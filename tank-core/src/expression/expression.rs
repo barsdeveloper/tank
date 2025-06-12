@@ -1,29 +1,29 @@
-use crate::{OpPrecedence, SqlWriter, Value};
+use crate::{OpPrecedence, SqlWriter};
 
-pub trait Expression: OpPrecedence + Send {
-    fn sql_write<'a, W: SqlWriter + ?Sized>(
+pub trait Expression: OpPrecedence + Send + Sync {
+    fn sql_write<'a>(
         &self,
-        writer: &W,
+        writer: &dyn SqlWriter,
         out: &'a mut String,
         qualify_columns: bool,
     ) -> &'a mut String;
 }
 
-impl Expression for () {
-    fn sql_write<'a, W: SqlWriter + ?Sized>(
+impl Expression for &dyn Expression {
+    fn sql_write<'a>(
         &self,
-        _writer: &W,
+        writer: &dyn SqlWriter,
         out: &'a mut String,
-        _qualify_columns: bool,
+        qualify_columns: bool,
     ) -> &'a mut String {
-        out
+        (**self).sql_write(writer, out, qualify_columns)
     }
 }
 
-impl Expression for Value {
-    fn sql_write<'a, W: SqlWriter + ?Sized>(
+impl Expression for () {
+    fn sql_write<'a>(
         &self,
-        _writer: &W,
+        _writer: &dyn SqlWriter,
         out: &'a mut String,
         _qualify_columns: bool,
     ) -> &'a mut String {

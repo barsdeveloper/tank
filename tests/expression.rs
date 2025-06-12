@@ -6,7 +6,11 @@ mod tests {
     use tank_macros::{expr, Entity};
 
     struct Writer;
-    impl SqlWriter for Writer {}
+    impl SqlWriter for Writer {
+        fn as_dyn(&self) -> &dyn SqlWriter {
+            self
+        }
+    }
 
     const WRITER: Writer = Writer {};
 

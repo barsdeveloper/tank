@@ -1,4 +1,5 @@
-use crate::{schema_name, table_name};
+use crate::{expr, schema_name, table_name};
+use proc_macro2::TokenStream;
 use syn::{Field, Ident, ItemStruct, LitStr, Type};
 use tank_core::{decode_type, CheckPassive, PrimaryKeyType, TypeDecoded, Value};
 
@@ -10,7 +11,7 @@ pub(crate) struct ColumnMetadata {
     pub(crate) column_type: String,
     pub(crate) value: Value,
     pub(crate) nullable: bool,
-    pub(crate) default: Option<String>,
+    pub(crate) default: Option<TokenStream>,
     pub(crate) primary_key: PrimaryKeyType,
     pub(crate) unique: bool,
     pub(crate) auto_increment: bool,
@@ -35,14 +36,10 @@ pub fn decode_column(field: &Field, item: &ItemStruct) -> ColumnMetadata {
         .ident
         .clone()
         .expect("Field is expected to have a name");
+    let name = ident.to_string();
     let mut metadata = ColumnMetadata {
         ident,
-        name: field
-            .ident
-            .as_ref()
-            .expect("Field is expected to have a name")
-            .to_string()
-            .into(),
+        name,
         table: table_name(item).into(),
         schema: schema_name(item).into(),
         column_type: "".into(),
@@ -60,44 +57,46 @@ pub fn decode_column(field: &Field, item: &ItemStruct) -> ColumnMetadata {
     }
     for attr in &field.attrs {
         let meta = &attr.meta;
-        /*if meta.path().is_ident("default_value") {
-            let Ok(v) = meta.require_list().and_then(|v| v.parse_args::<LitStr>()) else {
-                panic!(
-                    "Error while parsing `default_value`, use it like `#[default_value(SOME_EXPRESSION)]`",
-                );
+        if meta.path().is_ident("default_value") {
+            let Ok(v) = meta
+                .require_list()
+                .and_then(|v| Ok(expr(v.tokens.clone().into())))
+            else {
+                panic!("Error while parsing `default_value`, use it like: `#[default_value(some_expression)]`");
             };
-            column_def.default = Some(v.value());
-        } else */
-        if meta.path().is_ident("column_name") {
+            metadata.default = Some(v.into());
+        } else if meta.path().is_ident("column_name") {
             let Ok(v) = meta.require_list().and_then(|v| v.parse_args::<LitStr>()) else {
                 panic!(
-                    "Error while parsing `column_name`, use it like `#[column_name(\"my_column\")]`"
+                    "Error while parsing `column_name`, use it like: `#[column_name(\"my_column\")]`"
                 );
             };
             metadata.name = v.value();
         } else if meta.path().is_ident("column_type") {
             let Ok(v) = meta.require_list().and_then(|v| v.parse_args::<LitStr>()) else {
                 panic!(
-                    "Error while parsing `column_type`, use it like `#[column_type(\"VARCHAR\")]`"
+                    "Error while parsing `column_type`, use it like: `#[column_type(\"VARCHAR\")]`"
                 );
             };
             metadata.column_type = v.value();
         } else if meta.path().is_ident("primary_key") {
             let Ok(..) = meta.require_path_only() else {
                 panic!(
-                    "Error while parsing `primary_key`, use it like `#[primary_key]` on a field"
+                    "Error while parsing `primary_key`, use it like: `#[primary_key]` on a field"
                 );
             };
             metadata.primary_key = PrimaryKeyType::PrimaryKey;
             metadata.nullable = false;
         } else if meta.path().is_ident("unique") {
             let Ok(..) = meta.require_path_only() else {
-                panic!("Error while parsing `unique`, use it like `#[unique]` on a field");
+                panic!("Error while parsing `unique`, use it like: `#[unique]` on a field");
             };
             metadata.unique = true;
         } else if meta.path().is_ident("auto_increment") {
             let Ok(..) = meta.require_path_only() else {
-                panic!("Error while parsing `auto_increment`, use it like `#[auto_increment]` on a field");
+                panic!(
+                    "Error while parsing `auto_increment`, use it like: `#[auto_increment]` on a field"
+                );
             };
             metadata.auto_increment = true;
         }

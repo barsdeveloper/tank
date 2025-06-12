@@ -8,7 +8,11 @@ mod tests {
     use uuid::Uuid;
 
     struct Writer;
-    impl SqlWriter for Writer {}
+    impl SqlWriter for Writer {
+        fn as_dyn(&self) -> &dyn SqlWriter {
+            self
+        }
+    }
 
     const WRITER: Writer = Writer {};
 

@@ -14,7 +14,11 @@ mod tests {
     use uuid::Uuid;
 
     struct Writer;
-    impl SqlWriter for Writer {}
+    impl SqlWriter for Writer {
+        fn as_dyn(&self) -> &dyn SqlWriter {
+            self
+        }
+    }
 
     const WRITER: Writer = Writer {};
 
@@ -322,7 +326,7 @@ mod tests {
                 indoc! {"
                 CREATE TABLE trade_executions(
                 trade_id UBIGINT NOT NULL,
-                order_id UUID NOT NULL,
+                order_id UUID NOT NULL DEFAULT '241d362d-797e-4769-b3f6-412440c8cf68',
                 symbol VARCHAR NOT NULL,
                 price DECIMAL NOT NULL,
                 quantity UINTEGER NOT NULL,
