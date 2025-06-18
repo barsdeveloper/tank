@@ -1,7 +1,7 @@
 use crate::Value;
 use std::sync::Arc;
 
-pub trait Prepared: Clone {}
+pub trait Prepared: Clone + Send + Sync {}
 
 #[derive(Clone)]
 pub enum Query<P: Prepared> {
@@ -9,8 +9,26 @@ pub enum Query<P: Prepared> {
     Prepared(P),
 }
 
+impl<P: Prepared> From<String> for Query<P> {
+    fn from(value: String) -> Self {
+        Query::Raw(value.into())
+    }
+}
+
+impl<P: Prepared> From<Arc<str>> for Query<P> {
+    fn from(value: Arc<str>) -> Self {
+        Query::Raw(value)
+    }
+}
+
+impl<P: Prepared> From<P> for Query<P> {
+    fn from(value: P) -> Self {
+        Query::Prepared(value)
+    }
+}
+
 #[derive(Default)]
-pub struct Count {
+pub struct RowsAffected {
     pub rows_affected: u64,
     pub last_insert_id: Option<u64>,
 }
@@ -42,11 +60,11 @@ impl RowLabeled {
 
 pub enum QueryResult {
     RowLabeled(RowLabeled),
-    Count(Count),
+    Affected(RowsAffected),
 }
 
-impl Extend<Count> for Count {
-    fn extend<T: IntoIterator<Item = Count>>(&mut self, iter: T) {
+impl Extend<RowsAffected> for RowsAffected {
+    fn extend<T: IntoIterator<Item = RowsAffected>>(&mut self, iter: T) {
         for elem in iter {
             self.rows_affected += elem.rows_affected;
             if elem.last_insert_id.is_some() {

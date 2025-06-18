@@ -1,4 +1,4 @@
-use crate::{OpPrecedence, SqlWriter};
+use crate::{OpPrecedence, SqlWriter, Value};
 
 pub trait Expression: OpPrecedence + Send + Sync {
     fn sql_write<'a>(
@@ -28,5 +28,16 @@ impl Expression for () {
         _qualify_columns: bool,
     ) -> &'a mut String {
         out
+    }
+}
+
+impl Expression for bool {
+    fn sql_write<'a>(
+        &self,
+        writer: &dyn SqlWriter,
+        out: &'a mut String,
+        qualify_columns: bool,
+    ) -> &'a mut String {
+        writer.sql_value(out, &Value::Boolean(Some(*self)))
     }
 }

@@ -5,6 +5,7 @@ use tank_core::{decode_type, CheckPassive, PrimaryKeyType, TypeDecoded, Value};
 
 pub(crate) struct ColumnMetadata {
     pub(crate) ident: Ident,
+    pub(crate) ty: Type,
     pub(crate) name: String,
     pub(crate) table: String,
     pub(crate) schema: String,
@@ -39,6 +40,7 @@ pub fn decode_column(field: &Field, item: &ItemStruct) -> ColumnMetadata {
     let name = ident.to_string();
     let mut metadata = ColumnMetadata {
         ident,
+        ty: field.ty.clone(),
         name,
         table: table_name(item).into(),
         schema: schema_name(item).into(),

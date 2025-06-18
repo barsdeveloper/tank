@@ -4,11 +4,12 @@ mod decode_expression;
 mod decode_join;
 mod encode_column_def;
 mod encode_column_ref;
+mod from_row_trait;
 mod schema_name;
 mod table_name;
 mod table_primary_key;
 
-use crate::encode_column_def::encode_column_def;
+use crate::{encode_column_def::encode_column_def, from_row_trait::from_row_trait};
 use column_trait::column_trait;
 use decode_column::decode_column;
 use decode_expression::decode_expression;
@@ -42,7 +43,7 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
     let table_name = table_name(&item);
     let primary_keys = table_primary_key(&item);
     let fields = item.fields.iter();
-    let metadata_and_filter = fields
+    let metadata_and_filter: Vec<(decode_column::ColumnMetadata, proc_macro2::TokenStream)> = fields
         .clone()
         .map(|f| {
             let mut metadata = decode_column(&f, &item);
@@ -72,10 +73,11 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
             (metadata, filter_passive)
         })
         .collect::<Vec<_>>();
+    let from_row = from_row_trait(&item);
     let primary_keys_indexes: Vec<_> = metadata_and_filter
         .iter()
         .enumerate()
-        .filter_map(|(i, (m, _))| {
+        .filter_map(|(i, (m, ..))| {
             if matches!(
                 m.primary_key,
                 PrimaryKeyType::PrimaryKey | PrimaryKeyType::PartOfPrimaryKey
@@ -86,7 +88,19 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
             }
         })
         .collect();
-    let primary_keys = primary_keys_indexes.iter().map(|i| quote!(columns[#i]));
+    let primary_key = primary_keys_indexes.iter().map(|i| {
+        let field = fields
+            .clone()
+            .nth(*i)
+            .as_ref()
+            .expect(&format!("Field {} is expected", i))
+            .ident
+            .as_ref()
+            .expect("Field must have a name")
+            .clone();
+        quote!(self.#field)
+    });
+    let primary_key_defs = primary_keys_indexes.iter().map(|i| quote!(columns[#i]));
     let primary_key_types = primary_keys_indexes.iter().map(|i| {
         item.fields
             .iter()
@@ -105,14 +119,15 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
         let name = &column.name;
         quote!((#name.into(), #filter))
     });
-    let columns = metadata_and_filter.iter().map(|(c, _)| {
+    let columns_defs = metadata_and_filter.iter().map(|(c, _)| {
         let field = &c.ident;
         encode_column_def(&c, quote!(#name::#field))
     });
     quote! {
+        #from_row
         #column
         impl ::tank::Entity for #name {
-            type PrimaryKey = (#(#primary_key_types),*);
+            type PrimaryKey<'a> = (#(&'a #primary_key_types),*);
 
             fn table_name() -> &'static str {
                 #table_name
@@ -131,17 +146,17 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                 &TABLE_REF
             }
 
-            fn columns() -> &'static [::tank::ColumnDef] {
+            fn columns_defs() -> &'static [::tank::ColumnDef] {
                 static RESULT: ::std::sync::LazyLock<Box<[::tank::ColumnDef]>> =
-                    ::std::sync::LazyLock::new(|| vec![#(#columns),*].into_boxed_slice());
+                    ::std::sync::LazyLock::new(|| vec![#(#columns_defs),*].into_boxed_slice());
                 &RESULT
             }
 
-            fn primary_key() -> &'static [&'static ::tank::ColumnDef] {
+            fn primary_key_defs() -> &'static [&'static ::tank::ColumnDef] {
                 static RESULT: ::std::sync::LazyLock<Box<[&::tank::ColumnDef]>> =
                     ::std::sync::LazyLock::new(|| {
-                        let columns = #name::columns();
-                        vec![#(&#primary_keys),*].into_boxed_slice()
+                        let columns = #name::columns_defs();
+                        vec![#(&#primary_key_defs),*].into_boxed_slice()
                     });
                 &RESULT
             }
@@ -157,7 +172,7 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                     if_not_exists,
                 );
                 executor
-                    .execute(::tank::Query::Raw(query.into()))
+                    .execute(query.into())
                     .await
                     .map(|_| ())
             }
@@ -178,18 +193,20 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                     .map(|_| ())
             }
 
-            async fn find_by_key<E: ::tank::Executor>(
+            fn find_one<E: ::tank::Executor>(
                 executor: &mut E,
-                primary_key: &Self::PrimaryKey,
-            ) -> ::tank::Result<Self> {
-                todo!("find_by_key")
+                primary_key: &Self::PrimaryKey<'_>,
+            ) -> impl ::std::future::Future<Output = ::tank::Result<Option<Self>>> {
+                async {
+                    todo!("will do")
+                }
             }
 
-            async fn find_by_condition<E: ::tank::Executor, Expr: ::tank::Expression>(
+            fn find_many<E: ::tank::Executor, Expr: ::tank::Expression>(
                 executor: &mut E,
                 condition: Expr,
-            ) -> ::tank::Result<Self> {
-                todo!("find_by_condition")
+            ) -> impl ::tank::stream::Stream<Item = ::tank::Result<Self>> {
+                ::tank::stream::empty()
             }
 
             fn row_labeled(&self) -> ::tank::RowLabeled {
@@ -207,6 +224,10 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                     .into_iter()
                     .filter_map(|(v, f)| if f { Some(v) } else { None })
                     .collect::<::tank::Row>()
+            }
+
+            fn primary_key<'a>(&'a self) -> Self::PrimaryKey<'a> {
+                (#(&#primary_key),*)
             }
 
             async fn save<E: ::tank::Executor>(&self, executor: &mut E) -> ::tank::Result<()> {

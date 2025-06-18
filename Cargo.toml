@@ -4,6 +4,7 @@ members = [
     "tank-core",
     "tank-duckdb",
     "tank-macros",
+    "tank-tests",
 ]
 
 [workspace.package]
@@ -30,6 +31,7 @@ uuid = "1.16.0"
 
 [workspace.dev-dependencies]
 tank-macros.workspace = true
+tank-tests.workspace = true
 
 [package]
 name = "tank"

@@ -9,10 +9,12 @@ repository.workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
+async-stream = "0.3.6"
 futures = { workspace = true }
 proc-macro2 = { workspace = true }
 quote = { workspace = true }
 rust_decimal = { workspace = true }
 syn = { workspace = true }
 time = { workspace = true }
+tokio = { version = "1.45.1", features = ["sync"] }
 uuid = { workspace = true }

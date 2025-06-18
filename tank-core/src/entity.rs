@@ -1,14 +1,15 @@
 use crate::{ColumnDef, Executor, Expression, Result, Row, RowLabeled, TableRef};
+use futures::Stream;
 use std::future::Future;
 
 pub trait Entity: Send {
-    type PrimaryKey;
+    type PrimaryKey<'a>;
 
     fn table_name() -> &'static str;
     fn schema_name() -> &'static str;
     fn table_ref() -> &'static TableRef;
-    fn columns() -> &'static [ColumnDef];
-    fn primary_key() -> &'static [&'static ColumnDef];
+    fn columns_defs() -> &'static [ColumnDef];
+    fn primary_key_defs() -> &'static [&'static ColumnDef];
 
     fn create_table<Exec: Executor>(
         executor: &mut Exec,
@@ -20,23 +21,25 @@ pub trait Entity: Send {
         if_exists: bool,
     ) -> impl Future<Output = Result<()>> + Send;
 
-    fn find_by_key<Exec: Executor>(
+    fn find_one<Exec: Executor>(
         executor: &mut Exec,
-        primary_key: &Self::PrimaryKey,
-    ) -> impl Future<Output = Result<Self>> + Send
+        primary_key: &Self::PrimaryKey<'_>,
+    ) -> impl Future<Output = Result<Option<Self>>> + Send
     where
         Self: Sized;
 
-    fn find_by_condition<Exec: Executor, Expr: Expression>(
+    fn find_many<Exec: Executor, Expr: Expression>(
         executor: &mut Exec,
         condition: Expr,
-    ) -> impl Future<Output = Result<Self>> + Send
+    ) -> impl Stream<Item = Result<Self>> + Send
     where
         Self: Sized;
 
     fn row(&self) -> Row;
 
     fn row_labeled(&self) -> RowLabeled;
+
+    fn primary_key(&self) -> Self::PrimaryKey<'_>;
 
     fn save<Exec: Executor>(&self, executor: &mut Exec) -> impl Future<Output = Result<()>> + Send;
 }

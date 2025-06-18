@@ -1,8 +1,8 @@
-use crate::{Count, Driver, Query, QueryResult, Result, RowLabeled};
+use crate::{Driver, Query, QueryResult, Result, RowLabeled, RowsAffected};
 use futures::{Stream, StreamExt, TryStreamExt};
-use std::{fmt::Debug, future::Future};
+use std::future::Future;
 
-pub trait Executor: Send + Debug + Sized {
+pub trait Executor: Send + Sized {
     type Driver: Driver;
 
     fn driver(&self) -> &Self::Driver;
@@ -10,7 +10,7 @@ pub trait Executor: Send + Debug + Sized {
     fn prepare(
         &mut self,
         query: String,
-    ) -> impl Future<Output = Result<<Self::Driver as Driver>::Prepared>> + Send;
+    ) -> impl Future<Output = Result<Query<<Self::Driver as Driver>::Prepared>>> + Send;
 
     fn run(
         &mut self,
@@ -35,11 +35,11 @@ pub trait Executor: Send + Debug + Sized {
     fn execute(
         &mut self,
         query: Query<<Self::Driver as Driver>::Prepared>,
-    ) -> impl Future<Output = Result<Count>> + Send {
+    ) -> impl Future<Output = Result<RowsAffected>> + Send {
         self.run(query)
             .filter_map(|v| async move {
                 match v {
-                    Ok(QueryResult::Count(v)) => Some(Ok(v)),
+                    Ok(QueryResult::Affected(v)) => Some(Ok(v)),
                     Err(e) => Some(Err(e)),
                     _ => None,
                 }

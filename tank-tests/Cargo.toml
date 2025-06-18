@@ -1,0 +1,16 @@
+[package]
+name = "tank-tests"
+description = "Test suide for drivers of Tank: the Rust data layer. This is intended to be used by drivers to reuse tests for storage access"
+version = "0.1.0"
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+repository.workspace = true
+
+[dependencies]
+tank = { path = ".." }
+tokio = { version = "1.45.1", features = ["macros", "rt-multi-thread", "sync"] }
+uuid = { workspace = true }
+rust_decimal = { workspace = true }
+time = { workspace = true }
+futures.workspace = true

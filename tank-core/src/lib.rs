@@ -7,6 +7,7 @@ mod executor;
 mod expression;
 mod interval;
 mod join;
+mod prepared;
 mod query;
 mod relations;
 mod sql_writer;
@@ -23,10 +24,18 @@ pub use executor::*;
 pub use expression::*;
 pub use interval::*;
 pub use join::*;
+pub use prepared::*;
 pub use query::*;
 pub use relations::*;
 pub use sql_writer::*;
 pub use table_ref::*;
 pub use util::*;
 pub use value::*;
+
+pub use ::anyhow::Context;
+pub mod stream {
+    pub use ::futures::stream::*;
+}
+
 pub type Result<T> = anyhow::Result<T>;
+pub type Error = anyhow::Error;

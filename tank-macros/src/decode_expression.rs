@@ -8,11 +8,11 @@ use tank_core::decode_type;
 
 pub fn decode_expression(expr: &Expr) -> TokenStream {
     match expr {
-        Expr::Binary(v) => {
-            let lhs = v.left.as_ref();
-            let mut rhs = v.right.as_ref();
-            let op = v.op;
-            let op = match v.op {
+        Expr::Binary(expr_binary) => {
+            let lhs = expr_binary.left.as_ref();
+            let mut rhs = expr_binary.right.as_ref();
+            let op = expr_binary.op;
+            let op = match expr_binary.op {
                 BinOp::Add(..) => quote! { ::tank::BinaryOpType::Addition },
                 BinOp::Sub(..) => quote! { ::tank::BinaryOpType::Subtraction },
                 BinOp::Mul(..) => quote! { ::tank::BinaryOpType::Multiplication },
@@ -30,22 +30,25 @@ pub fn decode_expression(expr: &Expr) -> TokenStream {
                         BinOp::Ne(..) => quote! { ::tank::BinaryOpType::NotEqual },
                         _ => unreachable!(),
                     };
-                    if let Expr::Cast(cast) = v.right.as_ref() {
+                    if let Expr::Cast(cast) = expr_binary.right.as_ref() {
                         if let Type::Path(TypePath {
-                            path: Path { segments: v, .. },
+                            path: Path { segments, .. },
                             ..
                         }) = cast.ty.as_ref()
                         {
-                            if v.len() == 1 {
-                                let v = &v.last().unwrap().ident;
-                                if v == "LIKE" {
+                            if segments.len() == 1 {
+                                let identifier = &segments
+                                    .last()
+                                    .expect("The path has exactly one segment on this branch")
+                                    .ident;
+                                if identifier == "LIKE" {
                                     rhs = &cast.expr;
                                     result = match op {
                                         BinOp::Eq(..) => quote! { ::tank::BinaryOpType::Like },
                                         BinOp::Ne(..) => quote! { ::tank::BinaryOpType::NotLike },
                                         _ => unreachable!(),
                                     }
-                                } else if v == "REGEXP" {
+                                } else if identifier == "REGEXP" {
                                     rhs = &cast.expr;
                                     result = match op {
                                         BinOp::Eq(..) => quote! { ::tank::BinaryOpType::Regexp },
@@ -54,7 +57,7 @@ pub fn decode_expression(expr: &Expr) -> TokenStream {
                                         }
                                         _ => unreachable!(),
                                     }
-                                } else if v == "GLOB" {
+                                } else if identifier == "GLOB" {
                                     rhs = &cast.expr;
                                     result = match op {
                                         BinOp::Eq(..) => quote! { ::tank::BinaryOpType::Glob },
@@ -67,7 +70,7 @@ pub fn decode_expression(expr: &Expr) -> TokenStream {
                     } else if let Expr::Path(ExprPath {
                         path: Path { segments, .. },
                         ..
-                    }) = v.right.as_ref()
+                    }) = expr_binary.right.as_ref()
                     {
                         if segments.iter().map(|v| &v.ident).eq(["NULL"].iter()) {
                             result = match op {
@@ -106,17 +109,17 @@ pub fn decode_expression(expr: &Expr) -> TokenStream {
                 }
             }
         }
-        Expr::Cast(v) => {
-            let lhs = decode_expression(&v.expr);
-            let rhs = match v.ty.as_ref() {
+        Expr::Cast(expr_cast) => {
+            let lhs = decode_expression(&expr_cast.expr);
+            let rhs = match expr_cast.ty.as_ref() {
                 Type::Path(TypePath { path, .. }) => 'r: {
                     if path.segments.len() == 1 {
-                        let v = &path.segments.first().unwrap().ident;
+                        let v = &path.segments.first().expect("Cast path type has exactly one segment").ident;
                         if v == "IS" || v == "LIKE" || v == "REGEXP" || v == "GLOB" {
                             break 'r quote! {};
                         }
                     }
-                    decode_type(&v.ty).0.value.into_token_stream()
+                    decode_type(&expr_cast.ty).0.value.into_token_stream()
                 }
                 _ => panic!("Unexpected cast type, cast can only be a type or the special keyworkds: `IS`, `LIKE`, `REGEXP`, `GLOB`"),
             };

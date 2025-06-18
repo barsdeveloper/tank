@@ -12,7 +12,8 @@ pub struct Interval {
 }
 
 impl Interval {
-    pub const DAYS_IN_MONTH: f64 = 30.436875;
+    pub const DAYS_IN_MONTH: f64 = 30.0;
+    pub const DAYS_IN_MONTH_AVG: f64 = 30.436875;
     pub const SECS_IN_DAY: i64 = 60 * 60 * 24;
     pub const NANOS_IN_SEC: i128 = 1_000_000_000;
     pub const NANOS_IN_DAY: i128 = Self::SECS_IN_DAY as i128 * Self::NANOS_IN_SEC;
@@ -185,5 +186,11 @@ impl From<Duration> for Interval {
                 * Interval::NANOS_IN_SEC
                 + value.subsec_nanos() as i128,
         }
+    }
+}
+
+impl From<Interval> for Duration {
+    fn from(value: Interval) -> Self {
+        value.as_duration(Interval::DAYS_IN_MONTH)
     }
 }

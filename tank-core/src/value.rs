@@ -1,4 +1,4 @@
-use crate::{interval::Interval, matches_path, Passive};
+use crate::{interval::Interval, matches_path, Error, Passive, Result};
 use core::panic;
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
@@ -176,21 +176,12 @@ impl Hash for Value {
             UInt128(v) => v.hash(state),
 
             Float32(Some(v)) => {
-                if v.is_nan() {
-                    // NaNs must be hashed consistently
-                    0u8.hash(state);
-                } else {
-                    v.to_bits().hash(state);
-                }
+                v.to_bits().hash(state);
             }
             Float32(None) => None::<u32>.hash(state),
 
             Float64(Some(v)) => {
-                if v.is_nan() {
-                    0u8.hash(state);
-                } else {
-                    v.to_bits().hash(state);
-                }
+                v.to_bits().hash(state);
             }
             Float64(None) => None::<u64>.hash(state),
 
@@ -308,10 +299,17 @@ pub fn decode_type(ty: &Type) -> (TypeDecoded, Option<CheckPassive>) {
                     || matches_path(path, &["std", "boxed", "Box"])
                     || matches_path(path, &["std", "sync", "Arc"]);
                 if is_wrapper || is_list || is_map {
-                    match &path.segments.last().unwrap().arguments {
+                    match &path
+                        .segments
+                        .last()
+                        .expect("Path must be non empty")
+                        .arguments
+                    {
                         PathArguments::AngleBracketed(bracketed) => {
-                            if let GenericArgument::Type(first_type) =
-                                bracketed.args.first().unwrap()
+                            if let GenericArgument::Type(first_type) = bracketed
+                                .args
+                                .first()
+                                .expect("Must have at least one generic argument")
                             {
                                 let first_type = decode_type(&first_type);
                                 if first_type.1.is_some() {
@@ -331,7 +329,11 @@ pub fn decode_type(ty: &Type) -> (TypeDecoded, Option<CheckPassive>) {
                                     } else if is_wrapper && filter_passive.is_some() {
                                         let passive = filter_passive.take();
                                         filter_passive = Some(Box::new(move |v: TokenStream| {
-                                            passive.as_ref().unwrap()(quote!(*#v))
+                                            passive.as_ref().expect(
+                                                "The value `filter_passive` is checked to be some",
+                                            )(
+                                                quote!(*#v)
+                                            )
                                         }))
                                     }
                                     break 'data_type first_type.value;
@@ -461,16 +463,30 @@ impl ToTokens for Value {
 pub trait AsValue {
     fn as_empty_value() -> Value;
     fn as_value(self) -> Value;
+    fn try_from_value(value: Value) -> Result<Self>
+    where
+        Self: Sized;
 }
 
 macro_rules! impl_as_value {
-    ($source:ty, $into:path $(, $args:tt)* $(,)?) => {
+    ($source:ty, $into:path $(, $args:expr)* $(,)?) => {
         impl AsValue for $source {
             fn as_empty_value() -> Value {
                 $into(None)
             }
             fn as_value(self) -> Value {
                 $into(Some(self.into(), $($args),*))
+            }
+            fn try_from_value(value: Value) -> Result<Self> {
+                if let $into(Some(v), ..) = value {
+                    Ok(v.into())
+                } else {
+                    Err(Error::msg(format!(
+                        "Cannot convert `{}` into `{}`",
+                        value.to_token_stream().to_string(),
+                        stringify!(bool),
+                    )))
+                }
             }
         }
     };
@@ -506,6 +522,17 @@ impl AsValue for rust_decimal::Decimal {
     fn as_value(self) -> Value {
         Value::Decimal(Some(self), 0, self.scale() as _)
     }
+    fn try_from_value(value: Value) -> Result<Self> {
+        if let Value::Decimal(Some(v), ..) = value {
+            Ok(v.into())
+        } else {
+            Err(Error::msg(format!(
+                "Cannot convert `{}` into `{}`",
+                value.to_token_stream().to_string(),
+                stringify!(bool),
+            )))
+        }
+    }
 }
 
 impl<T: AsValue> AsValue for Vec<T> {
@@ -518,9 +545,22 @@ impl<T: AsValue> AsValue for Vec<T> {
             Box::new(T::as_empty_value()),
         )
     }
+    fn try_from_value(value: Value) -> Result<Self> {
+        if let Value::List(Some(v), ..) = value {
+            Ok(v.into_iter()
+                .map(|v| Ok::<_, Error>(<T as AsValue>::try_from_value(v)?))
+                .collect::<Result<_>>()?)
+        } else {
+            Err(Error::msg(format!(
+                "Cannot convert `{}` into `{}`",
+                value.to_token_stream().to_string(),
+                stringify!(bool),
+            )))
+        }
+    }
 }
 
-impl<K: AsValue, V: AsValue> AsValue for BTreeMap<K, V> {
+impl<K: AsValue + Ord, V: AsValue> AsValue for BTreeMap<K, V> {
     fn as_empty_value() -> Value {
         Value::Map(None, K::as_empty_value().into(), V::as_empty_value().into())
     }
@@ -535,9 +575,27 @@ impl<K: AsValue, V: AsValue> AsValue for BTreeMap<K, V> {
             V::as_empty_value().into(),
         )
     }
+    fn try_from_value(value: Value) -> Result<Self> {
+        if let Value::Map(Some(v), ..) = value {
+            Ok(v.into_iter()
+                .map(|(k, v)| {
+                    Ok((
+                        <K as AsValue>::try_from_value(k)?,
+                        <V as AsValue>::try_from_value(v)?,
+                    ))
+                })
+                .collect::<Result<_>>()?)
+        } else {
+            Err(Error::msg(format!(
+                "Cannot convert `{}` into `{}`",
+                value.to_token_stream().to_string(),
+                stringify!(bool),
+            )))
+        }
+    }
 }
 
-impl<K: AsValue, V: AsValue> AsValue for HashMap<K, V> {
+impl<K: AsValue + Eq + Hash, V: AsValue> AsValue for HashMap<K, V> {
     fn as_empty_value() -> Value {
         Value::Map(None, K::as_empty_value().into(), V::as_empty_value().into())
     }
@@ -551,6 +609,24 @@ impl<K: AsValue, V: AsValue> AsValue for HashMap<K, V> {
             K::as_empty_value().into(),
             V::as_empty_value().into(),
         )
+    }
+    fn try_from_value(value: Value) -> Result<Self> {
+        if let Value::Map(Some(v), ..) = value {
+            Ok(v.into_iter()
+                .map(|(k, v)| {
+                    Ok((
+                        <K as AsValue>::try_from_value(k)?,
+                        <V as AsValue>::try_from_value(v)?,
+                    ))
+                })
+                .collect::<Result<_>>()?)
+        } else {
+            Err(Error::msg(format!(
+                "Cannot convert `{}` into `{}`",
+                value.to_token_stream().to_string(),
+                stringify!(bool),
+            )))
+        }
     }
 }
 
@@ -564,6 +640,9 @@ impl<T: AsValue> AsValue for Passive<T> {
             Passive::NotSet => T::as_empty_value(),
         }
     }
+    fn try_from_value(value: Value) -> Result<Self> {
+        Ok(Passive::Set(<T as AsValue>::try_from_value(value)?))
+    }
 }
 
 impl<T: AsValue> AsValue for Option<T> {
@@ -576,6 +655,9 @@ impl<T: AsValue> AsValue for Option<T> {
             None => T::as_empty_value(),
         }
     }
+    fn try_from_value(value: Value) -> Result<Self> {
+        Ok(Some(<T as AsValue>::try_from_value(value)?))
+    }
 }
 
 impl<T: AsValue> AsValue for Box<T> {
@@ -585,6 +667,9 @@ impl<T: AsValue> AsValue for Box<T> {
     fn as_value(self) -> Value {
         (*self).as_value()
     }
+    fn try_from_value(value: Value) -> Result<Self> {
+        Ok(Box::new(<T as AsValue>::try_from_value(value)?))
+    }
 }
 
 macro_rules! impl_as_value {
@@ -593,9 +678,11 @@ macro_rules! impl_as_value {
             fn as_empty_value() -> Value {
                 T::as_empty_value()
             }
-
             fn as_value(self) -> Value {
                 (*self).clone().as_value()
+            }
+            fn try_from_value(value: Value) -> Result<Self> {
+                Ok($wrapper::new(<T as AsValue>::try_from_value(value)?))
             }
         }
     };
@@ -609,3 +696,10 @@ impl<T: AsValue> From<T> for Value {
         value.as_value()
     }
 }
+
+// impl<T: AsValue> TryFrom<Value> for T {
+//     type Error = Error;
+//     fn try_from(value: Value) -> std::result::Result<Self, Self::Error> {
+//         <T as AsValue>::try_from_value(value)
+//     }
+// }
