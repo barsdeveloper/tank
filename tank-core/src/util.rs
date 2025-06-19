@@ -30,11 +30,11 @@ pub fn flag_evaluated(input: TokenStream) -> TokenStream {
             while let Some(token) = iter.next() {
                 let next = iter.peek().cloned();
                 match (&token, next) {
-                    (TokenTree::Punct(p), Some(TokenTree::Ident(ident)))
+                    (TokenTree::Punct(p), Some(tt))
                         if p.as_char() == '#' && p.spacing() == Spacing::Alone =>
                     {
                         iter.next();
-                        let wrapped: TokenStream = quote!(::tank::evaluated!(#ident)).into();
+                        let wrapped: TokenStream = quote!(::tank::evaluated!(#tt)).into();
                         return Some(TokenTree::Group(Group::new(
                             Delimiter::None,
                             wrapped.into(),

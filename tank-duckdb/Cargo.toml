@@ -25,4 +25,5 @@ tank-core = { path = "tank-core" }
 
 [dev-dependencies]
 tank = { path = ".." }
+tank-tests = { path = "../tank-tests" }
 uuid = { workspace = true }

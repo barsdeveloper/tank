@@ -456,17 +456,17 @@ pub trait SqlWriter {
         out.push_str("(\n");
         separated_by(
             out,
-            E::columns_defs().iter(),
+            E::columns_def().iter(),
             |out, v| {
                 self.sql_create_table_column_fragment(out, v);
             },
             ",\n",
         );
-        if E::primary_key_defs().len() > 1 {
+        if E::primary_key_def().len() > 1 {
             out.push_str(",\nPRIMARY KEY (");
             separated_by(
                 out,
-                E::primary_key_defs().iter(),
+                E::primary_key_def().iter(),
                 |out, v| out.push_str(v.name()),
                 ", ",
             );
@@ -533,7 +533,7 @@ pub trait SqlWriter {
         out.push_str("SELECT ");
         separated_by(
             out,
-            E::columns_defs().iter(),
+            E::columns_def().iter(),
             |out, col| {
                 self.sql_column_ref(out, (*col).into(), D::qualified_columns());
             },

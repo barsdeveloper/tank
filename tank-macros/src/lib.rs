@@ -15,10 +15,13 @@ use decode_column::decode_column;
 use decode_expression::decode_expression;
 use decode_join::JoinParsed;
 use proc_macro::TokenStream;
-use quote::{quote, ToTokens};
+use proc_macro2::TokenStream as TokenStream2;
+use quote::quote;
 use schema_name::schema_name;
 use std::iter::zip;
-use syn::{parse_macro_input, Expr, ItemStruct};
+use syn::{
+    parse_macro_input, punctuated::Punctuated, token::AndAnd, Expr, Ident, Index, ItemStruct,
+};
 use table_name::table_name;
 use table_primary_key::table_primary_key;
 use tank_core::{flag_evaluated, PrimaryKeyType};
@@ -43,7 +46,7 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
     let table_name = table_name(&item);
     let primary_keys = table_primary_key(&item);
     let fields = item.fields.iter();
-    let metadata_and_filter: Vec<(decode_column::ColumnMetadata, proc_macro2::TokenStream)> = fields
+    let metadata_and_filter: Vec<_> = fields
         .clone()
         .map(|f| {
             let mut metadata = decode_column(&f, &item);
@@ -72,9 +75,9 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
             };
             (metadata, filter_passive)
         })
-        .collect::<Vec<_>>();
-    let from_row = from_row_trait(&item);
-    let primary_keys_indexes: Vec<_> = metadata_and_filter
+        .collect();
+    let (from_row_factory, from_row) = from_row_trait(&item);
+    let primary_keys: Vec<_> = metadata_and_filter
         .iter()
         .enumerate()
         .filter_map(|(i, (m, ..))| {
@@ -82,33 +85,18 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                 m.primary_key,
                 PrimaryKeyType::PrimaryKey | PrimaryKeyType::PartOfPrimaryKey
             ) {
-                Some(i)
+                Some((i, m))
             } else {
                 None
             }
         })
         .collect();
-    let primary_key = primary_keys_indexes.iter().map(|i| {
-        let field = fields
-            .clone()
-            .nth(*i)
-            .as_ref()
-            .expect(&format!("Field {} is expected", i))
-            .ident
-            .as_ref()
-            .expect("Field must have a name")
-            .clone();
-        quote!(self.#field)
-    });
-    let primary_key_defs = primary_keys_indexes.iter().map(|i| quote!(columns[#i]));
-    let primary_key_types = primary_keys_indexes.iter().map(|i| {
-        item.fields
-            .iter()
-            .nth(*i)
-            .expect("The primary key should be present")
-            .ty
-            .to_token_stream()
-    });
+    let primary_key = primary_keys
+        .iter()
+        .map(|(_i, c)| c.ident.clone())
+        .map(|ident| quote!(self.#ident));
+    let primary_key_def = primary_keys.iter().map(|(i, _)| quote!(columns[#i]));
+    let primary_key_types = primary_keys.iter().map(|(_, c)| c.ty.clone());
     let column = column_trait(&item);
     let value_and_filter =
         zip(fields.clone(), metadata_and_filter.iter()).map(|(field, (_, filter))| {
@@ -119,15 +107,30 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
         let name = &column.name;
         quote!((#name.into(), #filter))
     });
-    let columns_defs = metadata_and_filter.iter().map(|(c, _)| {
+    let columns_def = metadata_and_filter.iter().map(|(c, _)| {
         let field = &c.ident;
         encode_column_def(&c, quote!(#name::#field))
     });
+    let primary_key_condition = primary_keys.iter().enumerate().map(|(i, (_, c))| {
+        (
+            &c.ident,
+            Index::from(i),
+            Ident::new(&format!("pk{}", i), c.ident.span()),
+        )
+    });
+    let primary_key_condition_declaration = primary_key_condition
+        .clone()
+        .map(|(_, i, pk)| quote! { let #pk = primary_key.#i; })
+        .collect::<TokenStream2>();
+    let primary_key_condition_expression = primary_key_condition
+        .clone()
+        .map(|(ident, _i, pk)| quote!(#name::#ident == #pk))
+        .collect::<Punctuated<_, AndAnd>>();
     quote! {
         #from_row
         #column
         impl ::tank::Entity for #name {
-            type PrimaryKey<'a> = (#(&'a #primary_key_types),*);
+            type PrimaryKey<'a> = (#(&'a #primary_key_types,)*);
 
             fn table_name() -> &'static str {
                 #table_name
@@ -146,19 +149,23 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                 &TABLE_REF
             }
 
-            fn columns_defs() -> &'static [::tank::ColumnDef] {
+            fn columns_def() -> &'static [::tank::ColumnDef] {
                 static RESULT: ::std::sync::LazyLock<Box<[::tank::ColumnDef]>> =
-                    ::std::sync::LazyLock::new(|| vec![#(#columns_defs),*].into_boxed_slice());
+                    ::std::sync::LazyLock::new(|| vec![#(#columns_def),*].into_boxed_slice());
                 &RESULT
             }
 
-            fn primary_key_defs() -> &'static [&'static ::tank::ColumnDef] {
+            fn primary_key_def() -> &'static [&'static ::tank::ColumnDef] {
                 static RESULT: ::std::sync::LazyLock<Box<[&::tank::ColumnDef]>> =
                     ::std::sync::LazyLock::new(|| {
-                        let columns = #name::columns_defs();
-                        vec![#(&#primary_key_defs),*].into_boxed_slice()
+                        let columns = #name::columns_def();
+                        vec![#(&#primary_key_def),*].into_boxed_slice()
                     });
                 &RESULT
+            }
+
+            fn from_row(row: ::tank::RowLabeled) -> ::tank::Result<Self> {
+                #from_row_factory::<Self>::from_row(row)
             }
 
             async fn create_table<E: ::tank::Executor>(
@@ -197,8 +204,23 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                 executor: &mut E,
                 primary_key: &Self::PrimaryKey<'_>,
             ) -> impl ::std::future::Future<Output = ::tank::Result<Option<Self>>> {
-                async {
-                    todo!("will do")
+                let mut query = String::with_capacity(256);
+                #primary_key_condition_declaration
+                ::tank::SqlWriter::sql_select::<Self, _, _>(
+                    &::tank::Driver::sql_writer(executor.driver()),
+                    &mut query,
+                    Self::table_ref(),
+                    &::tank::expr!(#primary_key_condition_expression),
+                    Some(1),
+                );
+                let stream = executor.fetch(query.into());
+                async move {
+                    let mut stream = ::std::pin::pin!(stream);
+                    ::tank::stream::StreamExt::next(&mut stream)
+                        .await
+                        .transpose()?
+                        .map(Self::from_row)
+                        .transpose()
                 }
             }
 
@@ -227,7 +249,7 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
             }
 
             fn primary_key<'a>(&'a self) -> Self::PrimaryKey<'a> {
-                (#(&#primary_key),*)
+                (#(&#primary_key,)*)
             }
 
             async fn save<E: ::tank::Executor>(&self, executor: &mut E) -> ::tank::Result<()> {
@@ -241,6 +263,9 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn expr(input: TokenStream) -> TokenStream {
     let input: TokenStream = flag_evaluated(input.into()).into();
+    if input.is_empty() {
+        return quote!(()).into();
+    }
     let expr = parse_macro_input!(input as Expr);
     let parsed = decode_expression(&expr);
     quote!(#parsed).into()

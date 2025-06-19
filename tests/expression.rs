@@ -16,6 +16,12 @@ mod tests {
 
     #[test]
     fn simple() {
+        let expr = expr!();
+        assert!(matches!(expr, ()));
+        let mut out = String::new();
+        expr.sql_write(&WRITER, &mut out, false);
+        assert_eq!(out, "");
+
         let expr = expr!(1 + 2);
         assert!(matches!(
             expr,
@@ -349,12 +355,253 @@ mod tests {
 
     #[test]
     fn columns() {
-        #[derive(Entity)]
-        #[table_name("the_table")]
+        // #[derive(Entity)]
+        // #[table_name("the_table")]
         struct MyEntity {
             _first: i128,
             _second: String,
             _third: Vec<f64>,
+        }
+
+        // Recursive expansion of Entity macro
+        // ====================================
+
+        trait MyEntityFromRowTrait {
+            fn from_row(row: ::tank::RowLabeled) -> ::tank::Result<MyEntity>;
+        }
+        #[derive(Default)]
+        struct MyEntityFromRowFactory<T>(std::marker::PhantomData<T>);
+
+        impl<T: Default + Into<MyEntity>> MyEntityFromRowFactory<T> {
+            fn from_row(row: ::tank::RowLabeled) -> ::tank::Result<MyEntity> {
+                let mut result = T::default().into();
+                ::std::iter::zip(row.labels.iter(), row.values.into_vec().into_iter())
+                    .try_for_each(|(name, value)| {
+                        if name == "_first" {
+                            result._first = <i128 as ::tank::AsValue>::try_from_value(value)?;
+                        } else if name == "_second" {
+                            result._second = <String as ::tank::AsValue>::try_from_value(value)?;
+                        } else if name == "_third" {
+                            result._third = <Vec<f64> as ::tank::AsValue>::try_from_value(value)?;
+                        }
+                        Ok::<_, ::tank::Error>(())
+                    });
+                Ok(result)
+            }
+        }
+        impl<T> MyEntityFromRowTrait for MyEntityFromRowFactory<T> {
+            fn from_row(row: ::tank::RowLabeled) -> ::tank::Result<MyEntity> {
+                let mut _first: Option<i128> = None;
+                let mut _second: Option<String> = None;
+                let mut _third: Option<Vec<f64>> = None;
+                ::std::iter::zip(row.labels.iter(), row.values.into_vec().into_iter())
+                    .try_for_each(|(name, value)| {
+                        if name == "_first" {
+                            _first = Some(<i128 as ::tank::AsValue>::try_from_value(value)?);
+                        } else if name == "_second" {
+                            _second = Some(<String as ::tank::AsValue>::try_from_value(value)?);
+                        } else if name == "_third" {
+                            _third = Some(<Vec<f64> as ::tank::AsValue>::try_from_value(value)?);
+                        }
+                        Ok::<_, ::tank::Error>(())
+                    });
+                Ok(MyEntity {
+                    _first: _first.ok_or(::tank::Error::msg(format!(
+                        "Field `{}` does not exist in the row provided",
+                        "_first"
+                    )))?,
+                    _second: _second.ok_or(::tank::Error::msg(format!(
+                        "Field `{}` does not exist in the row provided",
+                        "_second"
+                    )))?,
+                    _third: _third.ok_or(::tank::Error::msg(format!(
+                        "Field `{}` does not exist in the row provided",
+                        "_third"
+                    )))?,
+                })
+            }
+        }
+        trait MyEntityColumnTrait {
+            #[allow(non_upper_case_globals)]
+            const _first: ::tank::ColumnRef;
+            #[allow(non_upper_case_globals)]
+            const _second: ::tank::ColumnRef;
+            #[allow(non_upper_case_globals)]
+            const _third: ::tank::ColumnRef;
+        }
+        impl MyEntityColumnTrait for MyEntity {
+            const _first: ::tank::ColumnRef = ::tank::ColumnRef {
+                name: "first",
+                table: "the_table",
+                schema: "",
+            };
+            const _second: ::tank::ColumnRef = ::tank::ColumnRef {
+                name: "second",
+                table: "the_table",
+                schema: "",
+            };
+            const _third: ::tank::ColumnRef = ::tank::ColumnRef {
+                name: "third",
+                table: "the_table",
+                schema: "",
+            };
+        }
+        impl ::tank::Entity for MyEntity {
+            type PrimaryKey<'a> = ();
+            fn table_name() -> &'static str {
+                "the_table"
+            }
+            fn schema_name() -> &'static str {
+                ""
+            }
+            fn table_ref() -> &'static ::tank::TableRef {
+                static TABLE_REF: ::tank::TableRef = ::tank::TableRef {
+                    name: "the_table",
+                    schema: "",
+                    alias: ::std::borrow::Cow::Borrowed(""),
+                };
+                &TABLE_REF
+            }
+            fn from_row(row: ::tank::RowLabeled) -> ::tank::Result<Self> {
+                MyEntityFromRowFactory::<Self>::from_row(row)
+            }
+            fn columns_def() -> &'static [::tank::ColumnDef] {
+                static RESULT: ::std::sync::LazyLock<Box<[::tank::ColumnDef]>> =
+                    ::std::sync::LazyLock::new(|| {
+                        vec![
+                            ::tank::ColumnDef {
+                                reference: MyEntity::_first,
+                                column_type: "",
+                                value: ::tank::Value::Int128(None),
+                                nullable: false,
+                                default: None,
+                                primary_key: ::tank::PrimaryKeyType::None,
+                                unique: false,
+                                auto_increment: false,
+                                passive: false,
+                            },
+                            ::tank::ColumnDef {
+                                reference: MyEntity::_second,
+                                column_type: "",
+                                value: ::tank::Value::Varchar(None),
+                                nullable: false,
+                                default: None,
+                                primary_key: ::tank::PrimaryKeyType::None,
+                                unique: false,
+                                auto_increment: false,
+                                passive: false,
+                            },
+                            ::tank::ColumnDef {
+                                reference: MyEntity::_third,
+                                column_type: "",
+                                value: ::tank::Value::List(
+                                    None,
+                                    Box::new(::tank::Value::Float64(None)),
+                                ),
+                                nullable: false,
+                                default: None,
+                                primary_key: ::tank::PrimaryKeyType::None,
+                                unique: false,
+                                auto_increment: false,
+                                passive: false,
+                            },
+                        ]
+                        .into_boxed_slice()
+                    });
+                &RESULT
+            }
+            fn primary_key_def() -> &'static [&'static ::tank::ColumnDef] {
+                static RESULT: ::std::sync::LazyLock<Box<[&::tank::ColumnDef]>> =
+                    ::std::sync::LazyLock::new(|| {
+                        let columns = MyEntity::columns_def();
+                        vec![].into_boxed_slice()
+                    });
+                &RESULT
+            }
+            async fn create_table<E: ::tank::Executor>(
+                executor: &mut E,
+                if_not_exists: bool,
+            ) -> ::tank::Result<()> {
+                let mut query = String::with_capacity(512);
+                ::tank::SqlWriter::sql_create_table::<MyEntity>(
+                    &::tank::Driver::sql_writer(executor.driver()),
+                    &mut query,
+                    if_not_exists,
+                );
+                executor.execute(query.into()).await.map(|_| ())
+            }
+            async fn drop_table<E: ::tank::Executor>(
+                executor: &mut E,
+                if_exists: bool,
+            ) -> ::tank::Result<()> {
+                let mut query = String::with_capacity(64);
+                ::tank::SqlWriter::sql_drop_table::<MyEntity>(
+                    &::tank::Driver::sql_writer(executor.driver()),
+                    &mut query,
+                    if_exists,
+                );
+                executor
+                    .execute(::tank::Query::Raw(query.into()))
+                    .await
+                    .map(|_| ())
+            }
+            fn find_one<E: ::tank::Executor>(
+                executor: &mut E,
+                primary_key: &Self::PrimaryKey<'_>,
+            ) -> impl ::std::future::Future<Output = ::tank::Result<Option<Self>>> {
+                let mut query = String::with_capacity(256);
+                ::tank::SqlWriter::sql_select::<MyEntity, _, _>(
+                    &::tank::Driver::sql_writer(executor.driver()),
+                    &mut String::with_capacity(256),
+                    Self::table_ref(),
+                    &::tank::expr!(),
+                    Some(1),
+                );
+                let stream = executor.fetch(query.into());
+                async move {
+                    let mut stream = ::std::pin::pin!(stream);
+                    ::tank::stream::StreamExt::next(&mut stream)
+                        .await
+                        .transpose()?
+                        .map(Self::from_row)
+                        .transpose()
+                }
+            }
+            fn find_many<E: ::tank::Executor, Expr: ::tank::Expression>(
+                executor: &mut E,
+                condition: Expr,
+            ) -> impl ::tank::stream::Stream<Item = ::tank::Result<Self>> {
+                ::tank::stream::empty()
+            }
+            fn row_labeled(&self) -> ::tank::RowLabeled {
+                ::tank::RowLabeled {
+                    labels: [
+                        ("first".into(), true),
+                        ("second".into(), true),
+                        ("third".into(), true),
+                    ]
+                    .into_iter()
+                    .filter_map(|(v, f)| if f { Some(v) } else { None })
+                    .collect::<::tank::RowNames>(),
+                    values: self.row(),
+                }
+            }
+            fn row(&self) -> ::tank::Row {
+                [
+                    (self._first.clone().into(), true),
+                    (self._second.clone().into(), true),
+                    (self._third.clone().into(), true),
+                ]
+                .into_iter()
+                .filter_map(|(v, f)| if f { Some(v) } else { None })
+                .collect::<::tank::Row>()
+            }
+            fn primary_key<'a>(&'a self) -> Self::PrimaryKey<'a> {
+                ()
+            }
+            async fn save<E: ::tank::Executor>(&self, executor: &mut E) -> ::tank::Result<()> {
+                Ok(())
+            }
         }
 
         let expr = expr!(MyEntity::_first + 2);

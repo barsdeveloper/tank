@@ -29,10 +29,10 @@ mod tests {
             a: i8,
             b: String,
         }
-        let columns = SomeEntity::columns_defs();
+        let columns = SomeEntity::columns_def();
 
         assert_eq!(SomeEntity::table_name(), "some_entity");
-        assert_eq!(SomeEntity::primary_key_defs().len(), 0);
+        assert_eq!(SomeEntity::primary_key_def().len(), 0);
 
         assert_eq!(columns[0].name(), "a");
         assert!(matches!(columns[0].value, Value::Int8(None, ..)));
@@ -65,11 +65,11 @@ mod tests {
             second: Option<time::Time>,
             third: Box<Option<Box<time::Date>>>,
         }
-        let columns = SomeEntity::columns_defs();
+        let columns = SomeEntity::columns_def();
 
         assert_eq!(SomeEntity::table_name(), "custom_table_name");
-        assert_eq!(SomeEntity::primary_key_defs().len(), 1);
-        assert_eq!(SomeEntity::primary_key_defs()[0].name(), "first");
+        assert_eq!(SomeEntity::primary_key_def().len(), 1);
+        assert_eq!(SomeEntity::primary_key_def()[0].name(), "first");
 
         assert_eq!(columns[0].name(), "first");
         assert!(matches!(columns[0].value, Value::UInt128(None, ..)));
@@ -110,11 +110,11 @@ mod tests {
             #[column_type("DECIMAL(8, 2)")]
             _echo: Option<Arc<rust_decimal::Decimal>>,
         }
-        let columns = MyEntity::columns_defs();
+        let columns = MyEntity::columns_def();
 
         assert_eq!(MyEntity::table_name(), "a_table");
         assert_eq!(
-            MyEntity::primary_key_defs()
+            MyEntity::primary_key_def()
                 .iter()
                 .map(|k| k.name())
                 .collect::<Vec<_>>(),
@@ -246,10 +246,10 @@ mod tests {
             _recent_purchases: Option<Vec<Option<Box<Vec<rust_decimal::Decimal>>>>>,
         }
 
-        let columns = Customer::columns_defs();
+        let columns = Customer::columns_def();
 
         assert_eq!(Customer::table_name(), "customers");
-        assert_eq!(Customer::primary_key_defs().len(), 0);
+        assert_eq!(Customer::primary_key_def().len(), 0);
 
         assert_eq!(columns[0].name(), "transaction_ids");
         assert!(match &columns[0].value {
@@ -318,7 +318,7 @@ mod tests {
     #[test]
     fn test_trade_execution_schema() {
         assert_eq!(TradeExecution::table_name(), "trade_executions");
-        assert_eq!(TradeExecution::primary_key_defs().len(), 2);
+        assert_eq!(TradeExecution::primary_key_def().len(), 2);
         {
             let mut query = String::new();
             assert_eq!(

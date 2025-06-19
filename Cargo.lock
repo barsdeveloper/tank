@@ -1169,6 +1169,7 @@ dependencies = [
  "rust_decimal",
  "tank",
  "tank-core",
+ "tank-tests",
  "time",
  "tokio",
  "url",

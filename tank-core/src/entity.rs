@@ -8,8 +8,12 @@ pub trait Entity: Send {
     fn table_name() -> &'static str;
     fn schema_name() -> &'static str;
     fn table_ref() -> &'static TableRef;
-    fn columns_defs() -> &'static [ColumnDef];
-    fn primary_key_defs() -> &'static [&'static ColumnDef];
+    fn columns_def() -> &'static [ColumnDef];
+    fn primary_key_def() -> &'static [&'static ColumnDef];
+
+    fn from_row(row: RowLabeled) -> Result<Self>
+    where
+        Self: Sized;
 
     fn create_table<Exec: Executor>(
         executor: &mut Exec,
@@ -36,10 +40,7 @@ pub trait Entity: Send {
         Self: Sized;
 
     fn row(&self) -> Row;
-
     fn row_labeled(&self) -> RowLabeled;
-
     fn primary_key(&self) -> Self::PrimaryKey<'_>;
-
     fn save<Exec: Executor>(&self, executor: &mut Exec) -> impl Future<Output = Result<()>> + Send;
 }
