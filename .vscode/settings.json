@@ -1,0 +1,10 @@
+{
+    "sqltools.connections": [
+        {
+            "previewLimit": 50,
+            "driver": "DuckDB",
+            "name": "Tests",
+            "database": "${workspaceFolder:tank}/target/debug/tests.duckdb"
+        }
+    ]
+}

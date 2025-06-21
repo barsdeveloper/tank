@@ -57,6 +57,7 @@ impl Executor for DuckDBConnection {
     }
 
     async fn prepare(&mut self, query: String) -> Result<Query<DuckDBPrepared>> {
+        log::debug!("Preparing query: `{}`", query);
         if let Some(prepared) = self.prepared_cache.read().await.get(&query) {
             return Ok(prepared.clone().into());
         }
@@ -168,8 +169,11 @@ impl Executor for DuckDBConnection {
                 let info = (0..cols)
                     .map(|i| {
                         let vector = duckdb_data_chunk_get_vector(*chunk, i);
-                        let logical_type = duckdb_vector_get_column_type(vector);
-                        let type_id = duckdb_get_type_id(logical_type);
+                        let logical_type =
+                            CBox::new(duckdb_vector_get_column_type(vector), |mut l| {
+                                duckdb_destroy_logical_type(&mut l)
+                            });
+                        let type_id = duckdb_get_type_id(*logical_type);
                         let data = duckdb_vector_get_data(vector);
                         let validity = duckdb_vector_get_validity(vector);
                         let name = CStr::from_ptr(duckdb_column_name(result.deref_mut(), i))
@@ -185,11 +189,11 @@ impl Executor for DuckDBConnection {
                 (0..rows).for_each(|row| {
                     let columns = (0..cols).map(|col| {
                         let col = col as usize;
-                        let info = info[col];
+                        let info = &info[col];
                         Ok(extract_value(
                             info.0,
                             row as usize,
-                            info.1,
+                            *info.1,
                             info.2,
                             info.3,
                             info.4,

@@ -1,10 +1,19 @@
 use crate::AsValue;
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub enum Passive<T: AsValue> {
     Set(T),
     #[default]
     NotSet,
+}
+
+impl<T: AsValue + PartialEq> PartialEq for Passive<T> {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Set(lhs), Self::Set(rhs)) => lhs == rhs,
+            _ => core::mem::discriminant(self) == core::mem::discriminant(other),
+        }
+    }
 }
 
 impl<T: AsValue> Clone for Passive<T>

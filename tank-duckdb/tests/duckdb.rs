@@ -10,8 +10,8 @@ mod tests {
     static MUTEX: Mutex<()> = Mutex::new(());
 
     #[tokio::test]
-    async fn tests() {
-        const DB_PATH: &'static str = "../target/debug/tesats.duckdb";
+    async fn duckdb() {
+        const DB_PATH: &'static str = "../target/debug/tests.duckdb";
         let _guard = MUTEX.lock().unwrap();
         if Path::new(DB_PATH).exists() {
             fs::remove_file(DB_PATH).await.expect(

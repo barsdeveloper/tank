@@ -1,10 +1,12 @@
+mod aggregate;
 mod resource;
-mod trade_test;
+mod trade;
 
-use crate::trade_test::trade_test_setup;
+use crate::trade::{trade_multiple, trade_simple};
 pub use resource::*;
 use tank::Connection;
 
 pub async fn execute_tests<C: Connection>(connection: &mut C) {
-    trade_test_setup(connection).await;
+    trade_simple(connection).await;
+    trade_multiple(connection).await;
 }

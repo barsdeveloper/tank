@@ -36,6 +36,7 @@ pub use ::anyhow::Context;
 pub mod stream {
     pub use ::futures::stream::*;
 }
+pub use ::futures::future;
 
 pub type Result<T> = anyhow::Result<T>;
 pub type Error = anyhow::Error;

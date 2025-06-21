@@ -14,11 +14,6 @@ pub struct ColumnRef {
     pub schema: &'static str,
 }
 
-pub enum DefaultValue {
-    Value(Value),
-    Custom(String),
-}
-
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum PrimaryKeyType {
     PrimaryKey,

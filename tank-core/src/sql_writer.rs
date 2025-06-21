@@ -585,4 +585,31 @@ pub trait SqlWriter {
         out.push(')');
         out
     }
+
+    fn sql_delete<'a, E: Entity, Expr: Expression>(
+        &self,
+        out: &'a mut String,
+        condition: &Expr,
+    ) -> &'a mut String
+    where
+        Self: Sized,
+    {
+        out.push_str("DELETE FROM ");
+        self.sql_table_ref(out, E::table_ref());
+        out.push_str("\nWHERE ");
+        condition.sql_write(self, out, true);
+        out
+    }
+}
+
+pub struct GenericSqlWriter;
+impl GenericSqlWriter {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+impl SqlWriter for GenericSqlWriter {
+    fn as_dyn(&self) -> &dyn SqlWriter {
+        self
+    }
 }

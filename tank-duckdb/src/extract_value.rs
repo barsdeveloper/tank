@@ -1,8 +1,10 @@
+use crate::cbox::CBox;
 use anyhow::{anyhow, Error};
 use libduckdb_sys::*;
 use rust_decimal::Decimal;
 use std::{ffi::c_void, ptr, slice};
 use tank_core::{Interval, Result, Value};
+use uuid::Uuid;
 
 pub(crate) fn convert_date(date: duckdb_date_struct) -> Result<time::Date> {
     time::Date::from_calendar_date(
@@ -202,54 +204,104 @@ pub(crate) fn extract_value(
                 None
             }),
             //  DUCKDB_TYPE_DUCKDB_TYPE_ENUM =>
-            DUCKDB_TYPE_DUCKDB_TYPE_ARRAY | DUCKDB_TYPE_DUCKDB_TYPE_LIST => {
-                let vector = if type_id == DUCKDB_TYPE_DUCKDB_TYPE_ARRAY {
-                    duckdb_array_vector_get_child(vector)
+            DUCKDB_TYPE_DUCKDB_TYPE_LIST | DUCKDB_TYPE_DUCKDB_TYPE_ARRAY => {
+                let is_array = type_id == DUCKDB_TYPE_DUCKDB_TYPE_ARRAY;
+                let (vector, logical_type) = if is_array {
+                    (
+                        duckdb_array_vector_get_child(vector),
+                        duckdb_array_type_child_type(logical_type),
+                    )
                 } else {
-                    duckdb_list_vector_get_child(vector)
+                    (
+                        duckdb_list_vector_get_child(vector),
+                        duckdb_list_type_child_type(logical_type),
+                    )
                 };
-                let logical_type = duckdb_vector_get_column_type(vector);
-                let type_id = duckdb_get_type_id(logical_type);
+                let logical_type =
+                    CBox::new(logical_type, |mut v| duckdb_destroy_logical_type(&mut v));
+                let type_id = duckdb_get_type_id(*logical_type);
+                let element_type = extract_value(
+                    vector,
+                    0,
+                    *logical_type,
+                    type_id,
+                    ptr::null(),
+                    ptr::null_mut(),
+                )?;
                 let value = if is_valid {
                     let validity = duckdb_vector_get_validity(vector);
-                    let range = if type_id == DUCKDB_TYPE_DUCKDB_TYPE_ARRAY {
-                        let size = duckdb_array_type_array_size(logical_type) as usize;
-                        (row * size)..(row * size + size)
+                    let range = if is_array {
+                        let size = duckdb_array_type_array_size(*logical_type) as usize;
+                        let begin = row * size;
+                        begin..(begin + size)
                     } else {
-                        let list_info = *(data as *const duckdb_list_entry).add(row);
-                        (list_info.offset as usize)
-                            ..((list_info.offset + list_info.length) as usize)
+                        let entry = *(data as *const duckdb_list_entry).add(row);
+                        let begin = entry.offset as usize;
+                        let end = begin + entry.length as usize;
+                        begin..end
                     };
+                    let data = duckdb_vector_get_data(vector);
                     Some(
                         range
                             .map(|i| {
                                 Ok(extract_value(
                                     vector,
                                     i,
-                                    logical_type,
+                                    *logical_type,
                                     type_id,
                                     data,
                                     validity,
                                 )?)
                             })
-                            .collect::<Result<Vec<_>>>()?,
+                            .collect::<Result<_>>()?,
                     )
                 } else {
                     None
                 };
-                let values_type = extract_value(
-                    vector,
-                    0,
-                    logical_type,
-                    type_id,
-                    ptr::null(),
-                    ptr::null_mut(),
-                )?;
-                Value::List(value, values_type.into())
+                Value::List(value, element_type.into())
             }
             //  DUCKDB_TYPE_DUCKDB_TYPE_STRUCT =>
-            //  DUCKDB_TYPE_DUCKDB_TYPE_MAP =>
-            //  DUCKDB_TYPE_DUCKDB_TYPE_UUID =>
+            DUCKDB_TYPE_DUCKDB_TYPE_MAP => {
+                let k_type = CBox::new(duckdb_map_type_key_type(logical_type), |mut v| {
+                    duckdb_destroy_logical_type(&mut v)
+                });
+                let k_id = duckdb_get_type_id(*k_type);
+                let v_type = CBox::new(duckdb_map_type_value_type(logical_type), |mut v| {
+                    duckdb_destroy_logical_type(&mut v)
+                });
+                let v_id = duckdb_get_type_id(*v_type);
+                let vector = duckdb_list_vector_get_child(vector);
+                let value = if is_valid {
+                    let keys = duckdb_struct_vector_get_child(vector, 0);
+                    let keys_data = duckdb_vector_get_data(keys);
+                    let keys_validity = duckdb_vector_get_validity(keys);
+                    let vals = duckdb_struct_vector_get_child(vector, 1);
+                    let vals_validity = duckdb_vector_get_validity(vals);
+                    let vals_data = duckdb_vector_get_data(vals);
+                    let entry = &*(data as *const duckdb_list_entry).add(row);
+                    let map = ((entry.offset as usize)..((entry.offset + entry.length) as usize))
+                        .map(|i| {
+                            Ok((
+                                extract_value(keys, i, *k_type, k_id, keys_data, keys_validity)?,
+                                extract_value(vals, i, *v_type, v_id, vals_data, vals_validity)?,
+                            ))
+                        })
+                        .collect::<Result<_>>()?;
+                    Some(map)
+                } else {
+                    None
+                };
+                let k_type = extract_value(vector, 0, *k_type, k_id, ptr::null(), ptr::null_mut())?;
+                let v_type = extract_value(vector, 0, *v_type, v_id, ptr::null(), ptr::null_mut())?;
+                Value::Map(value, k_type.into(), v_type.into())
+            }
+            DUCKDB_TYPE_DUCKDB_TYPE_UUID => Value::Uuid(if is_valid {
+                let data = &*(data as *const duckdb_uhugeint).add(row);
+                // Todo remove first bit swap once this is fixed https://github.com/duckdb/duckdb-rs/issues/519
+                Some(Uuid::from_u64_pair(data.upper ^ (1 << 63), data.lower))
+            } else {
+                None
+            }),
             //  DUCKDB_TYPE_DUCKDB_TYPE_UNION =>
             //  DUCKDB_TYPE_DUCKDB_TYPE_BIT =>
             DUCKDB_TYPE_DUCKDB_TYPE_TIMESTAMP_TZ => {

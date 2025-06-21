@@ -1,3 +1,4 @@
+use crate::decode_column;
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{spanned::Spanned, Ident, ItemStruct, Type};
@@ -10,9 +11,10 @@ pub(crate) fn from_row_trait(item: &ItemStruct) -> (Ident, TokenStream) {
         (
             f.ident.clone().expect("Field identifier is expected"),
             f.ty.clone(),
+            decode_column(f, item),
         )
     });
-    let fields_holder_declarations = fields.clone().map(|(ident, ty)| {
+    let fields_holder_declarations = fields.clone().map(|(ident, ty, _)| {
         quote! {
             let mut #ident: Option<#ty> = None;
         }
@@ -21,12 +23,12 @@ pub(crate) fn from_row_trait(item: &ItemStruct) -> (Ident, TokenStream) {
     type ProducerFn = Box<dyn Fn(&AssignmentFn) -> TokenStream>;
     let field_assignment = fields
         .clone()
-        .map(|(ident, ty)| {
+        .map(|(ident, ty, col)| {
             Box::new(move |assign: &AssignmentFn| {
                 let assign = assign(&ident, &ty);
-                let name = ident.to_string();
+                let name = col.name.to_string();
                 quote! {
-                    if name == #name {
+                    if __n__ == #name {
                         #assign;
                     }
                 }
@@ -40,12 +42,12 @@ pub(crate) fn from_row_trait(item: &ItemStruct) -> (Ident, TokenStream) {
             }) as ProducerFn
         })
         .unwrap_or(Box::new(|_| TokenStream::new()));
-    let create_result = fields.map(|(ident, _ty)| {
-        let field_name = ident.to_string();
+    let create_result = fields.map(|(ident, _ty, col)| {
+        let column = col.name;
         quote! {
             #ident: #ident.ok_or(::tank::Error::msg(format!(
-                "Field `{}` does not exist in the row provided",
-                #field_name
+                "Column `{}` does not exist in the row provided",
+                #column
             )))?
         }
     });
@@ -55,10 +57,10 @@ pub(crate) fn from_row_trait(item: &ItemStruct) -> (Ident, TokenStream) {
         }
     };
     let field_assignment_default = field_assignment(
-        &|field, ty| quote!(result.#field = <#ty as ::tank::AsValue>::try_from_value(value)?),
+        &|field, ty| quote!(result.#field = <#ty as ::tank::AsValue>::try_from_value(__v__)?),
     );
     let field_assignment_holder = field_assignment(
-        &|field, ty| quote!(#field = Some(<#ty as ::tank::AsValue>::try_from_value(value)?)),
+        &|field, ty| quote!(#field = Some(<#ty as ::tank::AsValue>::try_from_value(__v__)?)),
     );
     (
         factory_name.clone(),
@@ -72,10 +74,10 @@ pub(crate) fn from_row_trait(item: &ItemStruct) -> (Ident, TokenStream) {
                 fn from_row(row: ::tank::RowLabeled) -> ::tank::Result<#struct_name> {
                     let mut result = T::default().into();
                     // TODO: Remove into_vec when consuming iterator will be possible on boxed slices
-                    ::std::iter::zip(row.labels.iter(), row.values.into_vec().into_iter()).try_for_each(|(name, value)| {
+                    for (__n__, __v__) in ::std::iter::zip(row.labels.iter(), row.values.into_vec().into_iter())
+                    {
                         #field_assignment_default
-                        Ok::<_, ::tank::Error>(())
-                    });
+                    }
                     Ok(result)
                 }
             }
@@ -84,10 +86,10 @@ pub(crate) fn from_row_trait(item: &ItemStruct) -> (Ident, TokenStream) {
                 fn from_row(row: ::tank::RowLabeled) -> ::tank::Result<#struct_name> {
                     #(#fields_holder_declarations)*
                     // TODO: Remove into_vec when consuming iterator will be possible on boxed slices
-                    ::std::iter::zip(row.labels.iter(), row.values.into_vec().into_iter()).try_for_each(|(name, value)| {
+                    for (__n__, __v__) in ::std::iter::zip(row.labels.iter(), row.values.into_vec().into_iter())
+                    {
                         #field_assignment_holder
-                        Ok::<_, ::tank::Error>(())
-                    });
+                    }
                     Ok(#create_result)
                 }
             }

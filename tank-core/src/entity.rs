@@ -1,4 +1,4 @@
-use crate::{ColumnDef, Executor, Expression, Result, Row, RowLabeled, TableRef};
+use crate::{ColumnDef, Executor, Expression, Result, Row, RowLabeled, RowsAffected, TableRef};
 use futures::Stream;
 use std::future::Future;
 
@@ -34,8 +34,22 @@ pub trait Entity: Send {
 
     fn find_many<Exec: Executor, Expr: Expression>(
         executor: &mut Exec,
-        condition: Expr,
+        condition: &Expr,
     ) -> impl Stream<Item = Result<Self>> + Send
+    where
+        Self: Sized;
+
+    fn delete_one<Exec: Executor>(
+        executor: &mut Exec,
+        primary_key: &Self::PrimaryKey<'_>,
+    ) -> impl Future<Output = Result<RowsAffected>> + Send
+    where
+        Self: Sized;
+
+    fn delete_many<Exec: Executor, Expr: Expression>(
+        executor: &mut Exec,
+        condition: &Expr,
+    ) -> impl Future<Output = Result<RowsAffected>> + Send
     where
         Self: Sized;
 

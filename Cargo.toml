@@ -20,6 +20,7 @@ anyhow = { version = "1.0.97", features = ["backtrace"] }
 convert_case = "0.7.1"
 futures = "0.3.31"
 indoc = "2.0.6"
+log = "0.4.27"
 proc-macro2 = "1.0.93"
 quote = "1.0.38"
 rust_decimal = "1.37.1"

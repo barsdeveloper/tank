@@ -1,7 +1,7 @@
 use tank::{Entity, Passive};
 use uuid::Uuid;
 
-#[derive(Entity)]
+#[derive(Debug, Default, Entity)]
 #[table_name("trade_executions")]
 #[primary_key("trade_id", "execution_time")]
 pub struct TradeExecution {

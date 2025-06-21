@@ -11,6 +11,7 @@ repository.workspace = true
 anyhow = { workspace = true }
 async-stream = "0.3.6"
 futures = { workspace = true }
+log = { workspace = true }
 proc-macro2 = { workspace = true }
 quote = { workspace = true }
 rust_decimal = { workspace = true }

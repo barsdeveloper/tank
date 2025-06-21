@@ -484,7 +484,7 @@ macro_rules! impl_as_value {
                     Err(Error::msg(format!(
                         "Cannot convert `{}` into `{}`",
                         value.to_token_stream().to_string(),
-                        stringify!(bool),
+                        stringify!($source),
                     )))
                 }
             }
@@ -529,7 +529,7 @@ impl AsValue for rust_decimal::Decimal {
             Err(Error::msg(format!(
                 "Cannot convert `{}` into `{}`",
                 value.to_token_stream().to_string(),
-                stringify!(bool),
+                stringify!(rust_decimal::Decimal),
             )))
         }
     }
@@ -554,7 +554,7 @@ impl<T: AsValue> AsValue for Vec<T> {
             Err(Error::msg(format!(
                 "Cannot convert `{}` into `{}`",
                 value.to_token_stream().to_string(),
-                stringify!(bool),
+                stringify!(Vec<T>),
             )))
         }
     }
@@ -589,7 +589,7 @@ impl<K: AsValue + Ord, V: AsValue> AsValue for BTreeMap<K, V> {
             Err(Error::msg(format!(
                 "Cannot convert `{}` into `{}`",
                 value.to_token_stream().to_string(),
-                stringify!(bool),
+                stringify!(BTreeMap<K, V>),
             )))
         }
     }
@@ -624,7 +624,7 @@ impl<K: AsValue + Eq + Hash, V: AsValue> AsValue for HashMap<K, V> {
             Err(Error::msg(format!(
                 "Cannot convert `{}` into `{}`",
                 value.to_token_stream().to_string(),
-                stringify!(bool),
+                stringify!(HashMap<K, V>),
             )))
         }
     }
@@ -656,7 +656,11 @@ impl<T: AsValue> AsValue for Option<T> {
         }
     }
     fn try_from_value(value: Value) -> Result<Self> {
-        Ok(Some(<T as AsValue>::try_from_value(value)?))
+        Ok(if value.is_null() {
+            None
+        } else {
+            Some(<T as AsValue>::try_from_value(value)?)
+        })
     }
 }
 
@@ -696,10 +700,3 @@ impl<T: AsValue> From<T> for Value {
         value.as_value()
     }
 }
-
-// impl<T: AsValue> TryFrom<Value> for T {
-//     type Error = Error;
-//     fn try_from(value: Value) -> std::result::Result<Self, Self::Error> {
-//         <T as AsValue>::try_from_value(value)
-//     }
-// }

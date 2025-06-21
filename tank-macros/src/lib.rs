@@ -120,11 +120,11 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
     });
     let primary_key_condition_declaration = primary_key_condition
         .clone()
-        .map(|(_, i, pk)| quote! { let #pk = primary_key.#i; })
+        .map(|(_, i, pk)| quote! { let #pk = primary_key.#i.to_owned(); })
         .collect::<TokenStream2>();
     let primary_key_condition_expression = primary_key_condition
         .clone()
-        .map(|(ident, _i, pk)| quote!(#name::#ident == #pk))
+        .map(|(ident, _i, pk)| quote!(#name::#ident == ##pk))
         .collect::<Punctuated<_, AndAnd>>();
     quote! {
         #from_row
@@ -224,11 +224,55 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                 }
             }
 
-            fn find_many<E: ::tank::Executor, Expr: ::tank::Expression>(
-                executor: &mut E,
-                condition: Expr,
+            fn find_many<Exec: ::tank::Executor, Expr: ::tank::Expression>(
+                executor: &mut Exec,
+                condition: &Expr,
             ) -> impl ::tank::stream::Stream<Item = ::tank::Result<Self>> {
-                ::tank::stream::empty()
+                let mut query = String::with_capacity(256);
+                ::tank::SqlWriter::sql_select::<Self, _, _>(
+                    &::tank::Driver::sql_writer(executor.driver()),
+                    &mut query,
+                    Self::table_ref(),
+                    condition,
+                    None,
+                );
+                ::tank::stream::TryStreamExt::and_then(executor.fetch(query.into()), |row| {
+                    ::tank::future::ready(Self::from_row(row))
+                })
+            }
+
+            fn delete_one<Exec: ::tank::Executor>(
+                executor: &mut Exec,
+                primary_key: &Self::PrimaryKey<'_>,
+            ) -> impl ::std::future::Future<Output = ::tank::Result<::tank::RowsAffected>> + Send
+            where
+                Self: Sized
+            {
+                #primary_key_condition_declaration
+                let condition = ::tank::expr!(#primary_key_condition_expression);
+                let mut query = String::with_capacity(128);
+                ::tank::SqlWriter::sql_delete::<Self, _>(
+                    &::tank::Driver::sql_writer(executor.driver()),
+                    &mut query,
+                    &condition,
+                );
+                executor.execute(::tank::Query::Raw(query.into()))
+            }
+
+            fn delete_many<Exec: ::tank::Executor, Expr: ::tank::Expression>(
+                executor: &mut Exec,
+                condition: &Expr,
+            ) -> impl ::std::future::Future<Output = ::tank::Result<::tank::RowsAffected>> + Send
+            where
+                Self: Sized
+            {
+                let mut query = String::with_capacity(128);
+                ::tank::SqlWriter::sql_delete::<Self, _>(
+                    &::tank::Driver::sql_writer(executor.driver()),
+                    &mut query,
+                    condition,
+                );
+                executor.execute(::tank::Query::Raw(query.into()))
             }
 
             fn row_labeled(&self) -> ::tank::RowLabeled {
@@ -252,8 +296,18 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                 (#(&#primary_key,)*)
             }
 
-            async fn save<E: ::tank::Executor>(&self, executor: &mut E) -> ::tank::Result<()> {
-                Ok(())
+            fn save<Exec: ::tank::Executor>(
+                &self,
+                executor: &mut Exec,
+            ) -> impl ::std::future::Future<Output = ::tank::Result<()>> {
+                let mut query = String::with_capacity(256);
+                ::tank::SqlWriter::sql_insert(
+                    &::tank::Driver::sql_writer(executor.driver()),
+                    &mut query,
+                    self,
+                    true,
+                );
+                async { executor.execute(query.into()).await.map(|_| ()) }
             }
         }
     }
@@ -262,9 +316,9 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
 
 #[proc_macro]
 pub fn expr(input: TokenStream) -> TokenStream {
-    let input: TokenStream = flag_evaluated(input.into()).into();
+    let mut input: TokenStream = flag_evaluated(input.into()).into();
     if input.is_empty() {
-        return quote!(()).into();
+        input = quote!(false).into();
     }
     let expr = parse_macro_input!(input as Expr);
     let parsed = decode_expression(&expr);
