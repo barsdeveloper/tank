@@ -36,7 +36,7 @@ impl Expression for bool {
         &self,
         writer: &dyn SqlWriter,
         out: &'a mut String,
-        qualify_columns: bool,
+        _qualify_columns: bool,
     ) -> &'a mut String {
         writer.sql_value(out, &Value::Boolean(Some(*self)))
     }

@@ -334,7 +334,7 @@ pub trait SqlWriter {
                 self.sql_value(out, v);
                 Ok(())
             }
-            Operand::Function(v) => {
+            Operand::Function(_v) => {
                 todo!()
             }
         };

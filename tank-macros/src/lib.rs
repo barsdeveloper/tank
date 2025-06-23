@@ -2,14 +2,16 @@ mod column_trait;
 mod decode_column;
 mod decode_expression;
 mod decode_join;
+mod decode_table;
 mod encode_column_def;
 mod encode_column_ref;
 mod from_row_trait;
-mod schema_name;
-mod table_name;
-mod table_primary_key;
 
-use crate::{encode_column_def::encode_column_def, from_row_trait::from_row_trait};
+use crate::{
+    decode_table::{decode_table, TableMetadata},
+    encode_column_def::encode_column_def,
+    from_row_trait::from_row_trait,
+};
 use column_trait::column_trait;
 use decode_column::decode_column;
 use decode_expression::decode_expression;
@@ -17,40 +19,30 @@ use decode_join::JoinParsed;
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
-use schema_name::schema_name;
 use std::iter::zip;
 use syn::{
     parse_macro_input, punctuated::Punctuated, token::AndAnd, Expr, Ident, Index, ItemStruct,
 };
-use table_name::table_name;
-use table_primary_key::table_primary_key;
 use tank_core::{flag_evaluated, PrimaryKeyType};
 
-#[proc_macro_derive(
-    Entity,
-    attributes(
-        schema_name,
-        table_name,
-        column_name,
-        column_type,
-        default_value,
-        primary_key,
-        unique,
-        auto_increment,
-    )
-)]
+#[proc_macro_derive(Entity, attributes(tank))]
 pub fn derive_entity(input: TokenStream) -> TokenStream {
     let item: ItemStruct = parse_macro_input!(input as ItemStruct);
-    let name = &item.ident;
-    let schema_name = schema_name(&item);
-    let table_name = table_name(&item);
-    let primary_keys = table_primary_key(&item);
+    let TableMetadata {
+        ident,
+        name,
+        schema,
+        primary_key,
+        ..
+    } = decode_table(&item);
+    let has_table_primary_key = primary_key.is_some();
+    let primary_keys = primary_key.unwrap_or_default();
     let fields = item.fields.iter();
-    let metadata_and_filter: Vec<_> = fields
+    let metadata_and_filter  =  fields
         .clone()
         .map(|f| {
             let mut metadata = decode_column(&f, &item);
-            if metadata.primary_key == PrimaryKeyType::PrimaryKey && !primary_keys.is_empty() {
+            if metadata.primary_key == PrimaryKeyType::PrimaryKey && has_table_primary_key {
                 panic!(
                     "Column `{}` cannot be declared as a primary key while the table also specifies one",
                     metadata.name
@@ -75,7 +67,7 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
             };
             (metadata, filter_passive)
         })
-        .collect();
+        .collect::<Vec<_>>();
     let (from_row_factory, from_row) = from_row_trait(&item);
     let primary_keys: Vec<_> = metadata_and_filter
         .iter()
@@ -109,7 +101,7 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
     });
     let columns_def = metadata_and_filter.iter().map(|(c, _)| {
         let field = &c.ident;
-        encode_column_def(&c, quote!(#name::#field))
+        encode_column_def(&c, quote!(#ident::#field))
     });
     let primary_key_condition = primary_keys.iter().enumerate().map(|(i, (_, c))| {
         (
@@ -124,26 +116,26 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
         .collect::<TokenStream2>();
     let primary_key_condition_expression = primary_key_condition
         .clone()
-        .map(|(ident, _i, pk)| quote!(#name::#ident == ##pk))
+        .map(|(field, _i, pk)| quote!(#ident::#field == ##pk))
         .collect::<Punctuated<_, AndAnd>>();
     quote! {
         #from_row
         #column
-        impl ::tank::Entity for #name {
+        impl ::tank::Entity for #ident {
             type PrimaryKey<'a> = (#(&'a #primary_key_types,)*);
 
             fn table_name() -> &'static str {
-                #table_name
+                #name
             }
 
             fn schema_name() -> &'static str {
-                #schema_name
+                #schema
             }
 
             fn table_ref() -> &'static ::tank::TableRef {
                 static TABLE_REF: ::tank::TableRef = ::tank::TableRef {
-                    name: #table_name,
-                    schema: #schema_name,
+                    name: #name,
+                    schema: #schema,
                     alias: ::std::borrow::Cow::Borrowed(""),
                 };
                 &TABLE_REF
@@ -158,7 +150,7 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
             fn primary_key_def() -> &'static [&'static ::tank::ColumnDef] {
                 static RESULT: ::std::sync::LazyLock<Box<[&::tank::ColumnDef]>> =
                     ::std::sync::LazyLock::new(|| {
-                        let columns = #name::columns_def();
+                        let columns = #ident::columns_def();
                         vec![#(&#primary_key_def),*].into_boxed_slice()
                     });
                 &RESULT
@@ -173,7 +165,7 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                 if_not_exists: bool,
             ) -> ::tank::Result<()> {
                 let mut query = String::with_capacity(512);
-                ::tank::SqlWriter::sql_create_table::<#name>(
+                ::tank::SqlWriter::sql_create_table::<#ident>(
                     &::tank::Driver::sql_writer(executor.driver()),
                     &mut query,
                     if_not_exists,
@@ -189,7 +181,7 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                 if_exists: bool,
             ) -> ::tank::Result<()> {
                 let mut query = String::with_capacity(64);
-                ::tank::SqlWriter::sql_drop_table::<#name>(
+                ::tank::SqlWriter::sql_drop_table::<#ident>(
                     &::tank::Driver::sql_writer(executor.driver()),
                     &mut query,
                     if_exists,

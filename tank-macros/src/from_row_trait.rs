@@ -42,8 +42,8 @@ pub(crate) fn from_row_trait(item: &ItemStruct) -> (Ident, TokenStream) {
             }) as ProducerFn
         })
         .unwrap_or(Box::new(|_| TokenStream::new()));
-    let create_result = fields.map(|(ident, _ty, col)| {
-        let column = col.name;
+    let create_result = fields.clone().map(|(ident, _ty, col)| {
+        let column = &col.name;
         quote! {
             #ident: #ident.ok_or(::tank::Error::msg(format!(
                 "Column `{}` does not exist in the row provided",

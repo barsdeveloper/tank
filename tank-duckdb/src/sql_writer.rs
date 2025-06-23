@@ -25,7 +25,7 @@ impl SqlWriter for DuckDBSqlWriter {
                 });
                 out.push('\'');
             }
-            Value::Map(Some(v), ..) => {
+            Value::Map(Some(_v), ..) => {
                 out.push_str("MAP");
                 generic_writer.sql_value(out, value);
             }

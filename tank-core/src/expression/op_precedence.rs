@@ -23,7 +23,7 @@ impl OpPrecedence for Value {
 }
 
 impl<T: AsValue> OpPrecedence for T {
-    fn precedence(&self, writer: &dyn SqlWriter) -> i32 {
+    fn precedence(&self, _writer: &dyn SqlWriter) -> i32 {
         0
     }
 }

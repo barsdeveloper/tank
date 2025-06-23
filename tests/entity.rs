@@ -58,9 +58,9 @@ mod tests {
     #[tokio::test]
     async fn test_2() {
         #[derive(Entity)]
-        #[table_name("custom_table_name")]
+        #[tank(name = "custom_table_name")]
         struct SomeEntity {
-            #[primary_key]
+            #[tank(primary_key)]
             first: u128,
             second: Option<time::Time>,
             third: Box<Option<Box<time::Date>>>,
@@ -100,14 +100,13 @@ mod tests {
     #[test]
     fn test_3() {
         #[derive(Entity)]
-        #[table_name("a_table")]
-        #[primary_key("bravo", "delta")]
+        #[tank(name = "a_table", primary_key = ("bravo", "delta"))]
         struct MyEntity {
             _alpha: Box<Box<Box<Box<Box<Box<Box<Box<Box<Box<Box<f64>>>>>>>>>>>,
             _bravo: i16,
             _charlie: Box<Box<Option<Option<Box<Box<Option<Box<rust_decimal::Decimal>>>>>>>>,
             _delta: Duration,
-            #[column_type("DECIMAL(8, 2)")]
+            #[tank(type = "DECIMAL(8, 2)")]
             _echo: Option<Arc<rust_decimal::Decimal>>,
         }
         let columns = MyEntity::columns_def();
@@ -236,13 +235,13 @@ mod tests {
     #[test]
     fn test_customer_schema() {
         #[derive(Entity)]
-        #[table_name("customers")]
+        #[tank(name = "customers")]
         struct Customer {
             _transaction_ids: Vec<u64>,
             _preferences: Option<Vec<String>>,
             _lifetime_value: Box<Option<Vec<rust_decimal::Decimal>>>,
             _signup_duration: std::time::Duration,
-            #[column_type("DECIMAL(10, 4)[][]")]
+            #[tank(type = "DECIMAL(10, 4)[][]")]
             _recent_purchases: Option<Vec<Option<Box<Vec<rust_decimal::Decimal>>>>>,
         }
 

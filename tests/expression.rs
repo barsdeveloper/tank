@@ -356,7 +356,7 @@ mod tests {
     #[test]
     fn columns() {
         #[derive(Entity)]
-        #[table_name("the_table")]
+        #[tank(name = "the_table")]
         struct MyEntity {
             _first: i128,
             _second: String,

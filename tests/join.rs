@@ -6,7 +6,7 @@ mod tests {
     };
 
     #[derive(Entity)]
-    #[schema_name("my_data")]
+    #[tank(schema = "my_data")]
     struct Alpha {
         _a: u32,
         _b: String,
@@ -133,7 +133,7 @@ mod tests {
     #[test]
     fn join_left_nested() {
         #[derive(Entity)]
-        #[table_name("another_table")]
+        #[tank(name = "another_table")]
         struct Charlie {
             _column: u128,
         }
@@ -181,11 +181,10 @@ mod tests {
     #[test]
     fn join_right_nested() {
         #[derive(Entity)]
-        #[schema_name("delta_dataset")]
-        #[table_name("delta_table")]
+        #[tank(schema = "delta_dataset", name = "delta_table")]
         struct Delta {
             _time_column: time::Date,
-            #[column_name("the_string")]
+            #[tank(name = "the_string")]
             _string_column: Option<String>,
         }
 
@@ -316,7 +315,7 @@ mod tests {
     #[test]
     fn join_multi_chained() {
         #[derive(Entity)]
-        #[table_name("ccc")]
+        #[tank(name = "ccc")]
         struct Charlie;
 
         #[derive(Entity)]

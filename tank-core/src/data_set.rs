@@ -16,7 +16,7 @@ impl DataSet for &dyn DataSet {
         todo!()
     }
 
-    fn sql_write<'a>(&self, writer: &dyn SqlWriter, out: &'a mut String) -> &'a mut String {
+    fn sql_write<'a>(&self, _writer: &dyn SqlWriter, _out: &'a mut String) -> &'a mut String {
         todo!()
     }
 }

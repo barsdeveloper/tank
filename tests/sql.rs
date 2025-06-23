@@ -19,9 +19,9 @@ mod tests {
     #[test]
     fn test_sql_simple_table() {
         #[derive(Default, Entity)]
-        #[table_name("my_table")]
+        #[tank(name = "my_table")]
         struct Table {
-            #[column_name("special_column")]
+            #[tank(name = "special_column")]
             _first_column: Option<String>,
             _second_column: Box<f64>,
             _third_column: i32,
@@ -99,10 +99,9 @@ mod tests {
     #[test]
     fn test_sql_cart() {
         #[derive(Entity)]
-        #[table_name("cart")]
+        #[tank(name = "cart")]
         struct Cart {
-            #[primary_key]
-            #[auto_increment]
+            #[tank(primary_key, auto_increment)]
             id: Box<Passive<u32>>,
             user_id: Uuid,
             created_at: PrimitiveDateTime,

@@ -2,13 +2,12 @@ use tank::{Entity, Passive};
 use uuid::Uuid;
 
 #[derive(Debug, Default, Entity)]
-#[table_name("trade_executions")]
-#[primary_key("trade_id", "execution_time")]
+#[tank(name = "trade_executions", primary_key = ("trade_id", "execution_time"))]
 pub struct TradeExecution {
-    #[column_name("trade_id")]
+    #[tank(name = "trade_id")]
     pub trade: u64,
-    #[column_name("order_id")]
-    #[default_value("241d362d-797e-4769-b3f6-412440c8cf68")]
+    #[tank(name = "order_id")]
+    #[tank(default = "241d362d-797e-4769-b3f6-412440c8cf68")]
     pub order: Uuid,
     pub symbol: String,
     pub price: rust_decimal::Decimal,

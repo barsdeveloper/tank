@@ -6,19 +6,23 @@ use syn::{spanned::Spanned, Ident, ItemStruct};
 pub(crate) fn column_trait(item: &ItemStruct) -> TokenStream {
     let struct_name = &item.ident;
     let trait_name = Ident::new(&format!("{}ColumnTrait", item.ident), item.span());
-    let columns = item.fields.iter().map(|field| {
-        (
-            field.ident.as_ref().expect("The field must have a name"),
-            encode_column_ref(&decode_column(field, item)),
-        )
-    });
-    let columns_fields_declarations = columns.clone().map(|(name, _)| {
+    let columns: Vec<_> = item
+        .fields
+        .iter()
+        .map(|field| {
+            (
+                field.ident.as_ref().expect("The field must have a name"),
+                encode_column_ref(&decode_column(field, item)),
+            )
+        })
+        .collect();
+    let columns_fields_declarations = columns.iter().map(|(name, _)| {
         quote! {
             #[allow(non_upper_case_globals)]
             const #name: ::tank::ColumnRef;
         }
     });
-    let columns_fields_definitions = columns.clone().map(|(name, column_ref)| {
+    let columns_fields_definitions = columns.iter().map(|(name, column_ref)| {
         quote! {
             const #name: ::tank::ColumnRef = #column_ref;
         }
