@@ -5,8 +5,6 @@ use std::future::Future;
 pub trait Entity: Send {
     type PrimaryKey<'a>;
 
-    fn table_name() -> &'static str;
-    fn schema_name() -> &'static str;
     fn table_ref() -> &'static TableRef;
     fn columns_def() -> &'static [ColumnDef];
     fn primary_key_def() -> &'static [&'static ColumnDef];

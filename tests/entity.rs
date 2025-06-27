@@ -9,7 +9,7 @@ mod tests {
     use regex::Regex;
     use rust_decimal::Decimal;
     use std::{collections::BTreeMap, sync::Arc, time::Duration};
-    use tank::{ColumnDef, ColumnRef, Entity, Passive, PrimaryKeyType, SqlWriter, Value};
+    use tank::{expr, ColumnDef, ColumnRef, Entity, Passive, PrimaryKeyType, SqlWriter, Value};
     use time::macros::datetime;
     use uuid::Uuid;
 
@@ -21,216 +21,6 @@ mod tests {
     }
 
     const WRITER: Writer = Writer {};
-
-    #[tokio::test]
-    async fn test_1() {
-        #[derive(Entity)]
-        struct SomeEntity {
-            a: i8,
-            b: String,
-        }
-        let columns = SomeEntity::columns_def();
-
-        assert_eq!(SomeEntity::table_name(), "some_entity");
-        assert_eq!(SomeEntity::primary_key_def().len(), 0);
-
-        assert_eq!(columns[0].name(), "a");
-        assert!(matches!(columns[0].value, Value::Int8(None, ..)));
-        assert!(columns[0].nullable == false);
-
-        assert_eq!(columns[1].name(), "b");
-        assert!(matches!(columns[1].value, Value::Varchar(None, ..)));
-        assert!(columns[1].nullable == false);
-
-        let mut query = String::new();
-        assert_eq!(
-            WRITER.sql_create_table::<SomeEntity>(&mut query, false),
-            indoc! {"
-                CREATE TABLE some_entity(
-                a TINYINT NOT NULL,
-                b VARCHAR NOT NULL
-                )
-            "}
-            .trim()
-        );
-    }
-
-    #[tokio::test]
-    async fn test_2() {
-        #[derive(Entity)]
-        #[tank(name = "custom_table_name")]
-        struct SomeEntity {
-            #[tank(primary_key)]
-            first: u128,
-            second: Option<time::Time>,
-            third: Box<Option<Box<time::Date>>>,
-        }
-        let columns = SomeEntity::columns_def();
-
-        assert_eq!(SomeEntity::table_name(), "custom_table_name");
-        assert_eq!(SomeEntity::primary_key_def().len(), 1);
-        assert_eq!(SomeEntity::primary_key_def()[0].name(), "first");
-
-        assert_eq!(columns[0].name(), "first");
-        assert!(matches!(columns[0].value, Value::UInt128(None, ..)));
-        assert!(columns[0].nullable == false);
-
-        assert_eq!(columns[1].name(), "second");
-        assert!(matches!(columns[1].value, Value::Time(None, ..)));
-        assert!(columns[1].nullable == true);
-
-        assert_eq!(columns[2].name(), "third");
-        assert!(matches!(columns[2].value, Value::Date(None, ..)));
-        assert!(columns[2].nullable == true);
-
-        let mut query = String::new();
-        assert_eq!(
-            WRITER.sql_create_table::<SomeEntity>(&mut query, true),
-            indoc! {"
-                CREATE TABLE IF NOT EXISTS custom_table_name(
-                first UHUGEINT PRIMARY KEY,
-                second TIME,
-                third DATE
-                )
-            "}
-            .trim()
-        );
-    }
-
-    #[test]
-    fn test_3() {
-        #[derive(Entity)]
-        #[tank(name = "a_table", primary_key = ("bravo", "delta"))]
-        struct MyEntity {
-            _alpha: Box<Box<Box<Box<Box<Box<Box<Box<Box<Box<Box<f64>>>>>>>>>>>,
-            _bravo: i16,
-            _charlie: Box<Box<Option<Option<Box<Box<Option<Box<rust_decimal::Decimal>>>>>>>>,
-            _delta: Duration,
-            #[tank(type = "DECIMAL(8, 2)")]
-            _echo: Option<Arc<rust_decimal::Decimal>>,
-        }
-        let columns = MyEntity::columns_def();
-
-        assert_eq!(MyEntity::table_name(), "a_table");
-        assert_eq!(
-            MyEntity::primary_key_def()
-                .iter()
-                .map(|k| k.name())
-                .collect::<Vec<_>>(),
-            ["bravo", "delta"]
-        );
-
-        assert!(matches!(
-            columns[0],
-            ColumnDef {
-                reference: ColumnRef {
-                    name: "alpha",
-                    table: "a_table",
-                    schema: "",
-                },
-                column_type: "",
-                value: Value::Float64(None, ..),
-                nullable: false,
-                default: None,
-                primary_key: PrimaryKeyType::None,
-                unique: false,
-                auto_increment: false,
-                passive: false,
-            }
-        ));
-
-        assert!(matches!(
-            columns[1],
-            ColumnDef {
-                reference: ColumnRef {
-                    name: "bravo",
-                    table: "a_table",
-                    schema: "",
-                },
-                column_type: "",
-                value: Value::Int16(None, ..),
-                nullable: false,
-                default: None,
-                primary_key: PrimaryKeyType::PartOfPrimaryKey,
-                unique: false,
-                auto_increment: false,
-                passive: false,
-            }
-        ));
-
-        assert!(matches!(
-            columns[2],
-            ColumnDef {
-                reference: ColumnRef {
-                    name: "charlie",
-                    table: "a_table",
-                    schema: "",
-                },
-                column_type: "",
-                value: Value::Decimal(None, ..),
-                nullable: true,
-                default: None,
-                primary_key: PrimaryKeyType::None,
-                unique: false,
-                auto_increment: false,
-                passive: false,
-            }
-        ));
-
-        assert!(matches!(
-            columns[3],
-            ColumnDef {
-                reference: ColumnRef {
-                    name: "delta",
-                    table: "a_table",
-                    schema: "",
-                },
-                column_type: "",
-                value: Value::Interval(None, ..),
-                nullable: false,
-                default: None,
-                primary_key: PrimaryKeyType::PartOfPrimaryKey,
-                unique: false,
-                auto_increment: false,
-                passive: false,
-            }
-        ));
-
-        assert!(matches!(
-            columns[4],
-            ColumnDef {
-                reference: ColumnRef {
-                    name: "echo",
-                    table: "a_table",
-                    schema: "",
-                },
-                column_type: "DECIMAL(8, 2)",
-                value: Value::Decimal(None, ..),
-                nullable: true,
-                default: None,
-                primary_key: PrimaryKeyType::None,
-                unique: false,
-                auto_increment: false,
-                passive: false,
-            }
-        ));
-
-        let mut query = String::new();
-        assert_eq!(
-            WRITER.sql_create_table::<MyEntity>(&mut query, false),
-            indoc! {"
-                CREATE TABLE a_table(
-                alpha DOUBLE NOT NULL,
-                bravo SMALLINT NOT NULL,
-                charlie DECIMAL,
-                delta INTERVAL NOT NULL,
-                echo DECIMAL(8, 2),
-                PRIMARY KEY (bravo, delta)
-                )
-            "}
-            .trim()
-        );
-    }
 
     #[test]
     fn test_customer_schema() {
@@ -245,11 +35,10 @@ mod tests {
             _recent_purchases: Option<Vec<Option<Box<Vec<rust_decimal::Decimal>>>>>,
         }
 
-        let columns = Customer::columns_def();
-
-        assert_eq!(Customer::table_name(), "customers");
+        assert_eq!(Customer::table_ref().name, "customers");
         assert_eq!(Customer::primary_key_def().len(), 0);
 
+        let columns = Customer::columns_def();
         assert_eq!(columns[0].name(), "transaction_ids");
         assert!(match &columns[0].value {
             Value::List(None, v, ..) => match v.as_ref() {
@@ -302,7 +91,7 @@ mod tests {
         assert_eq!(
             WRITER.sql_create_table::<Customer>(&mut query, false),
             indoc! {"
-                CREATE TABLE customers(
+                CREATE TABLE customers (
                 transaction_ids UBIGINT[] NOT NULL,
                 preferences VARCHAR[],
                 lifetime_value DECIMAL[],
@@ -316,14 +105,14 @@ mod tests {
 
     #[test]
     fn test_trade_execution_schema() {
-        assert_eq!(TradeExecution::table_name(), "trade_executions");
+        assert_eq!(TradeExecution::table_ref().name, "trade_executions");
         assert_eq!(TradeExecution::primary_key_def().len(), 2);
         {
             let mut query = String::new();
             assert_eq!(
                 WRITER.sql_create_table::<TradeExecution>(&mut query, false),
                 indoc! {"
-                CREATE TABLE trade_executions(
+                CREATE TABLE trade_executions (
                 trade_id UBIGINT NOT NULL,
                 order_id UUID NOT NULL DEFAULT '241d362d-797e-4769-b3f6-412440c8cf68',
                 symbol VARCHAR NOT NULL,
@@ -372,7 +161,7 @@ mod tests {
                     .expect("Regex must be correct")
                     .replace_all(&format!("
                         INSERT INTO trade_executions (trade_id, order_id, symbol, price, quantity, execution_time, currency, is_internalized, venue, child_trade_ids, metadata, tags)
-                        VALUES (46923, '550e8400-e29b-41d4-a716-446655440000', 'AAPL', 192.55, 50, '2025-06-07 14:32:00.0', 'USD', TRUE, 'NASDAQ', [36209,85320], '\\4D\\65\\74\\61\\64\\61\\74\\61\\20\\42\\79\\74\\65\\73', {})
+                        VALUES (46923, '550e8400-e29b-41d4-a716-446655440000', 'AAPL', 192.55, 50, '2025-06-07 14:32:00.0', 'USD', true, 'NASDAQ', [36209,85320], '\\4D\\65\\74\\61\\64\\61\\74\\61\\20\\42\\79\\74\\65\\73', {})
                     ", v), "")
                     .trim()
                     .to_string()

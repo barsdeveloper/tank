@@ -4,6 +4,7 @@ use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use rust_decimal::Decimal;
 use std::{
+    array::{self},
     collections::{BTreeMap, HashMap},
     hash::Hash,
     mem::discriminant,
@@ -45,7 +46,7 @@ pub enum Value {
     Array(
         Option<Box<[Value]>>,
         /* type: */ Box<Value>,
-        /* len: */ u8,
+        /* len: */ u32,
     ),
     List(Option<Vec<Value>>, /* type: */ Box<Value>),
     Map(
@@ -444,7 +445,7 @@ impl ToTokens for Value {
             Value::Interval(..) => quote! { ::tank::Value::Interval(None) },
             Value::Uuid(..) => quote! { ::tank::Value::Uuid(None) },
             Value::Array(.., inner, size) => {
-                quote! { ::tank::Value::Array (None, #inner, #size) }
+                quote! { ::tank::Value::Array (None, Box::new(#inner), #size) }
             }
             Value::List(.., inner) => {
                 let inner = inner.as_ref().to_token_stream();
@@ -532,6 +533,35 @@ impl AsValue for rust_decimal::Decimal {
                 stringify!(rust_decimal::Decimal),
             )))
         }
+    }
+}
+
+impl<T: AsValue, const N: usize> AsValue for [T; N] {
+    fn as_empty_value() -> Value {
+        Value::Array(None, Box::new(T::as_empty_value()), N as u32)
+    }
+    fn as_value(self) -> Value {
+        Value::Array(
+            Some(self.into_iter().map(AsValue::as_value).collect()),
+            Box::new(T::as_empty_value()),
+            N as u32,
+        )
+    }
+    fn try_from_value(value: Value) -> Result<Self> {
+        let err = Error::msg(format!(
+            "Cannot convert `{}` into `{}`",
+            value.to_token_stream().to_string(),
+            stringify!(Vec<T>),
+        ));
+        if let Value::List(Some(v), ..) = value {
+            if v.len() == N {
+                let mut it = v.into_iter();
+                let result =
+                    array::try_from_fn(|_| T::try_from_value(it.next().ok_or(Error::msg(""))?))?;
+                return Ok(result);
+            }
+        }
+        Err(err)
     }
 }
 

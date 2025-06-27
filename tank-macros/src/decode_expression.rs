@@ -145,7 +145,10 @@ pub fn decode_expression(expr: &Expr) -> TokenStream {
                 }
             }
         }
-        Expr::Call(_) => todo!("Expr::Call"),
+        Expr::Call(v) => {
+            let args = v.args.iter().map(|v| decode_expression(v));
+            quote! { ::tank::Operand::Call(&[#(&#args),*]) }
+        }
         Expr::Lit(ExprLit { lit: v, .. }) => {
             let v = match v {
                 syn::Lit::Str(v) => quote! { ::tank::Operand::LitStr(#v) },

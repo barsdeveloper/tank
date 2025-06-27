@@ -110,7 +110,7 @@ pub trait SqlWriter {
             | Value::Array(None, ..)
             | Value::List(None, ..)
             | Value::Map(None, ..) => out.push_str("NULL"),
-            Value::Boolean(Some(v), ..) => out.push_str(["FALSE", "TRUE"][*v as usize]),
+            Value::Boolean(Some(v), ..) => out.push_str(["false", "true"][*v as usize]),
             Value::Int8(Some(v), ..) => drop(write!(out, "{}", v)),
             Value::Int16(Some(v), ..) => drop(write!(out, "{}", v)),
             Value::Int32(Some(v), ..) => drop(write!(out, "{}", v)),
@@ -128,7 +128,7 @@ pub trait SqlWriter {
             Value::Blob(Some(v), ..) => {
                 out.push('\'');
                 v.iter().for_each(|b| {
-                    let _ = write!(out, "\\{:X}", b);
+                    let _ = write!(out, "\\x{:X}", b);
                 });
                 out.push('\'');
             }
@@ -199,15 +199,16 @@ pub trait SqlWriter {
                 }
             }
             Value::Uuid(Some(v), ..) => drop(write!(out, "'{}'", v)),
-            Value::Array(.., inner, size) => {
-                self.sql_type(out, inner);
-                let _ = write!(out, "[{}]", size);
-            }
-            Value::List(Some(v), ..) => {
+            Value::List(Some(..), ..) | Value::Array(Some(..), ..) => {
+                let v = match value {
+                    Value::List(Some(v), ..) => v.iter(),
+                    Value::Array(Some(v), ..) => v.iter(),
+                    _ => unreachable!(),
+                };
                 out.push('[');
                 separated_by(
                     out,
-                    v.iter(),
+                    v,
                     |out, v| {
                         self.sql_value(out, v);
                     },
@@ -452,8 +453,8 @@ pub trait SqlWriter {
         if if_not_exists {
             out.push_str("IF NOT EXISTS ");
         }
-        out.push_str(E::table_name());
-        out.push_str("(\n");
+        self.sql_table_ref(out, E::table_ref());
+        out.push_str(" (\n");
         separated_by(
             out,
             E::columns_def().iter(),
@@ -493,14 +494,22 @@ pub trait SqlWriter {
         } else {
             self.sql_type(out, &column.value);
         }
-        if column.primary_key == PrimaryKeyType::PrimaryKey {
-            out.push_str(" PRIMARY KEY");
-        } else if !column.nullable {
-            out.push_str(" NOT NULL");
-        }
         if let Some(default) = &column.default {
             out.push_str(" DEFAULT ");
             default.sql_write(self.as_dyn(), out, true);
+        }
+        if column.primary_key != PrimaryKeyType::None {
+            if column.primary_key == PrimaryKeyType::PrimaryKey {
+                // Composite primary key will be printed elsewhere
+                out.push_str(" PRIMARY KEY");
+            }
+        } else {
+            if !column.nullable {
+                out.push_str(" NOT NULL");
+            }
+            if column.unique {
+                out.push_str(" UNIQUE");
+            }
         }
         if column.auto_increment {
             out.push(' ');
@@ -509,15 +518,16 @@ pub trait SqlWriter {
         out
     }
 
-    fn sql_drop_table<E: Entity>(&self, query: &mut String, if_exists: bool)
+    fn sql_drop_table<'a, E: Entity>(&self, out: &'a mut String, if_exists: bool) -> &'a mut String
     where
         Self: Sized,
     {
-        query.push_str("DROP TABLE ");
+        out.push_str("DROP TABLE ");
         if if_exists {
-            query.push_str("IF EXISTS ");
+            out.push_str("IF EXISTS ");
         }
-        query.push_str(E::table_name());
+        self.sql_table_ref(out, E::table_ref());
+        out
     }
 
     fn sql_select<'a, E: Entity, D: DataSet, Expr: Expression>(
@@ -563,7 +573,7 @@ pub trait SqlWriter {
             out.push_str(" OR REPLACE");
         }
         out.push_str(" INTO ");
-        out.push_str(E::table_name());
+        self.sql_table_ref(out, E::table_ref());
         out.push_str(" (");
         let row = entity.row_labeled();
         let fields = zip(row.labels.iter(), row.values.iter());
@@ -597,7 +607,7 @@ pub trait SqlWriter {
         out.push_str("DELETE FROM ");
         self.sql_table_ref(out, E::table_ref());
         out.push_str("\nWHERE ");
-        condition.sql_write(self, out, true);
+        condition.sql_write(self, out, false);
         out
     }
 }

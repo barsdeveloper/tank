@@ -12,7 +12,7 @@ pub enum Operand {
     Column(ColumnRef),
     Type(Value),
     Variable(Value),
-    Function(Box<dyn Expression>),
+    Call(&'static [Operand]),
 }
 
 impl OpPrecedence for Operand {

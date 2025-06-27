@@ -124,14 +124,6 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
         impl ::tank::Entity for #ident {
             type PrimaryKey<'a> = (#(&'a #primary_key_types,)*);
 
-            fn table_name() -> &'static str {
-                #name
-            }
-
-            fn schema_name() -> &'static str {
-                #schema
-            }
-
             fn table_ref() -> &'static ::tank::TableRef {
                 static TABLE_REF: ::tank::TableRef = ::tank::TableRef {
                     name: #name,

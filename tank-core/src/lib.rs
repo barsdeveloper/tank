@@ -1,3 +1,4 @@
+#![feature(array_try_from_fn)]
 mod column;
 mod connection;
 mod data_set;

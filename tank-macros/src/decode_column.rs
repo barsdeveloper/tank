@@ -1,8 +1,7 @@
-use std::fmt::Debug;
-
 use crate::{decode_table, expr};
-use proc_macro2::TokenStream;
+use proc_macro2::{TokenStream, TokenTree};
 use quote::ToTokens;
+use std::fmt::Debug;
 use syn::{parse::ParseBuffer, Field, Ident, ItemStruct, LitStr, Type};
 use tank_core::{decode_type, CheckPassive, PrimaryKeyType, TypeDecoded, Value};
 
@@ -92,11 +91,11 @@ pub fn decode_column(field: &Field, item: &ItemStruct) -> ColumnMetadata {
             };
             let _ = list.parse_nested_meta(|arg| {
                 if arg.path.is_ident("default") {
-                    let Ok(v) = arg.value().and_then(ParseBuffer::parse::<TokenStream>)
+                    let Ok(v) = arg.value().and_then(ParseBuffer::parse::<TokenTree>)
                     else {
                         panic!("Error while parsing `default`, use it like: `#[tank(default = some_expression)]`");
                     };
-                    metadata.default = Some(expr(v.into()).into());
+                    metadata.default = Some(expr(v.to_token_stream().into()).into());
                 } else if arg.path.is_ident("name") {
                     let Ok(v) = arg.value().and_then(ParseBuffer::parse::<LitStr>) else {
                       panic!("Error while parsing `name`, use it like: `#[tank(name = \"my_column\")]`");
@@ -118,7 +117,7 @@ pub fn decode_column(field: &Field, item: &ItemStruct) -> ColumnMetadata {
                     metadata.primary_key = PrimaryKeyType::PrimaryKey;
                     metadata.nullable = false;
                 } else if arg.path.is_ident("unique") {
-                    let Ok(..) = meta.require_path_only() else {
+                    let Err(..) = arg.value() else {
                         panic!("Error while parsing `unique`, use it like: `#[tank(unique)]`");
                     };
                     metadata.unique = true;
