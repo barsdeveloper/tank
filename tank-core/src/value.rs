@@ -524,14 +524,13 @@ impl AsValue for rust_decimal::Decimal {
         Value::Decimal(Some(self), 0, self.scale() as _)
     }
     fn try_from_value(value: Value) -> Result<Self> {
-        if let Value::Decimal(Some(v), ..) = value {
-            Ok(v.into())
-        } else {
-            Err(Error::msg(format!(
+        match value {
+            Value::Decimal(Some(v), ..) => Ok(v),
+            _ => Err(Error::msg(format!(
                 "Cannot convert `{}` into `{}`",
                 value.to_token_stream().to_string(),
                 stringify!(rust_decimal::Decimal),
-            )))
+            ))),
         }
     }
 }

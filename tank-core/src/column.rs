@@ -44,6 +44,7 @@ pub struct ColumnDef {
     pub unique: bool,
     pub auto_increment: bool,
     pub passive: bool,
+    pub comment: &'static str,
 }
 
 impl ColumnDef {

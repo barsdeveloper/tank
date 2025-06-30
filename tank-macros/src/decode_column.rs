@@ -1,25 +1,24 @@
-use crate::{decode_table, expr};
+use crate::expr;
 use proc_macro2::{TokenStream, TokenTree};
 use quote::ToTokens;
 use std::fmt::Debug;
-use syn::{parse::ParseBuffer, Field, Ident, ItemStruct, LitStr, Type};
+use syn::{parse::ParseBuffer, Expr, ExprLit, Field, Ident, ItemStruct, Lit, LitStr, Type};
 use tank_core::{decode_type, CheckPassive, PrimaryKeyType, TypeDecoded, Value};
 
 pub(crate) struct ColumnMetadata {
     pub(crate) ident: Ident,
     pub(crate) ty: Type,
     pub(crate) name: String,
-    pub(crate) table: String,
-    pub(crate) schema: String,
     pub(crate) column_type: String,
     pub(crate) value: Value,
     pub(crate) nullable: bool,
     pub(crate) default: Option<TokenStream>,
+    pub(crate) auto_increment: bool,
     pub(crate) primary_key: PrimaryKeyType,
     pub(crate) unique: bool,
-    pub(crate) auto_increment: bool,
     pub(crate) passive: bool,
     pub(crate) check_passive: Option<CheckPassive>,
+    pub(crate) comment: String,
 }
 
 impl Debug for ColumnMetadata {
@@ -28,17 +27,16 @@ impl Debug for ColumnMetadata {
             .field("ident", &self.ident)
             .field("ty", &"..")
             .field("name", &self.name)
-            .field("table", &self.table)
-            .field("schema", &self.schema)
             .field("column_type", &self.column_type)
             .field("value", &self.value)
             .field("nullable", &self.nullable)
             .field("default", &self.default)
+            .field("auto_increment", &self.auto_increment)
             .field("primary_key", &self.primary_key)
             .field("unique", &self.unique)
-            .field("auto_increment", &self.auto_increment)
             .field("passive", &self.passive)
             .field("check_passive", &"..")
+            .field("comment", &self.comment)
             .finish()
     }
 }
@@ -61,22 +59,20 @@ pub fn decode_column(field: &Field, item: &ItemStruct) -> ColumnMetadata {
         .clone()
         .expect("Field is expected to have a name");
     let name = ident.to_string();
-    let table = decode_table(item);
     let mut metadata = ColumnMetadata {
         ident,
         ty: field.ty.clone(),
         name,
-        table: table.name,
-        schema: table.schema,
         column_type: "".into(),
         value,
         nullable,
         default: None,
+        auto_increment: false,
         primary_key: PrimaryKeyType::None,
         unique: false,
-        auto_increment: false,
         passive,
         check_passive,
+        comment: String::new(),
     };
     if metadata.name.starts_with('_') {
         metadata.name.remove(0);
@@ -85,9 +81,7 @@ pub fn decode_column(field: &Field, item: &ItemStruct) -> ColumnMetadata {
         let meta = &attr.meta;
         if meta.path().is_ident("tank") {
             let Ok(list) = meta.require_list() else {
-                panic!(
-                    "Error while parsing `tank`, use it like: `#[tank(attribute = value, ...)]`",
-                );
+                panic!("Error while parsing `tank`, use it like: `#[tank(attribute = value, ..)]`",);
             };
             let _ = list.parse_nested_meta(|arg| {
                 if arg.path.is_ident("default") {
@@ -107,6 +101,12 @@ pub fn decode_column(field: &Field, item: &ItemStruct) -> ColumnMetadata {
                         );
                     };
                     metadata.column_type = v.value();
+                } else if arg.path.is_ident("auto_increment") {
+                    let Err(..) = arg.value() else {
+                        // value() is Err for Meta::Path
+                        panic!("Error while parsing `auto_increment`, use it like: `#[tank(auto_increment)]`");
+                    };
+                    metadata.auto_increment = true;
                 } else if arg.path.is_ident("primary_key") {
                     let Err(..) = arg.value() else {
                         // value() is Err for Meta::Path
@@ -121,17 +121,23 @@ pub fn decode_column(field: &Field, item: &ItemStruct) -> ColumnMetadata {
                         panic!("Error while parsing `unique`, use it like: `#[tank(unique)]`");
                     };
                     metadata.unique = true;
-                } else if arg.path.is_ident("auto_increment") {
-                    let Err(..) = arg.value() else {
-                        // value() is Err for Meta::Path
-                        panic!("Error while parsing `auto_increment`, use it like: `#[tank(auto_increment)]`");
-                    };
-                    metadata.auto_increment = true;
                 } else {
                     panic!("Unknown attribute `{}` inside tank macro", arg.path.to_token_stream().to_string());
                 }
                 Ok(())
             });
+        } else if meta.path().is_ident("doc") {
+            let Ok(&Expr::Lit(ExprLit {
+                lit: Lit::Str(ref v),
+                ..
+            })) = meta.require_name_value().and_then(|v| Ok(&v.value))
+            else {
+                panic!("Error while parsing the comment, use it like: `/// Column comment");
+            };
+            if !metadata.comment.is_empty() {
+                metadata.comment.push('\n');
+            }
+            metadata.comment.push_str(v.value().trim());
         }
     }
     metadata

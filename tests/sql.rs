@@ -117,7 +117,7 @@ mod tests {
                 out,
                 indoc! {"
                     CREATE TABLE IF NOT EXISTS cart (
-                    id UINTEGER PRIMARY KEY AUTOINCREMENT,
+                    id UINTEGER AUTOINCREMENT PRIMARY KEY,
                     user_id UUID NOT NULL,
                     created_at TIMESTAMP NOT NULL,
                     items UUID[] NOT NULL,

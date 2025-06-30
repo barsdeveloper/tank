@@ -14,6 +14,7 @@ pub fn encode_column_def(metadata: &ColumnMetadata, reference: TokenStream) -> T
     let unique = &metadata.unique;
     let auto_increment = &metadata.auto_increment;
     let passive = &metadata.passive;
+    let comment = &metadata.comment;
     quote! {
         ::tank::ColumnDef {
             reference: #reference,
@@ -25,6 +26,7 @@ pub fn encode_column_def(metadata: &ColumnMetadata, reference: TokenStream) -> T
             unique: #unique,
             auto_increment: #auto_increment,
             passive: #passive,
+            comment: #comment,
         }
     }
 }

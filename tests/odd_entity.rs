@@ -13,7 +13,6 @@ mod tests {
         _charlie: Box<Box<Option<Option<Box<Box<Option<Box<rust_decimal::Decimal>>>>>>>>,
         #[tank(name = "delta")]
         _delta_duration: Duration,
-        #[tank(type = "DECIMAL(8, 2)")]
         _echo: Option<Arc<rust_decimal::Decimal>>,
     }
     impl MyEntity {
@@ -34,7 +33,7 @@ mod tests {
     const WRITER: GenericSqlWriter = GenericSqlWriter {};
 
     #[tokio::test]
-    async fn test_simple_entity() {
+    async fn test_odd_entity() {
         assert!(matches!(
             MyEntity::table_ref(),
             TableRef {
@@ -55,6 +54,26 @@ mod tests {
 
         let columns = MyEntity::columns_def();
         assert_eq!(columns.len(), 5);
+        assert_eq!(columns[0].reference.name, "alpha");
+        assert_eq!(columns[1].reference.name, "bravo");
+        assert_eq!(columns[2].reference.name, "charlie");
+        assert_eq!(columns[3].reference.name, "delta");
+        assert_eq!(columns[4].reference.name, "echo");
+        assert_eq!(columns[0].reference.table, "a_table");
+        assert_eq!(columns[1].reference.table, "a_table");
+        assert_eq!(columns[2].reference.table, "a_table");
+        assert_eq!(columns[3].reference.table, "a_table");
+        assert_eq!(columns[4].reference.table, "a_table");
+        assert_eq!(columns[0].reference.schema, "");
+        assert_eq!(columns[1].reference.schema, "");
+        assert_eq!(columns[2].reference.schema, "");
+        assert_eq!(columns[3].reference.schema, "");
+        assert_eq!(columns[4].reference.schema, "");
+        assert!(matches!(columns[0].default, None));
+        assert!(matches!(columns[1].default, None));
+        assert!(matches!(columns[2].default, None));
+        assert!(matches!(columns[3].default, None));
+        assert!(matches!(columns[4].default, None));
         assert!(matches!(columns[0].value, Value::Float64(..)));
         assert!(matches!(columns[1].value, Value::Int16(..)));
         assert!(matches!(columns[2].value, Value::Decimal(..)));
@@ -93,7 +112,7 @@ mod tests {
     }
 
     #[test]
-    fn test_simple_entity_create_table() {
+    fn test_odd_entity_create_table() {
         let mut query = String::new();
         assert_eq!(
             WRITER.sql_create_table::<MyEntity>(&mut query, true),
@@ -103,7 +122,7 @@ mod tests {
                 bravo SMALLINT,
                 charlie DECIMAL,
                 delta INTERVAL,
-                echo DECIMAL(8, 2),
+                echo DECIMAL,
                 PRIMARY KEY (bravo, delta)
                 )
             "}
@@ -112,7 +131,7 @@ mod tests {
     }
 
     #[test]
-    fn test_simple_entity_drop_table() {
+    fn test_odd_entity_drop_table() {
         let mut query = String::new();
         assert_eq!(
             WRITER.sql_drop_table::<MyEntity>(&mut query, false),
@@ -121,7 +140,7 @@ mod tests {
     }
 
     #[test]
-    fn test_simple_entity_select() {
+    fn test_odd_entity_select() {
         let mut query = String::new();
         assert_eq!(
             WRITER.sql_select::<MyEntity, _, _>(
@@ -141,7 +160,7 @@ mod tests {
     }
 
     #[test]
-    fn test_simple_entity_insert() {
+    fn test_odd_entity_insert() {
         let mut query = String::new();
         assert_eq!(
             WRITER.sql_insert::<MyEntity>(&mut query, &MyEntity::sample(), true),
@@ -154,7 +173,7 @@ mod tests {
     }
 
     #[test]
-    fn test_simple_entity_delete() {
+    fn test_odd_entity_delete() {
         let mut query = String::new();
         assert_eq!(
             WRITER.sql_delete::<MyEntity, _>(&mut query, &expr!(MyEntity::_echo == 5)),

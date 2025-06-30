@@ -18,7 +18,7 @@ mod tests {
         added_on: PrimitiveDateTime,
     }
     impl Product {
-        pub fn make_example() -> Self {
+        pub fn sample() -> Self {
             Self {
                 id: Passive::NotSet,
                 name: "Smartphone".into(),
@@ -68,7 +68,7 @@ mod tests {
             WRITER.sql_create_table::<Product>(&mut query, false),
             indoc! {"
                 CREATE TABLE products (
-                id UBIGINT PRIMARY KEY AUTOINCREMENT,
+                id UBIGINT AUTOINCREMENT PRIMARY KEY,
                 name VARCHAR NOT NULL,
                 price DECIMAL NOT NULL,
                 available BOOLEAN NOT NULL,
@@ -84,7 +84,7 @@ mod tests {
     async fn test_product_insert() {
         let mut query = String::new();
         assert_eq!(
-            WRITER.sql_insert::<Product>(&mut query, &Product::make_example(), false),
+            WRITER.sql_insert::<Product>(&mut query, &Product::sample(), false),
             indoc! {"
                 INSERT INTO products (name, price, available, tags, added_on)
                 VALUES ('Smartphone', 499.99, true, ['electronics','mobile'], '2025-06-24 10:30:07.0')

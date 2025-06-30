@@ -27,33 +27,28 @@ use tank_core::{flag_evaluated, PrimaryKeyType};
 
 #[proc_macro_derive(Entity, attributes(tank))]
 pub fn derive_entity(input: TokenStream) -> TokenStream {
-    let item: ItemStruct = parse_macro_input!(input as ItemStruct);
-    let TableMetadata {
-        ident,
-        name,
-        schema,
-        primary_key,
-        ..
-    } = decode_table(&item);
-    let has_table_primary_key = primary_key.is_some();
-    let primary_keys = primary_key.unwrap_or_default();
-    let fields = item.fields.iter();
+    let table = decode_table(parse_macro_input!(input as ItemStruct));
+    let ident = &table.item.ident;
+    let name = &table.name;
+    let schema = &table.schema;
+    let fields = table.item.fields.iter();
     let metadata_and_filter  =  fields
         .clone()
         .map(|f| {
-            let mut metadata = decode_column(&f, &item);
-            if metadata.primary_key == PrimaryKeyType::PrimaryKey && has_table_primary_key {
+            let mut metadata = decode_column(&f, &table.item);
+            if metadata.primary_key == PrimaryKeyType::PrimaryKey && !table.primary_key.is_empty() {
                 panic!(
                     "Column `{}` cannot be declared as a primary key while the table also specifies one",
                     metadata.name
                 )
             }
-            if primary_keys
+            if table
+                .primary_key
                 .iter()
                 .find(|pk| **pk == metadata.name)
                 .is_some()
             {
-                metadata.primary_key = if primary_keys.len() == 1 {
+                metadata.primary_key = if table.primary_key.len() == 1 {
                     PrimaryKeyType::PrimaryKey
                 } else {
                     PrimaryKeyType::PartOfPrimaryKey
@@ -68,7 +63,7 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
             (metadata, filter_passive)
         })
         .collect::<Vec<_>>();
-    let (from_row_factory, from_row) = from_row_trait(&item);
+    let (from_row_factory, from_row) = from_row_trait(&table.item);
     let primary_keys: Vec<_> = metadata_and_filter
         .iter()
         .enumerate()
@@ -89,7 +84,7 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
         .map(|ident| quote!(self.#ident));
     let primary_key_def = primary_keys.iter().map(|(i, _)| quote!(columns[#i]));
     let primary_key_types = primary_keys.iter().map(|(_, c)| c.ty.clone());
-    let column = column_trait(&item);
+    let column = column_trait(&table);
     let value_and_filter =
         zip(fields.clone(), metadata_and_filter.iter()).map(|(field, (_, filter))| {
             let name = &field.ident;

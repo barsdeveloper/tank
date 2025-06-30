@@ -146,8 +146,16 @@ pub fn decode_expression(expr: &Expr) -> TokenStream {
             }
         }
         Expr::Call(v) => {
+            let f = v.func.as_ref();
+            let Expr::Path(ExprPath { path, .. }) = f else {
+                panic!(
+                    "Function `{}` must be a path or some identifier",
+                    v.into_token_stream(),
+                );
+            };
+            let path = path.into_token_stream().to_string();
             let args = v.args.iter().map(|v| decode_expression(v));
-            quote! { ::tank::Operand::Call(&[#(&#args),*]) }
+            quote! { ::tank::Operand::Call(&#path, &[#(&#args),*]) }
         }
         Expr::Lit(ExprLit { lit: v, .. }) => {
             let v = match v {

@@ -1,27 +1,27 @@
 use crate::{ColumnRef, Expression, OpPrecedence, SqlWriter, Value};
 
-pub enum Operand {
+pub enum Operand<'a> {
     LitBool(bool),
     LitFloat(f64),
-    LitIdent(&'static str),
-    LitField(&'static [&'static str]),
+    LitIdent(&'a str),
+    LitField(&'a [&'static str]),
     LitInt(i128),
     LitStr(&'static str),
-    LitArray(&'static [Operand]),
+    LitArray(&'a [Operand<'a>]),
     Null,
     Column(ColumnRef),
     Type(Value),
     Variable(Value),
-    Call(&'static [Operand]),
+    Call(&'static str, &'a [&'a dyn Expression]),
 }
 
-impl OpPrecedence for Operand {
+impl OpPrecedence for Operand<'_> {
     fn precedence(&self, _writer: &dyn SqlWriter) -> i32 {
         1_000_000_000
     }
 }
 
-impl Expression for Operand {
+impl Expression for Operand<'_> {
     fn sql_write<'a>(
         &self,
         writer: &dyn SqlWriter,
@@ -32,7 +32,7 @@ impl Expression for Operand {
     }
 }
 
-impl PartialEq for Operand {
+impl PartialEq for Operand<'_> {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::LitBool(l), Self::LitBool(r)) => l == r,

@@ -57,7 +57,7 @@ mod tests {
         assert_eq!(
             WRITER.sql_create_table::<SomeSimpleEntity>(&mut query, false),
             indoc! {"
-                CREATE TABLE some_entity (
+                CREATE TABLE simple_entity (
                 a TINYINT NOT NULL,
                 b VARCHAR
                 )
@@ -71,7 +71,7 @@ mod tests {
         let mut query = String::new();
         assert_eq!(
             WRITER.sql_drop_table::<SomeSimpleEntity>(&mut query, true),
-            "DROP TABLE IF EXISTS some_entity"
+            "DROP TABLE IF EXISTS simple_entity"
         );
     }
 
@@ -87,7 +87,7 @@ mod tests {
             ),
             indoc! {"
                 SELECT a, b
-                FROM some_entity
+                FROM simple_entity
                 WHERE a > 100
                 LIMIT 1000
             "}
@@ -101,7 +101,7 @@ mod tests {
         assert_eq!(
             WRITER.sql_insert::<SomeSimpleEntity>(&mut query, &SomeSimpleEntity::make_some(), true),
             indoc! {"
-                INSERT OR REPLACE INTO some_entity (a, b)
+                INSERT OR REPLACE INTO simple_entity (a, b)
                 VALUES (40, 'hello')
             "}
             .trim()
@@ -117,7 +117,7 @@ mod tests {
                 &expr!(SomeSimpleEntity::b != "hello")
             ),
             indoc! {"
-                DELETE FROM some_entity
+                DELETE FROM simple_entity
                 WHERE b != 'hello'
             "}
             .trim()

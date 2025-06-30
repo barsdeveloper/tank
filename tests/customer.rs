@@ -3,7 +3,7 @@
 #[cfg(test)]
 mod tests {
     use indoc::indoc;
-    use std::{any::Any, borrow::Cow};
+    use std::borrow::Cow;
     use tank::{
         expr, Entity, Expression, GenericSqlWriter, Operand, PrimaryKeyType, SqlWriter, TableRef,
         Value,
@@ -17,12 +17,16 @@ mod tests {
         _preferences: Option<Vec<String>>,
         _values: Box<Option<Vec<f32>>>,
         _signup_duration: std::time::Duration,
+        /// List of all the full cart products
+        /// It's a list of lists of ids
+        ///
+        /// Can also be empty
         _recent_purchases: Option<Vec<Option<Box<Vec<i64>>>>>,
     }
     const WRITER: GenericSqlWriter = GenericSqlWriter {};
 
     #[tokio::test]
-    async fn test_simple_entity() {
+    async fn test_customer() {
         assert!(matches!(
             Customer::table_ref(),
             TableRef {
@@ -36,6 +40,21 @@ mod tests {
 
         let columns = Customer::columns_def();
         assert_eq!(columns.len(), 5);
+        assert_eq!(columns[0].reference.name, "transaction_ids");
+        assert_eq!(columns[1].reference.name, "settings");
+        assert_eq!(columns[2].reference.name, "values");
+        assert_eq!(columns[3].reference.name, "signup_duration");
+        assert_eq!(columns[4].reference.name, "recent_purchases");
+        assert_eq!(columns[0].reference.table, "customers");
+        assert_eq!(columns[1].reference.table, "customers");
+        assert_eq!(columns[2].reference.table, "customers");
+        assert_eq!(columns[3].reference.table, "customers");
+        assert_eq!(columns[4].reference.table, "customers");
+        assert_eq!(columns[0].reference.schema, "");
+        assert_eq!(columns[1].reference.schema, "");
+        assert_eq!(columns[2].reference.schema, "");
+        assert_eq!(columns[3].reference.schema, "");
+        assert_eq!(columns[4].reference.schema, "");
         assert!(matches!(
             columns[0].value,
             Value::List(_, box Value::UInt64(..))
@@ -59,22 +78,19 @@ mod tests {
         assert_eq!(columns[3].nullable, false);
         assert_eq!(columns[4].nullable, true);
         assert!(matches!(columns[0].default, None));
-        let xx = &columns[1].default.as_deref().unwrap() as &dyn Any;
-        let xx = xx.downcast_ref::<Operand>();
+        let column1_default =
+            columns[1].default.as_deref().unwrap() as *const dyn Expression as *const Operand;
         assert!(matches!(
-            xx,
-            Some(Operand::LitArray(&[
-                Operand::LitStr("discount"),
-                Operand::LitStr("newsletter"),
-            ]))
+            unsafe { &*column1_default },
+            Operand::LitArray(&[Operand::LitStr("discount"), Operand::LitStr("newsletter"),])
         ));
         assert!(matches!(columns[2].default, None));
         assert!(matches!(columns[3].default, None));
         assert!(matches!(columns[4].default, None));
         assert_eq!(columns[0].primary_key, PrimaryKeyType::None);
-        assert_eq!(columns[1].primary_key, PrimaryKeyType::PartOfPrimaryKey);
+        assert_eq!(columns[1].primary_key, PrimaryKeyType::None);
         assert_eq!(columns[2].primary_key, PrimaryKeyType::None);
-        assert_eq!(columns[3].primary_key, PrimaryKeyType::PartOfPrimaryKey);
+        assert_eq!(columns[3].primary_key, PrimaryKeyType::None);
         assert_eq!(columns[4].primary_key, PrimaryKeyType::None);
         assert_eq!(columns[0].unique, false);
         assert_eq!(columns[1].unique, false);
@@ -91,20 +107,34 @@ mod tests {
         assert_eq!(columns[2].passive, false);
         assert_eq!(columns[3].passive, false);
         assert_eq!(columns[4].passive, false);
+        assert_eq!(columns[0].comment, "");
+        assert_eq!(columns[1].comment, "");
+        assert_eq!(columns[2].comment, "");
+        assert_eq!(columns[3].comment, "");
+        assert_eq!(
+            columns[4].comment,
+            indoc! {"
+                List of all the full cart products
+                It's a list of lists of ids
+
+                Can also be empty
+            "}
+            .trim()
+        );
     }
 
     #[test]
-    fn test_simple_entity_create_table() {
+    fn test_customer_create_table() {
         let mut query = String::new();
         assert_eq!(
             WRITER.sql_create_table::<Customer>(&mut query, false),
             indoc! {"
                 CREATE TABLE customers (
                 transaction_ids UBIGINT[] NOT NULL,
-                preference VARCHAR[] DEFAULT DEFAULT ['discount','newsletter'],
-                lifetime_value FLOAT[],
+                settings VARCHAR[] DEFAULT ['discount', 'newsletter'],
+                values FLOAT[],
                 signup_duration INTERVAL NOT NULL,
-                recent_purchases BIGINT[]
+                recent_purchases BIGINT[][] COMMENT 'List of all the full cart products\nIt''s a list of lists of ids\n\nCan also be empty'
                 )
             "}
             .trim()
@@ -112,7 +142,7 @@ mod tests {
     }
 
     #[test]
-    fn test_simple_entity_drop_table() {
+    fn test_customer_drop_table() {
         let mut query = String::new();
         assert_eq!(
             WRITER.sql_drop_table::<Customer>(&mut query, false),
@@ -121,19 +151,13 @@ mod tests {
     }
 
     #[test]
-    fn test_simple_entity_select() {
+    fn test_customer_select() {
         let mut query = String::new();
         assert_eq!(
             WRITER.sql_select::<Customer, _, _>(
                 &mut query,
                 Customer::table_ref(),
-                ::tank::BinaryOp {
-                    op: ::tank::BinaryOpType::Greater,
-                    lhs: ::tank::Operand::Call(&[::tank::Operand::Column(
-                        Customer::_values.into()
-                    )]),
-                    rhs: ::tank::Operand::LitInt(10),
-                },
+                &expr!(len(Customer::_values) > 10),
                 Some(10),
             ),
             indoc! {"
@@ -147,12 +171,12 @@ mod tests {
     }
 
     #[test]
-    fn test_simple_entity_delete() {
+    fn test_customer_delete() {
         let mut query = String::new();
         assert_eq!(
-            WRITER.sql_delete::<Customer, _>(&mut query, &expr!()),
+            WRITER.sql_delete::<Customer, _>(&mut query, &expr!(true)),
             indoc! {"
-                DELETE FROM settings
+                DELETE FROM customers
                 WHERE true
             "}
             .trim()

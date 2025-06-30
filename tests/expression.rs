@@ -15,14 +15,17 @@ mod tests {
     const WRITER: Writer = Writer {};
 
     #[test]
-    fn simple() {
+    fn test_simple_expressions() {
         let expr = expr!();
-        assert!(matches!(expr, Operand::LitBool(false)));
         let mut out = String::new();
         expr.sql_write(&WRITER, &mut out, false);
         assert_eq!(out, "false");
+        assert!(matches!(expr, Operand::LitBool(false)));
 
         let expr = expr!(1 + 2);
+        let mut out = String::new();
+        expr.sql_write(&WRITER, &mut out, false);
+        assert_eq!(out, "1 + 2");
         assert!(matches!(
             expr,
             BinaryOp {
@@ -31,11 +34,11 @@ mod tests {
                 rhs: Operand::LitInt(2),
             }
         ));
-        let mut out = String::new();
-        expr.sql_write(&WRITER, &mut out, false);
-        assert_eq!(out, "1 + 2");
 
         let expr = expr!(5 * 1.2);
+        let mut out = String::new();
+        expr.sql_write(&WRITER, &mut out, false);
+        assert_eq!(out, "5 * 1.2");
         assert!(matches!(
             expr,
             BinaryOp {
@@ -44,11 +47,11 @@ mod tests {
                 rhs: Operand::LitFloat(1.2),
             }
         ));
-        let mut out = String::new();
-        expr.sql_write(&WRITER, &mut out, false);
-        assert_eq!(out, "5 * 1.2");
 
         let expr = expr!(true && false);
+        let mut out = String::new();
+        expr.sql_write(&WRITER, &mut out, false);
+        assert_eq!(out, "true AND false");
         assert!(matches!(
             expr,
             BinaryOp {
@@ -57,11 +60,11 @@ mod tests {
                 rhs: Operand::LitBool(false),
             }
         ));
-        let mut out = String::new();
-        expr.sql_write(&WRITER, &mut out, false);
-        assert_eq!(out, "true AND false");
 
         let expr = expr!(45 | -90);
+        let mut out = String::new();
+        expr.sql_write(&WRITER, &mut out, false);
+        assert_eq!(out, "45 | -90");
         assert!(matches!(
             expr,
             BinaryOp {
@@ -73,11 +76,11 @@ mod tests {
                 },
             }
         ));
-        let mut out = String::new();
-        expr.sql_write(&WRITER, &mut out, false);
-        assert_eq!(out, "45 | -90");
 
         let expr = expr!(true as i32);
+        let mut out = String::new();
+        expr.sql_write(&WRITER, &mut out, false);
+        assert_eq!(out, "CAST(true AS INTEGER)");
         assert!(matches!(
             expr,
             BinaryOp {
@@ -86,11 +89,11 @@ mod tests {
                 rhs: Operand::Type(Value::Int32(..)),
             }
         ));
-        let mut out = String::new();
-        expr.sql_write(&WRITER, &mut out, false);
-        assert_eq!(out, "CAST(true AS INTEGER)");
 
         let expr = expr!("1.5" as f64);
+        let mut out = String::new();
+        expr.sql_write(&WRITER, &mut out, false);
+        assert_eq!(out, "CAST('1.5' AS DOUBLE)");
         assert!(matches!(
             expr,
             BinaryOp {
@@ -99,11 +102,11 @@ mod tests {
                 rhs: Operand::Type(Value::Float64(..)),
             }
         ));
-        let mut out = String::new();
-        expr.sql_write(&WRITER, &mut out, false);
-        assert_eq!(out, "CAST('1.5' AS DOUBLE)");
 
         let expr = expr!(["a", "b", "c"]);
+        let mut out = String::new();
+        expr.sql_write(&WRITER, &mut out, false);
+        assert_eq!(out, "['a', 'b', 'c']");
         assert!(matches!(
             expr,
             Operand::LitArray([
@@ -112,11 +115,11 @@ mod tests {
                 Operand::LitStr("c"),
             ])
         ));
-        let mut out = String::new();
-        expr.sql_write(&WRITER, &mut out, false);
-        assert_eq!(out, "['a', 'b', 'c']");
 
         let expr = expr!([11, 22, 33][1]);
+        let mut out = String::new();
+        expr.sql_write(&WRITER, &mut out, false);
+        assert_eq!(out, "[11, 22, 33][1]");
         assert!(matches!(
             expr,
             BinaryOp {
@@ -129,11 +132,11 @@ mod tests {
                 rhs: Operand::LitInt(1),
             }
         ));
-        let mut out = String::new();
-        expr.sql_write(&WRITER, &mut out, false);
-        assert_eq!(out, "[11, 22, 33][1]");
 
         let expr = expr!("hello" == "hell_" as LIKE);
+        let mut out = String::new();
+        expr.sql_write(&WRITER, &mut out, false);
+        assert_eq!(out, "'hello' LIKE 'hell_'");
         assert!(matches!(
             expr,
             BinaryOp {
@@ -142,11 +145,11 @@ mod tests {
                 rhs: Operand::LitStr("hell_"),
             }
         ));
-        let mut out = String::new();
-        expr.sql_write(&WRITER, &mut out, false);
-        assert_eq!(out, "'hello' LIKE 'hell_'");
 
         let expr = expr!("abc" != "A%" as LIKE);
+        let mut out = String::new();
+        expr.sql_write(&WRITER, &mut out, false);
+        assert_eq!(out, "'abc' NOT LIKE 'A%'");
         assert!(matches!(
             expr,
             BinaryOp {
@@ -155,11 +158,11 @@ mod tests {
                 rhs: Operand::LitStr("A%"),
             }
         ));
-        let mut out = String::new();
-        expr.sql_write(&WRITER, &mut out, false);
-        assert_eq!(out, "'abc' NOT LIKE 'A%'");
 
         let expr = expr!("log.txt" != "src/**/log.{txt,csv}" as GLOB);
+        let mut out = String::new();
+        expr.sql_write(&WRITER, &mut out, false);
+        assert_eq!(out, "'log.txt' NOT GLOB 'src/**/log.{txt,csv}'");
         assert!(matches!(
             expr,
             BinaryOp {
@@ -168,11 +171,11 @@ mod tests {
                 rhs: Operand::LitStr("src/**/log.{txt,csv}"),
             }
         ));
-        let mut out = String::new();
-        expr.sql_write(&WRITER, &mut out, false);
-        assert_eq!(out, "'log.txt' NOT GLOB 'src/**/log.{txt,csv}'");
 
         let expr = expr!(true as i32);
+        let mut out = String::new();
+        expr.sql_write(&WRITER, &mut out, false);
+        assert_eq!(out, "CAST(true AS INTEGER)");
         assert!(matches!(
             expr,
             BinaryOp {
@@ -181,11 +184,11 @@ mod tests {
                 rhs: Operand::Type(Value::Int32(..))
             }
         ));
-        let mut out = String::new();
-        expr.sql_write(&WRITER, &mut out, false);
-        assert_eq!(out, "CAST(true AS INTEGER)");
 
         let expr = expr!("value" != NULL);
+        let mut out = String::new();
+        expr.sql_write(&WRITER, &mut out, false);
+        assert_eq!(out, "'value' IS NOT NULL");
         assert!(matches!(
             expr,
             BinaryOp {
@@ -194,14 +197,14 @@ mod tests {
                 rhs: Operand::Null,
             }
         ));
-        let mut out = String::new();
-        expr.sql_write(&WRITER, &mut out, false);
-        assert_eq!(out, "'value' IS NOT NULL");
     }
 
     #[test]
-    fn complex() {
+    fn test_complex_expressions() {
         let expr = expr!(90.5 - -0.54 * 2 < 7 / 2);
+        let mut out = String::new();
+        expr.sql_write(&WRITER, &mut out, false);
+        assert_eq!(out, "90.5 - -0.54 * 2 < 7 / 2");
         assert!(matches!(
             expr,
             BinaryOp {
@@ -225,11 +228,11 @@ mod tests {
                 },
             }
         ));
-        let mut out = String::new();
-        expr.sql_write(&WRITER, &mut out, false);
-        assert_eq!(out, "90.5 - -0.54 * 2 < 7 / 2");
 
         let expr = expr!((2 + 3) * (4 - 1) >> 1 & (8 | 3));
+        let mut out = String::new();
+        expr.sql_write(&WRITER, &mut out, false);
+        assert_eq!(out, "(2 + 3) * (4 - 1) >> 1 & (8 | 3)");
         assert!(matches!(
             expr,
             BinaryOp {
@@ -258,11 +261,11 @@ mod tests {
                 },
             }
         ));
-        let mut out = String::new();
-        expr.sql_write(&WRITER, &mut out, false);
-        assert_eq!(out, "(2 + 3) * (4 - 1) >> 1 & (8 | 3)");
 
         let expr = expr!(-(-PI) + 2 * (5 % (2 + 1)) == 7 && !(4 < 2));
+        let mut out = String::new();
+        expr.sql_write(&WRITER, &mut out, false);
+        assert_eq!(out, "-(-PI) + 2 * (5 % (2 + 1)) = 7 AND NOT 4 < 2");
         assert!(matches!(
             expr,
             BinaryOp {
@@ -304,16 +307,16 @@ mod tests {
                 },
             }
         ));
-        let mut out = String::new();
-        expr.sql_write(&WRITER, &mut out, false);
-        assert_eq!(out, "-(-PI) + 2 * (5 % (2 + 1)) = 7 AND NOT 4 < 2");
     }
 
     #[test]
-    fn variables() {
+    fn test_variables_expressions() {
         let one = 1;
         let three = 3;
         let expr = expr!(#one + 2 == #three);
+        let mut out = String::new();
+        expr.sql_write(&WRITER, &mut out, false);
+        assert_eq!(out, "1 + 2 = 3");
         assert!(matches!(
             expr,
             BinaryOp {
@@ -330,6 +333,9 @@ mod tests {
         let vec = vec![-1, -2, -3, -4];
         let index = 2;
         let expr = expr!(#vec[#index + 1] + 60);
+        let mut out = String::new();
+        expr.sql_write(&WRITER, &mut out, false);
+        assert_eq!(out, "[-1,-2,-3,-4][2 + 1] + 60");
         assert!(matches!(
                 expr,
                 BinaryOp {
@@ -354,7 +360,7 @@ mod tests {
     }
 
     #[test]
-    fn columns() {
+    fn test_columns_expressions() {
         #[derive(Entity)]
         #[tank(name = "the_table")]
         struct MyEntity {

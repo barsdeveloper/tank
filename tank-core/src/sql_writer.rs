@@ -124,7 +124,11 @@ pub trait SqlWriter {
             Value::Float32(Some(v), ..) => drop(write!(out, "{}", v)),
             Value::Float64(Some(v), ..) => drop(write!(out, "{}", v)),
             Value::Decimal(Some(v), ..) => drop(write!(out, "{}", v)),
-            Value::Varchar(Some(v), ..) => drop(write!(out, "'{}'", v)),
+            Value::Varchar(Some(v), ..) => drop(write!(
+                out,
+                "'{}'",
+                v.replace('\'', self.sql_escaped_apostrophe())
+            )),
             Value::Blob(Some(v), ..) => {
                 out.push('\'');
                 v.iter().for_each(|b| {
@@ -234,6 +238,10 @@ pub trait SqlWriter {
         out
     }
 
+    fn sql_escaped_apostrophe(&self) -> &'static str {
+        "''"
+    }
+
     fn sql_table_ref<'a>(&self, out: &'a mut String, value: &TableRef) -> &'a mut String {
         out.push_str(&value.full_name());
         out
@@ -335,8 +343,19 @@ pub trait SqlWriter {
                 self.sql_value(out, v);
                 Ok(())
             }
-            Operand::Function(_v) => {
-                todo!()
+            Operand::Call(f, args) => {
+                out.push_str(f);
+                out.push('(');
+                separated_by(
+                    out,
+                    args.iter(),
+                    |out, v| {
+                        v.sql_write(self.as_dyn(), out, qualify_columns);
+                    },
+                    ",",
+                );
+                out.push(')');
+                Ok(())
             }
         };
         out
@@ -366,46 +385,46 @@ pub trait SqlWriter {
         value: &BinaryOp<&dyn Expression, &dyn Expression>,
         qualify_columns: bool,
     ) -> &'a mut String {
-        let (prefix, infix, suffix) = match value.op {
-            BinaryOpType::Indexing => ("", "[", "]"),
-            BinaryOpType::Cast => ("CAST(", " AS ", ")"),
-            BinaryOpType::Multiplication => ("", " * ", ""),
-            BinaryOpType::Division => ("", " / ", ""),
-            BinaryOpType::Remainder => ("", " % ", ""),
-            BinaryOpType::Addition => ("", " + ", ""),
-            BinaryOpType::Subtraction => ("", " - ", ""),
-            BinaryOpType::ShiftLeft => ("", " << ", ""),
-            BinaryOpType::ShiftRight => ("", " >> ", ""),
-            BinaryOpType::BitwiseAnd => ("", " & ", ""),
-            BinaryOpType::BitwiseOr => ("", " | ", ""),
-            BinaryOpType::Is => ("", " Is ", ""),
-            BinaryOpType::IsNot => ("", " IS NOT ", ""),
-            BinaryOpType::Like => ("", " LIKE ", ""),
-            BinaryOpType::NotLike => ("", " NOT LIKE ", ""),
-            BinaryOpType::Regexp => ("", " REGEXP ", ""),
-            BinaryOpType::NotRegexpr => ("", " NOT REGEXP ", ""),
-            BinaryOpType::Glob => ("", " GLOB ", ""),
-            BinaryOpType::NotGlob => ("", " NOT GLOB ", ""),
-            BinaryOpType::Equal => ("", " = ", ""),
-            BinaryOpType::NotEqual => ("", " != ", ""),
-            BinaryOpType::Less => ("", " < ", ""),
-            BinaryOpType::LessEqual => ("", " <= ", ""),
-            BinaryOpType::Greater => ("", " > ", ""),
-            BinaryOpType::GreaterEqual => ("", " >= ", ""),
-            BinaryOpType::And => ("", " AND ", ""),
-            BinaryOpType::Or => ("", " OR ", ""),
+        let (prefix, infix, suffix, lhs_parenthesized, rhs_parenthesized) = match value.op {
+            BinaryOpType::Indexing => ("", "[", "]", false, true),
+            BinaryOpType::Cast => ("CAST(", " AS ", ")", true, true),
+            BinaryOpType::Multiplication => ("", " * ", "", false, false),
+            BinaryOpType::Division => ("", " / ", "", false, false),
+            BinaryOpType::Remainder => ("", " % ", "", false, false),
+            BinaryOpType::Addition => ("", " + ", "", false, false),
+            BinaryOpType::Subtraction => ("", " - ", "", false, false),
+            BinaryOpType::ShiftLeft => ("", " << ", "", false, false),
+            BinaryOpType::ShiftRight => ("", " >> ", "", false, false),
+            BinaryOpType::BitwiseAnd => ("", " & ", "", false, false),
+            BinaryOpType::BitwiseOr => ("", " | ", "", false, false),
+            BinaryOpType::Is => ("", " Is ", "", false, false),
+            BinaryOpType::IsNot => ("", " IS NOT ", "", false, false),
+            BinaryOpType::Like => ("", " LIKE ", "", false, false),
+            BinaryOpType::NotLike => ("", " NOT LIKE ", "", false, false),
+            BinaryOpType::Regexp => ("", " REGEXP ", "", false, false),
+            BinaryOpType::NotRegexpr => ("", " NOT REGEXP ", "", false, false),
+            BinaryOpType::Glob => ("", " GLOB ", "", false, false),
+            BinaryOpType::NotGlob => ("", " NOT GLOB ", "", false, false),
+            BinaryOpType::Equal => ("", " = ", "", false, false),
+            BinaryOpType::NotEqual => ("", " != ", "", false, false),
+            BinaryOpType::Less => ("", " < ", "", false, false),
+            BinaryOpType::LessEqual => ("", " <= ", "", false, false),
+            BinaryOpType::Greater => ("", " > ", "", false, false),
+            BinaryOpType::GreaterEqual => ("", " >= ", "", false, false),
+            BinaryOpType::And => ("", " AND ", "", false, false),
+            BinaryOpType::Or => ("", " OR ", "", false, false),
         };
         let precedence = self.expression_binary_op_precedence(&value.op);
         out.push_str(prefix);
         sql_possibly_parenthesized!(
             out,
-            value.lhs.precedence(self.as_dyn()) < precedence,
+            !lhs_parenthesized && value.lhs.precedence(self.as_dyn()) < precedence,
             value.lhs.sql_write(self.as_dyn(), out, qualify_columns)
         );
         out.push_str(infix);
         sql_possibly_parenthesized!(
             out,
-            value.rhs.precedence(self.as_dyn()) <= precedence,
+            !rhs_parenthesized && value.rhs.precedence(self.as_dyn()) <= precedence,
             value.rhs.sql_write(self.as_dyn(), out, qualify_columns)
         );
         out.push_str(suffix);
@@ -494,26 +513,27 @@ pub trait SqlWriter {
         } else {
             self.sql_type(out, &column.value);
         }
+        if !column.nullable && column.primary_key == PrimaryKeyType::None {
+            out.push_str(" NOT NULL");
+        }
         if let Some(default) = &column.default {
             out.push_str(" DEFAULT ");
             default.sql_write(self.as_dyn(), out, true);
         }
-        if column.primary_key != PrimaryKeyType::None {
-            if column.primary_key == PrimaryKeyType::PrimaryKey {
-                // Composite primary key will be printed elsewhere
-                out.push_str(" PRIMARY KEY");
-            }
-        } else {
-            if !column.nullable {
-                out.push_str(" NOT NULL");
-            }
-            if column.unique {
-                out.push_str(" UNIQUE");
-            }
-        }
         if column.auto_increment {
             out.push(' ');
             self.sql_autoincrement_fragment(out);
+        }
+        if column.primary_key == PrimaryKeyType::PrimaryKey {
+            // Composite primary key will be printed elsewhere
+            out.push_str(" PRIMARY KEY");
+        }
+        if column.unique && column.primary_key != PrimaryKeyType::PrimaryKey {
+            out.push_str(" UNIQUE");
+        }
+        if !column.comment.is_empty() {
+            out.push_str(" COMMENT ");
+            self.sql_value(out, &Value::Varchar(Some(column.comment.to_string())));
         }
         out
     }
