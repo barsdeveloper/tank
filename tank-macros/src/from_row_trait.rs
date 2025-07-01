@@ -1,7 +1,7 @@
 use crate::decode_column;
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{spanned::Spanned, Ident, ItemStruct, Type};
+use syn::{Ident, ItemStruct, Type, spanned::Spanned};
 
 pub(crate) fn from_row_trait(item: &ItemStruct) -> (Ident, TokenStream) {
     let struct_name = &item.ident;
@@ -11,7 +11,7 @@ pub(crate) fn from_row_trait(item: &ItemStruct) -> (Ident, TokenStream) {
         (
             f.ident.clone().expect("Field identifier is expected"),
             f.ty.clone(),
-            decode_column(f, item),
+            decode_column(f),
         )
     });
     let fields_holder_declarations = fields.clone().map(|(ident, ty, _)| {
@@ -73,8 +73,7 @@ pub(crate) fn from_row_trait(item: &ItemStruct) -> (Ident, TokenStream) {
                 // Called when T has Default Trait
                 fn from_row(row: ::tank::RowLabeled) -> ::tank::Result<#struct_name> {
                     let mut result = T::default().into();
-                    // TODO: Remove into_vec when consuming iterator will be possible on boxed slices
-                    for (__n__, __v__) in ::std::iter::zip(row.labels.iter(), row.values.into_vec().into_iter())
+                    for (__n__, __v__) in ::std::iter::zip(row.labels.iter(), row.values.into_iter())
                     {
                         #field_assignment_default
                     }
@@ -85,8 +84,7 @@ pub(crate) fn from_row_trait(item: &ItemStruct) -> (Ident, TokenStream) {
                 // Called when T doesn't have default trait
                 fn from_row(row: ::tank::RowLabeled) -> ::tank::Result<#struct_name> {
                     #(#fields_holder_declarations)*
-                    // TODO: Remove into_vec when consuming iterator will be possible on boxed slices
-                    for (__n__, __v__) in ::std::iter::zip(row.labels.iter(), row.values.into_vec().into_iter())
+                    for (__n__, __v__) in ::std::iter::zip(row.labels.iter(), row.values.into_iter())
                     {
                         #field_assignment_holder
                     }

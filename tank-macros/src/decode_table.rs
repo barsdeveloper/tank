@@ -6,7 +6,7 @@ use convert_case::{Case, Casing};
 use proc_macro2::Span;
 use quote::ToTokens;
 use syn::spanned::Spanned;
-use syn::{parse::ParseBuffer, Error, Expr, ExprLit, ExprPath, ItemStruct, Lit, LitStr, Result};
+use syn::{Error, Expr, ExprLit, ExprPath, ItemStruct, Lit, LitStr, Result, parse::ParseBuffer};
 use tank_core::matches_path;
 
 pub(crate) struct TableMetadata {
@@ -71,11 +71,7 @@ fn decode_set_columns<'a, I: Iterator<Item = &'a ColumnMetadata> + Clone>(
 }
 
 pub fn decode_table(item: ItemStruct) -> TableMetadata {
-    let columns: Vec<_> = item
-        .fields
-        .iter()
-        .map(|f| decode_column(f, &item))
-        .collect();
+    let columns: Vec<_> = item.fields.iter().map(|f| decode_column(f)).collect();
     let mut name = item.ident.to_string().to_case(Case::Snake);
     let mut schema = String::new();
     let mut primary_key = vec![];

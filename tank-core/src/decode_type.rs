@@ -1,0 +1,182 @@
+use crate::{CheckPassive, TypeDecoded, Value, matches_path};
+use proc_macro2::TokenStream;
+use quote::{ToTokens, quote};
+use syn::{
+    Expr, ExprLit, GenericArgument, Lit, PathArguments, Type, TypeArray, TypePath, TypeSlice,
+};
+
+pub fn decode_type(ty: &Type) -> (TypeDecoded, Option<CheckPassive>) {
+    let mut nullable = false;
+    let mut filter_passive = None;
+    let data_type = 'data_type: {
+        if let Type::Path(TypePath { path, .. }) = ty {
+            let ident = path.get_ident();
+            if let Some(ident) = ident {
+                if ident == "bool" {
+                    break 'data_type Value::Boolean(None);
+                } else if ident == "i8" {
+                    break 'data_type Value::Int8(None);
+                } else if ident == "i16" {
+                    break 'data_type Value::Int16(None);
+                } else if ident == "i32" {
+                    break 'data_type Value::Int32(None);
+                } else if ident == "i64" {
+                    break 'data_type Value::Int64(None);
+                } else if ident == "i128" {
+                    break 'data_type Value::Int128(None);
+                } else if ident == "u8" {
+                    break 'data_type Value::UInt8(None);
+                } else if ident == "u16" {
+                    break 'data_type Value::UInt16(None);
+                } else if ident == "u32" {
+                    break 'data_type Value::UInt32(None);
+                } else if ident == "u64" {
+                    break 'data_type Value::UInt64(None);
+                } else if ident == "u128" {
+                    break 'data_type Value::UInt128(None);
+                } else if ident == "f32" {
+                    break 'data_type Value::Float32(None);
+                } else if ident == "f64" {
+                    break 'data_type Value::Float64(None);
+                }
+            }
+            if matches_path(path, &["std", "string", "String"]) {
+                break 'data_type Value::Varchar(None);
+            } else if matches_path(path, &["rust_decimal", "Decimal"]) {
+                break 'data_type Value::Decimal(None, 0, 0);
+            } else if matches_path(path, &["time", "Time"]) {
+                break 'data_type Value::Time(None);
+            } else if matches_path(path, &["time", "Date"]) {
+                break 'data_type Value::Date(None);
+            } else if matches_path(path, &["time", "PrimitiveDateTime"]) {
+                break 'data_type Value::Timestamp(None);
+            } else if matches_path(path, &["std", "time", "Duration"]) {
+                break 'data_type Value::Interval(None);
+            } else if matches_path(path, &["uuid", "Uuid"]) {
+                break 'data_type Value::Uuid(None);
+            } else if matches_path(path, &["uuid", "Uuid"]) {
+                break 'data_type Value::Uuid(None);
+            } else {
+                let is_passive = matches_path(path, &["tank", "Passive"]);
+                let is_option = matches_path(path, &["std", "option", "Option"]);
+                let is_list = matches_path(path, &["std", "vec", "Vec"]);
+                let is_map = matches_path(path, &["std", "collections", "HashMap"])
+                    || matches_path(path, &["std", "collections", "BTreeMap"]);
+                let is_wrapper = is_option
+                    || is_passive
+                    || matches_path(path, &["std", "boxed", "Box"])
+                    || matches_path(path, &["std", "sync", "Arc"]);
+                if is_wrapper || is_list || is_map {
+                    match &path
+                        .segments
+                        .last()
+                        .expect("Path must be non empty")
+                        .arguments
+                    {
+                        PathArguments::AngleBracketed(bracketed) => {
+                            if let GenericArgument::Type(first_type) = bracketed
+                                .args
+                                .first()
+                                .expect("Must have at least one generic argument")
+                            {
+                                let first_type = decode_type(&first_type);
+                                if first_type.1.is_some() {
+                                    filter_passive = first_type.1;
+                                }
+                                let first_type = first_type.0;
+                                if is_wrapper {
+                                    nullable = if is_option {
+                                        true
+                                    } else {
+                                        nullable || first_type.nullable
+                                    };
+                                    if is_passive {
+                                        filter_passive = Some(Box::new(|v: TokenStream| {
+                                            quote!(matches!(#v, ::tank::Passive::Set(..)))
+                                        }));
+                                    } else if is_wrapper && filter_passive.is_some() {
+                                        let passive = filter_passive.take();
+                                        filter_passive = Some(Box::new(move |v: TokenStream| {
+                                            passive.as_ref().expect(
+                                                "The value `filter_passive` is checked to be some",
+                                            )(
+                                                quote!(*#v)
+                                            )
+                                        }))
+                                    }
+                                    break 'data_type first_type.value;
+                                } else if is_list {
+                                    break 'data_type Value::List(None, Box::new(first_type.value));
+                                } else if is_map {
+                                    let panic_msg = &format!(
+                                        "Type `{}` must have two generic arguments at lease",
+                                        path.to_token_stream().to_string()
+                                    );
+                                    let GenericArgument::Type(second_type) =
+                                        bracketed.args.get(1).expect(panic_msg)
+                                    else {
+                                        panic!("{}", panic_msg);
+                                    };
+                                    let second_type = decode_type(second_type).0;
+                                    break 'data_type Value::Map(
+                                        None,
+                                        Box::new(first_type.value),
+                                        Box::new(second_type.value),
+                                    );
+                                }
+                            } else {
+                                panic!(
+                                    "{} must have a type as the first generic argument",
+                                    path.to_token_stream()
+                                )
+                            }
+                        }
+                        _ => panic!("{} must have a generic argument", path.to_token_stream()),
+                    }
+                }
+            }
+            panic!("Unknown type `{}`", path.to_token_stream());
+        } else if let Type::Array(TypeArray {
+            elem,
+            len:
+                Expr::Lit(ExprLit {
+                    lit: Lit::Int(len, ..),
+                    ..
+                }),
+            ..
+        }) = ty
+        {
+            break 'data_type Value::Array(
+                None,
+                Box::new(decode_type(&*elem).0.value),
+                len.base10_parse().expect(&format!(
+                    "Expected a integer literal array length in `{}`",
+                    ty.to_token_stream().to_string()
+                )),
+            );
+        } else if let Type::Slice(TypeSlice { elem, .. }) = ty {
+            let element_type = decode_type(&*elem).0;
+            if matches!(
+                element_type,
+                TypeDecoded {
+                    value: Value::UInt8(..),
+                    nullable: false,
+                    passive: false,
+                }
+            ) {
+                break 'data_type Value::Blob(None);
+            }
+            break 'data_type Value::List(None, Box::new(decode_type(&*elem).0.value));
+        } else {
+            panic!("Unexpected type `{}`", ty.to_token_stream().to_string())
+        }
+    };
+    (
+        TypeDecoded {
+            value: data_type,
+            nullable,
+            passive: filter_passive.is_some(),
+        },
+        filter_passive,
+    )
+}

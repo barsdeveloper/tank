@@ -8,7 +8,7 @@ mod encode_column_ref;
 mod from_row_trait;
 
 use crate::{
-    decode_table::{decode_table, TableMetadata},
+    decode_table::{TableMetadata, decode_table},
     encode_column_def::encode_column_def,
     from_row_trait::from_row_trait,
 };
@@ -21,9 +21,9 @@ use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use std::iter::zip;
 use syn::{
-    parse_macro_input, punctuated::Punctuated, token::AndAnd, Expr, Ident, Index, ItemStruct,
+    Expr, Ident, Index, ItemStruct, parse_macro_input, punctuated::Punctuated, token::AndAnd,
 };
-use tank_core::{flag_evaluated, PrimaryKeyType};
+use tank_core::{PrimaryKeyType, flag_evaluated};
 
 #[proc_macro_derive(Entity, attributes(tank))]
 pub fn derive_entity(input: TokenStream) -> TokenStream {
@@ -35,7 +35,7 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
     let metadata_and_filter  =  fields
         .clone()
         .map(|f| {
-            let mut metadata = decode_column(&f, &table.item);
+            let mut metadata = decode_column(&f);
             if metadata.primary_key == PrimaryKeyType::PrimaryKey && !table.primary_key.is_empty() {
                 panic!(
                     "Column `{}` cannot be declared as a primary key while the table also specifies one",
@@ -111,7 +111,7 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
         .collect::<TokenStream2>();
     let primary_key_condition_expression = primary_key_condition
         .clone()
-        .map(|(field, _i, pk)| quote!(#ident::#field == ##pk))
+        .map(|(field, _i, pk)| quote!(#ident::#field == # #pk))
         .collect::<Punctuated<_, AndAnd>>();
     quote! {
         #from_row

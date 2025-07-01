@@ -5,8 +5,8 @@ mod tests {
     use indoc::indoc;
     use std::borrow::Cow;
     use tank::{
-        expr, Entity, Expression, GenericSqlWriter, Operand, PrimaryKeyType, SqlWriter, TableRef,
-        Value,
+        Entity, Expression, GenericSqlWriter, Operand, PrimaryKeyType, SqlWriter, TableRef, Value,
+        expr,
     };
 
     #[derive(Entity)]
@@ -82,7 +82,7 @@ mod tests {
             columns[1].default.as_deref().unwrap() as *const dyn Expression as *const Operand;
         assert!(matches!(
             unsafe { &*column1_default },
-            Operand::LitArray(&[Operand::LitStr("discount"), Operand::LitStr("newsletter"),])
+            Operand::LitArray([Operand::LitStr("discount"), Operand::LitStr("newsletter"),])
         ));
         assert!(matches!(columns[2].default, None));
         assert!(matches!(columns[3].default, None));

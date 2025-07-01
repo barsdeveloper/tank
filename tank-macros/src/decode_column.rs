@@ -2,8 +2,8 @@ use crate::expr;
 use proc_macro2::{TokenStream, TokenTree};
 use quote::ToTokens;
 use std::fmt::Debug;
-use syn::{parse::ParseBuffer, Expr, ExprLit, Field, Ident, ItemStruct, Lit, LitStr, Type};
-use tank_core::{decode_type, CheckPassive, PrimaryKeyType, TypeDecoded, Value};
+use syn::{Expr, ExprLit, Field, Ident, Lit, LitStr, Type, parse::ParseBuffer};
+use tank_core::{CheckPassive, PrimaryKeyType, TypeDecoded, Value, decode_type};
 
 pub(crate) struct ColumnMetadata {
     pub(crate) ident: Ident,
@@ -41,7 +41,7 @@ impl Debug for ColumnMetadata {
     }
 }
 
-pub fn decode_column(field: &Field, item: &ItemStruct) -> ColumnMetadata {
+pub fn decode_column(field: &Field) -> ColumnMetadata {
     let (
         TypeDecoded {
             value,

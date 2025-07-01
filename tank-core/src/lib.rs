@@ -2,6 +2,7 @@
 mod column;
 mod connection;
 mod data_set;
+mod decode_type;
 mod driver;
 mod entity;
 mod executor;
@@ -16,9 +17,11 @@ mod table_ref;
 mod util;
 mod value;
 
+pub use ::anyhow::Context;
 pub use column::*;
 pub use connection::*;
 pub use data_set::*;
+pub use decode_type::*;
 pub use driver::*;
 pub use entity::*;
 pub use executor::*;
@@ -32,8 +35,6 @@ pub use sql_writer::*;
 pub use table_ref::*;
 pub use util::*;
 pub use value::*;
-
-pub use ::anyhow::Context;
 pub mod stream {
     pub use ::futures::stream::*;
 }

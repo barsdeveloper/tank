@@ -1,20 +1,16 @@
-use crate::{interval::Interval, matches_path, Error, Passive, Result};
-use core::panic;
+use crate::{Error, Passive, Result, interval::Interval};
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens};
-use rust_decimal::Decimal;
+use quote::{ToTokens, quote};
+use rust_decimal::{Decimal, prelude::FromPrimitive};
 use std::{
     array::{self},
-    collections::{BTreeMap, HashMap},
+    collections::{BTreeMap, HashMap, LinkedList, VecDeque},
     hash::Hash,
     mem::discriminant,
     rc::Rc,
     sync::Arc,
 };
-use syn::{
-    Expr, ExprLit, GenericArgument, Lit, PathArguments, Type, TypeArray, TypePath, TypeSlice,
-};
-use time::{Date, OffsetDateTime, PrimitiveDateTime, Time};
+use time::{Date, OffsetDateTime, PrimitiveDateTime, Time, macros::format_description};
 use uuid::Uuid;
 
 #[derive(Default, Debug, Clone)]
@@ -238,182 +234,6 @@ pub struct TypeDecoded {
 
 pub type CheckPassive = Box<dyn Fn(TokenStream) -> TokenStream>;
 
-pub fn decode_type(ty: &Type) -> (TypeDecoded, Option<CheckPassive>) {
-    let mut nullable = false;
-    let mut filter_passive = None;
-    let data_type = 'data_type: {
-        if let Type::Path(TypePath { path, .. }) = ty {
-            let ident = path.get_ident();
-            if let Some(ident) = ident {
-                if ident == "bool" {
-                    break 'data_type Value::Boolean(None);
-                } else if ident == "i8" {
-                    break 'data_type Value::Int8(None);
-                } else if ident == "i16" {
-                    break 'data_type Value::Int16(None);
-                } else if ident == "i32" {
-                    break 'data_type Value::Int32(None);
-                } else if ident == "i64" {
-                    break 'data_type Value::Int64(None);
-                } else if ident == "i128" {
-                    break 'data_type Value::Int128(None);
-                } else if ident == "u8" {
-                    break 'data_type Value::UInt8(None);
-                } else if ident == "u16" {
-                    break 'data_type Value::UInt16(None);
-                } else if ident == "u32" {
-                    break 'data_type Value::UInt32(None);
-                } else if ident == "u64" {
-                    break 'data_type Value::UInt64(None);
-                } else if ident == "u128" {
-                    break 'data_type Value::UInt128(None);
-                } else if ident == "f32" {
-                    break 'data_type Value::Float32(None);
-                } else if ident == "f64" {
-                    break 'data_type Value::Float64(None);
-                }
-            }
-            if matches_path(path, &["std", "string", "String"]) {
-                break 'data_type Value::Varchar(None);
-            } else if matches_path(path, &["rust_decimal", "Decimal"]) {
-                break 'data_type Value::Decimal(None, 0, 0);
-            } else if matches_path(path, &["time", "Time"]) {
-                break 'data_type Value::Time(None);
-            } else if matches_path(path, &["time", "Date"]) {
-                break 'data_type Value::Date(None);
-            } else if matches_path(path, &["time", "PrimitiveDateTime"]) {
-                break 'data_type Value::Timestamp(None);
-            } else if matches_path(path, &["std", "time", "Duration"]) {
-                break 'data_type Value::Interval(None);
-            } else if matches_path(path, &["uuid", "Uuid"]) {
-                break 'data_type Value::Uuid(None);
-            } else if matches_path(path, &["uuid", "Uuid"]) {
-                break 'data_type Value::Uuid(None);
-            } else {
-                let is_passive = matches_path(path, &["tank", "Passive"]);
-                let is_option = matches_path(path, &["std", "option", "Option"]);
-                let is_list = matches_path(path, &["std", "vec", "Vec"]);
-                let is_map = matches_path(path, &["std", "collections", "HashMap"])
-                    || matches_path(path, &["std", "collections", "BTreeMap"]);
-                let is_wrapper = is_option
-                    || is_passive
-                    || matches_path(path, &["std", "boxed", "Box"])
-                    || matches_path(path, &["std", "sync", "Arc"]);
-                if is_wrapper || is_list || is_map {
-                    match &path
-                        .segments
-                        .last()
-                        .expect("Path must be non empty")
-                        .arguments
-                    {
-                        PathArguments::AngleBracketed(bracketed) => {
-                            if let GenericArgument::Type(first_type) = bracketed
-                                .args
-                                .first()
-                                .expect("Must have at least one generic argument")
-                            {
-                                let first_type = decode_type(&first_type);
-                                if first_type.1.is_some() {
-                                    filter_passive = first_type.1;
-                                }
-                                let first_type = first_type.0;
-                                if is_wrapper {
-                                    nullable = if is_option {
-                                        true
-                                    } else {
-                                        nullable || first_type.nullable
-                                    };
-                                    if is_passive {
-                                        filter_passive = Some(Box::new(|v: TokenStream| {
-                                            quote!(matches!(#v, ::tank::Passive::Set(..)))
-                                        }));
-                                    } else if is_wrapper && filter_passive.is_some() {
-                                        let passive = filter_passive.take();
-                                        filter_passive = Some(Box::new(move |v: TokenStream| {
-                                            passive.as_ref().expect(
-                                                "The value `filter_passive` is checked to be some",
-                                            )(
-                                                quote!(*#v)
-                                            )
-                                        }))
-                                    }
-                                    break 'data_type first_type.value;
-                                } else if is_list {
-                                    break 'data_type Value::List(None, Box::new(first_type.value));
-                                } else if is_map {
-                                    let panic_msg = &format!(
-                                        "Type `{}` must have two generic arguments at lease",
-                                        path.to_token_stream().to_string()
-                                    );
-                                    let GenericArgument::Type(second_type) =
-                                        bracketed.args.get(1).expect(panic_msg)
-                                    else {
-                                        panic!("{}", panic_msg);
-                                    };
-                                    let second_type = decode_type(second_type).0;
-                                    break 'data_type Value::Map(
-                                        None,
-                                        Box::new(first_type.value),
-                                        Box::new(second_type.value),
-                                    );
-                                }
-                            } else {
-                                panic!(
-                                    "{} must have a type as the first generic argument",
-                                    path.to_token_stream()
-                                )
-                            }
-                        }
-                        _ => panic!("{} must have a generic argument", path.to_token_stream()),
-                    }
-                }
-            }
-            panic!("Unknown type `{}`", path.to_token_stream());
-        } else if let Type::Array(TypeArray {
-            elem,
-            len:
-                Expr::Lit(ExprLit {
-                    lit: Lit::Int(len, ..),
-                    ..
-                }),
-            ..
-        }) = ty
-        {
-            break 'data_type Value::Array(
-                None,
-                Box::new(decode_type(&*elem).0.value),
-                len.base10_parse().expect(&format!(
-                    "Expected a integer literal array length in `{}`",
-                    ty.to_token_stream().to_string()
-                )),
-            );
-        } else if let Type::Slice(TypeSlice { elem, .. }) = ty {
-            let element_type = decode_type(&*elem).0;
-            if matches!(
-                element_type,
-                TypeDecoded {
-                    value: Value::UInt8(..),
-                    nullable: false,
-                    passive: false,
-                }
-            ) {
-                break 'data_type Value::Blob(None);
-            }
-            break 'data_type Value::List(None, Box::new(decode_type(&*elem).0.value));
-        } else {
-            panic!("Unexpected type `{}`", ty.to_token_stream().to_string())
-        }
-    };
-    (
-        TypeDecoded {
-            value: data_type,
-            nullable,
-            passive: filter_passive.is_some(),
-        },
-        filter_passive,
-    )
-}
-
 impl ToTokens for Value {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let ts = match self {
@@ -470,53 +290,169 @@ pub trait AsValue {
 }
 
 macro_rules! impl_as_value {
-    ($source:ty, $into:path $(, $args:expr)* $(,)?) => {
+    ($source:ty, $value:path => $expr:expr $(, $pat_rest:path => $expr_rest:expr)* $(,)?) => {
         impl AsValue for $source {
             fn as_empty_value() -> Value {
-                $into(None)
+                $value(None)
             }
             fn as_value(self) -> Value {
-                $into(Some(self.into(), $($args),*))
+                $value(Some(self.into()))
             }
             fn try_from_value(value: Value) -> Result<Self> {
-                if let $into(Some(v), ..) = value {
-                    Ok(v.into())
-                } else {
-                    Err(Error::msg(format!(
+                match value {
+                    $value(Some(v), ..) => $expr(v),
+                    $($pat_rest(Some(v), ..) => $expr_rest(v),)*
+                    _ => Err(Error::msg(format!(
                         "Cannot convert `{}` into `{}`",
                         value.to_token_stream().to_string(),
                         stringify!($source),
-                    )))
+                    ))),
                 }
             }
         }
     };
 }
 
-impl_as_value!(bool, Value::Boolean);
-impl_as_value!(i8, Value::Int8);
-impl_as_value!(i16, Value::Int16);
-impl_as_value!(i32, Value::Int32);
-impl_as_value!(i64, Value::Int64);
-impl_as_value!(i128, Value::Int128);
-impl_as_value!(u8, Value::UInt8);
-impl_as_value!(u16, Value::UInt16);
-impl_as_value!(u32, Value::UInt32);
-impl_as_value!(u64, Value::UInt64);
-impl_as_value!(u128, Value::UInt128);
-impl_as_value!(f32, Value::Float32);
-impl_as_value!(f64, Value::Float64);
-impl_as_value!(String, Value::Varchar);
-impl_as_value!(Box<[u8]>, Value::Blob);
-impl_as_value!(time::Date, Value::Date);
-impl_as_value!(time::Time, Value::Time);
-impl_as_value!(time::PrimitiveDateTime, Value::Timestamp);
-impl_as_value!(time::OffsetDateTime, Value::TimestampWithTimezone);
-impl_as_value!(Interval, Value::Interval);
-impl_as_value!(std::time::Duration, Value::Interval);
-impl_as_value!(uuid::Uuid, Value::Uuid);
+impl_as_value!(
+    bool,
+    Value::Boolean => |v| Ok(v),
+    Value::Int8 => |v| Ok(v != 0),
+    Value::Int16 => |v| Ok(v != 0),
+    Value::Int32 => |v| Ok(v != 0),
+    Value::Int64 => |v| Ok(v != 0),
+    Value::Int128 => |v| Ok(v != 0),
+    Value::UInt8 => |v| Ok(v != 0),
+    Value::UInt16 => |v| Ok(v != 0),
+    Value::UInt32 => |v| Ok(v != 0),
+    Value::UInt64 => |v| Ok(v != 0),
+    Value::UInt128 => |v| Ok(v != 0),
+);
+impl_as_value!(
+    i8,
+    Value::Int8 => |v| Ok(v),
+    Value::UInt8 => |v| Ok(v as i8),
+);
+impl_as_value!(
+    i16,
+    Value::Int16 => |v| Ok(v),
+    Value::Int8 => |v| Ok(v as i16),
+    Value::UInt16 => |v| Ok(v as i16),
+    Value::UInt8 => |v| Ok(v as i16),
+);
+impl_as_value!(
+    i32,
+    Value::Int32 => |v| Ok(v),
+    Value::Int16 => |v| Ok(v as i32),
+    Value::Int8 => |v| Ok(v as i32),
+    Value::UInt32 => |v| Ok(v as i32),
+    Value::UInt16 => |v| Ok(v as i32),
+    Value::UInt8 => |v| Ok(v as i32),
+);
+impl_as_value!(
+    i64,
+    Value::Int64 => |v| Ok(v),
+    Value::Int32 => |v| Ok(v as i64),
+    Value::Int16 => |v| Ok(v as i64),
+    Value::Int8 => |v| Ok(v as i64),
+    Value::UInt64 => |v| Ok(v as i64),
+    Value::UInt32 => |v| Ok(v as i64),
+    Value::UInt16 => |v| Ok(v as i64),
+    Value::UInt8 => |v| Ok(v as i64),
+);
+impl_as_value!(
+    i128,
+    Value::Int128 => |v| Ok(v),
+    Value::Int64 => |v| Ok(v as i128),
+    Value::Int32 => |v| Ok(v as i128),
+    Value::Int16 => |v| Ok(v as i128),
+    Value::Int8 => |v| Ok(v as i128),
+    Value::UInt128 => |v| Ok(v as i128),
+    Value::UInt64 => |v| Ok(v as i128),
+    Value::UInt32 => |v| Ok(v as i128),
+    Value::UInt16 => |v| Ok(v as i128),
+    Value::UInt8 => |v| Ok(v as i128),
+);
+impl_as_value!(u8, Value::UInt8 => |v| Ok(v));
+impl_as_value!(
+    u16,
+    Value::UInt16 => |v| Ok(v),
+    Value::UInt8 => |v| Ok(v as u16),
+);
+impl_as_value!(
+    u32,
+    Value::UInt32 => |v| Ok(v),
+    Value::UInt16 => |v| Ok(v as u32),
+    Value::UInt8 => |v| Ok(v as u32),
+);
+impl_as_value!(
+    u64,
+    Value::UInt64 => |v| Ok(v),
+    Value::UInt32 => |v| Ok(v as u64),
+    Value::UInt16 => |v| Ok(v as u64),
+    Value::UInt8 => |v| Ok(v as u64),
+);
+impl_as_value!(
+    u128,
+    Value::UInt128 => |v| Ok(v),
+    Value::UInt64 => |v| Ok(v as u128),
+    Value::UInt32 => |v| Ok(v as u128),
+    Value::UInt16 => |v| Ok(v as u128),
+    Value::UInt8 => |v| Ok(v as u128),
+);
+impl_as_value!(
+    f32,
+    Value::Float32 => |v| Ok(v),
+    Value::Decimal => |v: Decimal| Ok(v.try_into()?),
+);
+impl_as_value!(
+    f64,
+    Value::Float64 => |v| Ok(v),
+    Value::Float32 => |v| Ok(v as f64),
+    Value::Decimal => |v: Decimal| Ok(v.try_into()?),
+);
+impl_as_value!(String, Value::Varchar => |v| Ok(v));
+impl_as_value!(Box<[u8]>, Value::Blob => |v| Ok(v));
+impl_as_value!(
+    time::Date,
+    Value::Date => |v| Ok(v),
+    Value::Varchar => |v: String| Ok(time::Date::parse(
+        &v,
+        format_description!("[year]-[month]-[day]")
+    )?),
+);
+impl_as_value!(
+    time::Time,
+    Value::Time => |v| Ok(v),
+    Value::Varchar => |v: String| Ok(time::Time::parse(
+        &v,
+        format_description!("[hour]:[minute]:[second].[subsecond]")
+    )?),
+);
+impl_as_value!(
+    time::PrimitiveDateTime,
+    Value::Timestamp => |v| Ok(v),
+    Value::Varchar => |v: String| Ok(time::PrimitiveDateTime::parse(
+        &v,
+        format_description!("[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond]")
+    )?),
+);
+impl_as_value!(
+    time::OffsetDateTime,
+    Value::TimestampWithTimezone => |v| Ok(v),
+    Value::Varchar => |v: String| Ok(time::OffsetDateTime::parse(
+        &v,
+        format_description!("[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond][offset_hour sign:mandatory]:[offset_minute]")
+    )?),
+);
+impl_as_value!(Interval, Value::Interval => |v| Ok(v));
+impl_as_value!(std::time::Duration, Value::Interval => |v: Interval| Ok(v.into()));
+impl_as_value!(
+    uuid::Uuid,
+    Value::Uuid => |v| Ok(v),
+    Value::Varchar => |v: String| Ok(uuid::Uuid::parse_str(&v)?),
+);
 
-impl AsValue for rust_decimal::Decimal {
+impl AsValue for Decimal {
     fn as_empty_value() -> Value {
         Value::Decimal(None, 0, 0)
     }
@@ -526,6 +462,18 @@ impl AsValue for rust_decimal::Decimal {
     fn try_from_value(value: Value) -> Result<Self> {
         match value {
             Value::Decimal(Some(v), ..) => Ok(v),
+            Value::Int8(Some(v), ..) => Ok(Decimal::new(v as i64, 0)),
+            Value::Int16(Some(v), ..) => Ok(Decimal::new(v as i64, 0)),
+            Value::Int32(Some(v), ..) => Ok(Decimal::new(v as i64, 0)),
+            Value::Int64(Some(v), ..) => Ok(Decimal::new(v, 0)),
+            Value::UInt8(Some(v), ..) => Ok(Decimal::new(v as i64, 0)),
+            Value::UInt16(Some(v), ..) => Ok(Decimal::new(v as i64, 0)),
+            Value::UInt32(Some(v), ..) => Ok(Decimal::new(v as i64, 0)),
+            Value::UInt64(Some(v), ..) => Ok(Decimal::new(v as i64, 0)),
+            Value::Float32(Some(v), ..) => Ok(Decimal::from_f32(v)
+                .ok_or(Error::msg("Could not convert the Float32 into Decimal"))?),
+            Value::Float64(Some(v), ..) => Ok(Decimal::from_f64(v)
+                .ok_or(Error::msg("Could not convert the Float64 into Decimal"))?),
             _ => Err(Error::msg(format!(
                 "Cannot convert `{}` into `{}`",
                 value.to_token_stream().to_string(),
@@ -564,100 +512,84 @@ impl<T: AsValue, const N: usize> AsValue for [T; N] {
     }
 }
 
-impl<T: AsValue> AsValue for Vec<T> {
-    fn as_empty_value() -> Value {
-        Value::List(None, Box::new(T::as_empty_value()))
-    }
-    fn as_value(self) -> Value {
-        Value::List(
-            Some(self.into_iter().map(AsValue::as_value).collect()),
-            Box::new(T::as_empty_value()),
-        )
-    }
-    fn try_from_value(value: Value) -> Result<Self> {
-        if let Value::List(Some(v), ..) = value {
-            Ok(v.into_iter()
-                .map(|v| Ok::<_, Error>(<T as AsValue>::try_from_value(v)?))
-                .collect::<Result<_>>()?)
-        } else {
-            Err(Error::msg(format!(
-                "Cannot convert `{}` into `{}`",
-                value.to_token_stream().to_string(),
-                stringify!(Vec<T>),
-            )))
+macro_rules! impl_as_value {
+    ($list:ident) => {
+        impl<T: AsValue> AsValue for $list<T> {
+            fn as_empty_value() -> Value {
+                Value::List(None, Box::new(T::as_empty_value()))
+            }
+            fn as_value(self) -> Value {
+                Value::List(
+                    Some(self.into_iter().map(AsValue::as_value).collect()),
+                    Box::new(T::as_empty_value()),
+                )
+            }
+            fn try_from_value(value: Value) -> Result<Self> {
+                match value {
+                    Value::List(Some(v), ..) => Ok(v
+                        .into_iter()
+                        .map(|v| Ok::<_, Error>(<T as AsValue>::try_from_value(v)?))
+                        .collect::<Result<_>>()?),
+                    Value::Array(Some(v), ..) => Ok(v
+                        .into_iter()
+                        .map(|v| Ok::<_, Error>(<T as AsValue>::try_from_value(v)?))
+                        .collect::<Result<_>>()?),
+                    _ => Err(Error::msg(format!(
+                        "Cannot convert `{}` into `{}`",
+                        value.to_token_stream().to_string(),
+                        stringify!($list<T>),
+                    ))),
+                }
+            }
+        }
+    };
+}
+
+impl_as_value!(Vec);
+impl_as_value!(VecDeque);
+impl_as_value!(LinkedList);
+
+macro_rules! impl_as_value {
+    ($map:ident, $($key_trait:ident),+) => {
+        impl<K: AsValue $(+ $key_trait)+, V: AsValue> AsValue for $map<K, V> {
+            fn as_empty_value() -> Value {
+                Value::Map(None, K::as_empty_value().into(), V::as_empty_value().into())
+            }
+            fn as_value(self) -> Value {
+                Value::Map(
+                    Some(
+                        self.into_iter()
+                            .map(|(k, v)| (k.as_value(), v.as_value()))
+                            .collect(),
+                    ),
+                    K::as_empty_value().into(),
+                    V::as_empty_value().into(),
+                )
+            }
+            fn try_from_value(value: Value) -> Result<Self> {
+                if let Value::Map(Some(v), ..) = value {
+                    Ok(v.into_iter()
+                        .map(|(k, v)| {
+                            Ok((
+                                <K as AsValue>::try_from_value(k)?,
+                                <V as AsValue>::try_from_value(v)?,
+                            ))
+                        })
+                        .collect::<Result<_>>()?)
+                } else {
+                    Err(Error::msg(format!(
+                        "Cannot convert `{}` into `{}`",
+                        value.to_token_stream().to_string(),
+                        stringify!($map<K, V>),
+                    )))
+                }
+            }
         }
     }
 }
 
-impl<K: AsValue + Ord, V: AsValue> AsValue for BTreeMap<K, V> {
-    fn as_empty_value() -> Value {
-        Value::Map(None, K::as_empty_value().into(), V::as_empty_value().into())
-    }
-    fn as_value(self) -> Value {
-        Value::Map(
-            Some(
-                self.into_iter()
-                    .map(|(k, v)| (k.as_value(), v.as_value()))
-                    .collect(),
-            ),
-            K::as_empty_value().into(),
-            V::as_empty_value().into(),
-        )
-    }
-    fn try_from_value(value: Value) -> Result<Self> {
-        if let Value::Map(Some(v), ..) = value {
-            Ok(v.into_iter()
-                .map(|(k, v)| {
-                    Ok((
-                        <K as AsValue>::try_from_value(k)?,
-                        <V as AsValue>::try_from_value(v)?,
-                    ))
-                })
-                .collect::<Result<_>>()?)
-        } else {
-            Err(Error::msg(format!(
-                "Cannot convert `{}` into `{}`",
-                value.to_token_stream().to_string(),
-                stringify!(BTreeMap<K, V>),
-            )))
-        }
-    }
-}
-
-impl<K: AsValue + Eq + Hash, V: AsValue> AsValue for HashMap<K, V> {
-    fn as_empty_value() -> Value {
-        Value::Map(None, K::as_empty_value().into(), V::as_empty_value().into())
-    }
-    fn as_value(self) -> Value {
-        Value::Map(
-            Some(
-                self.into_iter()
-                    .map(|(k, v)| (k.as_value(), v.as_value()))
-                    .collect(),
-            ),
-            K::as_empty_value().into(),
-            V::as_empty_value().into(),
-        )
-    }
-    fn try_from_value(value: Value) -> Result<Self> {
-        if let Value::Map(Some(v), ..) = value {
-            Ok(v.into_iter()
-                .map(|(k, v)| {
-                    Ok((
-                        <K as AsValue>::try_from_value(k)?,
-                        <V as AsValue>::try_from_value(v)?,
-                    ))
-                })
-                .collect::<Result<_>>()?)
-        } else {
-            Err(Error::msg(format!(
-                "Cannot convert `{}` into `{}`",
-                value.to_token_stream().to_string(),
-                stringify!(HashMap<K, V>),
-            )))
-        }
-    }
-}
+impl_as_value!(BTreeMap, Ord);
+impl_as_value!(HashMap, Eq, Hash);
 
 impl<T: AsValue> AsValue for Passive<T> {
     fn as_empty_value() -> Value {
@@ -707,12 +639,12 @@ impl<T: AsValue> AsValue for Box<T> {
 
 macro_rules! impl_as_value {
     ($wrapper:ident) => {
-        impl<T: AsValue + Clone> AsValue for $wrapper<T> {
+        impl<T: AsValue + ToOwned<Owned = impl AsValue>> AsValue for $wrapper<T> {
             fn as_empty_value() -> Value {
                 T::as_empty_value()
             }
             fn as_value(self) -> Value {
-                (*self).clone().as_value()
+                (*self).to_owned().as_value()
             }
             fn try_from_value(value: Value) -> Result<Self> {
                 Ok($wrapper::new(<T as AsValue>::try_from_value(value)?))

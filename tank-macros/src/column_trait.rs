@@ -1,7 +1,7 @@
-use crate::{decode_column, encode_column_ref::encode_column_ref, TableMetadata};
+use crate::{TableMetadata, decode_column, encode_column_ref::encode_column_ref};
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{spanned::Spanned, Ident};
+use syn::{Ident, spanned::Spanned};
 
 pub(crate) fn column_trait(table: &TableMetadata) -> TokenStream {
     let struct_name = &table.item.ident;
@@ -14,7 +14,7 @@ pub(crate) fn column_trait(table: &TableMetadata) -> TokenStream {
             (
                 field.ident.as_ref().expect("The field must have a name"),
                 encode_column_ref(
-                    &decode_column(field, &table.item),
+                    &decode_column(field),
                     table.name.to_string(),
                     table.schema.to_string(),
                 ),
