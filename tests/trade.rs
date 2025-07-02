@@ -9,8 +9,8 @@ mod tests {
         collections::{BTreeMap, HashMap},
     };
     use tank::{
-        expr, Entity, Expression, GenericSqlWriter, Operand, Passive, PrimaryKeyType, SqlWriter,
-        TableRef, Value,
+        Entity, Expression, GenericSqlWriter, Operand, Passive, PrimaryKeyType, SqlWriter,
+        TableRef, Value, expr,
     };
     use time::macros::datetime;
     use uuid::Uuid;

@@ -14,30 +14,30 @@ pub(crate) struct TableMetadata {
     pub(crate) name: String,
     pub(crate) item: ItemStruct,
     pub(crate) schema: String,
-    pub(crate) primary_key: Vec<String>,
-    pub(crate) unique: Vec<Vec<String>>,
+    pub(crate) primary_key: Vec<usize>,
+    pub(crate) unique: Vec<Vec<usize>>,
 }
 
 fn decode_set_columns<'a, I: Iterator<Item = &'a ColumnMetadata> + Clone>(
     item: &ItemStruct,
     col: Expr,
-    mut columns: I,
-) -> Result<Vec<String>> {
+    columns: I,
+) -> Result<Vec<usize>> {
     Ok(match col {
         Expr::Lit(ExprLit {
             lit: Lit::Str(v), ..
         }) => {
             let v = v.value();
-            if columns.find(|c| c.name == v).is_none() {
+            let Some((i, _)) = columns.enumerate().find(|(_i, c)| c.name == v) else {
                 return Err(Error::new(
                     v.span(),
                     format!("Column `{}` does not exist in the table", v),
                 ));
-            }
-            vec![v]
+            };
+            vec![i]
         }
         Expr::Path(ExprPath { path, .. }) => {
-            let Some(v) = columns.find(|c| {
+            let Some((i, _)) = columns.enumerate().find(|(_i, c)| {
                 let c = c.ident.to_string();
                 matches_path(&path, &["Self", &c])
                     || matches_path(&path, &[&item.ident.to_string(), &c])
@@ -50,7 +50,7 @@ fn decode_set_columns<'a, I: Iterator<Item = &'a ColumnMetadata> + Clone>(
                     ),
                 ));
             };
-            vec![v.name.to_string()]
+            vec![i]
         }
         Expr::Tuple(tuple) => {
             let elems: Vec<_> = tuple

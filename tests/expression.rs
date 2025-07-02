@@ -3,7 +3,7 @@ mod tests {
     use tank::{
         BinaryOp, BinaryOpType, Expression, Operand, SqlWriter, UnaryOp, UnaryOpType, Value,
     };
-    use tank_macros::{expr, Entity};
+    use tank_macros::{Entity, expr};
 
     struct Writer;
     impl SqlWriter for Writer {

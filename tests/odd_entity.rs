@@ -1,9 +1,9 @@
 #[cfg(test)]
 mod tests {
     use indoc::indoc;
-    use rust_decimal::{prelude::FromPrimitive, Decimal};
+    use rust_decimal::{Decimal, prelude::FromPrimitive};
     use std::{borrow::Cow, sync::Arc, time::Duration};
-    use tank::{expr, Entity, GenericSqlWriter, PrimaryKeyType, SqlWriter, TableRef, Value};
+    use tank::{Entity, GenericSqlWriter, PrimaryKeyType, SqlWriter, TableRef, Value, expr};
 
     #[derive(Entity)]
     #[tank(name = "a_table", primary_key = ("bravo", "delta"))]
@@ -43,7 +43,7 @@ mod tests {
             }
         ));
 
-        let pk = MyEntity::primary_key_def();
+        let pk: Vec<_> = MyEntity::primary_key_def().collect();
         assert_eq!(pk.len(), 2);
         assert_eq!(pk[0].auto_increment, false);
         assert_eq!(pk[0].nullable, false);

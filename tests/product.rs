@@ -45,7 +45,7 @@ mod tests {
             }
         ));
 
-        let pk = Product::primary_key_def();
+        let pk: Vec<_> = Product::primary_key_def().collect();
         assert_eq!(pk.len(), 1);
         assert!(pk[0].auto_increment);
         assert!(!pk[0].nullable);

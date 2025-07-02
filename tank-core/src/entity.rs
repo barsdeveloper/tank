@@ -7,7 +7,9 @@ pub trait Entity: Send {
 
     fn table_ref() -> &'static TableRef;
     fn columns_def() -> &'static [ColumnDef];
-    fn primary_key_def() -> &'static [&'static ColumnDef];
+    fn primary_key_def() -> impl ExactSizeIterator<Item = &'static ColumnDef>;
+    fn unique_defs()
+    -> impl ExactSizeIterator<Item = impl ExactSizeIterator<Item = &'static ColumnDef>>;
 
     fn from_row(row: RowLabeled) -> Result<Self>
     where

@@ -482,15 +482,23 @@ pub trait SqlWriter {
             },
             ",\n",
         );
-        if E::primary_key_def().len() > 1 {
+        let primary_key = E::primary_key_def();
+        if primary_key.len() > 1 {
             out.push_str(",\nPRIMARY KEY (");
             separated_by(
                 out,
-                E::primary_key_def().iter(),
+                E::primary_key_def(),
                 |out, v| out.push_str(v.name()),
                 ", ",
             );
             out.push(')');
+        }
+        for unique in E::unique_defs() {
+            if unique.len() > 1 {
+                out.push_str(",\nUNIQUE (");
+                separated_by(out, unique, |out, v| out.push_str(v.name()), ", ");
+                out.push(')');
+            }
         }
         out.push_str("\n)");
         out

@@ -34,7 +34,8 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
     let fields = table.item.fields.iter();
     let metadata_and_filter  =  fields
         .clone()
-        .map(|f| {
+        .enumerate()
+        .map(|(i, f)| {
             let mut metadata = decode_column(&f);
             if metadata.primary_key == PrimaryKeyType::PrimaryKey && !table.primary_key.is_empty() {
                 panic!(
@@ -45,7 +46,7 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
             if table
                 .primary_key
                 .iter()
-                .find(|pk| **pk == metadata.name)
+                .find(|pk| **pk == i)
                 .is_some()
             {
                 metadata.primary_key = if table.primary_key.len() == 1 {
@@ -83,6 +84,19 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
         .map(|(_i, c)| c.ident.clone())
         .map(|ident| quote!(self.#ident));
     let primary_key_def = primary_keys.iter().map(|(i, _)| quote!(columns[#i]));
+    let unique_defs = &table
+        .unique
+        .iter()
+        .map(|v| {
+            if v.is_empty() {
+                quote!()
+            } else {
+                let i = v.iter();
+                quote!(vec![#(&columns[#i]),*].into_boxed_slice())
+            }
+        })
+        .collect::<Vec<_>>();
+    let unique_defs = quote!(vec![#(#unique_defs),*].into_boxed_slice());
     let primary_key_types = primary_keys.iter().map(|(_, c)| c.ty.clone());
     let column = column_trait(&table);
     let value_and_filter =
@@ -134,13 +148,23 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                 &RESULT
             }
 
-            fn primary_key_def() -> &'static [&'static ::tank::ColumnDef] {
+            fn primary_key_def() -> impl ExactSizeIterator<Item = &'static ::tank::ColumnDef> {
                 static RESULT: ::std::sync::LazyLock<Box<[&::tank::ColumnDef]>> =
                     ::std::sync::LazyLock::new(|| {
                         let columns = #ident::columns_def();
                         vec![#(&#primary_key_def),*].into_boxed_slice()
                     });
-                &RESULT
+                RESULT.iter().copied()
+            }
+
+            fn unique_defs()
+            -> impl ExactSizeIterator<Item = impl ExactSizeIterator<Item = &'static ::tank::ColumnDef>> {
+                static RESULT: ::std::sync::LazyLock<Box<[Box<[&'static ::tank::ColumnDef]>]>> =
+                    ::std::sync::LazyLock::new(|| {
+                        let columns = #ident::columns_def();
+                        #unique_defs
+                    });
+                RESULT.iter().map(|v| v.iter().copied())
             }
 
             fn from_row(row: ::tank::RowLabeled) -> ::tank::Result<Self> {

@@ -2,19 +2,22 @@
 mod tests {
     use indoc::indoc;
     use std::borrow::Cow;
-    use tank::{expr, Entity, GenericSqlWriter, PrimaryKeyType, SqlWriter, TableRef, Value};
+    use tank::{Entity, GenericSqlWriter, PrimaryKeyType, SqlWriter, TableRef, Value, expr};
 
     #[derive(Entity)]
-    #[tank(name = "simple_entity")]
+    #[tank(name = "simple_entity", unique = ("a", Self::c), unique = (SomeSimpleEntity::b, "c"))]
     struct SomeSimpleEntity {
         a: i8,
         b: Option<String>,
+        #[tank(unique)]
+        c: Box<u16>,
     }
     impl SomeSimpleEntity {
         pub fn make_some() -> Self {
             Self {
                 a: 40,
                 b: Some("hello".into()),
+                c: Box::new(777),
             }
         }
     }
@@ -34,21 +37,28 @@ mod tests {
         assert_eq!(SomeSimpleEntity::primary_key_def().len(), 0);
 
         let columns = SomeSimpleEntity::columns_def();
-        assert_eq!(columns.len(), 2);
+        assert_eq!(columns.len(), 3);
         assert!(matches!(columns[0].value, Value::Int8(..)));
         assert!(matches!(columns[1].value, Value::Varchar(..)));
+        assert!(matches!(columns[2].value, Value::UInt16(..)));
         assert_eq!(columns[0].nullable, false);
         assert_eq!(columns[1].nullable, true);
+        assert_eq!(columns[2].nullable, false);
         assert!(matches!(columns[0].default, None));
         assert!(matches!(columns[1].default, None));
+        assert!(matches!(columns[2].default, None));
         assert_eq!(columns[0].primary_key, PrimaryKeyType::None);
         assert_eq!(columns[1].primary_key, PrimaryKeyType::None);
+        assert_eq!(columns[2].primary_key, PrimaryKeyType::None);
         assert_eq!(columns[0].unique, false);
         assert_eq!(columns[1].unique, false);
+        assert_eq!(columns[2].unique, true);
         assert_eq!(columns[0].auto_increment, false);
         assert_eq!(columns[1].auto_increment, false);
+        assert_eq!(columns[2].auto_increment, false);
         assert_eq!(columns[0].passive, false);
         assert_eq!(columns[1].passive, false);
+        assert_eq!(columns[2].passive, false);
     }
 
     #[test]
@@ -59,7 +69,10 @@ mod tests {
             indoc! {"
                 CREATE TABLE simple_entity (
                 a TINYINT NOT NULL,
-                b VARCHAR
+                b VARCHAR,
+                c USMALLINT NOT NULL UNIQUE,
+                UNIQUE (a, c),
+                UNIQUE (b, c)
                 )
             "}
             .trim()
@@ -86,7 +99,7 @@ mod tests {
                 Some(1000),
             ),
             indoc! {"
-                SELECT a, b
+                SELECT a, b, c
                 FROM simple_entity
                 WHERE a > 100
                 LIMIT 1000
@@ -101,8 +114,8 @@ mod tests {
         assert_eq!(
             WRITER.sql_insert::<SomeSimpleEntity>(&mut query, &SomeSimpleEntity::make_some(), true),
             indoc! {"
-                INSERT OR REPLACE INTO simple_entity (a, b)
-                VALUES (40, 'hello')
+                INSERT OR REPLACE INTO simple_entity (a, b, c)
+                VALUES (40, 'hello', 777)
             "}
             .trim()
         );
