@@ -46,4 +46,11 @@ pub trait Executor: Send + Sized {
             })
             .try_collect()
     }
+
+    // fn append<'a, It: Iterator<Item = &'a Value>>(
+    //     &mut self,
+    //     rows: It,
+    // ) -> impl Future<Output = Result<RowsAffected>> + Send {
+
+    // }
 }

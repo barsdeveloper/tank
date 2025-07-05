@@ -2,7 +2,7 @@ use crate::{
     BinaryOp, BinaryOpType, ColumnDef, ColumnRef, DataSet, Entity, Expression, Interval, Join,
     JoinType, Operand, PrimaryKeyType, TableRef, UnaryOp, UnaryOpType, Value,
 };
-use std::{fmt::Write, iter::zip};
+use std::fmt::Write;
 
 macro_rules! sql_possibly_parenthesized {
     ($out:ident, $cond:expr, $v:expr) => {
@@ -460,13 +460,36 @@ pub trait SqlWriter {
         out
     }
 
-    fn sql_create_table<'a, E: Entity>(
-        &self,
-        out: &'a mut String,
-        if_not_exists: bool,
-    ) -> &'a mut String
+    fn sql_create_schema<'a, E>(&self, out: &'a mut String, if_not_exists: bool) -> &'a mut String
     where
         Self: Sized,
+        E: Entity,
+    {
+        out.push_str("CREATE SCHEMA ");
+        if if_not_exists {
+            out.push_str("IF NOT EXISTS ");
+        }
+        out.push_str(E::table_ref().schema);
+        out
+    }
+
+    fn sql_drop_schema<'a, E>(&self, out: &'a mut String, if_exists: bool) -> &'a mut String
+    where
+        Self: Sized,
+        E: Entity,
+    {
+        out.push_str("DROP SCHEMA ");
+        if if_exists {
+            out.push_str("IF EXISTS ");
+        }
+        out.push_str(E::table_ref().schema);
+        out
+    }
+
+    fn sql_create_table<'a, E>(&self, out: &'a mut String, if_not_exists: bool) -> &'a mut String
+    where
+        Self: Sized,
+        E: Entity,
     {
         out.push_str("CREATE TABLE ");
         if if_not_exists {
@@ -540,9 +563,18 @@ pub trait SqlWriter {
             out.push_str(" UNIQUE");
         }
         if !column.comment.is_empty() {
-            out.push_str(" COMMENT ");
-            self.sql_value(out, &Value::Varchar(Some(column.comment.to_string())));
+            self.sql_create_table_column_fragment_comment(out, column);
         }
+        out
+    }
+
+    fn sql_create_table_column_fragment_comment<'a>(
+        &self,
+        out: &'a mut String,
+        column: &ColumnDef,
+    ) -> &'a mut String {
+        out.push_str(" COMMENT ");
+        self.sql_value(out, &Value::Varchar(Some(column.comment.to_string())));
         out
     }
 
@@ -587,14 +619,16 @@ pub trait SqlWriter {
         out
     }
 
-    fn sql_insert<'a, E: Entity>(
+    fn sql_insert<'a, 'b, E, It>(
         &self,
         out: &'a mut String,
-        entity: &E,
+        entities: It,
         replace: bool,
     ) -> &'a mut String
     where
         Self: Sized,
+        E: Entity + 'b,
+        It: ExactSizeIterator<Item = &'b E>,
     {
         out.push_str("INSERT");
         if replace {
@@ -603,24 +637,48 @@ pub trait SqlWriter {
         out.push_str(" INTO ");
         self.sql_table_ref(out, E::table_ref());
         out.push_str(" (");
-        let row = entity.row_labeled();
-        let fields = zip(row.labels.iter(), row.values.iter());
-        separated_by(
-            out,
-            fields.clone().map(|(name, _)| name),
-            |out, v| out.push_str(v),
-            ", ",
-        );
-        out.push_str(")\nVALUES (");
-        separated_by(
-            out,
-            fields.clone().map(|(_, value)| value),
-            |out, v| {
-                self.sql_value(out, v);
-            },
-            ", ",
-        );
-        out.push(')');
+        let solo = entities.len() == 1;
+        let mut entities = entities.peekable();
+        if solo {
+            separated_by(
+                out,
+                // Inserting one row uses row_labeled to filter out Passive::NotSet columns
+                entities
+                    .peek()
+                    .expect("There is one element")
+                    .row_filtered()
+                    .names()
+                    .iter(),
+                |out, v| out.push_str(v),
+                ", ",
+            );
+        } else {
+            separated_by(
+                out,
+                // Inserting more rows will list all columns
+                E::columns_def().iter().map(|v| v.name()),
+                |out, v| out.push_str(v),
+                ", ",
+            );
+        };
+        out.push_str(")\nVALUES ");
+        for entity in entities {
+            let row = if solo {
+                entity.row_filtered().values
+            } else {
+                entity.row_full()
+            };
+            out.push('(');
+            separated_by(
+                out,
+                row.iter(),
+                |out, v| {
+                    self.sql_value(out, v);
+                },
+                ", ",
+            );
+            out.push(')');
+        }
         out
     }
 

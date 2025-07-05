@@ -21,9 +21,6 @@ url = "2.5.4"
 urlencoding = "2.1.3"
 uuid = { workspace = true }
 
-[patch.crates-io]
-tank-core = { path = "tank-core" }
-
 [dev-dependencies]
 tank = { path = ".." }
 tank-tests = { path = "../tank-tests" }

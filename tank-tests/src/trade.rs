@@ -1,5 +1,4 @@
-use crate::TradeExecution;
-use futures::{lock::Mutex, StreamExt, TryStreamExt};
+use futures::{StreamExt, TryStreamExt, lock::Mutex};
 use rust_decimal::Decimal;
 use std::{collections::BTreeMap, str::FromStr, sync::LazyLock};
 use tank::{Connection, Entity, Passive};
@@ -8,27 +7,48 @@ use uuid::Uuid;
 
 static MUTEX: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
 
+#[derive(Entity, Debug)]
+#[tank(schema = "trading", name = "trade_execution", primary_key = ("trade_id", "execution_time"))]
+pub struct Trade {
+    #[tank(name = "trade_id")]
+    pub trade: u64,
+    #[tank(name = "order_id", default = "241d362d-797e-4769-b3f6-412440c8cf68")]
+    pub order: Uuid,
+    /// Ticker symbol
+    pub symbol: String,
+    pub price: rust_decimal::Decimal,
+    pub quantity: u32,
+    pub execution_time: Passive<time::PrimitiveDateTime>,
+    pub currency: Option<String>,
+    pub is_internalized: bool,
+    /// Exchange
+    pub venue: Option<String>,
+    pub child_trade_ids: Option<Vec<i64>>,
+    pub metadata: Option<Box<[u8]>>,
+    pub tags: Option<BTreeMap<String, String>>,
+}
+
 pub async fn trade_simple<C: Connection>(connection: &mut C) {
     let _lock = MUTEX.lock().await;
 
     // Cleanup
-    let result = TradeExecution::drop_table(connection, true).await;
+    let result = Trade::drop_table(connection, true, false).await;
     assert!(
         result.is_ok(),
-        "Failed to TradeExecution::drop_table: {:?}",
+        "Failed to Trade::drop_table: {:?}",
         result.unwrap_err()
     );
 
-    // Create table
-    let result = TradeExecution::create_table(connection, true).await;
+    // Create table again to be sure it's empty
+    let result = Trade::create_table(connection, false, true).await;
     assert!(
         result.is_ok(),
-        "Failed to TradeExecution::create_table: {:?}",
+        "Failed to Trade::create_table: {:?}",
         result.unwrap_err()
     );
 
     // Trade object
-    let trade = TradeExecution {
+    let trade = Trade {
         trade: 46923,
         order: Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap(),
         symbol: "AAPL".to_string(),
@@ -48,16 +68,13 @@ pub async fn trade_simple<C: Connection>(connection: &mut C) {
     };
 
     // Expect to find no trades
-    let result = TradeExecution::find_one(connection, &trade.primary_key()).await;
+    let result = Trade::find_one(connection, &trade.primary_key()).await;
     assert!(
         result.is_ok(),
-        "Failed to TradeExecution::find_one: {:?}",
+        "Failed to Trade::find_one: {:?}",
         result.unwrap_err()
     );
-    assert_eq!(
-        TradeExecution::find_many(connection, &true).count().await,
-        0
-    );
+    assert_eq!(Trade::find_many(connection, &true).count().await, 0);
 
     // Save a trade
     let result = trade.save(connection).await;
@@ -68,7 +85,7 @@ pub async fn trade_simple<C: Connection>(connection: &mut C) {
     );
 
     // Expect to find the only trade
-    let result = TradeExecution::find_one(connection, &trade.primary_key()).await;
+    let result = Trade::find_one(connection, &trade.primary_key()).await;
     assert!(
         result.is_ok(),
         "Failed to find trade: {:?}",
@@ -78,7 +95,7 @@ pub async fn trade_simple<C: Connection>(connection: &mut C) {
     let result = result.expect("The query succeeded");
     assert!(
         result.is_some(),
-        "Expected TradeExecution::find_one to return some result",
+        "Expected Trade::find_one to return some result",
     );
     let result = result.unwrap();
     assert_eq!(result.trade, 46923);
@@ -113,33 +130,30 @@ pub async fn trade_simple<C: Connection>(connection: &mut C) {
         ])
     );
 
-    assert_eq!(
-        TradeExecution::find_many(connection, &true).count().await,
-        1
-    );
+    assert_eq!(Trade::find_many(connection, &true).count().await, 1);
 }
 
 pub async fn trade_multiple<C: Connection>(connection: &mut C) {
     let _lock = MUTEX.lock().await;
 
     // Cleanup
-    let result = TradeExecution::drop_table(connection, false).await;
+    let result = Trade::drop_table(connection, false, false).await;
     assert!(
         result.is_ok(),
-        "Failed to TradeExecution::drop_table: {:?}",
+        "Failed to Trade::drop_table: {:?}",
         result.unwrap_err()
     );
 
-    let result = TradeExecution::create_table(connection, false).await;
+    let result = Trade::create_table(connection, false, true).await;
     assert!(
         result.is_ok(),
-        "Failed to TradeExecution::create_table: {:?}",
+        "Failed to Trade::create_table: {:?}",
         result.unwrap_err()
     );
 
     // Trade objects
     let trades = vec![
-        TradeExecution {
+        Trade {
             trade: 10001,
             order: Uuid::parse_str("11111111-1111-1111-1111-111111111111").unwrap(),
             symbol: "AAPL".to_string(),
@@ -156,7 +170,7 @@ pub async fn trade_multiple<C: Connection>(connection: &mut C) {
                 ("strategy".into(), "momentum".into()),
             ])),
         },
-        TradeExecution {
+        Trade {
             trade: 10002,
             order: Uuid::parse_str("22222222-2222-2222-2222-222222222222").unwrap(),
             symbol: "GOOG".to_string(),
@@ -173,7 +187,7 @@ pub async fn trade_multiple<C: Connection>(connection: &mut C) {
                 ("strategy".into(), "mean_reversion".into()),
             ])),
         },
-        TradeExecution {
+        Trade {
             trade: 10003,
             order: Uuid::parse_str("33333333-3333-3333-3333-333333333333").unwrap(),
             symbol: "MSFT".to_string(),
@@ -190,7 +204,7 @@ pub async fn trade_multiple<C: Connection>(connection: &mut C) {
                 ("strategy".into(), "arbitrage".into()),
             ])),
         },
-        TradeExecution {
+        Trade {
             trade: 10004,
             order: Uuid::parse_str("44444444-4444-4444-4444-444444444444").unwrap(),
             symbol: "TSLA".to_string(),
@@ -207,7 +221,7 @@ pub async fn trade_multiple<C: Connection>(connection: &mut C) {
                 ("strategy".into(), "news_event".into()),
             ])),
         },
-        TradeExecution {
+        Trade {
             trade: 10005,
             order: Uuid::parse_str("55555555-5555-5555-5555-555555555555").unwrap(),
             symbol: "AMZN".to_string(),
@@ -238,7 +252,7 @@ pub async fn trade_multiple<C: Connection>(connection: &mut C) {
     }
 
     // Find 5 trades
-    let data = TradeExecution::find_many(connection, &true)
+    let data = Trade::find_many(connection, &true)
         .try_collect::<Vec<_>>()
         .await
         .expect("Failed to query threads");
@@ -247,7 +261,7 @@ pub async fn trade_multiple<C: Connection>(connection: &mut C) {
     // Verify data integrity
     for (i, expected) in trades.iter().enumerate() {
         let actual_a = &data[i];
-        let actual_b = TradeExecution::find_one(connection, &expected.primary_key()).await;
+        let actual_b = Trade::find_one(connection, &expected.primary_key()).await;
         assert!(
             actual_b.is_ok(),
             "Query failed for trade {}: {:?}",

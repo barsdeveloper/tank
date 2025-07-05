@@ -2,7 +2,7 @@
 mod tests {
     use indoc::indoc;
     use rust_decimal::{Decimal, prelude::FromPrimitive};
-    use std::{borrow::Cow, sync::Arc, time::Duration};
+    use std::{borrow::Cow, iter, sync::Arc, time::Duration};
     use tank::{Entity, GenericSqlWriter, PrimaryKeyType, SqlWriter, TableRef, Value, expr};
 
     #[derive(Entity)]
@@ -163,7 +163,7 @@ mod tests {
     fn test_odd_entity_insert() {
         let mut query = String::new();
         assert_eq!(
-            WRITER.sql_insert::<MyEntity>(&mut query, &MyEntity::sample(), true),
+            WRITER.sql_insert(&mut query, iter::once(&MyEntity::sample()), true),
             indoc! {"
                 INSERT OR REPLACE INTO a_table (alpha, bravo, charlie, delta, echo)
                 VALUES (0, 2, 10.2, INTERVAL 1 SECOND, 23.44)

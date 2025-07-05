@@ -7,6 +7,7 @@ mod tests {
     use std::{
         borrow::Cow,
         collections::{BTreeMap, HashMap},
+        iter,
     };
     use tank::{
         Entity, Expression, GenericSqlWriter, Operand, Passive, PrimaryKeyType, SqlWriter,
@@ -267,7 +268,7 @@ mod tests {
         let employee = Trade::sample();
         assert!(
             // Last part of the query (the map) is removed becaus order of keys is not defined. Value stores a HashMap
-            WRITER.sql_insert::<Trade>(&mut query, &employee, false).starts_with(indoc! {"
+            WRITER.sql_insert(&mut query, iter::once(&employee), false).starts_with(indoc! {"
                 INSERT INTO trading.company.trade_execution (trade_id, order_id, symbol, price, quantity, execution_time, currency, is_internalized, venue, child_trade_ids, metadata, tags)
                 VALUES (46923, '550e8400-e29b-41d4-a716-446655440000', 'AAPL', 192.55, 50, '2025-06-07 14:32:00.0', 'USD', true, 'NASDAQ', [36209,85320], '\\x4D\\x65\\x74\\x61\\x64\\x61\\x74\\x61\\x20\\x42\\x79\\x74\\x65\\x73', 
             "}.trim())

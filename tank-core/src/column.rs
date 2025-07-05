@@ -1,6 +1,6 @@
 use crate::{Expression, Value};
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens, TokenStreamExt};
+use quote::{ToTokens, TokenStreamExt, quote};
 
 pub trait ColumnTrait {
     fn column_def(&self) -> &ColumnDef;
@@ -56,18 +56,6 @@ impl ColumnDef {
     }
     pub fn schema(&self) -> &'static str {
         &self.reference.schema
-    }
-}
-
-impl From<&ColumnRef> for ColumnRef {
-    fn from(value: &ColumnRef) -> Self {
-        value.clone()
-    }
-}
-
-impl From<ColumnDef> for ColumnRef {
-    fn from(value: ColumnDef) -> Self {
-        value.reference
     }
 }
 

@@ -54,8 +54,6 @@ pub fn decode_type(ty: &Type) -> (TypeDecoded, Option<CheckPassive>) {
                 break 'data_type Value::Interval(None);
             } else if matches_path(path, &["uuid", "Uuid"]) {
                 break 'data_type Value::Uuid(None);
-            } else if matches_path(path, &["uuid", "Uuid"]) {
-                break 'data_type Value::Uuid(None);
             } else {
                 let is_passive = matches_path(path, &["tank", "Passive"]);
                 let is_option = matches_path(path, &["std", "option", "Option"]);

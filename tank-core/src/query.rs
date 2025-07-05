@@ -9,6 +9,12 @@ pub enum Query<P: Prepared> {
     Prepared(P),
 }
 
+impl<P: Prepared> From<&str> for Query<P> {
+    fn from(value: &str) -> Self {
+        Query::Raw(value.into())
+    }
+}
+
 impl<P: Prepared> From<String> for Query<P> {
     fn from(value: String) -> Self {
         Query::Raw(value.into())
@@ -71,5 +77,17 @@ impl Extend<RowsAffected> for RowsAffected {
                 self.last_insert_id = elem.last_insert_id;
             }
         }
+    }
+}
+
+impl From<RowLabeled> for Row {
+    fn from(value: RowLabeled) -> Self {
+        value.values
+    }
+}
+
+impl<'a> From<&'a RowLabeled> for &'a Row {
+    fn from(value: &'a RowLabeled) -> Self {
+        &value.values
     }
 }

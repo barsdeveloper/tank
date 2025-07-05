@@ -2,7 +2,7 @@
 mod tests {
     use indoc::indoc;
     use rust_decimal::Decimal;
-    use std::borrow::Cow;
+    use std::{borrow::Cow, iter};
     use tank::{Entity, GenericSqlWriter, Passive, PrimaryKeyType, SqlWriter, TableRef, Value};
     use time::{Date, Month, PrimitiveDateTime, Time};
 
@@ -84,7 +84,7 @@ mod tests {
     async fn test_product_insert() {
         let mut query = String::new();
         assert_eq!(
-            WRITER.sql_insert::<Product>(&mut query, &Product::sample(), false),
+            WRITER.sql_insert(&mut query, iter::once(&Product::sample()), false),
             indoc! {"
                 INSERT INTO products (name, price, available, tags, added_on)
                 VALUES ('Smartphone', 499.99, true, ['electronics','mobile'], '2025-06-24 10:30:07.0')

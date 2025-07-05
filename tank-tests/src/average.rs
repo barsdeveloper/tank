@@ -1,4 +1,8 @@
+use std::sync::LazyLock;
 use tank::{Connection, Entity, Passive};
+use tokio::sync::Mutex;
+
+static MUTEX: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
 
 pub async fn average<C: Connection>(connection: &mut C) {
     #[derive(Default, Entity)]
@@ -6,15 +10,16 @@ pub async fn average<C: Connection>(connection: &mut C) {
         id: Passive<u64>,
         value: u32,
     }
+    let _lock = MUTEX.lock();
 
-    let result = Values::drop_table(connection, true).await;
+    let result = Values::drop_table(connection, true, false).await;
     assert!(
         result.is_ok(),
         "Failed to Values::drop_table: {:?}",
         result.unwrap_err()
     );
 
-    let result = Values::create_table(connection, false).await;
+    let result = Values::create_table(connection, false, false).await;
     assert!(
         result.is_ok(),
         "Failed to Values::create_table: {:?}",
@@ -22,7 +27,7 @@ pub async fn average<C: Connection>(connection: &mut C) {
     );
 
     // avg(1 + .. + 785901) = 392951
-    let values = (1..785901).map(|value| Values {
+    let values = (1..785902).map(|value| Values {
         value,
         ..Default::default()
     });

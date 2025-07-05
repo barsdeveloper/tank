@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use indoc::indoc;
-    use std::borrow::Cow;
+    use std::{borrow::Cow, iter};
     use tank::{Entity, GenericSqlWriter, PrimaryKeyType, SqlWriter, TableRef, Value, expr};
 
     #[derive(Entity)]
@@ -38,6 +38,15 @@ mod tests {
 
         let columns = SomeSimpleEntity::columns_def();
         assert_eq!(columns.len(), 3);
+        assert!(matches!(columns[0].name(), "a"));
+        assert!(matches!(columns[1].name(), "b"));
+        assert!(matches!(columns[2].name(), "c"));
+        assert!(matches!(columns[0].table(), "simple_entity"));
+        assert!(matches!(columns[1].table(), "simple_entity"));
+        assert!(matches!(columns[2].table(), "simple_entity"));
+        assert!(matches!(columns[0].schema(), ""));
+        assert!(matches!(columns[1].schema(), ""));
+        assert!(matches!(columns[2].schema(), ""));
         assert!(matches!(columns[0].value, Value::Int8(..)));
         assert!(matches!(columns[1].value, Value::Varchar(..)));
         assert!(matches!(columns[2].value, Value::UInt16(..)));
@@ -112,7 +121,7 @@ mod tests {
     fn test_simple_entity_insert() {
         let mut query = String::new();
         assert_eq!(
-            WRITER.sql_insert::<SomeSimpleEntity>(&mut query, &SomeSimpleEntity::make_some(), true),
+            WRITER.sql_insert(&mut query, iter::once(&SomeSimpleEntity::make_some()), true),
             indoc! {"
                 INSERT OR REPLACE INTO simple_entity (a, b, c)
                 VALUES (40, 'hello', 777)

@@ -18,12 +18,28 @@ pub trait Entity: Send {
     fn create_table<Exec: Executor>(
         executor: &mut Exec,
         if_not_exists: bool,
+        create_schema: bool,
     ) -> impl Future<Output = Result<()>> + Send;
 
     fn drop_table<Exec: Executor>(
         executor: &mut Exec,
         if_exists: bool,
+        drop_schema: bool,
     ) -> impl Future<Output = Result<()>> + Send;
+
+    fn insert_one<Exec: Executor, E: Entity>(
+        executor: &mut Exec,
+        entity: &E,
+    ) -> impl Future<Output = Result<RowsAffected>> + Send;
+
+    fn insert_many<'a, Exec, It>(
+        executor: &mut Exec,
+        items: It,
+    ) -> impl Future<Output = Result<RowsAffected>> + Send
+    where
+        Self: 'a,
+        Exec: Executor,
+        It: ExactSizeIterator<Item = &'a Self>;
 
     fn find_one<Exec: Executor>(
         executor: &mut Exec,
@@ -53,8 +69,15 @@ pub trait Entity: Send {
     where
         Self: Sized;
 
-    fn row(&self) -> Row;
-    fn row_labeled(&self) -> RowLabeled;
+    fn row_filtered(&self) -> RowLabeled;
+    fn row_full(&self) -> Row;
     fn primary_key(&self) -> Self::PrimaryKey<'_>;
     fn save<Exec: Executor>(&self, executor: &mut Exec) -> impl Future<Output = Result<()>> + Send;
 }
+
+// impl<E: Entity> From<E> for RowLabeled {
+//     fn from(value: E) -> Self {
+//         let cols = E::columns_def();
+//         RowLabeled { labels: cols.iter().map(|c| c.name()), values: () }
+//     }
+// }

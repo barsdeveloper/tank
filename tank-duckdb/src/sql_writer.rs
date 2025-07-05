@@ -1,5 +1,5 @@
 use std::fmt::Write;
-use tank_core::{GenericSqlWriter, SqlWriter, Value};
+use tank_core::{ColumnDef, GenericSqlWriter, SqlWriter, Value};
 
 #[derive(Default)]
 pub struct DuckDBSqlWriter {}
@@ -33,6 +33,14 @@ impl SqlWriter for DuckDBSqlWriter {
                 generic_writer.sql_value(out, value);
             }
         };
+        out
+    }
+
+    fn sql_create_table_column_fragment_comment<'a>(
+        &self,
+        out: &'a mut String,
+        _column: &ColumnDef,
+    ) -> &'a mut String {
         out
     }
 }

@@ -3,12 +3,13 @@
 #[cfg(test)]
 mod tests {
     use indoc::indoc;
-    use std::{borrow::Cow, collections::HashMap};
+    use std::{borrow::Cow, collections::HashMap, iter};
     use tank::{
-        expr, Entity, Expression, GenericSqlWriter, Operand, PrimaryKeyType, SqlWriter, TableRef,
-        Value,
+        Entity, Expression, GenericSqlWriter, Operand, Passive, PrimaryKeyType, SqlWriter,
+        TableRef, Value, expr,
     };
     use time::{Date, Month, Time};
+    use uuid::Uuid;
 
     #[derive(Entity)]
     #[tank(schema = "company", primary_key = "id")]
@@ -21,6 +22,8 @@ mod tests {
         salary: f64,
         skills: Vec<String>,
         documents: Option<Box<HashMap<String, Box<[u8]>>>>,
+        #[tank(unique)]
+        access: Passive<::uuid::Uuid>,
         #[tank(default = false)]
         deleted: bool,
     }
@@ -43,6 +46,7 @@ mod tests {
                 salary: 75000.00,
                 skills: vec!["Rust".into(), "SQL".into()],
                 documents: Some(Box::new(docs)),
+                access: Passive::NotSet,
                 deleted: true,
             }
         }
@@ -62,7 +66,7 @@ mod tests {
 
         assert_eq!(Employee::primary_key_def().len(), 1);
         let columns = Employee::columns_def();
-        assert_eq!(columns.len(), 8);
+        assert_eq!(columns.len(), 9);
         assert_eq!(columns[0].reference.name, "id");
         assert_eq!(columns[1].reference.name, "name");
         assert_eq!(columns[2].reference.name, "hire_date");
@@ -70,7 +74,8 @@ mod tests {
         assert_eq!(columns[4].reference.name, "salary");
         assert_eq!(columns[5].reference.name, "skills");
         assert_eq!(columns[6].reference.name, "documents");
-        assert_eq!(columns[7].reference.name, "deleted");
+        assert_eq!(columns[7].reference.name, "access");
+        assert_eq!(columns[8].reference.name, "deleted");
         assert_eq!(columns[0].reference.table, "employee");
         assert_eq!(columns[1].reference.table, "employee");
         assert_eq!(columns[2].reference.table, "employee");
@@ -79,6 +84,7 @@ mod tests {
         assert_eq!(columns[5].reference.table, "employee");
         assert_eq!(columns[6].reference.table, "employee");
         assert_eq!(columns[7].reference.table, "employee");
+        assert_eq!(columns[8].reference.table, "employee");
         assert_eq!(columns[0].reference.schema, "company");
         assert_eq!(columns[1].reference.schema, "company");
         assert_eq!(columns[2].reference.schema, "company");
@@ -87,6 +93,7 @@ mod tests {
         assert_eq!(columns[5].reference.schema, "company");
         assert_eq!(columns[6].reference.schema, "company");
         assert_eq!(columns[7].reference.schema, "company");
+        assert_eq!(columns[8].reference.schema, "company");
         assert!(matches!(columns[0].value, Value::UInt32(..)));
         assert!(matches!(columns[1].value, Value::Varchar(..)));
         assert!(matches!(columns[2].value, Value::Date(..)));
@@ -100,7 +107,8 @@ mod tests {
             Value::List(_, box Value::Varchar(..))
         ));
         assert!(matches!(columns[6].value, Value::Map(..)));
-        assert!(matches!(columns[7].value, Value::Boolean(..)));
+        assert!(matches!(columns[7].value, Value::Uuid(..)));
+        assert!(matches!(columns[8].value, Value::Boolean(..)));
         assert_eq!(columns[0].nullable, false);
         assert_eq!(columns[1].nullable, false);
         assert_eq!(columns[2].nullable, false);
@@ -109,6 +117,7 @@ mod tests {
         assert_eq!(columns[5].nullable, false);
         assert_eq!(columns[6].nullable, true);
         assert_eq!(columns[7].nullable, false);
+        assert_eq!(columns[8].nullable, false);
         assert!(matches!(columns[0].default, None));
         assert!(matches!(columns[1].default, None));
         assert!(matches!(columns[2].default, None));
@@ -116,10 +125,11 @@ mod tests {
         assert!(matches!(columns[4].default, None));
         assert!(matches!(columns[5].default, None));
         assert!(matches!(columns[6].default, None));
-        let column7_default =
-            columns[7].default.as_deref().unwrap() as *const dyn Expression as *const Operand;
+        assert!(matches!(columns[7].default, None));
+        let column8_default =
+            columns[8].default.as_deref().unwrap() as *const dyn Expression as *const Operand;
         assert!(matches!(
-            unsafe { &*column7_default },
+            unsafe { &*column8_default },
             Operand::LitBool(false),
         ));
         assert_eq!(columns[0].primary_key, PrimaryKeyType::PrimaryKey);
@@ -130,6 +140,7 @@ mod tests {
         assert_eq!(columns[5].primary_key, PrimaryKeyType::None);
         assert_eq!(columns[6].primary_key, PrimaryKeyType::None);
         assert_eq!(columns[7].primary_key, PrimaryKeyType::None);
+        assert_eq!(columns[8].primary_key, PrimaryKeyType::None);
         assert_eq!(columns[0].unique, false);
         assert_eq!(columns[1].unique, true);
         assert_eq!(columns[2].unique, false);
@@ -137,7 +148,8 @@ mod tests {
         assert_eq!(columns[4].unique, false);
         assert_eq!(columns[5].unique, false);
         assert_eq!(columns[6].unique, false);
-        assert_eq!(columns[7].unique, false);
+        assert_eq!(columns[7].unique, true);
+        assert_eq!(columns[8].unique, false);
         assert_eq!(columns[0].auto_increment, false);
         assert_eq!(columns[1].auto_increment, false);
         assert_eq!(columns[2].auto_increment, false);
@@ -146,6 +158,7 @@ mod tests {
         assert_eq!(columns[5].auto_increment, false);
         assert_eq!(columns[6].auto_increment, false);
         assert_eq!(columns[7].auto_increment, false);
+        assert_eq!(columns[8].auto_increment, false);
         assert_eq!(columns[0].passive, false);
         assert_eq!(columns[1].passive, false);
         assert_eq!(columns[2].passive, false);
@@ -153,7 +166,8 @@ mod tests {
         assert_eq!(columns[4].passive, false);
         assert_eq!(columns[5].passive, false);
         assert_eq!(columns[6].passive, false);
-        assert_eq!(columns[7].passive, false);
+        assert_eq!(columns[7].passive, true);
+        assert_eq!(columns[8].passive, false);
     }
 
     #[test]
@@ -170,6 +184,7 @@ mod tests {
                 salary DOUBLE NOT NULL,
                 skills VARCHAR[] NOT NULL,
                 documents MAP(VARCHAR, BLOB),
+                access UUID NOT NULL UNIQUE,
                 deleted BOOLEAN NOT NULL DEFAULT false
                 )
             "}
@@ -197,7 +212,7 @@ mod tests {
                 Some(10),
             ),
             indoc! {"
-                SELECT id, name, hire_date, working_hours, salary, skills, documents, deleted
+                SELECT id, name, hire_date, working_hours, salary, skills, documents, access, deleted
                 FROM company.employee
                 WHERE salary > 50000
                 LIMIT 10
@@ -208,18 +223,33 @@ mod tests {
 
     #[test]
     fn test_employee_insert() {
-        let mut query = String::new();
         let mut docs = HashMap::new();
         docs.insert("contract.pdf".to_string(), vec![1, 2, 3, 4]);
         let employee = Employee::sample();
+        let mut query = String::new();
         assert_eq!(
-        WRITER.sql_insert::<Employee>(&mut query, &employee, false),
-        indoc! {"
-            INSERT INTO company.employee (id, name, hire_date, working_hours, salary, skills, documents, deleted)
-            VALUES (501, 'Bob Smith', '2022-01-20', ['9:00:00.0','18:00:00.0'], 75000, ['Rust','SQL'], {'contract.pdf':'\\x25\\x50\\x44\\x46'}, true)
-        "}
-        .trim()
-    );
+            WRITER.sql_insert(&mut query, iter::once(&employee), false),
+            indoc! {"
+                INSERT INTO company.employee (id, name, hire_date, working_hours, salary, skills, documents, deleted)
+                VALUES (501, 'Bob Smith', '2022-01-20', ['9:00:00.0','18:00:00.0'], 75000, ['Rust','SQL'], {'contract.pdf':'\\x25\\x50\\x44\\x46'}, true)
+            "}
+            .trim()
+        );
+        let employee = Employee {
+            access: Uuid::parse_str("8f8fcc51-2fa9-4118-b14f-af2d8301a89a")
+                .unwrap()
+                .into(),
+            ..Employee::sample()
+        };
+        let mut query = String::new();
+        assert_eq!(
+            WRITER.sql_insert(&mut query, iter::once(&employee), false),
+            indoc! {"
+                INSERT INTO company.employee (id, name, hire_date, working_hours, salary, skills, documents, access, deleted)
+                VALUES (501, 'Bob Smith', '2022-01-20', ['9:00:00.0','18:00:00.0'], 75000, ['Rust','SQL'], {'contract.pdf':'\\x25\\x50\\x44\\x46'}, '8f8fcc51-2fa9-4118-b14f-af2d8301a89a', true)
+            "}
+            .trim()
+        );
     }
 
     #[test]

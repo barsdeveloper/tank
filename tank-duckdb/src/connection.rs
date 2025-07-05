@@ -1,16 +1,16 @@
-use crate::{cbox::CBox, driver::DuckDBDriver, extract_value::extract_value, DuckDBPrepared};
+use crate::{DuckDBPrepared, cbox::CBox, driver::DuckDBDriver, extract_value::extract_value};
 use futures::Stream;
 use libduckdb_sys::*;
 use std::{
     collections::BTreeMap,
-    ffi::{c_char, c_void, CStr, CString},
+    ffi::{CStr, CString, c_char, c_void},
     fmt::{self, Debug, Formatter},
     mem,
     ops::DerefMut,
     ptr,
     sync::{
-        atomic::{AtomicPtr, Ordering},
         Arc, LazyLock,
+        atomic::{AtomicPtr, Ordering},
     },
 };
 use tank_core::{
@@ -123,6 +123,7 @@ impl Executor for DuckDBConnection {
                             .expect("Error message from prepare is expected to be a valid C string")
                             .to_string();
                         let _ = tx.send(Err(Error::msg(message)));
+                        return;
                     }
                     DuckDBPrepared::new(prepared)
                 });
@@ -134,7 +135,14 @@ impl Executor for DuckDBConnection {
             let rc = duckdb_execute_prepared_streaming(**query.prepared, &mut result);
             let mut result = CBox::new(result, |mut r| duckdb_destroy_result(&mut r));
             if rc != duckdb_state_DuckDBSuccess {
-                let _ = tx.send(Err(Error::msg("Error while executing the query")));
+                let message = CStr::from_ptr(duckdb_result_error(&mut *result))
+                    .to_str()
+                    .expect("Error message from prepare is expected to be a valid C string");
+                let _ = tx.send(Err(Error::msg(format!(
+                    "Error while executing the query: {}",
+                    message
+                ))));
+                return;
             }
             let statement_type = duckdb_result_statement_type(*result);
             #[allow(non_upper_case_globals)]

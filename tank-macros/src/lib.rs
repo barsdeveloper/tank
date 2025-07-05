@@ -8,6 +8,7 @@ mod encode_column_ref;
 mod from_row_trait;
 
 use crate::{
+    decode_column::ColumnMetadata,
     decode_table::{TableMetadata, decode_table},
     encode_column_def::encode_column_def,
     from_row_trait::from_row_trait,
@@ -108,6 +109,9 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
         let name = &column.name;
         quote!((#name.into(), #filter))
     });
+    let row_full = metadata_and_filter
+        .iter()
+        .map(|(ColumnMetadata { ident, .. }, _)| quote!(self.#ident.clone().into()));
     let columns_def = metadata_and_filter.iter().map(|(c, _)| {
         let field = &c.ident;
         encode_column_def(&c, quote!(#ident::#field))
@@ -171,11 +175,24 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                 #from_row_factory::<Self>::from_row(row)
             }
 
-            async fn create_table<E: ::tank::Executor>(
-                executor: &mut E,
+            async fn create_table<Exec: ::tank::Executor>(
+                executor: &mut Exec,
                 if_not_exists: bool,
+                create_schema: bool,
             ) -> ::tank::Result<()> {
                 let mut query = String::with_capacity(512);
+                if create_schema {
+                    ::tank::SqlWriter::sql_create_schema::<#ident>(
+                        &::tank::Driver::sql_writer(executor.driver()),
+                        &mut query,
+                        true,
+                    );
+                    executor
+                        .execute(query.as_str().into())
+                        .await
+                        .map(|_| ())?;
+                    query.clear();
+                }
                 ::tank::SqlWriter::sql_create_table::<#ident>(
                     &::tank::Driver::sql_writer(executor.driver()),
                     &mut query,
@@ -187,9 +204,10 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                     .map(|_| ())
             }
 
-            async fn drop_table<E: ::tank::Executor>(
-                executor: &mut E,
+            async fn drop_table<Exec: ::tank::Executor>(
+                executor: &mut Exec,
                 if_exists: bool,
+                drop_schema: bool,
             ) -> ::tank::Result<()> {
                 let mut query = String::with_capacity(64);
                 ::tank::SqlWriter::sql_drop_table::<#ident>(
@@ -201,6 +219,39 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                     .execute(::tank::Query::Raw(query.into()))
                     .await
                     .map(|_| ())
+            }
+
+            fn insert_one<Exec: ::tank::Executor, E: ::tank::Entity>(
+                executor: &mut Exec,
+                entity: &E,
+            ) -> impl ::std::future::Future<Output = ::tank::Result<::tank::RowsAffected>> + Send {
+                let mut query = String::with_capacity(128);
+                ::tank::SqlWriter::sql_insert(
+                    &::tank::Driver::sql_writer(executor.driver()),
+                    &mut query,
+                    ::std::iter::once(entity),
+                    false,
+                );
+                executor.execute(::tank::Query::Raw(query.into()))
+            }
+
+            fn insert_many<'a, Exec, It>(
+                executor: &mut Exec,
+                entities: It,
+            ) -> impl ::std::future::Future<Output = ::tank::Result<::tank::RowsAffected>> + Send
+            where
+                Self: 'a,
+                Exec: ::tank::Executor,
+                It: ExactSizeIterator<Item = &'a Self>
+            {
+                let mut query = String::with_capacity(128);
+                ::tank::SqlWriter::sql_insert(
+                    &::tank::Driver::sql_writer(executor.driver()),
+                    &mut query,
+                    entities,
+                    false,
+                );
+                executor.execute(::tank::Query::Raw(query.into()))
             }
 
             fn find_one<E: ::tank::Executor>(
@@ -278,21 +329,21 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                 executor.execute(::tank::Query::Raw(query.into()))
             }
 
-            fn row_labeled(&self) -> ::tank::RowLabeled {
+            fn row_filtered(&self) -> ::tank::RowLabeled {
                 ::tank::RowLabeled {
                     labels: [#(#label_and_filter),*]
                         .into_iter()
                         .filter_map(|(v, f)| if f { Some(v) } else { None })
                         .collect::<::tank::RowNames>(),
-                    values: self.row(),
+                    values: [#(#value_and_filter),*]
+                        .into_iter()
+                        .filter_map(|(v, f)| if f { Some(v) } else { None })
+                        .collect::<::tank::Row>(),
                 }
             }
 
-            fn row(&self) -> ::tank::Row {
-                [#(#value_and_filter),*]
-                    .into_iter()
-                    .filter_map(|(v, f)| if f { Some(v) } else { None })
-                    .collect::<::tank::Row>()
+            fn row_full(&self) -> ::tank::Row {
+                [#(#row_full),*].into()
             }
 
             fn primary_key<'a>(&'a self) -> Self::PrimaryKey<'a> {
@@ -307,7 +358,7 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                 ::tank::SqlWriter::sql_insert(
                     &::tank::Driver::sql_writer(executor.driver()),
                     &mut query,
-                    self,
+                    ::std::iter::once(self),
                     true,
                 );
                 async { executor.execute(query.into()).await.map(|_| ()) }
