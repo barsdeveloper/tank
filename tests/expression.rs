@@ -18,13 +18,13 @@ mod tests {
     fn test_simple_expressions() {
         let expr = expr!();
         let mut out = String::new();
-        expr.sql_write(&WRITER, &mut out, false);
+        expr.write_query(&WRITER, &mut out, false);
         assert_eq!(out, "false");
         assert!(matches!(expr, Operand::LitBool(false)));
 
         let expr = expr!(1 + 2);
         let mut out = String::new();
-        expr.sql_write(&WRITER, &mut out, false);
+        expr.write_query(&WRITER, &mut out, false);
         assert_eq!(out, "1 + 2");
         assert!(matches!(
             expr,
@@ -37,7 +37,7 @@ mod tests {
 
         let expr = expr!(5 * 1.2);
         let mut out = String::new();
-        expr.sql_write(&WRITER, &mut out, false);
+        expr.write_query(&WRITER, &mut out, false);
         assert_eq!(out, "5 * 1.2");
         assert!(matches!(
             expr,
@@ -50,7 +50,7 @@ mod tests {
 
         let expr = expr!(true && false);
         let mut out = String::new();
-        expr.sql_write(&WRITER, &mut out, false);
+        expr.write_query(&WRITER, &mut out, false);
         assert_eq!(out, "true AND false");
         assert!(matches!(
             expr,
@@ -63,7 +63,7 @@ mod tests {
 
         let expr = expr!(45 | -90);
         let mut out = String::new();
-        expr.sql_write(&WRITER, &mut out, false);
+        expr.write_query(&WRITER, &mut out, false);
         assert_eq!(out, "45 | -90");
         assert!(matches!(
             expr,
@@ -79,7 +79,7 @@ mod tests {
 
         let expr = expr!(true as i32);
         let mut out = String::new();
-        expr.sql_write(&WRITER, &mut out, false);
+        expr.write_query(&WRITER, &mut out, false);
         assert_eq!(out, "CAST(true AS INTEGER)");
         assert!(matches!(
             expr,
@@ -92,7 +92,7 @@ mod tests {
 
         let expr = expr!("1.5" as f64);
         let mut out = String::new();
-        expr.sql_write(&WRITER, &mut out, false);
+        expr.write_query(&WRITER, &mut out, false);
         assert_eq!(out, "CAST('1.5' AS DOUBLE)");
         assert!(matches!(
             expr,
@@ -105,7 +105,7 @@ mod tests {
 
         let expr = expr!(["a", "b", "c"]);
         let mut out = String::new();
-        expr.sql_write(&WRITER, &mut out, false);
+        expr.write_query(&WRITER, &mut out, false);
         assert_eq!(out, "['a', 'b', 'c']");
         assert!(matches!(
             expr,
@@ -118,7 +118,7 @@ mod tests {
 
         let expr = expr!([11, 22, 33][1]);
         let mut out = String::new();
-        expr.sql_write(&WRITER, &mut out, false);
+        expr.write_query(&WRITER, &mut out, false);
         assert_eq!(out, "[11, 22, 33][1]");
         assert!(matches!(
             expr,
@@ -135,7 +135,7 @@ mod tests {
 
         let expr = expr!("hello" == "hell_" as LIKE);
         let mut out = String::new();
-        expr.sql_write(&WRITER, &mut out, false);
+        expr.write_query(&WRITER, &mut out, false);
         assert_eq!(out, "'hello' LIKE 'hell_'");
         assert!(matches!(
             expr,
@@ -148,7 +148,7 @@ mod tests {
 
         let expr = expr!("abc" != "A%" as LIKE);
         let mut out = String::new();
-        expr.sql_write(&WRITER, &mut out, false);
+        expr.write_query(&WRITER, &mut out, false);
         assert_eq!(out, "'abc' NOT LIKE 'A%'");
         assert!(matches!(
             expr,
@@ -161,7 +161,7 @@ mod tests {
 
         let expr = expr!("log.txt" != "src/**/log.{txt,csv}" as GLOB);
         let mut out = String::new();
-        expr.sql_write(&WRITER, &mut out, false);
+        expr.write_query(&WRITER, &mut out, false);
         assert_eq!(out, "'log.txt' NOT GLOB 'src/**/log.{txt,csv}'");
         assert!(matches!(
             expr,
@@ -174,7 +174,7 @@ mod tests {
 
         let expr = expr!(true as i32);
         let mut out = String::new();
-        expr.sql_write(&WRITER, &mut out, false);
+        expr.write_query(&WRITER, &mut out, false);
         assert_eq!(out, "CAST(true AS INTEGER)");
         assert!(matches!(
             expr,
@@ -187,7 +187,7 @@ mod tests {
 
         let expr = expr!("value" != NULL);
         let mut out = String::new();
-        expr.sql_write(&WRITER, &mut out, false);
+        expr.write_query(&WRITER, &mut out, false);
         assert_eq!(out, "'value' IS NOT NULL");
         assert!(matches!(
             expr,
@@ -203,7 +203,7 @@ mod tests {
     fn test_complex_expressions() {
         let expr = expr!(90.5 - -0.54 * 2 < 7 / 2);
         let mut out = String::new();
-        expr.sql_write(&WRITER, &mut out, false);
+        expr.write_query(&WRITER, &mut out, false);
         assert_eq!(out, "90.5 - -0.54 * 2 < 7 / 2");
         assert!(matches!(
             expr,
@@ -231,7 +231,7 @@ mod tests {
 
         let expr = expr!((2 + 3) * (4 - 1) >> 1 & (8 | 3));
         let mut out = String::new();
-        expr.sql_write(&WRITER, &mut out, false);
+        expr.write_query(&WRITER, &mut out, false);
         assert_eq!(out, "(2 + 3) * (4 - 1) >> 1 & (8 | 3)");
         assert!(matches!(
             expr,
@@ -264,7 +264,7 @@ mod tests {
 
         let expr = expr!(-(-PI) + 2 * (5 % (2 + 1)) == 7 && !(4 < 2));
         let mut out = String::new();
-        expr.sql_write(&WRITER, &mut out, false);
+        expr.write_query(&WRITER, &mut out, false);
         assert_eq!(out, "-(-PI) + 2 * (5 % (2 + 1)) = 7 AND NOT 4 < 2");
         assert!(matches!(
             expr,
@@ -315,7 +315,7 @@ mod tests {
         let three = 3;
         let expr = expr!(#one + 2 == #three);
         let mut out = String::new();
-        expr.sql_write(&WRITER, &mut out, false);
+        expr.write_query(&WRITER, &mut out, false);
         assert_eq!(out, "1 + 2 = 3");
         assert!(matches!(
             expr,
@@ -334,7 +334,7 @@ mod tests {
         let index = 2;
         let expr = expr!(#vec[#index + 1] + 60);
         let mut out = String::new();
-        expr.sql_write(&WRITER, &mut out, false);
+        expr.write_query(&WRITER, &mut out, false);
         assert_eq!(out, "[-1,-2,-3,-4][2 + 1] + 60");
         assert!(matches!(
                 expr,
@@ -387,12 +387,12 @@ mod tests {
         assert_eq!(col.schema, "");
         {
             let mut out = String::new();
-            expr.sql_write(&WRITER, &mut out, false);
+            expr.write_query(&WRITER, &mut out, false);
             assert_eq!(out, "first + 2");
         }
         {
             let mut out = String::new();
-            expr.sql_write(&WRITER, &mut out, true);
+            expr.write_query(&WRITER, &mut out, true);
             assert_eq!(out, "the_table.first + 2");
         }
 

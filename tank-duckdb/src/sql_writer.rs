@@ -15,7 +15,7 @@ impl SqlWriter for DuckDBSqlWriter {
         self
     }
 
-    fn sql_value<'a>(&self, out: &'a mut String, value: &Value) -> &'a mut String {
+    fn write_value(&self, out: &mut String, value: &Value) {
         let generic_writer = GenericSqlWriter::new();
         let _ = match value {
             Value::Blob(Some(v), ..) => {
@@ -27,20 +27,13 @@ impl SqlWriter for DuckDBSqlWriter {
             }
             Value::Map(Some(_v), ..) => {
                 out.push_str("MAP");
-                generic_writer.sql_value(out, value);
+                generic_writer.write_value(out, value);
             }
             _ => {
-                generic_writer.sql_value(out, value);
+                generic_writer.write_value(out, value);
             }
         };
-        out
     }
 
-    fn sql_create_table_column_fragment_comment<'a>(
-        &self,
-        out: &'a mut String,
-        _column: &ColumnDef,
-    ) -> &'a mut String {
-        out
-    }
+    fn write_create_table_column_fragment_comment(&self, _out: &mut String, _column: &ColumnDef) {}
 }

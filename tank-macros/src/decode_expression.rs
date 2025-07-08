@@ -1,8 +1,8 @@
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 use syn::{
-    punctuated::Punctuated, spanned::Spanned, token::Comma, BinOp, Expr, ExprGroup, ExprLit,
-    ExprMacro, ExprPath, LitStr, Macro, Member, Path, Type, TypePath,
+    BinOp, Expr, ExprGroup, ExprLit, ExprMacro, ExprPath, LitStr, Macro, Member, Path, Type,
+    TypePath, punctuated::Punctuated, spanned::Spanned, token::Comma,
 };
 use tank_core::decode_type;
 
@@ -53,7 +53,7 @@ pub fn decode_expression(expr: &Expr) -> TokenStream {
                                     result = match op {
                                         BinOp::Eq(..) => quote! { ::tank::BinaryOpType::Regexp },
                                         BinOp::Ne(..) => {
-                                            quote! { ::tank::BinaryOpType::NotRegexpr }
+                                            quote! { ::tank::BinaryOpType::NotRegexp }
                                         }
                                         _ => unreachable!(),
                                     }
@@ -114,14 +114,20 @@ pub fn decode_expression(expr: &Expr) -> TokenStream {
             let rhs = match expr_cast.ty.as_ref() {
                 Type::Path(TypePath { path, .. }) => 'r: {
                     if path.segments.len() == 1 {
-                        let v = &path.segments.first().expect("Cast path type has exactly one segment").ident;
+                        let v = &path
+                            .segments
+                            .first()
+                            .expect("Cast path type has exactly one segment")
+                            .ident;
                         if v == "IS" || v == "LIKE" || v == "REGEXP" || v == "GLOB" {
                             break 'r quote! {};
                         }
                     }
                     decode_type(&expr_cast.ty).0.value.into_token_stream()
                 }
-                _ => panic!("Unexpected cast type, cast can only be a type or the special keyworkds: `IS`, `LIKE`, `REGEXP`, `GLOB`"),
+                _ => panic!(
+                    "Unexpected cast type, cast can only be a type or the special keyworkds: `IS`, `LIKE`, `REGEXP`, `GLOB`"
+                ),
             };
             quote! {
                 ::tank::BinaryOp {
@@ -207,7 +213,10 @@ pub fn decode_expression(expr: &Expr) -> TokenStream {
             let mut current = expr;
             let mut segments = Vec::new();
             let do_panic = || {
-                panic!("Unexpected field expression {}, it should dot separated names like: namespace.table.column", v.to_token_stream().to_string())
+                panic!(
+                    "Unexpected field expression {}, it should dot separated names like: namespace.table.column",
+                    v.to_token_stream().to_string()
+                )
             };
             loop {
                 match current {

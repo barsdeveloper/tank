@@ -17,6 +17,7 @@ mod tests {
         tags: Vec<String>,
         added_on: PrimitiveDateTime,
     }
+
     impl Product {
         pub fn sample() -> Self {
             Self {
@@ -64,8 +65,9 @@ mod tests {
     #[tokio::test]
     async fn test_product_create_table() {
         let mut query = String::new();
+        WRITER.write_create_table::<Product>(&mut query, false);
         assert_eq!(
-            WRITER.sql_create_table::<Product>(&mut query, false),
+            query,
             indoc! {"
                 CREATE TABLE products (
                 id UBIGINT AUTOINCREMENT PRIMARY KEY,
@@ -83,8 +85,9 @@ mod tests {
     #[tokio::test]
     async fn test_product_insert() {
         let mut query = String::new();
+        WRITER.write_insert(&mut query, iter::once(&Product::sample()), false);
         assert_eq!(
-            WRITER.sql_insert(&mut query, iter::once(&Product::sample()), false),
+            query,
             indoc! {"
                 INSERT INTO products (name, price, available, tags, added_on)
                 VALUES ('Smartphone', 499.99, true, ['electronics','mobile'], '2025-06-24 10:30:07.0')

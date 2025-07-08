@@ -12,6 +12,7 @@ mod tests {
         #[tank(unique)]
         c: Box<u16>,
     }
+
     impl SomeSimpleEntity {
         pub fn make_some() -> Self {
             Self {
@@ -73,8 +74,9 @@ mod tests {
     #[test]
     fn test_simple_entity_create_table() {
         let mut query = String::new();
+        WRITER.write_create_table::<SomeSimpleEntity>(&mut query, false);
         assert_eq!(
-            WRITER.sql_create_table::<SomeSimpleEntity>(&mut query, false),
+            query,
             indoc! {"
                 CREATE TABLE simple_entity (
                 a TINYINT NOT NULL,
@@ -91,22 +93,21 @@ mod tests {
     #[test]
     fn test_simple_entity_drop_table() {
         let mut query = String::new();
-        assert_eq!(
-            WRITER.sql_drop_table::<SomeSimpleEntity>(&mut query, true),
-            "DROP TABLE IF EXISTS simple_entity"
-        );
+        WRITER.write_drop_table::<SomeSimpleEntity>(&mut query, true);
+        assert_eq!(query, "DROP TABLE IF EXISTS simple_entity");
     }
 
     #[test]
     fn test_simple_entity_select() {
         let mut query = String::new();
+        WRITER.write_select::<SomeSimpleEntity, _, _>(
+            &mut query,
+            SomeSimpleEntity::table_ref(),
+            &expr!(SomeSimpleEntity::a > 100),
+            Some(1000),
+        );
         assert_eq!(
-            WRITER.sql_select::<SomeSimpleEntity, _, _>(
-                &mut query,
-                SomeSimpleEntity::table_ref(),
-                &expr!(SomeSimpleEntity::a > 100),
-                Some(1000),
-            ),
+            query,
             indoc! {"
                 SELECT a, b, c
                 FROM simple_entity
@@ -120,8 +121,9 @@ mod tests {
     #[test]
     fn test_simple_entity_insert() {
         let mut query = String::new();
+        WRITER.write_insert(&mut query, iter::once(&SomeSimpleEntity::make_some()), true);
         assert_eq!(
-            WRITER.sql_insert(&mut query, iter::once(&SomeSimpleEntity::make_some()), true),
+            query,
             indoc! {"
                 INSERT OR REPLACE INTO simple_entity (a, b, c)
                 VALUES (40, 'hello', 777)
@@ -133,11 +135,12 @@ mod tests {
     #[test]
     fn test_simple_entity_delete() {
         let mut query = String::new();
+        WRITER.write_delete::<SomeSimpleEntity, _>(
+            &mut query,
+            &expr!(SomeSimpleEntity::b != "hello"),
+        );
         assert_eq!(
-            WRITER.sql_delete::<SomeSimpleEntity, _>(
-                &mut query,
-                &expr!(SomeSimpleEntity::b != "hello")
-            ),
+            query,
             indoc! {"
                 DELETE FROM simple_entity
                 WHERE b != 'hello'

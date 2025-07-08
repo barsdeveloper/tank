@@ -1,43 +1,21 @@
-use crate::{OpPrecedence, SqlWriter, Value};
+use crate::{OpPrecedence, SqlWriter};
 
 pub trait Expression: OpPrecedence + Send + Sync {
-    fn sql_write<'a>(
-        &self,
-        writer: &dyn SqlWriter,
-        out: &'a mut String,
-        qualify_columns: bool,
-    ) -> &'a mut String;
+    fn write_query(&self, writer: &dyn SqlWriter, out: &mut String, qualify_columns: bool);
 }
 
 impl Expression for &dyn Expression {
-    fn sql_write<'a>(
-        &self,
-        writer: &dyn SqlWriter,
-        out: &'a mut String,
-        qualify_columns: bool,
-    ) -> &'a mut String {
-        (**self).sql_write(writer, out, qualify_columns)
+    fn write_query(&self, writer: &dyn SqlWriter, out: &mut String, qualify_columns: bool) {
+        (**self).write_query(writer, out, qualify_columns);
     }
 }
 
 impl Expression for () {
-    fn sql_write<'a>(
-        &self,
-        _writer: &dyn SqlWriter,
-        out: &'a mut String,
-        _qualify_columns: bool,
-    ) -> &'a mut String {
-        out
-    }
+    fn write_query(&self, _writer: &dyn SqlWriter, _out: &mut String, _qualify_columns: bool) {}
 }
 
 impl Expression for bool {
-    fn sql_write<'a>(
-        &self,
-        writer: &dyn SqlWriter,
-        out: &'a mut String,
-        _qualify_columns: bool,
-    ) -> &'a mut String {
-        writer.sql_value(out, &Value::Boolean(Some(*self)))
+    fn write_query(&self, writer: &dyn SqlWriter, out: &mut String, _qualify_columns: bool) {
+        writer.write_value_bool(out, *self);
     }
 }

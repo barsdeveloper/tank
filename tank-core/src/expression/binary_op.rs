@@ -1,6 +1,6 @@
 use crate::{Expression, OpPrecedence, SqlWriter};
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens, TokenStreamExt};
+use quote::{ToTokens, TokenStreamExt, quote};
 use std::fmt::{self, Display, Formatter};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -21,7 +21,7 @@ pub enum BinaryOpType {
     Like,
     NotLike,
     Regexp,
-    NotRegexpr,
+    NotRegexp,
     Glob,
     NotGlob,
     Equal,
@@ -53,13 +53,8 @@ impl<L: Expression, R: Expression> OpPrecedence for BinaryOp<L, R> {
 }
 
 impl<L: Expression, R: Expression> Expression for BinaryOp<L, R> {
-    fn sql_write<'a>(
-        &self,
-        writer: &dyn SqlWriter,
-        out: &'a mut String,
-        qualify_columns: bool,
-    ) -> &'a mut String {
-        writer.sql_expression_binary_op(
+    fn write_query(&self, writer: &dyn SqlWriter, out: &mut String, qualify_columns: bool) {
+        writer.write_expression_binary_op(
             out,
             &BinaryOp {
                 op: self.op,
@@ -90,7 +85,7 @@ impl Display for BinaryOpType {
             BinaryOpType::Like => "Like",
             BinaryOpType::NotLike => "NotLike",
             BinaryOpType::Regexp => "Regexp",
-            BinaryOpType::NotRegexpr => "NotRegexpr",
+            BinaryOpType::NotRegexp => "NotRegexp",
             BinaryOpType::Glob => "Glob",
             BinaryOpType::NotGlob => "NotGlob",
             BinaryOpType::Equal => "Equal",

@@ -114,8 +114,9 @@ mod tests {
     #[test]
     fn test_odd_entity_create_table() {
         let mut query = String::new();
+        WRITER.write_create_table::<MyEntity>(&mut query, true);
         assert_eq!(
-            WRITER.sql_create_table::<MyEntity>(&mut query, true),
+            query,
             indoc! {"
                 CREATE TABLE IF NOT EXISTS a_table (
                 alpha DOUBLE NOT NULL,
@@ -133,22 +134,21 @@ mod tests {
     #[test]
     fn test_odd_entity_drop_table() {
         let mut query = String::new();
-        assert_eq!(
-            WRITER.sql_drop_table::<MyEntity>(&mut query, false),
-            "DROP TABLE a_table"
-        );
+        WRITER.write_drop_table::<MyEntity>(&mut query, false);
+        assert_eq!(query, "DROP TABLE a_table");
     }
 
     #[test]
     fn test_odd_entity_select() {
         let mut query = String::new();
+        WRITER.write_select::<MyEntity, _, _>(
+            &mut query,
+            MyEntity::table_ref(),
+            &expr!(MyEntity::_bravo < 0),
+            Some(300),
+        );
         assert_eq!(
-            WRITER.sql_select::<MyEntity, _, _>(
-                &mut query,
-                MyEntity::table_ref(),
-                &expr!(MyEntity::_bravo < 0),
-                Some(300),
-            ),
+            query,
             indoc! {"
                 SELECT alpha, bravo, charlie, delta, echo
                 FROM a_table
@@ -162,11 +162,12 @@ mod tests {
     #[test]
     fn test_odd_entity_insert() {
         let mut query = String::new();
+        WRITER.write_insert(&mut query, iter::once(&MyEntity::sample()), true);
         assert_eq!(
-            WRITER.sql_insert(&mut query, iter::once(&MyEntity::sample()), true),
+            query,
             indoc! {"
                 INSERT OR REPLACE INTO a_table (alpha, bravo, charlie, delta, echo)
-                VALUES (0, 2, 10.2, INTERVAL 1 SECOND, 23.44)
+                VALUES (0.0, 2, 10.2, INTERVAL 1 SECOND, 23.44)
             "}
             .trim()
         );
@@ -175,8 +176,9 @@ mod tests {
     #[test]
     fn test_odd_entity_delete() {
         let mut query = String::new();
+        WRITER.write_delete::<MyEntity, _>(&mut query, &expr!(MyEntity::_echo == 5));
         assert_eq!(
-            WRITER.sql_delete::<MyEntity, _>(&mut query, &expr!(MyEntity::_echo == 5)),
+            query,
             indoc! {"
                 DELETE FROM a_table
                 WHERE echo = 5

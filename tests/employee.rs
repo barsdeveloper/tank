@@ -173,8 +173,9 @@ mod tests {
     #[test]
     fn test_employee_create_table() {
         let mut query = String::new();
+        WRITER.write_create_table::<Employee>(&mut query, false);
         assert_eq!(
-            WRITER.sql_create_table::<Employee>(&mut query, false),
+            query,
             indoc! {"
                 CREATE TABLE company.employee (
                 id UINTEGER PRIMARY KEY,
@@ -195,22 +196,21 @@ mod tests {
     #[test]
     fn test_employee_drop_table() {
         let mut query = String::new();
-        assert_eq!(
-            WRITER.sql_drop_table::<Employee>(&mut query, true),
-            "DROP TABLE IF EXISTS company.employee"
-        );
+        WRITER.write_drop_table::<Employee>(&mut query, true);
+        assert_eq!(query, "DROP TABLE IF EXISTS company.employee");
     }
 
     #[test]
     fn test_employee_select() {
         let mut query = String::new();
+        WRITER.write_select::<Employee, _, _>(
+            &mut query,
+            Employee::table_ref(),
+            &expr!(Employee::salary > 50000),
+            Some(10),
+        );
         assert_eq!(
-            WRITER.sql_select::<Employee, _, _>(
-                &mut query,
-                Employee::table_ref(),
-                &expr!(Employee::salary > 50000),
-                Some(10),
-            ),
+            query,
             indoc! {"
                 SELECT id, name, hire_date, working_hours, salary, skills, documents, access, deleted
                 FROM company.employee
@@ -227,11 +227,12 @@ mod tests {
         docs.insert("contract.pdf".to_string(), vec![1, 2, 3, 4]);
         let employee = Employee::sample();
         let mut query = String::new();
+        WRITER.write_insert(&mut query, iter::once(&employee), false);
         assert_eq!(
-            WRITER.sql_insert(&mut query, iter::once(&employee), false),
+            query,
             indoc! {"
                 INSERT INTO company.employee (id, name, hire_date, working_hours, salary, skills, documents, deleted)
-                VALUES (501, 'Bob Smith', '2022-01-20', ['9:00:00.0','18:00:00.0'], 75000, ['Rust','SQL'], {'contract.pdf':'\\x25\\x50\\x44\\x46'}, true)
+                VALUES (501, 'Bob Smith', '2022-01-20', ['9:00:00.0','18:00:00.0'], 75000.0, ['Rust','SQL'], {'contract.pdf':'\\x25\\x50\\x44\\x46'}, true)
             "}
             .trim()
         );
@@ -242,11 +243,12 @@ mod tests {
             ..Employee::sample()
         };
         let mut query = String::new();
+        WRITER.write_insert(&mut query, iter::once(&employee), false);
         assert_eq!(
-            WRITER.sql_insert(&mut query, iter::once(&employee), false),
+            query,
             indoc! {"
                 INSERT INTO company.employee (id, name, hire_date, working_hours, salary, skills, documents, access, deleted)
-                VALUES (501, 'Bob Smith', '2022-01-20', ['9:00:00.0','18:00:00.0'], 75000, ['Rust','SQL'], {'contract.pdf':'\\x25\\x50\\x44\\x46'}, '8f8fcc51-2fa9-4118-b14f-af2d8301a89a', true)
+                VALUES (501, 'Bob Smith', '2022-01-20', ['9:00:00.0','18:00:00.0'], 75000.0, ['Rust','SQL'], {'contract.pdf':'\\x25\\x50\\x44\\x46'}, '8f8fcc51-2fa9-4118-b14f-af2d8301a89a', true)
             "}
             .trim()
         );
@@ -255,8 +257,9 @@ mod tests {
     #[test]
     fn test_sql_delete() {
         let mut query = String::new();
+        WRITER.write_delete::<Employee, _>(&mut query, &expr!(Employee::name == "Bob"));
         assert_eq!(
-            WRITER.sql_delete::<Employee, _>(&mut query, &expr!(Employee::name == "Bob")),
+            query,
             indoc! {"
                 DELETE FROM company.employee
                 WHERE name = 'Bob'

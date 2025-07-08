@@ -1,9 +1,9 @@
 use crate::{DataSet, Expression, SqlWriter};
 use proc_macro2::{TokenStream, TokenTree};
-use quote::{quote, ToTokens, TokenStreamExt};
+use quote::{ToTokens, TokenStreamExt, quote};
 use syn::{
-    parse::{Parse, ParseStream},
     Ident,
+    parse::{Parse, ParseStream},
 };
 
 pub struct Join<L: DataSet, R: DataSet, E: Expression> {
@@ -31,8 +31,8 @@ impl<L: DataSet, R: DataSet, E: Expression> DataSet for Join<L, R, E> {
     {
         true
     }
-    fn sql_write<'a>(&self, writer: &dyn SqlWriter, out: &'a mut String) -> &'a mut String {
-        writer.sql_join(
+    fn write_query(&self, writer: &dyn SqlWriter, out: &mut String) {
+        writer.write_join(
             out,
             &Join {
                 join: self.join,
@@ -40,7 +40,7 @@ impl<L: DataSet, R: DataSet, E: Expression> DataSet for Join<L, R, E> {
                 rhs: &self.rhs,
                 on: self.on.as_ref().map(|v| v as &dyn Expression),
             },
-        )
+        );
     }
 }
 

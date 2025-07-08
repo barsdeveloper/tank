@@ -1,39 +1,51 @@
 use crate::{
     BinaryOp, BinaryOpType, ColumnDef, ColumnRef, DataSet, Entity, Expression, Interval, Join,
     JoinType, Operand, PrimaryKeyType, TableRef, UnaryOp, UnaryOpType, Value,
+    possibly_parenthesized, separated_by,
 };
 use std::fmt::Write;
 
-macro_rules! sql_possibly_parenthesized {
-    ($out:ident, $cond:expr, $v:expr) => {
-        if $cond {
-            $out.push('(');
-            $v;
-            $out.push(')');
-        } else {
-            $v;
-        }
-    };
+macro_rules! write_integer {
+    ($out:ident, $value:expr) => {{
+        let mut buffer = itoa::Buffer::new();
+        $out.push_str(buffer.format($value));
+    }};
 }
-
-pub fn separated_by<T, F>(out: &mut String, it: impl Iterator<Item = T>, mut f: F, separator: &str)
-where
-    F: FnMut(&mut String, &T),
-{
-    it.fold(usize::MAX, |mut len, v| {
-        if len < out.len() {
-            out.push_str(separator);
-        }
-        len = out.len();
-        f(out, &v);
-        len
-    });
+macro_rules! write_float {
+    ($out:ident, $value:expr) => {{
+        let mut buffer = ryu::Buffer::new();
+        $out.push_str(buffer.format($value));
+    }};
 }
 
 pub trait SqlWriter {
     fn as_dyn(&self) -> &dyn SqlWriter;
 
-    fn sql_type<'a>(&self, out: &'a mut String, value: &Value) -> &'a mut String {
+    fn write_table_ref(&self, out: &mut String, value: &TableRef) {
+        if !value.alias.is_empty() {
+            out.push_str(&value.alias);
+        } else {
+            if !value.schema.is_empty() {
+                out.push_str(&value.schema);
+                out.push('.');
+            }
+            out.push_str(&value.name);
+        }
+    }
+
+    fn write_column_ref(&self, out: &mut String, value: &ColumnRef, qualify: bool) {
+        if qualify && !value.table.is_empty() {
+            if !value.schema.is_empty() {
+                out.push_str(&value.schema);
+                out.push('.');
+            }
+            out.push_str(&value.table);
+            out.push('.');
+        }
+        out.push_str(&value.name);
+    }
+
+    fn write_column_type(&self, out: &mut String, value: &Value) {
         match value {
             Value::Boolean(..) => out.push_str("BOOLEAN"),
             Value::Int8(..) => out.push_str("TINYINT"),
@@ -63,26 +75,25 @@ pub trait SqlWriter {
             Value::Interval(..) => out.push_str("INTERVAL"),
             Value::Uuid(..) => out.push_str("UUID"),
             Value::Array(.., inner, size) => {
-                self.sql_type(out, inner);
+                self.write_column_type(out, inner);
                 let _ = write!(out, "[{}]", size);
             }
             Value::List(.., inner) => {
-                self.sql_type(out, inner);
+                self.write_column_type(out, inner);
                 out.push_str("[]");
             }
             Value::Map(.., key, value) => {
                 out.push_str("MAP(");
-                self.sql_type(out, key);
+                self.write_column_type(out, key);
                 out.push_str(", ");
-                self.sql_type(out, value);
+                self.write_column_type(out, value);
                 out.push(')');
             }
             _ => panic!("Unexpected tank::Value, cannot get the sql type"),
         };
-        out
     }
 
-    fn sql_value<'a>(&self, out: &'a mut String, value: &Value) -> &'a mut String {
+    fn write_value(&self, out: &mut String, value: &Value) {
         let _ = match value {
             Value::Null
             | Value::Boolean(None, ..)
@@ -109,26 +120,22 @@ pub trait SqlWriter {
             | Value::Uuid(None, ..)
             | Value::Array(None, ..)
             | Value::List(None, ..)
-            | Value::Map(None, ..) => out.push_str("NULL"),
-            Value::Boolean(Some(v), ..) => out.push_str(["false", "true"][*v as usize]),
-            Value::Int8(Some(v), ..) => drop(write!(out, "{}", v)),
-            Value::Int16(Some(v), ..) => drop(write!(out, "{}", v)),
-            Value::Int32(Some(v), ..) => drop(write!(out, "{}", v)),
-            Value::Int64(Some(v), ..) => drop(write!(out, "{}", v)),
-            Value::Int128(Some(v), ..) => drop(write!(out, "{}", v)),
-            Value::UInt8(Some(v), ..) => drop(write!(out, "{}", v)),
-            Value::UInt16(Some(v), ..) => drop(write!(out, "{}", v)),
-            Value::UInt32(Some(v), ..) => drop(write!(out, "{}", v)),
-            Value::UInt64(Some(v), ..) => drop(write!(out, "{}", v)),
-            Value::UInt128(Some(v), ..) => drop(write!(out, "{}", v)),
-            Value::Float32(Some(v), ..) => drop(write!(out, "{}", v)),
-            Value::Float64(Some(v), ..) => drop(write!(out, "{}", v)),
+            | Value::Map(None, ..) => self.write_value_none(out),
+            Value::Boolean(Some(v), ..) => self.write_value_bool(out, *v),
+            Value::Int8(Some(v), ..) => write_integer!(out, *v),
+            Value::Int16(Some(v), ..) => write_integer!(out, *v),
+            Value::Int32(Some(v), ..) => write_integer!(out, *v),
+            Value::Int64(Some(v), ..) => write_integer!(out, *v),
+            Value::Int128(Some(v), ..) => write_integer!(out, *v),
+            Value::UInt8(Some(v), ..) => write_integer!(out, *v),
+            Value::UInt16(Some(v), ..) => write_integer!(out, *v),
+            Value::UInt32(Some(v), ..) => write_integer!(out, *v),
+            Value::UInt64(Some(v), ..) => write_integer!(out, *v),
+            Value::UInt128(Some(v), ..) => write_integer!(out, *v),
+            Value::Float32(Some(v), ..) => write_float!(out, *v),
+            Value::Float64(Some(v), ..) => write_float!(out, *v),
             Value::Decimal(Some(v), ..) => drop(write!(out, "{}", v)),
-            Value::Varchar(Some(v), ..) => drop(write!(
-                out,
-                "'{}'",
-                v.replace('\'', self.sql_escaped_apostrophe())
-            )),
+            Value::Varchar(Some(v), ..) => self.write_value_string(out, v),
             Value::Blob(Some(v), ..) => {
                 out.push('\'');
                 v.iter().for_each(|b| {
@@ -156,52 +163,7 @@ pub trait SqlWriter {
                 let _ = write!(out, "{}", v);
                 out.push('\'');
             }
-            Value::Interval(Some(v), ..) => {
-                let _ = out.write_str("INTERVAL");
-                let quote_position = out.len() + 1;
-                macro_rules! write_unit {
-                    ($out:ident, $val:expr, $unit:expr) => {
-                        let _ = write!(
-                            $out,
-                            " {} {}{}",
-                            $val,
-                            $unit,
-                            if $val > 1 { "S" } else { "" }
-                        );
-                    };
-                }
-
-                let mut units = 0;
-                if v.months != 0 {
-                    if v.months % 12 == 0 {
-                        write_unit!(out, v.months / 12, "YEAR");
-                        units += 1;
-                    } else {
-                        write_unit!(out, v.months, "MONTH");
-                        units += 1;
-                    }
-                }
-                let nanos = v.nanos + v.days as i128 * Interval::NANOS_IN_DAY;
-                const UNITS: &[(&str, i128)] = &[
-                    ("DAY", Interval::NANOS_IN_DAY),
-                    ("HOUR", Interval::NANOS_IN_SEC * 3600),
-                    ("MINUTE", Interval::NANOS_IN_SEC * 60),
-                    ("SECOND", Interval::NANOS_IN_SEC),
-                    ("MICROSECOND", 1_000),
-                    ("NANOSECOND", 1),
-                ];
-                for &(name, factor) in UNITS {
-                    if nanos % factor == 0 {
-                        write_unit!(out, nanos / factor, name);
-                        units += 1;
-                        break;
-                    }
-                }
-                if units > 1 {
-                    out.insert(quote_position, '\'');
-                    out.push('\'');
-                }
-            }
+            Value::Interval(Some(v), ..) => self.write_value_interval(out, v),
             Value::Uuid(Some(v), ..) => drop(write!(out, "'{}'", v)),
             Value::List(Some(..), ..) | Value::Array(Some(..), ..) => {
                 let v = match value {
@@ -214,7 +176,7 @@ pub trait SqlWriter {
                     out,
                     v,
                     |out, v| {
-                        self.sql_value(out, v);
+                        self.write_value(out, v);
                     },
                     ",",
                 );
@@ -226,43 +188,84 @@ pub trait SqlWriter {
                     out,
                     v.iter(),
                     |out, (k, v)| {
-                        self.sql_value(out, k);
+                        self.write_value(out, k);
                         out.push(':');
-                        self.sql_value(out, v);
+                        self.write_value(out, v);
                     },
                     ",",
                 );
                 out.push('}');
             }
         };
-        out
     }
 
-    fn sql_escaped_apostrophe(&self) -> &'static str {
-        "''"
+    fn write_value_none(&self, out: &mut String) {
+        out.push_str("NULL")
     }
 
-    fn sql_table_ref<'a>(&self, out: &'a mut String, value: &TableRef) -> &'a mut String {
-        out.push_str(&value.full_name());
-        out
+    fn write_value_bool(&self, out: &mut String, value: bool) {
+        out.push_str(["false", "true"][value as usize])
     }
 
-    fn sql_column_ref<'a>(
-        &self,
-        out: &'a mut String,
-        value: &ColumnRef,
-        qualify: bool,
-    ) -> &'a mut String {
-        if qualify && !value.table.is_empty() {
-            if !value.schema.is_empty() {
-                out.push_str(&value.schema);
-                out.push('.');
+    fn write_value_string(&self, out: &mut String, value: &str) {
+        out.push('\'');
+        let mut position = 0;
+        for (i, c) in value.char_indices() {
+            if c == '\'' {
+                out.push_str(&value[position..i]);
+                out.push_str("''");
+                position = i + 1;
             }
-            out.push_str(&value.table);
-            out.push('.');
         }
-        out.push_str(&value.name);
-        out
+        out.push_str(&value[position..]);
+        out.push('\'');
+    }
+
+    fn write_value_interval(&self, out: &mut String, value: &Interval) {
+        let _ = out.write_str("INTERVAL");
+        let quote_position = out.len() + 1;
+        macro_rules! write_unit {
+            ($out:ident, $val:expr, $unit:expr) => {
+                let _ = write!(
+                    $out,
+                    " {} {}{}",
+                    $val,
+                    $unit,
+                    if $val > 1 { "S" } else { "" }
+                );
+            };
+        }
+
+        let mut units = 0;
+        if value.months != 0 {
+            if value.months % 12 == 0 {
+                write_unit!(out, value.months / 12, "YEAR");
+                units += 1;
+            } else {
+                write_unit!(out, value.months, "MONTH");
+                units += 1;
+            }
+        }
+        let nanos = value.nanos + value.days as i128 * Interval::NANOS_IN_DAY;
+        const UNITS: &[(&str, i128)] = &[
+            ("DAY", Interval::NANOS_IN_DAY),
+            ("HOUR", Interval::NANOS_IN_SEC * 3600),
+            ("MINUTE", Interval::NANOS_IN_SEC * 60),
+            ("SECOND", Interval::NANOS_IN_SEC),
+            ("MICROSECOND", 1_000),
+            ("NANOSECOND", 1),
+        ];
+        for &(name, factor) in UNITS {
+            if nanos % factor == 0 {
+                write_unit!(out, nanos / factor, name);
+                units += 1;
+                break;
+            }
+        }
+        if units > 1 {
+            out.insert(quote_position, '\'');
+            out.push('\'');
+        }
     }
 
     fn expression_unary_op_precedence<'a>(&self, value: &UnaryOpType) -> i32 {
@@ -288,7 +291,7 @@ pub trait SqlWriter {
             BinaryOpType::Like => 500,
             BinaryOpType::NotLike => 500,
             BinaryOpType::Regexp => 500,
-            BinaryOpType::NotRegexpr => 500,
+            BinaryOpType::NotRegexp => 500,
             BinaryOpType::Glob => 500,
             BinaryOpType::NotGlob => 500,
             BinaryOpType::BitwiseOr => 600,
@@ -304,45 +307,36 @@ pub trait SqlWriter {
         }
     }
 
-    fn sql_expression_operand<'a>(
-        &self,
-        out: &'a mut String,
-        value: &Operand,
-        qualify_columns: bool,
-    ) -> &'a mut String {
+    fn write_expression_operand(&self, out: &mut String, value: &Operand, qualify_columns: bool) {
         let _ = match value {
-            Operand::LitBool(v) => write!(out, "{}", v),
-            Operand::LitFloat(v) => write!(out, "{}", v),
-            Operand::LitIdent(v) => write!(out, "{}", v),
-            Operand::LitField(v) => Ok(out.push_str(&v.join("."))),
-            Operand::LitInt(v) => write!(out, "{}", v),
-            Operand::LitStr(v) => write!(out, "'{}'", v),
+            Operand::LitBool(v) => self.write_value_bool(out, *v),
+            Operand::LitFloat(v) => write_float!(out, *v),
+            Operand::LitIdent(v) => out.push_str(v),
+            Operand::LitField(v) => {
+                v.iter().fold('\0', |sep, segment| {
+                    out.push(sep);
+                    out.push_str(segment);
+                    '.'
+                });
+            }
+            Operand::LitInt(v) => write_integer!(out, *v),
+            Operand::LitStr(v) => self.write_value_string(out, v),
             Operand::LitArray(v) => {
                 out.push('[');
                 separated_by(
                     out,
                     v.iter(),
                     |out, v| {
-                        v.sql_write(self.as_dyn(), out, qualify_columns);
+                        v.write_query(self.as_dyn(), out, qualify_columns);
                     },
                     ", ",
                 );
                 out.push(']');
-                Ok(())
             }
-            Operand::Null => Ok(out.push_str("NULL")),
-            Operand::Column(v) => {
-                self.sql_column_ref(out, v, qualify_columns);
-                Ok(())
-            }
-            Operand::Type(v) => {
-                self.sql_type(out, v);
-                Ok(())
-            }
-            Operand::Variable(v) => {
-                self.sql_value(out, v);
-                Ok(())
-            }
+            Operand::Null => out.push_str("NULL"),
+            Operand::Column(v) => self.write_column_ref(out, v, qualify_columns),
+            Operand::Type(v) => self.write_column_type(out, v),
+            Operand::Variable(v) => self.write_value(out, v),
             Operand::Call(f, args) => {
                 out.push_str(f);
                 out.push('(');
@@ -350,41 +344,38 @@ pub trait SqlWriter {
                     out,
                     args.iter(),
                     |out, v| {
-                        v.sql_write(self.as_dyn(), out, qualify_columns);
+                        v.write_query(self.as_dyn(), out, qualify_columns);
                     },
                     ",",
                 );
                 out.push(')');
-                Ok(())
             }
         };
-        out
     }
 
-    fn sql_expression_unary_op<'a>(
-        &self,
-        out: &'a mut String,
+    fn write_expression_unary_op(
+        self: &Self,
+        out: &mut String,
         value: &UnaryOp<&dyn Expression>,
         qualify_columns: bool,
-    ) -> &'a mut String {
+    ) {
         let _ = match value.op {
             UnaryOpType::Negative => out.push('-'),
             UnaryOpType::Not => out.push_str("NOT "),
         };
-        sql_possibly_parenthesized!(
+        possibly_parenthesized!(
             out,
             value.v.precedence(self.as_dyn()) <= self.expression_unary_op_precedence(&value.op),
-            value.v.sql_write(self.as_dyn(), out, qualify_columns)
+            value.v.write_query(self.as_dyn(), out, qualify_columns)
         );
-        out
     }
 
-    fn sql_expression_binary_op<'a>(
+    fn write_expression_binary_op(
         &self,
-        out: &'a mut String,
+        out: &mut String,
         value: &BinaryOp<&dyn Expression, &dyn Expression>,
         qualify_columns: bool,
-    ) -> &'a mut String {
+    ) {
         let (prefix, infix, suffix, lhs_parenthesized, rhs_parenthesized) = match value.op {
             BinaryOpType::Indexing => ("", "[", "]", false, true),
             BinaryOpType::Cast => ("CAST(", " AS ", ")", true, true),
@@ -402,7 +393,7 @@ pub trait SqlWriter {
             BinaryOpType::Like => ("", " LIKE ", "", false, false),
             BinaryOpType::NotLike => ("", " NOT LIKE ", "", false, false),
             BinaryOpType::Regexp => ("", " REGEXP ", "", false, false),
-            BinaryOpType::NotRegexpr => ("", " NOT REGEXP ", "", false, false),
+            BinaryOpType::NotRegexp => ("", " NOT REGEXP ", "", false, false),
             BinaryOpType::Glob => ("", " GLOB ", "", false, false),
             BinaryOpType::NotGlob => ("", " NOT GLOB ", "", false, false),
             BinaryOpType::Equal => ("", " = ", "", false, false),
@@ -416,22 +407,21 @@ pub trait SqlWriter {
         };
         let precedence = self.expression_binary_op_precedence(&value.op);
         out.push_str(prefix);
-        sql_possibly_parenthesized!(
+        possibly_parenthesized!(
             out,
             !lhs_parenthesized && value.lhs.precedence(self.as_dyn()) < precedence,
-            value.lhs.sql_write(self.as_dyn(), out, qualify_columns)
+            value.lhs.write_query(self.as_dyn(), out, qualify_columns)
         );
         out.push_str(infix);
-        sql_possibly_parenthesized!(
+        possibly_parenthesized!(
             out,
             !rhs_parenthesized && value.rhs.precedence(self.as_dyn()) <= precedence,
-            value.rhs.sql_write(self.as_dyn(), out, qualify_columns)
+            value.rhs.write_query(self.as_dyn(), out, qualify_columns)
         );
         out.push_str(suffix);
-        out
     }
 
-    fn sql_join_type<'a>(&self, out: &'a mut String, join_type: &JoinType) -> &'a mut String {
+    fn write_join_type(&self, out: &mut String, join_type: &JoinType) {
         out.push_str(match &join_type {
             JoinType::Inner => "INNER JOIN",
             JoinType::Outer => "OUTER JOIN",
@@ -440,27 +430,25 @@ pub trait SqlWriter {
             JoinType::Cross => "CROSS",
             JoinType::Natural => "NATURAL JOIN",
         });
-        out
     }
 
-    fn sql_join<'a>(
+    fn write_join(
         &self,
-        out: &'a mut String,
+        out: &mut String,
         join: &Join<&dyn DataSet, &dyn DataSet, &dyn Expression>,
-    ) -> &'a mut String {
-        join.lhs.sql_write(self.as_dyn(), out);
+    ) {
+        join.lhs.write_query(self.as_dyn(), out);
         out.push(' ');
-        self.sql_join_type(out, &join.join);
+        self.write_join_type(out, &join.join);
         out.push(' ');
-        join.rhs.sql_write(self.as_dyn(), out);
+        join.rhs.write_query(self.as_dyn(), out);
         if let Some(on) = &join.on {
             out.push_str(" ON ");
-            on.sql_write(self.as_dyn(), out, true);
+            on.write_query(self.as_dyn(), out, true);
         }
-        out
     }
 
-    fn sql_create_schema<'a, E>(&self, out: &'a mut String, if_not_exists: bool) -> &'a mut String
+    fn write_create_schema<E>(&self, out: &mut String, if_not_exists: bool)
     where
         Self: Sized,
         E: Entity,
@@ -470,10 +458,9 @@ pub trait SqlWriter {
             out.push_str("IF NOT EXISTS ");
         }
         out.push_str(E::table_ref().schema);
-        out
     }
 
-    fn sql_drop_schema<'a, E>(&self, out: &'a mut String, if_exists: bool) -> &'a mut String
+    fn write_drop_schema<E>(&self, out: &mut String, if_exists: bool)
     where
         Self: Sized,
         E: Entity,
@@ -483,10 +470,9 @@ pub trait SqlWriter {
             out.push_str("IF EXISTS ");
         }
         out.push_str(E::table_ref().schema);
-        out
     }
 
-    fn sql_create_table<'a, E>(&self, out: &'a mut String, if_not_exists: bool) -> &'a mut String
+    fn write_create_table<E>(&self, out: &mut String, if_not_exists: bool)
     where
         Self: Sized,
         E: Entity,
@@ -495,13 +481,13 @@ pub trait SqlWriter {
         if if_not_exists {
             out.push_str("IF NOT EXISTS ");
         }
-        self.sql_table_ref(out, E::table_ref());
+        self.write_table_ref(out, E::table_ref());
         out.push_str(" (\n");
         separated_by(
             out,
             E::columns_def().iter(),
             |out, v| {
-                self.sql_create_table_column_fragment(out, v);
+                self.write_create_table_column_fragment(out, v);
             },
             ",\n",
         );
@@ -524,36 +510,30 @@ pub trait SqlWriter {
             }
         }
         out.push_str("\n)");
-        out
     }
 
-    fn sql_autoincrement_fragment<'a>(&self, out: &'a mut String) -> &'a mut String {
+    fn write_autoincrement_fragment(&self, out: &mut String) {
         out.push_str("AUTOINCREMENT");
-        out
     }
 
-    fn sql_create_table_column_fragment<'a>(
-        &self,
-        out: &'a mut String,
-        column: &ColumnDef,
-    ) -> &'a mut String {
+    fn write_create_table_column_fragment(&self, out: &mut String, column: &ColumnDef) {
         out.push_str(&column.name());
         out.push(' ');
         if !column.column_type.is_empty() {
             out.push_str(&column.column_type);
         } else {
-            self.sql_type(out, &column.value);
+            SqlWriter::write_column_type(self, out, &column.value);
         }
         if !column.nullable && column.primary_key == PrimaryKeyType::None {
             out.push_str(" NOT NULL");
         }
         if let Some(default) = &column.default {
             out.push_str(" DEFAULT ");
-            default.sql_write(self.as_dyn(), out, true);
+            default.write_query(self.as_dyn(), out, true);
         }
         if column.auto_increment {
             out.push(' ');
-            self.sql_autoincrement_fragment(out);
+            self.write_autoincrement_fragment(out);
         }
         if column.primary_key == PrimaryKeyType::PrimaryKey {
             // Composite primary key will be printed elsewhere
@@ -563,22 +543,16 @@ pub trait SqlWriter {
             out.push_str(" UNIQUE");
         }
         if !column.comment.is_empty() {
-            self.sql_create_table_column_fragment_comment(out, column);
+            self.write_create_table_column_fragment_comment(out, column);
         }
-        out
     }
 
-    fn sql_create_table_column_fragment_comment<'a>(
-        &self,
-        out: &'a mut String,
-        column: &ColumnDef,
-    ) -> &'a mut String {
+    fn write_create_table_column_fragment_comment(&self, out: &mut String, column: &ColumnDef) {
         out.push_str(" COMMENT ");
-        self.sql_value(out, &Value::Varchar(Some(column.comment.to_string())));
-        out
+        self.write_value_string(out, column.comment);
     }
 
-    fn sql_drop_table<'a, E: Entity>(&self, out: &'a mut String, if_exists: bool) -> &'a mut String
+    fn write_drop_table<E: Entity>(&self, out: &mut String, if_exists: bool)
     where
         Self: Sized,
     {
@@ -586,18 +560,16 @@ pub trait SqlWriter {
         if if_exists {
             out.push_str("IF EXISTS ");
         }
-        self.sql_table_ref(out, E::table_ref());
-        out
+        self.write_table_ref(out, E::table_ref());
     }
 
-    fn sql_select<'a, E: Entity, D: DataSet, Expr: Expression>(
+    fn write_select<E: Entity, D: DataSet, Expr: Expression>(
         &self,
-        out: &'a mut String,
+        out: &mut String,
         from: &D,
         condition: &Expr,
         limit: Option<u32>,
-    ) -> &'a mut String
-    where
+    ) where
         Self: Sized,
     {
         out.push_str("SELECT ");
@@ -605,26 +577,20 @@ pub trait SqlWriter {
             out,
             E::columns_def().iter(),
             |out, col| {
-                self.sql_column_ref(out, (*col).into(), D::qualified_columns());
+                self.write_column_ref(out, (*col).into(), D::qualified_columns());
             },
             ", ",
         );
         out.push_str("\nFROM ");
-        from.sql_write(self, out);
+        from.write_query(self, out);
         out.push_str("\nWHERE ");
-        condition.sql_write(self, out, D::qualified_columns());
+        condition.write_query(self, out, D::qualified_columns());
         if let Some(limit) = limit {
             let _ = write!(out, "\nLIMIT {}", limit);
         }
-        out
     }
 
-    fn sql_insert<'a, 'b, E, It>(
-        &self,
-        out: &'a mut String,
-        entities: It,
-        replace: bool,
-    ) -> &'a mut String
+    fn write_insert<'b, E, It>(&self, out: &mut String, entities: It, replace: bool)
     where
         Self: Sized,
         E: Entity + 'b,
@@ -635,7 +601,7 @@ pub trait SqlWriter {
             out.push_str(" OR REPLACE");
         }
         out.push_str(" INTO ");
-        self.sql_table_ref(out, E::table_ref());
+        self.write_table_ref(out, E::table_ref());
         out.push_str(" (");
         let solo = entities.len() == 1;
         let mut entities = entities.peekable();
@@ -673,28 +639,22 @@ pub trait SqlWriter {
                 out,
                 row.iter(),
                 |out, v| {
-                    self.sql_value(out, v);
+                    self.write_value(out, v);
                 },
                 ", ",
             );
             out.push(')');
         }
-        out
     }
 
-    fn sql_delete<'a, E: Entity, Expr: Expression>(
-        &self,
-        out: &'a mut String,
-        condition: &Expr,
-    ) -> &'a mut String
+    fn write_delete<E: Entity, Expr: Expression>(&self, out: &mut String, condition: &Expr)
     where
         Self: Sized,
     {
         out.push_str("DELETE FROM ");
-        self.sql_table_ref(out, E::table_ref());
+        self.write_table_ref(out, E::table_ref());
         out.push_str("\nWHERE ");
-        condition.sql_write(self, out, false);
-        out
+        condition.write_query(self, out, false);
     }
 }
 

@@ -23,13 +23,8 @@ impl<E: Expression> OpPrecedence for UnaryOp<E> {
 }
 
 impl<E: Expression> Expression for UnaryOp<E> {
-    fn sql_write<'a>(
-        &self,
-        writer: &dyn SqlWriter,
-        out: &'a mut String,
-        qualify_columns: bool,
-    ) -> &'a mut String {
-        writer.sql_expression_unary_op(
+    fn write_query(&self, writer: &dyn SqlWriter, out: &mut String, qualify_columns: bool) {
+        writer.write_expression_unary_op(
             out,
             &UnaryOp {
                 op: self.op,

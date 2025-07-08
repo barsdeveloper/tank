@@ -30,10 +30,6 @@ tank-duckdb = "0.1.0"
 time = { version = "0.3.41", features = ["macros", "parsing"] }
 uuid = "1.16.0"
 
-[workspace.dev-dependencies]
-tank-macros.workspace = true
-tank-tests.workspace = true
-
 [package]
 name = "tank"
 description = "Tank (Table Abstraction and Navigation Kit): the Rust data layer. A simple and extensible ORM for Rust"

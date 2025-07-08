@@ -1,5 +1,5 @@
 use proc_macro2::{Delimiter, Group, Spacing, TokenStream, TokenTree};
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 use std::{borrow::Cow, cmp::min};
 use syn::Path;
 
@@ -53,4 +53,31 @@ pub fn flag_evaluated(input: TokenStream) -> TokenStream {
         .collect()
     }
     do_flagging(input)
+}
+
+pub fn separated_by<T, F>(out: &mut String, it: impl Iterator<Item = T>, mut f: F, separator: &str)
+where
+    F: FnMut(&mut String, &T),
+{
+    it.fold(usize::MAX, |mut len, v| {
+        if len < out.len() {
+            out.push_str(separator);
+        }
+        len = out.len();
+        f(out, &v);
+        len
+    });
+}
+
+#[macro_export]
+macro_rules! possibly_parenthesized {
+    ($out:ident, $cond:expr, $v:expr) => {
+        if $cond {
+            $out.push('(');
+            $v;
+            $out.push(')');
+        } else {
+            $v;
+        }
+    };
 }

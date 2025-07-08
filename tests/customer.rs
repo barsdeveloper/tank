@@ -126,8 +126,9 @@ mod tests {
     #[test]
     fn test_customer_create_table() {
         let mut query = String::new();
+        WRITER.write_create_table::<Customer>(&mut query, false);
         assert_eq!(
-            WRITER.sql_create_table::<Customer>(&mut query, false),
+            query,
             indoc! {"
                 CREATE TABLE customers (
                 transaction_ids UBIGINT[] NOT NULL,
@@ -144,22 +145,21 @@ mod tests {
     #[test]
     fn test_customer_drop_table() {
         let mut query = String::new();
-        assert_eq!(
-            WRITER.sql_drop_table::<Customer>(&mut query, false),
-            "DROP TABLE customers"
-        );
+        WRITER.write_drop_table::<Customer>(&mut query, false);
+        assert_eq!(query, "DROP TABLE customers");
     }
 
     #[test]
     fn test_customer_select() {
         let mut query = String::new();
+        WRITER.write_select::<Customer, _, _>(
+            &mut query,
+            Customer::table_ref(),
+            &expr!(len(Customer::_values) > 10),
+            Some(10),
+        );
         assert_eq!(
-            WRITER.sql_select::<Customer, _, _>(
-                &mut query,
-                Customer::table_ref(),
-                &expr!(len(Customer::_values) > 10),
-                Some(10),
-            ),
+            query,
             indoc! {"
                 SELECT transaction_ids, settings, values, signup_duration, recent_purchases
                 FROM customers
@@ -173,8 +173,9 @@ mod tests {
     #[test]
     fn test_customer_delete() {
         let mut query = String::new();
+        WRITER.write_delete::<Customer, _>(&mut query, &expr!(true));
         assert_eq!(
-            WRITER.sql_delete::<Customer, _>(&mut query, &expr!(true)),
+            query,
             indoc! {"
                 DELETE FROM customers
                 WHERE true

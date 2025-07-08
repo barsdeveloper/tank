@@ -28,9 +28,10 @@ pub async fn average<C: Connection>(connection: &mut C) {
 
     // avg(1 + .. + 785901) = 392951
     let values = (1..785902).map(|value| Values {
-        value,
-        ..Default::default()
+        id: value.into(),
+        value: value as u32,
     });
+
     for value in values {
         let result = value.save(connection).await;
         assert!(

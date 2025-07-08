@@ -1,5 +1,5 @@
-use crate::{quote_cow, DataSet, SqlWriter};
-use quote::{quote, ToTokens, TokenStreamExt};
+use crate::{DataSet, SqlWriter, quote_cow};
+use quote::{ToTokens, TokenStreamExt, quote};
 use std::borrow::Cow;
 
 #[derive(Clone)]
@@ -52,7 +52,7 @@ impl DataSet for TableRef {
     {
         false
     }
-    fn sql_write<'a>(&self, writer: &dyn SqlWriter, out: &'a mut String) -> &'a mut String {
-        writer.sql_table_ref(out, self)
+    fn write_query(&self, writer: &dyn SqlWriter, out: &mut String) {
+        writer.write_table_ref(out, self);
     }
 }

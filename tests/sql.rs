@@ -28,7 +28,7 @@ mod tests {
         }
         {
             let mut out = String::new();
-            WRITER.sql_create_table::<Table>(&mut out, false);
+            WRITER.write_create_table::<Table>(&mut out, false);
             assert_eq!(
                 out,
                 indoc! {"
@@ -43,12 +43,12 @@ mod tests {
         }
         {
             let mut out = String::new();
-            WRITER.sql_drop_table::<Table>(&mut out, true);
+            WRITER.write_drop_table::<Table>(&mut out, true);
             assert_eq!(out, "DROP TABLE IF EXISTS my_table")
         }
         {
             let mut out = String::new();
-            WRITER.sql_select::<Table, _, _>(
+            WRITER.write_select::<Table, _, _>(
                 &mut out,
                 Table::table_ref(),
                 &expr!(Table::_second_column < 100 && Table::_first_column == "OK"),
@@ -67,12 +67,12 @@ mod tests {
         {
             let mut out = String::new();
             let table = Table::default();
-            WRITER.sql_insert(&mut out, iter::once(&table), false);
+            WRITER.write_insert(&mut out, iter::once(&table), false);
             assert_eq!(
                 out,
                 indoc! {"
                     INSERT INTO my_table (special_column, second_column, third_column)
-                    VALUES (NULL, 0, 0)
+                    VALUES (NULL, 0.0, 0)
                 "}
                 .trim()
             )
@@ -84,7 +84,7 @@ mod tests {
                 _second_column: 512.5.into(),
                 _third_column: 478,
             };
-            WRITER.sql_insert(&mut out, iter::once(&table), true);
+            WRITER.write_insert(&mut out, iter::once(&table), true);
             assert_eq!(
                 out,
                 indoc! {"
@@ -112,7 +112,7 @@ mod tests {
 
         {
             let mut out = String::new();
-            WRITER.sql_create_table::<Cart>(&mut out, true);
+            WRITER.write_create_table::<Cart>(&mut out, true);
             assert_eq!(
                 out,
                 indoc! {"
@@ -130,12 +130,12 @@ mod tests {
         }
         {
             let mut out = String::new();
-            WRITER.sql_drop_table::<Cart>(&mut out, false);
+            WRITER.write_drop_table::<Cart>(&mut out, false);
             assert_eq!(out, "DROP TABLE cart")
         }
         {
             let mut out = String::new();
-            WRITER.sql_select::<Cart, _, _>(
+            WRITER.write_select::<Cart, _, _>(
                 &mut out,
                 Cart::table_ref(),
                 &expr!(Cart::is_active == true && Cart::total_price > 100),
@@ -165,7 +165,7 @@ mod tests {
                 is_active: Default::default(),
                 total_price: Default::default(),
             };
-            WRITER.sql_insert(&mut out, iter::once(&cart), false);
+            WRITER.write_insert(&mut out, iter::once(&cart), false);
             assert_eq!(
             out,
             indoc! {"
@@ -192,7 +192,7 @@ mod tests {
                 is_active: true,
                 total_price: Decimal::new(2599, 2), // 25.99
             };
-            WRITER.sql_insert(&mut out, iter::once(&cart), true);
+            WRITER.write_insert(&mut out, iter::once(&cart), true);
             assert_eq!(
             out,
             indoc! {"

@@ -22,13 +22,8 @@ impl OpPrecedence for Operand<'_> {
 }
 
 impl Expression for Operand<'_> {
-    fn sql_write<'a>(
-        &self,
-        writer: &dyn SqlWriter,
-        out: &'a mut String,
-        qualify_columns: bool,
-    ) -> &'a mut String {
-        writer.sql_expression_operand(out, self, qualify_columns)
+    fn write_query(&self, writer: &dyn SqlWriter, out: &mut String, qualify_columns: bool) {
+        writer.write_expression_operand(out, self, qualify_columns)
     }
 }
 
