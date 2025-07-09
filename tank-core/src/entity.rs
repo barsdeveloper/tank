@@ -1,4 +1,6 @@
-use crate::{ColumnDef, Executor, Expression, Result, Row, RowLabeled, RowsAffected, TableRef};
+use crate::{
+    ColumnDef, Executor, Expression, Result, Row, RowLabeled, RowsAffected, TableRef, Value,
+};
 use futures::Stream;
 use std::future::Future;
 
@@ -69,7 +71,7 @@ pub trait Entity: Send {
     where
         Self: Sized;
 
-    fn row_filtered(&self) -> RowLabeled;
+    fn row_filtered(&self) -> Box<[(&'static str, Value)]>;
     fn row_full(&self) -> Row;
     fn primary_key(&self) -> Self::PrimaryKey<'_>;
     fn save<Exec: Executor>(&self, executor: &mut Exec) -> impl Future<Output = Result<()>> + Send;

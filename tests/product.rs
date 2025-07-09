@@ -54,12 +54,66 @@ mod tests {
 
         let columns = Product::columns_def();
         assert_eq!(columns.len(), 6);
+        assert_eq!(columns[0].reference.name, "id");
+        assert_eq!(columns[1].reference.name, "name");
+        assert_eq!(columns[2].reference.name, "price");
+        assert_eq!(columns[3].reference.name, "available");
+        assert_eq!(columns[4].reference.name, "tags");
+        assert_eq!(columns[5].reference.name, "added_on");
+        assert_eq!(columns[0].reference.table, "products");
+        assert_eq!(columns[1].reference.table, "products");
+        assert_eq!(columns[2].reference.table, "products");
+        assert_eq!(columns[3].reference.table, "products");
+        assert_eq!(columns[4].reference.table, "products");
+        assert_eq!(columns[5].reference.table, "products");
+        assert_eq!(columns[0].reference.schema, "");
+        assert_eq!(columns[1].reference.schema, "");
+        assert_eq!(columns[2].reference.schema, "");
+        assert_eq!(columns[3].reference.schema, "");
+        assert_eq!(columns[4].reference.schema, "");
+        assert_eq!(columns[5].reference.schema, "");
         assert!(matches!(columns[0].value, Value::UInt64(None, ..)));
         assert!(matches!(columns[1].value, Value::Varchar(None, ..)));
         assert!(matches!(columns[2].value, Value::Decimal(None, ..)));
         assert!(matches!(columns[3].value, Value::Boolean(None, ..)));
         assert!(matches!(columns[4].value, Value::List(None, ..)));
         assert!(matches!(columns[5].value, Value::Timestamp(None, ..)));
+        assert_eq!(columns[0].nullable, false);
+        assert_eq!(columns[1].nullable, false);
+        assert_eq!(columns[2].nullable, false);
+        assert_eq!(columns[3].nullable, false);
+        assert_eq!(columns[4].nullable, false);
+        assert_eq!(columns[5].nullable, false);
+        assert!(matches!(columns[0].default, None));
+        assert!(matches!(columns[1].default, None));
+        assert!(matches!(columns[2].default, None));
+        assert!(matches!(columns[3].default, None));
+        assert!(matches!(columns[4].default, None));
+        assert!(matches!(columns[5].default, None));
+        assert_eq!(columns[0].primary_key, PrimaryKeyType::PrimaryKey);
+        assert_eq!(columns[1].primary_key, PrimaryKeyType::None);
+        assert_eq!(columns[2].primary_key, PrimaryKeyType::None);
+        assert_eq!(columns[3].primary_key, PrimaryKeyType::None);
+        assert_eq!(columns[4].primary_key, PrimaryKeyType::None);
+        assert_eq!(columns[5].primary_key, PrimaryKeyType::None);
+        assert_eq!(columns[0].unique, false);
+        assert_eq!(columns[1].unique, false);
+        assert_eq!(columns[2].unique, false);
+        assert_eq!(columns[3].unique, false);
+        assert_eq!(columns[4].unique, false);
+        assert_eq!(columns[5].unique, false);
+        assert_eq!(columns[0].auto_increment, true);
+        assert_eq!(columns[1].auto_increment, false);
+        assert_eq!(columns[2].auto_increment, false);
+        assert_eq!(columns[3].auto_increment, false);
+        assert_eq!(columns[4].auto_increment, false);
+        assert_eq!(columns[5].auto_increment, false);
+        assert_eq!(columns[0].passive, true);
+        assert_eq!(columns[1].passive, false);
+        assert_eq!(columns[2].passive, false);
+        assert_eq!(columns[3].passive, false);
+        assert_eq!(columns[4].passive, false);
+        assert_eq!(columns[5].passive, false);
     }
 
     #[tokio::test]
@@ -91,6 +145,26 @@ mod tests {
             indoc! {"
                 INSERT INTO products (name, price, available, tags, added_on)
                 VALUES ('Smartphone', 499.99, true, ['electronics','mobile'], '2025-06-24 10:30:07.0')
+            "}
+            .trim()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_product_insert_multiple() {
+        let mut query = String::new();
+        WRITER.write_insert(
+            &mut query,
+            [Product::sample(), Product::sample()].iter(),
+            false,
+        );
+        assert_eq!(
+            query,
+            indoc! {"
+                INSERT INTO products (id, name, price, available, tags, added_on)
+                VALUES
+                (DEFAULT, 'Smartphone', 499.99, true, ['electronics','mobile'], '2025-06-24 10:30:07.0'),
+                (DEFAULT, 'Smartphone', 499.99, true, ['electronics','mobile'], '2025-06-24 10:30:07.0')
             "}
             .trim()
         );

@@ -577,7 +577,7 @@ pub trait SqlWriter {
             out,
             E::columns_def().iter(),
             |out, col| {
-                self.write_column_ref(out, (*col).into(), D::qualified_columns());
+                self.write_column_ref(out, col.into(), D::qualified_columns());
             },
             ", ",
         );
@@ -594,8 +594,12 @@ pub trait SqlWriter {
     where
         Self: Sized,
         E: Entity + 'b,
-        It: ExactSizeIterator<Item = &'b E>,
+        It: Iterator<Item = &'b E>,
     {
+        let mut entities = entities.map(Entity::row_filtered).peekable();
+        let Some(row) = entities.next() else {
+            return;
+        };
         out.push_str("INSERT");
         if replace {
             out.push_str(" OR REPLACE");
@@ -603,47 +607,57 @@ pub trait SqlWriter {
         out.push_str(" INTO ");
         self.write_table_ref(out, E::table_ref());
         out.push_str(" (");
-        let solo = entities.len() == 1;
-        let mut entities = entities.peekable();
-        if solo {
-            separated_by(
-                out,
-                // Inserting one row uses row_labeled to filter out Passive::NotSet columns
-                entities
-                    .peek()
-                    .expect("There is one element")
-                    .row_filtered()
-                    .names()
-                    .iter(),
-                |out, v| out.push_str(v),
-                ", ",
-            );
+        let columns = E::columns_def().iter().map(|v| v.name());
+        let single = entities.peek().is_none();
+        if single {
+            // Inserting a single row uses row_labeled to filter out Passive::NotSet columns
+            separated_by(out, row.iter().map(|v| v.0), |out, v| out.push_str(v), ", ");
         } else {
-            separated_by(
-                out,
-                // Inserting more rows will list all columns
-                E::columns_def().iter().map(|v| v.name()),
-                |out, v| out.push_str(v),
-                ", ",
-            );
+            // Inserting more rows will list all columns
+            separated_by(out, columns.clone(), |out, v| out.push_str(v), ", ");
         };
-        out.push_str(")\nVALUES ");
-        for entity in entities {
-            let row = if solo {
-                entity.row_filtered().values
-            } else {
-                entity.row_full()
-            };
-            out.push('(');
+        out.push_str(")\nVALUES");
+        if single {
+            out.push_str(" (");
             separated_by(
                 out,
-                row.iter(),
-                |out, v| {
-                    self.write_value(out, v);
-                },
+                row.into_iter().map(|v| v.1),
+                |out, v| self.write_value(out, &v),
                 ", ",
             );
             out.push(')');
+        } else {
+            let mut first = true;
+            loop {
+                if !first {
+                    out.push(',');
+                }
+                out.push_str("\n(");
+                let mut row = row.iter();
+                let mut column = row.next();
+                {
+                    let mut first = true;
+                    for name in columns.clone() {
+                        if !first {
+                            out.push_str(", ");
+                        }
+                        if Some(name) == column.map(|v| v.0) {
+                            self.write_value(out, column.map(|v| &v.1).expect("Exists"));
+                            column = row.next();
+                        } else {
+                            out.push_str("DEFAULT");
+                        }
+                        first = false;
+                    }
+                    out.push(')');
+                }
+                first = false;
+                if let Some(next) = entities.next() {
+                    row = next.iter();
+                } else {
+                    return;
+                };
+            }
         }
     }
 

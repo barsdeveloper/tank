@@ -57,16 +57,16 @@ pub fn flag_evaluated(input: TokenStream) -> TokenStream {
 
 pub fn separated_by<T, F>(out: &mut String, it: impl Iterator<Item = T>, mut f: F, separator: &str)
 where
-    F: FnMut(&mut String, &T),
+    F: FnMut(&mut String, T),
 {
-    it.fold(usize::MAX, |mut len, v| {
-        if len < out.len() {
+    let mut first = true;
+    for v in it {
+        if !first {
             out.push_str(separator);
         }
-        len = out.len();
-        f(out, &v);
-        len
-    });
+        f(out, v);
+        first = false;
+    }
 }
 
 #[macro_export]

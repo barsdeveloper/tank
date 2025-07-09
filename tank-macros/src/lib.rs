@@ -20,7 +20,6 @@ use decode_join::JoinParsed;
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
-use std::iter::zip;
 use syn::{
     Expr, Ident, Index, ItemStruct, parse_macro_input, punctuated::Punctuated, token::AndAnd,
 };
@@ -100,14 +99,10 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
     let unique_defs = quote!(vec![#(#unique_defs),*].into_boxed_slice());
     let primary_key_types = primary_keys.iter().map(|(_, c)| c.ty.clone());
     let column = column_trait(&table);
-    let value_and_filter =
-        zip(fields.clone(), metadata_and_filter.iter()).map(|(field, (_, filter))| {
-            let name = &field.ident;
-            quote!((self.#name.clone().into(), #filter))
-        });
-    let label_and_filter = metadata_and_filter.iter().map(|(column, filter)| {
+    let label_value_and_filter = metadata_and_filter.iter().map(|(column, filter)| {
         let name = &column.name;
-        quote!((#name.into(), #filter))
+        let field = &column.ident;
+        quote!((#name.into(), self.#field.clone().into(), #filter))
     });
     let row_full = metadata_and_filter
         .iter()
@@ -341,17 +336,11 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                 executor.execute(::tank::Query::Raw(query.into()))
             }
 
-            fn row_filtered(&self) -> ::tank::RowLabeled {
-                ::tank::RowLabeled {
-                    labels: [#(#label_and_filter),*]
-                        .into_iter()
-                        .filter_map(|(v, f)| if f { Some(v) } else { None })
-                        .collect::<::tank::RowNames>(),
-                    values: [#(#value_and_filter),*]
-                        .into_iter()
-                        .filter_map(|(v, f)| if f { Some(v) } else { None })
-                        .collect::<::tank::Row>(),
-                }
+            fn row_filtered(&self) -> Box<[(&'static str, ::tank::Value)]> {
+                [#(#label_value_and_filter),*]
+                    .into_iter()
+                    .filter_map(|(n, v, f)| if f { Some((n, v)) } else { None })
+                    .collect()
             }
 
             fn row_full(&self) -> ::tank::Row {
