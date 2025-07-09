@@ -596,8 +596,8 @@ pub trait SqlWriter {
         E: Entity + 'b,
         It: Iterator<Item = &'b E>,
     {
-        let mut entities = entities.map(Entity::row_filtered).peekable();
-        let Some(row) = entities.next() else {
+        let mut rows = entities.map(Entity::row_filtered).peekable();
+        let Some(mut row) = rows.next() else {
             return;
         };
         out.push_str("INSERT");
@@ -608,7 +608,7 @@ pub trait SqlWriter {
         self.write_table_ref(out, E::table_ref());
         out.push_str(" (");
         let columns = E::columns_def().iter().map(|v| v.name());
-        let single = entities.peek().is_none();
+        let single = rows.peek().is_none();
         if single {
             // Inserting a single row uses row_labeled to filter out Passive::NotSet columns
             separated_by(out, row.iter().map(|v| v.0), |out, v| out.push_str(v), ", ");
@@ -626,38 +626,38 @@ pub trait SqlWriter {
                 ", ",
             );
             out.push(')');
-        } else {
-            let mut first = true;
-            loop {
-                if !first {
-                    out.push(',');
-                }
-                out.push_str("\n(");
-                let mut row = row.iter();
-                let mut column = row.next();
-                {
-                    let mut first = true;
-                    for name in columns.clone() {
-                        if !first {
-                            out.push_str(", ");
-                        }
-                        if Some(name) == column.map(|v| v.0) {
-                            self.write_value(out, column.map(|v| &v.1).expect("Exists"));
-                            column = row.next();
-                        } else {
-                            out.push_str("DEFAULT");
-                        }
-                        first = false;
-                    }
-                    out.push(')');
-                }
-                first = false;
-                if let Some(next) = entities.next() {
-                    row = next.iter();
-                } else {
-                    return;
-                };
+            return;
+        }
+        let mut separate = false;
+        loop {
+            if separate {
+                out.push(',');
             }
+            out.push_str("\n(");
+            let mut fields = row.iter();
+            let mut field = fields.next();
+            {
+                let mut separate = false;
+                for name in columns.clone() {
+                    if separate {
+                        out.push_str(", ");
+                    }
+                    if Some(name) == field.map(|v| v.0) {
+                        self.write_value(out, field.map(|v| &v.1).expect("Exists"));
+                        field = fields.next();
+                    } else {
+                        out.push_str("DEFAULT");
+                    }
+                    separate = true;
+                }
+                out.push(')');
+            }
+            separate = true;
+            if let Some(next) = rows.next() {
+                row = next;
+            } else {
+                break;
+            };
         }
     }
 

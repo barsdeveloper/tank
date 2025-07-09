@@ -155,7 +155,32 @@ mod tests {
         let mut query = String::new();
         WRITER.write_insert(
             &mut query,
-            [Product::sample(), Product::sample()].iter(),
+            [
+                Product {
+                    id: 74.into(),
+                    name: "Headphones".into(),
+                    price: Decimal::new(12995, 2),
+                    available: false,
+                    tags: vec!["electronics".into(), "audio".into()],
+                    added_on: PrimitiveDateTime::new(
+                        Date::from_calendar_date(2025, Month::July, 8).unwrap(),
+                        Time::from_hms(14, 15, 01).unwrap(),
+                    ),
+                },
+                Product::sample(),
+                Product {
+                    id: Passive::NotSet,
+                    name: "Mouse".into(),
+                    price: Decimal::new(3999, 2),
+                    available: true,
+                    tags: vec!["electronics".into(), "accessories".into()],
+                    added_on: PrimitiveDateTime::new(
+                        Date::from_calendar_date(2025, Month::July, 9).unwrap(),
+                        Time::from_hms(9, 45, 30).unwrap(),
+                    ),
+                },
+            ]
+            .iter(),
             false,
         );
         assert_eq!(
@@ -163,8 +188,9 @@ mod tests {
             indoc! {"
                 INSERT INTO products (id, name, price, available, tags, added_on)
                 VALUES
+                (74, 'Headphones', 129.95, false, ['electronics','audio'], '2025-07-08 14:15:01.0'),
                 (DEFAULT, 'Smartphone', 499.99, true, ['electronics','mobile'], '2025-06-24 10:30:07.0'),
-                (DEFAULT, 'Smartphone', 499.99, true, ['electronics','mobile'], '2025-06-24 10:30:07.0')
+                (DEFAULT, 'Mouse', 39.99, true, ['electronics','accessories'], '2025-07-09 9:45:30.0')
             "}
             .trim()
         );
