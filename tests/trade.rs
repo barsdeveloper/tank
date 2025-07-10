@@ -180,18 +180,6 @@ mod tests {
         assert_eq!(columns[9].unique, false);
         assert_eq!(columns[10].unique, false);
         assert_eq!(columns[11].unique, false);
-        assert_eq!(columns[0].auto_increment, false);
-        assert_eq!(columns[1].auto_increment, false);
-        assert_eq!(columns[2].auto_increment, false);
-        assert_eq!(columns[3].auto_increment, false);
-        assert_eq!(columns[4].auto_increment, false);
-        assert_eq!(columns[5].auto_increment, false);
-        assert_eq!(columns[6].auto_increment, false);
-        assert_eq!(columns[7].auto_increment, false);
-        assert_eq!(columns[8].auto_increment, false);
-        assert_eq!(columns[9].auto_increment, false);
-        assert_eq!(columns[10].auto_increment, false);
-        assert_eq!(columns[11].auto_increment, false);
         assert_eq!(columns[0].passive, false);
         assert_eq!(columns[1].passive, false);
         assert_eq!(columns[2].passive, false);

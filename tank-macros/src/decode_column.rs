@@ -13,7 +13,6 @@ pub(crate) struct ColumnMetadata {
     pub(crate) value: Value,
     pub(crate) nullable: bool,
     pub(crate) default: Option<TokenStream>,
-    pub(crate) auto_increment: bool,
     pub(crate) primary_key: PrimaryKeyType,
     pub(crate) unique: bool,
     pub(crate) passive: bool,
@@ -31,7 +30,6 @@ impl Debug for ColumnMetadata {
             .field("value", &self.value)
             .field("nullable", &self.nullable)
             .field("default", &self.default)
-            .field("auto_increment", &self.auto_increment)
             .field("primary_key", &self.primary_key)
             .field("unique", &self.unique)
             .field("passive", &self.passive)
@@ -67,7 +65,6 @@ pub fn decode_column(field: &Field) -> ColumnMetadata {
         value,
         nullable,
         default: None,
-        auto_increment: false,
         primary_key: PrimaryKeyType::None,
         unique: false,
         passive,
@@ -101,12 +98,6 @@ pub fn decode_column(field: &Field) -> ColumnMetadata {
                         );
                     };
                     metadata.column_type = v.value();
-                } else if arg.path.is_ident("auto_increment") {
-                    let Err(..) = arg.value() else {
-                        // value() is Err for Meta::Path
-                        panic!("Error while parsing `auto_increment`, use it like: `#[tank(auto_increment)]`");
-                    };
-                    metadata.auto_increment = true;
                 } else if arg.path.is_ident("primary_key") {
                     let Err(..) = arg.value() else {
                         // value() is Err for Meta::Path

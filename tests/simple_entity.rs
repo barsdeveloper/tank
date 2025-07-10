@@ -63,9 +63,6 @@ mod tests {
         assert_eq!(columns[0].unique, false);
         assert_eq!(columns[1].unique, false);
         assert_eq!(columns[2].unique, true);
-        assert_eq!(columns[0].auto_increment, false);
-        assert_eq!(columns[1].auto_increment, false);
-        assert_eq!(columns[2].auto_increment, false);
         assert_eq!(columns[0].passive, false);
         assert_eq!(columns[1].passive, false);
         assert_eq!(columns[2].passive, false);

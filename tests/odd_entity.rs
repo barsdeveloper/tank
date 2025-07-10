@@ -45,10 +45,8 @@ mod tests {
 
         let pk: Vec<_> = MyEntity::primary_key_def().collect();
         assert_eq!(pk.len(), 2);
-        assert_eq!(pk[0].auto_increment, false);
         assert_eq!(pk[0].nullable, false);
         assert_eq!(pk[0].primary_key, PrimaryKeyType::PartOfPrimaryKey);
-        assert_eq!(pk[1].auto_increment, false);
         assert_eq!(pk[1].nullable, false);
         assert_eq!(pk[1].primary_key, PrimaryKeyType::PartOfPrimaryKey);
 
@@ -99,11 +97,6 @@ mod tests {
         assert_eq!(columns[2].unique, false);
         assert_eq!(columns[3].unique, false);
         assert_eq!(columns[4].unique, false);
-        assert_eq!(columns[0].auto_increment, false);
-        assert_eq!(columns[1].auto_increment, false);
-        assert_eq!(columns[2].auto_increment, false);
-        assert_eq!(columns[3].auto_increment, false);
-        assert_eq!(columns[4].auto_increment, false);
         assert_eq!(columns[0].passive, false);
         assert_eq!(columns[1].passive, false);
         assert_eq!(columns[2].passive, false);

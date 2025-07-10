@@ -101,7 +101,7 @@ mod tests {
         #[derive(Entity)]
         #[tank(name = "cart")]
         struct Cart {
-            #[tank(primary_key, auto_increment)]
+            #[tank(primary_key)]
             id: Box<Passive<u32>>,
             user_id: Uuid,
             created_at: PrimitiveDateTime,
@@ -117,7 +117,7 @@ mod tests {
                 out,
                 indoc! {"
                     CREATE TABLE IF NOT EXISTS cart (
-                    id UINTEGER AUTOINCREMENT PRIMARY KEY,
+                    id UINTEGER PRIMARY KEY,
                     user_id UUID NOT NULL,
                     created_at TIMESTAMP NOT NULL,
                     items UUID[] NOT NULL,

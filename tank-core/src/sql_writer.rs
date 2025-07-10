@@ -512,10 +512,6 @@ pub trait SqlWriter {
         out.push_str("\n)");
     }
 
-    fn write_autoincrement_fragment(&self, out: &mut String) {
-        out.push_str("AUTOINCREMENT");
-    }
-
     fn write_create_table_column_fragment(&self, out: &mut String, column: &ColumnDef) {
         out.push_str(&column.name());
         out.push(' ');
@@ -530,10 +526,6 @@ pub trait SqlWriter {
         if let Some(default) = &column.default {
             out.push_str(" DEFAULT ");
             default.write_query(self.as_dyn(), out, true);
-        }
-        if column.auto_increment {
-            out.push(' ');
-            self.write_autoincrement_fragment(out);
         }
         if column.primary_key == PrimaryKeyType::PrimaryKey {
             // Composite primary key will be printed elsewhere

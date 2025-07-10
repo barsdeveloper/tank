@@ -42,7 +42,6 @@ pub struct ColumnDef {
     pub default: Option<Box<dyn Expression>>,
     pub primary_key: PrimaryKeyType,
     pub unique: bool,
-    pub auto_increment: bool,
     pub passive: bool,
     pub comment: &'static str,
 }

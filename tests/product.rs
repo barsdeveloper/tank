@@ -9,7 +9,7 @@ mod tests {
     #[derive(Entity)]
     #[tank(name = "products")]
     struct Product {
-        #[tank(primary_key, auto_increment)]
+        #[tank(primary_key)]
         id: Passive<u64>,
         name: String,
         price: Decimal,
@@ -48,7 +48,6 @@ mod tests {
 
         let pk: Vec<_> = Product::primary_key_def().collect();
         assert_eq!(pk.len(), 1);
-        assert!(pk[0].auto_increment);
         assert!(!pk[0].nullable);
         assert_eq!(pk[0].primary_key, PrimaryKeyType::PrimaryKey);
 
@@ -102,12 +101,6 @@ mod tests {
         assert_eq!(columns[3].unique, false);
         assert_eq!(columns[4].unique, false);
         assert_eq!(columns[5].unique, false);
-        assert_eq!(columns[0].auto_increment, true);
-        assert_eq!(columns[1].auto_increment, false);
-        assert_eq!(columns[2].auto_increment, false);
-        assert_eq!(columns[3].auto_increment, false);
-        assert_eq!(columns[4].auto_increment, false);
-        assert_eq!(columns[5].auto_increment, false);
         assert_eq!(columns[0].passive, true);
         assert_eq!(columns[1].passive, false);
         assert_eq!(columns[2].passive, false);
@@ -124,7 +117,7 @@ mod tests {
             query,
             indoc! {"
                 CREATE TABLE products (
-                id UBIGINT AUTOINCREMENT PRIMARY KEY,
+                id UBIGINT PRIMARY KEY,
                 name VARCHAR NOT NULL,
                 price DECIMAL NOT NULL,
                 available BOOLEAN NOT NULL,
