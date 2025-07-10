@@ -1,13 +1,12 @@
 use crate::{DuckDBPrepared, cbox::CBox, driver::DuckDBDriver, extract_value::extract_value};
+use flume::Sender;
 use futures::Stream;
 use libduckdb_sys::*;
 use std::{
     collections::BTreeMap,
     ffi::{CStr, CString, c_char, c_void},
     fmt::{self, Debug, Formatter},
-    mem,
-    ops::DerefMut,
-    ptr,
+    mem, ptr,
     sync::{
         Arc, LazyLock,
         atomic::{AtomicPtr, Ordering},
@@ -38,6 +37,121 @@ impl DuckDBConnection {
             });
         &**DATABASE_CACHE
     }
+
+    pub(crate) fn run_unprepared(
+        connection: duckdb_connection,
+        query: &str,
+        tx: Sender<Result<QueryResult>>,
+    ) {
+        unsafe {
+            let result: duckdb_result = mem::zeroed();
+            let mut result = CBox::new(result, |mut r| duckdb_destroy_result(&mut r));
+            let rc = duckdb_query(connection, as_c_string(query).as_ptr(), &mut *result);
+            if rc != duckdb_state_DuckDBSuccess {
+                let message = CStr::from_ptr(duckdb_result_error(&mut *result))
+                    .to_str()
+                    .expect("Error message from prepare is expected to be a valid C string");
+                let _ = tx.send(Err(Error::msg(format!(
+                    "Error while executing the unprepared query: {}",
+                    message
+                ))));
+                return;
+            }
+            Self::extract_result(result, tx);
+        }
+    }
+
+    pub(crate) fn run_prepared(query: DuckDBPrepared, tx: Sender<Result<QueryResult>>) {
+        unsafe {
+            let result: duckdb_result = mem::zeroed();
+            let mut result = CBox::new(result, |mut r| duckdb_destroy_result(&mut r));
+            let rc = duckdb_execute_prepared_streaming(**query.prepared, &mut *result);
+            if rc != duckdb_state_DuckDBSuccess {
+                let message = CStr::from_ptr(duckdb_result_error(&mut *result))
+                    .to_str()
+                    .expect("Error message from prepare is expected to be a valid C string");
+                let _ = tx.send(Err(Error::msg(format!(
+                    "Error while executing the prepared query: {}",
+                    message
+                ))));
+                return;
+            }
+            let statement_type = duckdb_result_statement_type(*result);
+            #[allow(non_upper_case_globals)]
+            if matches!(
+                statement_type,
+                duckdb_statement_type_DUCKDB_STATEMENT_TYPE_INSERT
+                    | duckdb_statement_type_DUCKDB_STATEMENT_TYPE_UPDATE
+                    | duckdb_statement_type_DUCKDB_STATEMENT_TYPE_DELETE
+            ) {
+                let rows_affected = duckdb_rows_changed(&mut *result);
+                let _ = tx.send(Ok(QueryResult::Affected(RowsAffected {
+                    rows_affected,
+                    ..Default::default()
+                })));
+                return;
+            }
+            Self::extract_result(result, tx);
+        }
+    }
+
+    pub(crate) fn extract_result(mut result: CBox<duckdb_result>, tx: Sender<Result<QueryResult>>) {
+        unsafe {
+            let is_streaming = duckdb_result_is_streaming(*result);
+            loop {
+                let chunk = CBox::new(
+                    if is_streaming {
+                        duckdb_stream_fetch_chunk(*result)
+                    } else {
+                        duckdb_fetch_chunk(*result)
+                    },
+                    |mut v| duckdb_destroy_data_chunk(&mut v),
+                );
+                if chunk.is_null() {
+                    return;
+                }
+                let rows = duckdb_data_chunk_get_size(*chunk);
+                let cols = duckdb_data_chunk_get_column_count(*chunk);
+                let info = (0..cols)
+                    .map(|i| {
+                        let vector = duckdb_data_chunk_get_vector(*chunk, i);
+                        let logical_type =
+                            CBox::new(duckdb_vector_get_column_type(vector), |mut l| {
+                                duckdb_destroy_logical_type(&mut l)
+                            });
+                        let type_id = duckdb_get_type_id(*logical_type);
+                        let data = duckdb_vector_get_data(vector);
+                        let validity = duckdb_vector_get_validity(vector);
+                        let name = CStr::from_ptr(duckdb_column_name(&mut *result, i))
+                            .to_str()
+                            .unwrap();
+                        (vector, logical_type, type_id, data, validity, name)
+                    })
+                    .collect::<Box<[_]>>();
+                let names = info
+                    .iter()
+                    .map(|v| v.5.to_string())
+                    .collect::<Arc<[String]>>();
+                (0..rows).for_each(|row| {
+                    let columns = (0..cols).map(|col| {
+                        let col = col as usize;
+                        let info = &info[col];
+                        Ok(extract_value(
+                            info.0,
+                            row as usize,
+                            *info.1,
+                            info.2,
+                            info.3,
+                            info.4,
+                        )?)
+                    });
+                    let row =
+                        RowLabeled::new(names.clone(), columns.collect::<Result<_>>().unwrap());
+                    let _ = tx.send(Ok(QueryResult::RowLabeled(row)));
+                });
+            }
+        }
+    }
 }
 
 impl Debug for DuckDBConnection {
@@ -57,10 +171,10 @@ impl Executor for DuckDBConnection {
     }
 
     async fn prepare(&mut self, query: String) -> Result<Query<DuckDBPrepared>> {
-        log::debug!("Preparing query: `{}`", query);
         if let Some(prepared) = self.prepared_cache.read().await.get(&query) {
             return Ok(prepared.clone().into());
         }
+        log::debug!("Preparing query: `{}`", query);
         let connection = AtomicPtr::new(*self.connection);
         let source = query.clone();
         let prepared = spawn_blocking(move || unsafe {
@@ -96,122 +210,14 @@ impl Executor for DuckDBConnection {
         Ok(prepared.into())
     }
 
-    fn run(&mut self, mut query: Query<DuckDBPrepared>) -> impl Stream<Item = Result<QueryResult>> {
+    fn run(&mut self, query: Query<DuckDBPrepared>) -> impl Stream<Item = Result<QueryResult>> {
         let (tx, rx) = flume::unbounded::<Result<QueryResult>>();
         let connection = AtomicPtr::new(*self.connection);
-        spawn_blocking(move || unsafe {
-            if let Query::Raw(v) = query {
-                query = Query::Prepared({
-                    let mut prepared =
-                        CBox::new(ptr::null_mut(), |mut ptr| duckdb_destroy_prepare(&mut ptr));
-                    let query = match CString::new(v.as_bytes()) {
-                        Ok(query) => query,
-                        Err(e) => {
-                            let _ = tx.send(Err(Error::new(e)
-                                .context("Could not create a CString from the query String")));
-                            return;
-                        }
-                    };
-                    let rc = duckdb_prepare(
-                        connection.load(Ordering::Relaxed),
-                        query.as_ptr(),
-                        &mut *prepared,
-                    );
-                    if rc != duckdb_state_DuckDBSuccess {
-                        let message = CStr::from_ptr(duckdb_prepare_error(*prepared))
-                            .to_str()
-                            .expect("Error message from prepare is expected to be a valid C string")
-                            .to_string();
-                        let _ = tx.send(Err(Error::msg(message)));
-                        return;
-                    }
-                    DuckDBPrepared::new(prepared)
-                });
+        spawn_blocking(move || match query {
+            Query::Raw(query) => {
+                Self::run_unprepared(connection.load(Ordering::Relaxed), &query, tx)
             }
-            let Query::Prepared(query) = query else {
-                unreachable!("The query is prepared by this point");
-            };
-            let mut result: duckdb_result = mem::zeroed();
-            let rc = duckdb_execute_prepared_streaming(**query.prepared, &mut result);
-            let mut result = CBox::new(result, |mut r| duckdb_destroy_result(&mut r));
-            if rc != duckdb_state_DuckDBSuccess {
-                let message = CStr::from_ptr(duckdb_result_error(&mut *result))
-                    .to_str()
-                    .expect("Error message from prepare is expected to be a valid C string");
-                let _ = tx.send(Err(Error::msg(format!(
-                    "Error while executing the query: {}",
-                    message
-                ))));
-                return;
-            }
-            let statement_type = duckdb_result_statement_type(*result);
-            #[allow(non_upper_case_globals)]
-            if matches!(
-                statement_type,
-                duckdb_statement_type_DUCKDB_STATEMENT_TYPE_INSERT
-                    | duckdb_statement_type_DUCKDB_STATEMENT_TYPE_DELETE
-            ) {
-                let rows_affected = duckdb_rows_changed(&mut *result);
-                let _ = tx.send(Ok(QueryResult::Affected(RowsAffected {
-                    rows_affected,
-                    ..Default::default()
-                })));
-                return;
-            }
-            // duckdb_execute_prepared_streaming can also produce non streaming result, must check separately
-            let is_streaming = duckdb_result_is_streaming(*result);
-            loop {
-                let chunk = CBox::new(
-                    if is_streaming {
-                        duckdb_stream_fetch_chunk(*result)
-                    } else {
-                        duckdb_fetch_chunk(*result)
-                    },
-                    |mut v| duckdb_destroy_data_chunk(&mut v),
-                );
-                if chunk.is_null() {
-                    return;
-                }
-                let rows = duckdb_data_chunk_get_size(*chunk);
-                let cols = duckdb_data_chunk_get_column_count(*chunk);
-                let info = (0..cols)
-                    .map(|i| {
-                        let vector = duckdb_data_chunk_get_vector(*chunk, i);
-                        let logical_type =
-                            CBox::new(duckdb_vector_get_column_type(vector), |mut l| {
-                                duckdb_destroy_logical_type(&mut l)
-                            });
-                        let type_id = duckdb_get_type_id(*logical_type);
-                        let data = duckdb_vector_get_data(vector);
-                        let validity = duckdb_vector_get_validity(vector);
-                        let name = CStr::from_ptr(duckdb_column_name(result.deref_mut(), i))
-                            .to_str()
-                            .unwrap();
-                        (vector, logical_type, type_id, data, validity, name)
-                    })
-                    .collect::<Box<[_]>>();
-                let names = info
-                    .iter()
-                    .map(|v| v.5.to_string())
-                    .collect::<Arc<[String]>>();
-                (0..rows).for_each(|row| {
-                    let columns = (0..cols).map(|col| {
-                        let col = col as usize;
-                        let info = &info[col];
-                        Ok(extract_value(
-                            info.0,
-                            row as usize,
-                            *info.1,
-                            info.2,
-                            info.3,
-                            info.4,
-                        )?)
-                    });
-                    let row =
-                        RowLabeled::new(names.clone(), columns.collect::<Result<_>>().unwrap());
-                    let _ = tx.send(Ok(QueryResult::RowLabeled(row)));
-                });
-            }
+            Query::Prepared(query) => Self::run_prepared(query, tx),
         });
         rx.into_stream()
     }

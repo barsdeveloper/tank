@@ -90,7 +90,7 @@ mod tests {
     use crate::cbox::CBox;
 
     #[tokio::test]
-    async fn cbox_raw_pointer() {
+    async fn cbox_pointer() {
         static mut DESTROYED: bool = false;
         let v = 123;
         let ptr: *const i32 = &v;
