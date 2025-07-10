@@ -178,7 +178,7 @@ mod tests {
                 documents MAP(VARCHAR, BLOB),
                 access UUID NOT NULL UNIQUE,
                 deleted BOOLEAN NOT NULL DEFAULT false
-                )
+                );
             "}
             .trim()
         );
@@ -188,7 +188,7 @@ mod tests {
     fn test_employee_drop_table() {
         let mut query = String::new();
         WRITER.write_drop_table::<Employee>(&mut query, true);
-        assert_eq!(query, "DROP TABLE IF EXISTS company.employee");
+        assert_eq!(query, "DROP TABLE IF EXISTS company.employee;");
     }
 
     #[test]
@@ -206,7 +206,7 @@ mod tests {
                 SELECT id, name, hire_date, working_hours, salary, skills, documents, access, deleted
                 FROM company.employee
                 WHERE salary > 50000
-                LIMIT 10
+                LIMIT 10;
             "}
             .trim()
         );
@@ -223,7 +223,7 @@ mod tests {
             query,
             indoc! {"
                 INSERT INTO company.employee (id, name, hire_date, working_hours, salary, skills, documents, deleted)
-                VALUES (501, 'Bob Smith', '2022-01-20', ['9:00:00.0','18:00:00.0'], 75000.0, ['Rust','SQL'], {'contract.pdf':'\\x25\\x50\\x44\\x46'}, true)
+                VALUES (501, 'Bob Smith', '2022-01-20', ['9:00:00.0','18:00:00.0'], 75000.0, ['Rust','SQL'], {'contract.pdf':'\\x25\\x50\\x44\\x46'}, true);
             "}
             .trim()
         );
@@ -239,7 +239,7 @@ mod tests {
             query,
             indoc! {"
                 INSERT INTO company.employee (id, name, hire_date, working_hours, salary, skills, documents, access, deleted)
-                VALUES (501, 'Bob Smith', '2022-01-20', ['9:00:00.0','18:00:00.0'], 75000.0, ['Rust','SQL'], {'contract.pdf':'\\x25\\x50\\x44\\x46'}, '8f8fcc51-2fa9-4118-b14f-af2d8301a89a', true)
+                VALUES (501, 'Bob Smith', '2022-01-20', ['9:00:00.0','18:00:00.0'], 75000.0, ['Rust','SQL'], {'contract.pdf':'\\x25\\x50\\x44\\x46'}, '8f8fcc51-2fa9-4118-b14f-af2d8301a89a', true);
             "}
             .trim()
         );
@@ -253,7 +253,7 @@ mod tests {
             query,
             indoc! {"
                 DELETE FROM company.employee
-                WHERE name = 'Bob'
+                WHERE name = 'Bob';
             "}
             .trim()
         );

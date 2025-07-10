@@ -215,7 +215,7 @@ mod tests {
                 metadata BLOB,
                 tags MAP(VARCHAR, VARCHAR),
                 PRIMARY KEY (trade_id, execution_time)
-                )
+                );
             "}
             .trim()
         );
@@ -227,7 +227,7 @@ mod tests {
         WRITER.write_drop_table::<Trade>(&mut query, true);
         assert_eq!(
             query,
-            "DROP TABLE IF EXISTS trading.company.trade_execution"
+            "DROP TABLE IF EXISTS trading.company.trade_execution;"
         );
     }
 
@@ -245,7 +245,7 @@ mod tests {
             indoc! {"
                 SELECT trade_id, order_id, symbol, price, quantity, execution_time, currency, is_internalized, venue, child_trade_ids, metadata, tags
                 FROM trading.company.trade_execution
-                WHERE quantity >= 100 AND price > 1000
+                WHERE quantity >= 100 AND price > 1000;
             "}
             .trim()
         );
@@ -275,7 +275,7 @@ mod tests {
             query,
             indoc! {"
                 DELETE FROM trading.company.trade_execution
-                WHERE trade_id = 68391
+                WHERE trade_id = 68391;
             "}
             .trim()
         );

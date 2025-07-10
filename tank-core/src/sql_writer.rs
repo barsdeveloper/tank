@@ -458,6 +458,7 @@ pub trait SqlWriter {
             out.push_str("IF NOT EXISTS ");
         }
         out.push_str(E::table_ref().schema);
+        out.push(';');
     }
 
     fn write_drop_schema<E>(&self, out: &mut String, if_exists: bool)
@@ -470,6 +471,7 @@ pub trait SqlWriter {
             out.push_str("IF EXISTS ");
         }
         out.push_str(E::table_ref().schema);
+        out.push(';');
     }
 
     fn write_create_table<E>(&self, out: &mut String, if_not_exists: bool)
@@ -510,6 +512,7 @@ pub trait SqlWriter {
             }
         }
         out.push_str("\n)");
+        out.push(';');
     }
 
     fn write_create_table_column_fragment(&self, out: &mut String, column: &ColumnDef) {
@@ -553,6 +556,7 @@ pub trait SqlWriter {
             out.push_str("IF EXISTS ");
         }
         self.write_table_ref(out, E::table_ref());
+        out.push(';');
     }
 
     fn write_select<E: Entity, D: DataSet, Expr: Expression>(
@@ -580,6 +584,7 @@ pub trait SqlWriter {
         if let Some(limit) = limit {
             let _ = write!(out, "\nLIMIT {}", limit);
         }
+        out.push(';');
     }
 
     fn write_insert<'b, E, It>(&self, out: &mut String, entities: It, replace: bool)
@@ -618,39 +623,40 @@ pub trait SqlWriter {
                 ", ",
             );
             out.push(')');
-            return;
-        }
-        let mut separate = false;
-        loop {
-            if separate {
-                out.push(',');
-            }
-            out.push_str("\n(");
-            let mut fields = row.iter();
-            let mut field = fields.next();
-            {
-                let mut separate = false;
-                for name in columns.clone() {
-                    if separate {
-                        out.push_str(", ");
-                    }
-                    if Some(name) == field.map(|v| v.0) {
-                        self.write_value(out, field.map(|v| &v.1).expect("Exists"));
-                        field = fields.next();
-                    } else {
-                        out.push_str("DEFAULT");
-                    }
-                    separate = true;
+        } else {
+            let mut separate = false;
+            loop {
+                if separate {
+                    out.push(',');
                 }
-                out.push(')');
+                out.push_str("\n(");
+                let mut fields = row.iter();
+                let mut field = fields.next();
+                {
+                    let mut separate = false;
+                    for name in columns.clone() {
+                        if separate {
+                            out.push_str(", ");
+                        }
+                        if Some(name) == field.map(|v| v.0) {
+                            self.write_value(out, field.map(|v| &v.1).expect("Exists"));
+                            field = fields.next();
+                        } else {
+                            out.push_str("DEFAULT");
+                        }
+                        separate = true;
+                    }
+                    out.push(')');
+                }
+                separate = true;
+                if let Some(next) = rows.next() {
+                    row = next;
+                } else {
+                    break;
+                };
             }
-            separate = true;
-            if let Some(next) = rows.next() {
-                row = next;
-            } else {
-                break;
-            };
         }
+        out.push(';');
     }
 
     fn write_delete<E: Entity, Expr: Expression>(&self, out: &mut String, condition: &Expr)
@@ -661,6 +667,7 @@ pub trait SqlWriter {
         self.write_table_ref(out, E::table_ref());
         out.push_str("\nWHERE ");
         condition.write_query(self, out, false);
+        out.push(';');
     }
 }
 

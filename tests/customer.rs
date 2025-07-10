@@ -131,7 +131,7 @@ mod tests {
                 values FLOAT[],
                 signup_duration INTERVAL NOT NULL,
                 recent_purchases BIGINT[][] COMMENT 'List of all the full cart products\nIt''s a list of lists of ids\n\nCan also be empty'
-                )
+                );
             "}
             .trim()
         );
@@ -141,7 +141,7 @@ mod tests {
     fn test_customer_drop_table() {
         let mut query = String::new();
         WRITER.write_drop_table::<Customer>(&mut query, false);
-        assert_eq!(query, "DROP TABLE customers");
+        assert_eq!(query, "DROP TABLE customers;");
     }
 
     #[test]
@@ -159,7 +159,7 @@ mod tests {
                 SELECT transaction_ids, settings, values, signup_duration, recent_purchases
                 FROM customers
                 WHERE len(values) > 10
-                LIMIT 10
+                LIMIT 10;
             "}
             .trim()
         );
@@ -173,7 +173,7 @@ mod tests {
             query,
             indoc! {"
                 DELETE FROM customers
-                WHERE true
+                WHERE true;
             "}
             .trim()
         );

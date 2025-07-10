@@ -175,18 +175,14 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                 if_not_exists: bool,
                 create_schema: bool,
             ) -> ::tank::Result<()> {
-                let mut query = String::with_capacity(512);
+                let mut query = String::with_capacity(2048);
                 if create_schema && !#schema.is_empty() {
                     ::tank::SqlWriter::write_create_schema::<#ident>(
                         &::tank::Driver::sql_writer(executor.driver()),
                         &mut query,
                         true,
                     );
-                    executor
-                        .execute(query.as_str().into())
-                        .await
-                        .map(|_| ())?;
-                    query.clear();
+                    query.push('\n');
                 }
                 ::tank::SqlWriter::write_create_table::<#ident>(
                     &::tank::Driver::sql_writer(executor.driver()),
@@ -204,18 +200,14 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                 if_exists: bool,
                 drop_schema: bool,
             ) -> ::tank::Result<()> {
-                let mut query = String::with_capacity(64);
+                let mut query = String::with_capacity(256);
                 if drop_schema && !#schema.is_empty() {
                     ::tank::SqlWriter::write_drop_schema::<#ident>(
                         &::tank::Driver::sql_writer(executor.driver()),
                         &mut query,
                         true,
                     );
-                    executor
-                        .execute(query.as_str().into())
-                        .await
-                        .map(|_| ())?;
-                    query.clear();
+                    query.push('\n');
                 }
                 ::tank::SqlWriter::write_drop_table::<#ident>(
                     &::tank::Driver::sql_writer(executor.driver()),

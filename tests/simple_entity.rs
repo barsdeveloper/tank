@@ -81,7 +81,7 @@ mod tests {
                 c USMALLINT NOT NULL UNIQUE,
                 UNIQUE (a, c),
                 UNIQUE (b, c)
-                )
+                );
             "}
             .trim()
         );
@@ -91,7 +91,7 @@ mod tests {
     fn test_simple_entity_drop_table() {
         let mut query = String::new();
         WRITER.write_drop_table::<SomeSimpleEntity>(&mut query, true);
-        assert_eq!(query, "DROP TABLE IF EXISTS simple_entity");
+        assert_eq!(query, "DROP TABLE IF EXISTS simple_entity;");
     }
 
     #[test]
@@ -109,7 +109,7 @@ mod tests {
                 SELECT a, b, c
                 FROM simple_entity
                 WHERE a > 100
-                LIMIT 1000
+                LIMIT 1000;
             "}
             .trim()
         );
@@ -123,7 +123,7 @@ mod tests {
             query,
             indoc! {"
                 INSERT OR REPLACE INTO simple_entity (a, b, c)
-                VALUES (40, 'hello', 777)
+                VALUES (40, 'hello', 777);
             "}
             .trim()
         );
@@ -140,7 +140,7 @@ mod tests {
             query,
             indoc! {"
                 DELETE FROM simple_entity
-                WHERE b != 'hello'
+                WHERE b != 'hello';
             "}
             .trim()
         );

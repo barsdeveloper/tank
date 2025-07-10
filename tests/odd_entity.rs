@@ -118,7 +118,7 @@ mod tests {
                 delta INTERVAL,
                 echo DECIMAL,
                 PRIMARY KEY (bravo, delta)
-                )
+                );
             "}
             .trim()
         );
@@ -128,7 +128,7 @@ mod tests {
     fn test_odd_entity_drop_table() {
         let mut query = String::new();
         WRITER.write_drop_table::<MyEntity>(&mut query, false);
-        assert_eq!(query, "DROP TABLE a_table");
+        assert_eq!(query, "DROP TABLE a_table;");
     }
 
     #[test]
@@ -146,7 +146,7 @@ mod tests {
                 SELECT alpha, bravo, charlie, delta, echo
                 FROM a_table
                 WHERE bravo < 0
-                LIMIT 300
+                LIMIT 300;
             "}
             .trim()
         );
@@ -160,7 +160,7 @@ mod tests {
             query,
             indoc! {"
                 INSERT OR REPLACE INTO a_table (alpha, bravo, charlie, delta, echo)
-                VALUES (0.0, 2, 10.2, INTERVAL 1 SECOND, 23.44)
+                VALUES (0.0, 2, 10.2, INTERVAL 1 SECOND, 23.44);
             "}
             .trim()
         );
@@ -174,7 +174,7 @@ mod tests {
             query,
             indoc! {"
                 DELETE FROM a_table
-                WHERE echo = 5
+                WHERE echo = 5;
             "}
             .trim()
         );
