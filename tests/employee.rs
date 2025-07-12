@@ -1,9 +1,10 @@
 #![feature(box_patterns)]
+#![feature(assert_matches)]
 
 #[cfg(test)]
 mod tests {
     use indoc::indoc;
-    use std::{borrow::Cow, collections::HashMap, iter};
+    use std::{assert_matches::assert_matches, borrow::Cow, collections::HashMap, iter};
     use tank::{
         Entity, Expression, GenericSqlWriter, Operand, Passive, PrimaryKeyType, SqlWriter,
         TableRef, Value, expr,
@@ -55,14 +56,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_employee() {
-        assert!(matches!(
+        assert_matches!(
             Employee::table_ref(),
             TableRef {
                 name: "employee",
                 schema: "company",
                 alias: Cow::Borrowed(""),
             }
-        ));
+        );
 
         assert_eq!(Employee::primary_key_def().len(), 1);
         let columns = Employee::columns_def();
@@ -94,21 +95,15 @@ mod tests {
         assert_eq!(columns[6].reference.schema, "company");
         assert_eq!(columns[7].reference.schema, "company");
         assert_eq!(columns[8].reference.schema, "company");
-        assert!(matches!(columns[0].value, Value::UInt32(..)));
-        assert!(matches!(columns[1].value, Value::Varchar(..)));
-        assert!(matches!(columns[2].value, Value::Date(..)));
-        assert!(matches!(
-            columns[3].value,
-            Value::Array(_, box Value::Time(..), 2)
-        ));
-        assert!(matches!(columns[4].value, Value::Float64(..)));
-        assert!(matches!(
-            columns[5].value,
-            Value::List(_, box Value::Varchar(..))
-        ));
-        assert!(matches!(columns[6].value, Value::Map(..)));
-        assert!(matches!(columns[7].value, Value::Uuid(..)));
-        assert!(matches!(columns[8].value, Value::Boolean(..)));
+        assert_matches!(columns[0].value, Value::UInt32(..));
+        assert_matches!(columns[1].value, Value::Varchar(..));
+        assert_matches!(columns[2].value, Value::Date(..));
+        assert_matches!(columns[3].value, Value::Array(_, box Value::Time(..), 2));
+        assert_matches!(columns[4].value, Value::Float64(..));
+        assert_matches!(columns[5].value, Value::List(_, box Value::Varchar(..)));
+        assert_matches!(columns[6].value, Value::Map(..));
+        assert_matches!(columns[7].value, Value::Uuid(..));
+        assert_matches!(columns[8].value, Value::Boolean(..));
         assert_eq!(columns[0].nullable, false);
         assert_eq!(columns[1].nullable, false);
         assert_eq!(columns[2].nullable, false);
@@ -118,20 +113,17 @@ mod tests {
         assert_eq!(columns[6].nullable, true);
         assert_eq!(columns[7].nullable, false);
         assert_eq!(columns[8].nullable, false);
-        assert!(matches!(columns[0].default, None));
-        assert!(matches!(columns[1].default, None));
-        assert!(matches!(columns[2].default, None));
-        assert!(matches!(columns[3].default, None));
-        assert!(matches!(columns[4].default, None));
-        assert!(matches!(columns[5].default, None));
-        assert!(matches!(columns[6].default, None));
-        assert!(matches!(columns[7].default, None));
+        assert_matches!(columns[0].default, None);
+        assert_matches!(columns[1].default, None);
+        assert_matches!(columns[2].default, None);
+        assert_matches!(columns[3].default, None);
+        assert_matches!(columns[4].default, None);
+        assert_matches!(columns[5].default, None);
+        assert_matches!(columns[6].default, None);
+        assert_matches!(columns[7].default, None);
         let column8_default =
             columns[8].default.as_deref().unwrap() as *const dyn Expression as *const Operand;
-        assert!(matches!(
-            unsafe { &*column8_default },
-            Operand::LitBool(false),
-        ));
+        assert_matches!(unsafe { &*column8_default }, Operand::LitBool(false),);
         assert_eq!(columns[0].primary_key, PrimaryKeyType::PrimaryKey);
         assert_eq!(columns[1].primary_key, PrimaryKeyType::None);
         assert_eq!(columns[2].primary_key, PrimaryKeyType::None);

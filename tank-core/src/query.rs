@@ -33,7 +33,7 @@ impl<P: Prepared> From<P> for Query<P> {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct RowsAffected {
     pub rows_affected: u64,
     pub last_insert_id: Option<u64>,
@@ -42,6 +42,7 @@ pub struct RowsAffected {
 pub type RowNames = Arc<[String]>;
 pub type Row = Box<[Value]>;
 
+#[derive(Debug)]
 pub struct RowLabeled {
     pub labels: RowNames,
     pub values: Row,
@@ -64,6 +65,7 @@ impl RowLabeled {
     }
 }
 
+#[derive(Debug)]
 pub enum QueryResult {
     RowLabeled(RowLabeled),
     Affected(RowsAffected),

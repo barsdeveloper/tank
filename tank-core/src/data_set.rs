@@ -1,3 +1,5 @@
+use syn::Data;
+
 use crate::SqlWriter;
 
 pub trait DataSet {
@@ -6,6 +8,8 @@ pub trait DataSet {
     where
         Self: Sized;
     fn write_query(&self, writer: &dyn SqlWriter, out: &mut String);
+
+    
 }
 
 impl DataSet for &dyn DataSet {
@@ -13,7 +17,7 @@ impl DataSet for &dyn DataSet {
     where
         Self: Sized,
     {
-        todo!()
+        unreachable!("Cannot call static qualified_columns on a dyn object directly");
     }
 
     fn write_query(&self, _writer: &dyn SqlWriter, _out: &mut String) {

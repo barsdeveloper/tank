@@ -6,6 +6,7 @@ use syn::{
     parse::{Parse, ParseStream},
 };
 
+#[derive(Debug)]
 pub struct Join<L: DataSet, R: DataSet, E: Expression> {
     pub join: JoinType,
     pub lhs: L,

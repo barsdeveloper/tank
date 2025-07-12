@@ -1,5 +1,6 @@
 use crate::{ColumnRef, Expression, OpPrecedence, SqlWriter, Value};
 
+#[derive(Debug)]
 pub enum Operand<'a> {
     LitBool(bool),
     LitFloat(f64),

@@ -241,7 +241,7 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
             where
                 Self: 'a,
                 Exec: ::tank::Executor,
-                It: ExactSizeIterator<Item = &'a Self>
+                It: Iterator<Item = &'a Self>
             {
                 let mut query = String::with_capacity(128);
                 ::tank::SqlWriter::write_insert(

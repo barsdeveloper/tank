@@ -1,6 +1,6 @@
 use crate::{Expression, OpPrecedence, SqlWriter};
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum UnaryOpType {
     Negative,
     Not,
@@ -11,6 +11,7 @@ impl OpPrecedence for UnaryOpType {
     }
 }
 
+#[derive(Debug)]
 pub struct UnaryOp<V: Expression> {
     pub op: UnaryOpType,
     pub v: V,

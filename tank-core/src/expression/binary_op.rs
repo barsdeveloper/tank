@@ -40,6 +40,7 @@ impl OpPrecedence for BinaryOpType {
     }
 }
 
+#[derive(Debug)]
 pub struct BinaryOp<L: Expression, R: Expression> {
     pub op: BinaryOpType,
     pub lhs: L,

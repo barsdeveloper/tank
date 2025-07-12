@@ -1,3 +1,4 @@
+#![feature(assert_matches)]
 mod average;
 mod trade;
 

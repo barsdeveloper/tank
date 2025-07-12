@@ -1,8 +1,9 @@
+#![feature(assert_matches)]
 #[cfg(test)]
 mod tests {
     use indoc::indoc;
     use rust_decimal::{Decimal, prelude::FromPrimitive};
-    use std::{borrow::Cow, iter, sync::Arc, time::Duration};
+    use std::{assert_matches::assert_matches, borrow::Cow, iter, sync::Arc, time::Duration};
     use tank::{Entity, GenericSqlWriter, PrimaryKeyType, SqlWriter, TableRef, Value, expr};
 
     #[derive(Entity)]
@@ -34,14 +35,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_odd_entity() {
-        assert!(matches!(
+        assert_matches!(
             MyEntity::table_ref(),
             TableRef {
                 name: "a_table",
                 schema: "",
                 alias: Cow::Borrowed(""),
             }
-        ));
+        );
 
         let pk: Vec<_> = MyEntity::primary_key_def().collect();
         assert_eq!(pk.len(), 2);
@@ -67,26 +68,26 @@ mod tests {
         assert_eq!(columns[2].reference.schema, "");
         assert_eq!(columns[3].reference.schema, "");
         assert_eq!(columns[4].reference.schema, "");
-        assert!(matches!(columns[0].default, None));
-        assert!(matches!(columns[1].default, None));
-        assert!(matches!(columns[2].default, None));
-        assert!(matches!(columns[3].default, None));
-        assert!(matches!(columns[4].default, None));
-        assert!(matches!(columns[0].value, Value::Float64(..)));
-        assert!(matches!(columns[1].value, Value::Int16(..)));
-        assert!(matches!(columns[2].value, Value::Decimal(..)));
-        assert!(matches!(columns[3].value, Value::Interval(..)));
-        assert!(matches!(columns[4].value, Value::Decimal(..)));
+        assert_matches!(columns[0].default, None);
+        assert_matches!(columns[1].default, None);
+        assert_matches!(columns[2].default, None);
+        assert_matches!(columns[3].default, None);
+        assert_matches!(columns[4].default, None);
+        assert_matches!(columns[0].value, Value::Float64(..));
+        assert_matches!(columns[1].value, Value::Int16(..));
+        assert_matches!(columns[2].value, Value::Decimal(..));
+        assert_matches!(columns[3].value, Value::Interval(..));
+        assert_matches!(columns[4].value, Value::Decimal(..));
         assert_eq!(columns[0].nullable, false);
         assert_eq!(columns[1].nullable, false);
         assert_eq!(columns[2].nullable, true);
         assert_eq!(columns[3].nullable, false);
         assert_eq!(columns[4].nullable, true);
-        assert!(matches!(columns[0].default, None));
-        assert!(matches!(columns[1].default, None));
-        assert!(matches!(columns[2].default, None));
-        assert!(matches!(columns[3].default, None));
-        assert!(matches!(columns[4].default, None));
+        assert_matches!(columns[0].default, None);
+        assert_matches!(columns[1].default, None);
+        assert_matches!(columns[2].default, None);
+        assert_matches!(columns[3].default, None);
+        assert_matches!(columns[4].default, None);
         assert_eq!(columns[0].primary_key, PrimaryKeyType::None);
         assert_eq!(columns[1].primary_key, PrimaryKeyType::PartOfPrimaryKey);
         assert_eq!(columns[2].primary_key, PrimaryKeyType::None);

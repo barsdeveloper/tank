@@ -1,5 +1,8 @@
+#![feature(assert_matches)]
 #[cfg(test)]
 mod tests {
+    use std::assert_matches::assert_matches;
+
     use tank::{
         BinaryOp, BinaryOpType, Expression, Operand, SqlWriter, UnaryOp, UnaryOpType, Value,
     };
@@ -20,52 +23,52 @@ mod tests {
         let mut out = String::new();
         expr.write_query(&WRITER, &mut out, false);
         assert_eq!(out, "false");
-        assert!(matches!(expr, Operand::LitBool(false)));
+        assert_matches!(expr, Operand::LitBool(false));
 
         let expr = expr!(1 + 2);
         let mut out = String::new();
         expr.write_query(&WRITER, &mut out, false);
         assert_eq!(out, "1 + 2");
-        assert!(matches!(
+        assert_matches!(
             expr,
             BinaryOp {
                 op: BinaryOpType::Addition,
                 lhs: Operand::LitInt(1),
                 rhs: Operand::LitInt(2),
             }
-        ));
+        );
 
         let expr = expr!(5 * 1.2);
         let mut out = String::new();
         expr.write_query(&WRITER, &mut out, false);
         assert_eq!(out, "5 * 1.2");
-        assert!(matches!(
+        assert_matches!(
             expr,
             BinaryOp {
                 op: BinaryOpType::Multiplication,
                 lhs: Operand::LitInt(5),
                 rhs: Operand::LitFloat(1.2),
             }
-        ));
+        );
 
         let expr = expr!(true && false);
         let mut out = String::new();
         expr.write_query(&WRITER, &mut out, false);
         assert_eq!(out, "true AND false");
-        assert!(matches!(
+        assert_matches!(
             expr,
             BinaryOp {
                 op: BinaryOpType::And,
                 lhs: Operand::LitBool(true),
                 rhs: Operand::LitBool(false),
             }
-        ));
+        );
 
         let expr = expr!(45 | -90);
         let mut out = String::new();
         expr.write_query(&WRITER, &mut out, false);
         assert_eq!(out, "45 | -90");
-        assert!(matches!(
+        assert_matches!(
             expr,
             BinaryOp {
                 op: BinaryOpType::BitwiseOr,
@@ -75,52 +78,52 @@ mod tests {
                     v: Operand::LitInt(90),
                 },
             }
-        ));
+        );
 
         let expr = expr!(true as i32);
         let mut out = String::new();
         expr.write_query(&WRITER, &mut out, false);
         assert_eq!(out, "CAST(true AS INTEGER)");
-        assert!(matches!(
+        assert_matches!(
             expr,
             BinaryOp {
                 op: BinaryOpType::Cast,
                 lhs: Operand::LitBool(true),
                 rhs: Operand::Type(Value::Int32(..)),
             }
-        ));
+        );
 
         let expr = expr!("1.5" as f64);
         let mut out = String::new();
         expr.write_query(&WRITER, &mut out, false);
         assert_eq!(out, "CAST('1.5' AS DOUBLE)");
-        assert!(matches!(
+        assert_matches!(
             expr,
             BinaryOp {
                 op: BinaryOpType::Cast,
                 lhs: Operand::LitStr("1.5"),
                 rhs: Operand::Type(Value::Float64(..)),
             }
-        ));
+        );
 
         let expr = expr!(["a", "b", "c"]);
         let mut out = String::new();
         expr.write_query(&WRITER, &mut out, false);
         assert_eq!(out, "['a', 'b', 'c']");
-        assert!(matches!(
+        assert_matches!(
             expr,
             Operand::LitArray([
                 Operand::LitStr("a"),
                 Operand::LitStr("b"),
                 Operand::LitStr("c"),
             ])
-        ));
+        );
 
         let expr = expr!([11, 22, 33][1]);
         let mut out = String::new();
         expr.write_query(&WRITER, &mut out, false);
         assert_eq!(out, "[11, 22, 33][1]");
-        assert!(matches!(
+        assert_matches!(
             expr,
             BinaryOp {
                 op: BinaryOpType::Indexing,
@@ -131,72 +134,72 @@ mod tests {
                 ]),
                 rhs: Operand::LitInt(1),
             }
-        ));
+        );
 
         let expr = expr!("hello" == "hell_" as LIKE);
         let mut out = String::new();
         expr.write_query(&WRITER, &mut out, false);
         assert_eq!(out, "'hello' LIKE 'hell_'");
-        assert!(matches!(
+        assert_matches!(
             expr,
             BinaryOp {
                 op: BinaryOpType::Like,
                 lhs: Operand::LitStr("hello"),
                 rhs: Operand::LitStr("hell_"),
             }
-        ));
+        );
 
         let expr = expr!("abc" != "A%" as LIKE);
         let mut out = String::new();
         expr.write_query(&WRITER, &mut out, false);
         assert_eq!(out, "'abc' NOT LIKE 'A%'");
-        assert!(matches!(
+        assert_matches!(
             expr,
             BinaryOp {
                 op: BinaryOpType::NotLike,
                 lhs: Operand::LitStr("abc"),
                 rhs: Operand::LitStr("A%"),
             }
-        ));
+        );
 
         let expr = expr!("log.txt" != "src/**/log.{txt,csv}" as GLOB);
         let mut out = String::new();
         expr.write_query(&WRITER, &mut out, false);
         assert_eq!(out, "'log.txt' NOT GLOB 'src/**/log.{txt,csv}'");
-        assert!(matches!(
+        assert_matches!(
             expr,
             BinaryOp {
                 op: BinaryOpType::NotGlob,
                 lhs: Operand::LitStr("log.txt"),
                 rhs: Operand::LitStr("src/**/log.{txt,csv}"),
             }
-        ));
+        );
 
         let expr = expr!(true as i32);
         let mut out = String::new();
         expr.write_query(&WRITER, &mut out, false);
         assert_eq!(out, "CAST(true AS INTEGER)");
-        assert!(matches!(
+        assert_matches!(
             expr,
             BinaryOp {
                 op: BinaryOpType::Cast,
                 lhs: Operand::LitBool(true),
                 rhs: Operand::Type(Value::Int32(..))
             }
-        ));
+        );
 
         let expr = expr!("value" != NULL);
         let mut out = String::new();
         expr.write_query(&WRITER, &mut out, false);
         assert_eq!(out, "'value' IS NOT NULL");
-        assert!(matches!(
+        assert_matches!(
             expr,
             BinaryOp {
                 op: BinaryOpType::IsNot,
                 lhs: Operand::LitStr("value"),
                 rhs: Operand::Null,
             }
-        ));
+        );
     }
 
     #[test]
@@ -205,7 +208,7 @@ mod tests {
         let mut out = String::new();
         expr.write_query(&WRITER, &mut out, false);
         assert_eq!(out, "90.5 - -0.54 * 2 < 7 / 2");
-        assert!(matches!(
+        assert_matches!(
             expr,
             BinaryOp {
                 op: BinaryOpType::Less,
@@ -227,13 +230,13 @@ mod tests {
                     rhs: Operand::LitInt(2),
                 },
             }
-        ));
+        );
 
         let expr = expr!((2 + 3) * (4 - 1) >> 1 & (8 | 3));
         let mut out = String::new();
         expr.write_query(&WRITER, &mut out, false);
         assert_eq!(out, "(2 + 3) * (4 - 1) >> 1 & (8 | 3)");
-        assert!(matches!(
+        assert_matches!(
             expr,
             BinaryOp {
                 op: BinaryOpType::BitwiseAnd,
@@ -260,13 +263,13 @@ mod tests {
                     rhs: Operand::LitInt(3),
                 },
             }
-        ));
+        );
 
         let expr = expr!(-(-PI) + 2 * (5 % (2 + 1)) == 7 && !(4 < 2));
         let mut out = String::new();
         expr.write_query(&WRITER, &mut out, false);
         assert_eq!(out, "-(-PI) + 2 * (5 % (2 + 1)) = 7 AND NOT 4 < 2");
-        assert!(matches!(
+        assert_matches!(
             expr,
             BinaryOp {
                 op: BinaryOpType::And,
@@ -306,7 +309,7 @@ mod tests {
                     },
                 },
             }
-        ));
+        );
     }
 
     #[test]
@@ -317,7 +320,7 @@ mod tests {
         let mut out = String::new();
         expr.write_query(&WRITER, &mut out, false);
         assert_eq!(out, "1 + 2 = 3");
-        assert!(matches!(
+        assert_matches!(
             expr,
             BinaryOp {
                 op: BinaryOpType::Equal,
@@ -328,7 +331,7 @@ mod tests {
                 },
                 rhs: Operand::Variable(Value::Int32(Some(3))),
             }
-        ));
+        );
 
         let vec = vec![-1, -2, -3, -4];
         let index = 2;
@@ -336,27 +339,27 @@ mod tests {
         let mut out = String::new();
         expr.write_query(&WRITER, &mut out, false);
         assert_eq!(out, "[-1,-2,-3,-4][2 + 1] + 60");
-        assert!(matches!(
-                expr,
-                BinaryOp {
-                    op: BinaryOpType::Addition,
-                    lhs: BinaryOp {
-                        op: BinaryOpType::Indexing,
-                        lhs: Operand::Variable(Value::List(Some(ref vec), ..)),
-                        rhs: BinaryOp {
-                            op: BinaryOpType::Addition,
-                            lhs: Operand::Variable(Value::Int32(Some(2))),
-                            rhs: Operand::LitInt(1),
-                        },
+        assert_matches!(
+            expr,
+            BinaryOp {
+                op: BinaryOpType::Addition,
+                lhs: BinaryOp {
+                    op: BinaryOpType::Indexing,
+                    lhs: Operand::Variable(Value::List(Some(ref vec), ..)),
+                    rhs: BinaryOp {
+                        op: BinaryOpType::Addition,
+                        lhs: Operand::Variable(Value::Int32(Some(2))),
+                        rhs: Operand::LitInt(1),
                     },
-                    rhs: Operand::LitInt(60),
-                }if vec.as_slice() == &[
-            Value::Int32(Some(-1)),
-            Value::Int32(Some(-2)),
-            Value::Int32(Some(-3)),
-            Value::Int32(Some(-4)),
-        ]
-            ));
+                },
+                rhs: Operand::LitInt(60),
+            } if vec.as_slice() == &[
+                Value::Int32(Some(-1)),
+                Value::Int32(Some(-2)),
+                Value::Int32(Some(-3)),
+                Value::Int32(Some(-4)),
+            ]
+        );
     }
 
     #[test]
@@ -370,14 +373,14 @@ mod tests {
         }
 
         let expr = expr!(MyEntity::_first + 2);
-        assert!(matches!(
+        assert_matches!(
             expr,
             BinaryOp {
                 op: BinaryOpType::Addition,
                 lhs: Operand::Column(..),
                 rhs: Operand::LitInt(2),
             }
-        ));
+        );
 
         let Operand::Column(ref col) = expr.lhs else {
             panic!("Unexpected error")
@@ -397,13 +400,13 @@ mod tests {
         }
 
         let expr = expr!(MyEntity::_first != NULL);
-        assert!(matches!(
+        assert_matches!(
             expr,
             BinaryOp {
                 op: BinaryOpType::IsNot,
                 lhs: Operand::Column(..),
                 rhs: Operand::Null,
             }
-        ));
+        );
     }
 }

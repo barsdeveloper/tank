@@ -1,10 +1,11 @@
 #![feature(box_patterns)]
-
+#![feature(assert_matches)]
 #[cfg(test)]
 mod tests {
     use indoc::indoc;
     use rust_decimal::Decimal;
     use std::{
+        assert_matches::assert_matches,
         borrow::Cow,
         collections::{BTreeMap, HashMap},
         iter,
@@ -61,14 +62,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_trade() {
-        assert!(matches!(
+        assert_matches!(
             Trade::table_ref(),
             TableRef {
                 name: "trade_execution",
                 schema: "trading.company",
                 alias: Cow::Borrowed(""),
             }
-        ));
+        );
 
         assert_eq!(Trade::primary_key_def().len(), 2);
         let columns = Trade::columns_def();
@@ -109,24 +110,21 @@ mod tests {
         assert_eq!(columns[9].reference.schema, "trading.company");
         assert_eq!(columns[10].reference.schema, "trading.company");
         assert_eq!(columns[11].reference.schema, "trading.company");
-        assert!(matches!(columns[0].value, Value::UInt64(..)));
-        assert!(matches!(columns[1].value, Value::Uuid(..)));
-        assert!(matches!(columns[2].value, Value::Varchar(..)));
-        assert!(matches!(columns[3].value, Value::Decimal(..)));
-        assert!(matches!(columns[4].value, Value::UInt32(..)));
-        assert!(matches!(columns[5].value, Value::Timestamp(..)));
-        assert!(matches!(columns[6].value, Value::Varchar(..)));
-        assert!(matches!(columns[7].value, Value::Boolean(..)));
-        assert!(matches!(columns[8].value, Value::Varchar(..)));
-        assert!(matches!(
-            columns[9].value,
-            Value::List(_, box Value::Int64(..), ..)
-        ));
-        assert!(matches!(columns[10].value, Value::Blob(..)));
-        assert!(matches!(
+        assert_matches!(columns[0].value, Value::UInt64(..));
+        assert_matches!(columns[1].value, Value::Uuid(..));
+        assert_matches!(columns[2].value, Value::Varchar(..));
+        assert_matches!(columns[3].value, Value::Decimal(..));
+        assert_matches!(columns[4].value, Value::UInt32(..));
+        assert_matches!(columns[5].value, Value::Timestamp(..));
+        assert_matches!(columns[6].value, Value::Varchar(..));
+        assert_matches!(columns[7].value, Value::Boolean(..));
+        assert_matches!(columns[8].value, Value::Varchar(..));
+        assert_matches!(columns[9].value, Value::List(_, box Value::Int64(..), ..));
+        assert_matches!(columns[10].value, Value::Blob(..));
+        assert_matches!(
             columns[11].value,
             Value::Map(_, box Value::Varchar(..), box Value::Varchar(..), ..)
-        ));
+        );
         assert_eq!(columns[0].nullable, false);
         assert_eq!(columns[1].nullable, false);
         assert_eq!(columns[2].nullable, false);
@@ -139,23 +137,23 @@ mod tests {
         assert_eq!(columns[9].nullable, true);
         assert_eq!(columns[10].nullable, true);
         assert_eq!(columns[11].nullable, true);
-        assert!(matches!(columns[0].default, None));
+        assert_matches!(columns[0].default, None);
         let column1_default =
             columns[1].default.as_deref().unwrap() as *const dyn Expression as *const Operand;
-        assert!(matches!(
+        assert_matches!(
             unsafe { &*column1_default },
             Operand::LitStr("241d362d-797e-4769-b3f6-412440c8cf68"),
-        ));
-        assert!(matches!(columns[2].default, None));
-        assert!(matches!(columns[3].default, None));
-        assert!(matches!(columns[4].default, None));
-        assert!(matches!(columns[5].default, None));
-        assert!(matches!(columns[6].default, None));
-        assert!(matches!(columns[7].default, None));
-        assert!(matches!(columns[8].default, None));
-        assert!(matches!(columns[9].default, None));
-        assert!(matches!(columns[10].default, None));
-        assert!(matches!(columns[11].default, None));
+        );
+        assert_matches!(columns[2].default, None);
+        assert_matches!(columns[3].default, None);
+        assert_matches!(columns[4].default, None);
+        assert_matches!(columns[5].default, None);
+        assert_matches!(columns[6].default, None);
+        assert_matches!(columns[7].default, None);
+        assert_matches!(columns[8].default, None);
+        assert_matches!(columns[9].default, None);
+        assert_matches!(columns[10].default, None);
+        assert_matches!(columns[11].default, None);
         assert_eq!(columns[0].primary_key, PrimaryKeyType::PartOfPrimaryKey);
         assert_eq!(columns[1].primary_key, PrimaryKeyType::None);
         assert_eq!(columns[2].primary_key, PrimaryKeyType::None);

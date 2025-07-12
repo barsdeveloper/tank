@@ -41,7 +41,7 @@ pub trait Entity: Send {
     where
         Self: 'a,
         Exec: Executor,
-        It: ExactSizeIterator<Item = &'a Self>;
+        It: Iterator<Item = &'a Self>;
 
     fn find_one<Exec: Executor>(
         executor: &mut Exec,

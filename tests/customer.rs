@@ -1,9 +1,10 @@
 #![feature(box_patterns)]
+#![feature(assert_matches)]
 
 #[cfg(test)]
 mod tests {
     use indoc::indoc;
-    use std::borrow::Cow;
+    use std::{assert_matches::assert_matches, borrow::Cow};
     use tank::{
         Entity, Expression, GenericSqlWriter, Operand, PrimaryKeyType, SqlWriter, TableRef, Value,
         expr,
@@ -27,14 +28,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_customer() {
-        assert!(matches!(
+        assert_matches!(
             Customer::table_ref(),
             TableRef {
                 name: "customers",
                 schema: "",
                 alias: Cow::Borrowed(""),
             }
-        ));
+        );
 
         assert_eq!(Customer::primary_key_def().len(), 0);
 
@@ -55,38 +56,29 @@ mod tests {
         assert_eq!(columns[2].reference.schema, "");
         assert_eq!(columns[3].reference.schema, "");
         assert_eq!(columns[4].reference.schema, "");
-        assert!(matches!(
-            columns[0].value,
-            Value::List(_, box Value::UInt64(..))
-        ));
-        assert!(matches!(
-            columns[1].value,
-            Value::List(.., box Value::Varchar(..))
-        ));
-        assert!(matches!(
-            columns[2].value,
-            Value::List(.., box Value::Float32(..))
-        ));
-        assert!(matches!(columns[3].value, Value::Interval(..)));
-        assert!(matches!(
+        assert_matches!(columns[0].value, Value::List(_, box Value::UInt64(..)));
+        assert_matches!(columns[1].value, Value::List(.., box Value::Varchar(..)));
+        assert_matches!(columns[2].value, Value::List(.., box Value::Float32(..)));
+        assert_matches!(columns[3].value, Value::Interval(..));
+        assert_matches!(
             columns[4].value,
             Value::List(.., box Value::List(.., box Value::Int64(..)))
-        ));
+        );
         assert_eq!(columns[0].nullable, false);
         assert_eq!(columns[1].nullable, true);
         assert_eq!(columns[2].nullable, true);
         assert_eq!(columns[3].nullable, false);
         assert_eq!(columns[4].nullable, true);
-        assert!(matches!(columns[0].default, None));
+        assert_matches!(columns[0].default, None);
         let column1_default =
             columns[1].default.as_deref().unwrap() as *const dyn Expression as *const Operand;
-        assert!(matches!(
+        assert_matches!(
             unsafe { &*column1_default },
             Operand::LitArray([Operand::LitStr("discount"), Operand::LitStr("newsletter"),])
-        ));
-        assert!(matches!(columns[2].default, None));
-        assert!(matches!(columns[3].default, None));
-        assert!(matches!(columns[4].default, None));
+        );
+        assert_matches!(columns[2].default, None);
+        assert_matches!(columns[3].default, None);
+        assert_matches!(columns[4].default, None);
         assert_eq!(columns[0].primary_key, PrimaryKeyType::None);
         assert_eq!(columns[1].primary_key, PrimaryKeyType::None);
         assert_eq!(columns[2].primary_key, PrimaryKeyType::None);

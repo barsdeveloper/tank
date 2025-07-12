@@ -1,8 +1,9 @@
+#![feature(assert_matches)]
 #[cfg(test)]
 mod tests {
-    use std::borrow::Cow;
+    use std::{assert_matches::assert_matches, borrow::Cow};
     use tank::{
-        join, BinaryOp, BinaryOpType, ColumnRef, Entity, Join, JoinType, Operand, TableRef,
+        BinaryOp, BinaryOpType, ColumnRef, Entity, Join, JoinType, Operand, TableRef, join,
     };
 
     #[derive(Entity)]
@@ -20,7 +21,7 @@ mod tests {
     #[test]
     fn join_simple() {
         let join = join!(Alpha AA JOIN crate::tests::Bravo BB ON AA.a == BB.first);
-        assert!(matches!(
+        assert_matches!(
             join,
             Join {
                 join: JoinType::Inner,
@@ -44,90 +45,90 @@ mod tests {
                 }),
                 ..
             }
-        ));
+        );
 
         let join = join!(Alpha INNER JOIN Bravo ON Alpha::_a == Bravo::_first);
-        assert!(matches!(
+        assert_matches!(
             join,
             Join {
                 join: JoinType::Inner,
                 ..
             }
-        ));
+        );
 
         let join = join!(Alpha FULL OUTER JOIN Bravo ON Alpha::_a == Bravo::_first);
-        assert!(matches!(
+        assert_matches!(
             join,
             Join {
                 join: JoinType::Outer,
                 ..
             }
-        ));
+        );
 
         let join = join!(Alpha OUTER JOIN Bravo ON Alpha::_a == Bravo::_first);
-        assert!(matches!(
+        assert_matches!(
             join,
             Join {
                 join: JoinType::Outer,
                 ..
             }
-        ));
+        );
 
         let join = join!(Alpha LEFT OUTER JOIN Bravo ON Alpha::_a == Bravo::_first);
-        assert!(matches!(
+        assert_matches!(
             join,
             Join {
                 join: JoinType::Left,
                 ..
             }
-        ));
+        );
 
         let join = join!(Alpha LEFT JOIN Bravo ON Alpha::_a == Bravo::_first);
-        assert!(matches!(
+        assert_matches!(
             join,
             Join {
                 join: JoinType::Left,
                 ..
             }
-        ));
+        );
 
         let join = join!(Alpha RIGHT OUTER JOIN Bravo ON Alpha::_a == Bravo::_first);
-        assert!(matches!(
+        assert_matches!(
             join,
             Join {
                 join: JoinType::Right,
                 ..
             }
-        ));
+        );
 
         let join = join!(Alpha RIGHT JOIN Bravo ON Alpha::_a == Bravo::_first);
-        assert!(matches!(
+        assert_matches!(
             join,
             Join {
                 join: JoinType::Right,
                 ..
             }
-        ));
+        );
 
         let join = join!(Alpha CROSS Bravo);
-        assert!(matches!(
+        assert_matches!(
             join,
             Join {
                 join: JoinType::Cross,
                 on: None,
                 ..
             },
-        ));
+        );
 
         let join = join!(Alpha NATURAL JOIN Bravo);
-        assert!(matches!(
+        assert_matches!(
             join,
             Join {
                 join: JoinType::Natural,
                 on: None,
                 ..
             },
-        ));
+        );
     }
 
     #[test]
@@ -139,7 +140,7 @@ mod tests {
         }
 
         let join = join!((Charlie JOIN Alpha ON Charlie::_column < Alpha::_b) JOIN Bravo ON Alpha::_a == Bravo::_second);
-        assert!(matches!(
+        assert_matches!(
             join,
             Join {
                 join: JoinType::Inner,
@@ -175,7 +176,7 @@ mod tests {
                 }),
                 ..
             }
-        ));
+        );
     }
 
     #[test]
@@ -193,7 +194,7 @@ mod tests {
                 Delta LEFT JOIN Alpha ON Delta::_string_column < Alpha::_b
             ) ON Bravo::_second == Delta::_string_column
         );
-        assert!(matches!(
+        assert_matches!(
             join,
             Join {
                 join: JoinType::Outer,
@@ -248,7 +249,7 @@ mod tests {
                 }),
                 ..
             }
-        ));
+        );
     }
 
     #[test]
@@ -258,7 +259,7 @@ mod tests {
             col: Box<i64>,
         }
         let join = join!(Alpha A FULL OUTER JOIN Bravo ON Alpha::_b >= Bravo::_second RIGHT JOIN Some ON Some::col == Bravo::_first);
-        assert!(matches!(
+        assert_matches!(
             join,
             Join {
                 join: JoinType::Right,
@@ -309,7 +310,7 @@ mod tests {
                 }),
                 ..
             }
-        ));
+        );
     }
 
     #[test]
@@ -327,7 +328,7 @@ mod tests {
                     LEFT JOIN Bravo ON Bravo::_second == Alpha::_b
                         CROSS Delta
         );
-        assert!(matches!(
+        assert_matches!(
             join,
             Join {
                 join: JoinType::Cross,
@@ -366,7 +367,7 @@ mod tests {
                 on: None,
                 ..
             }
-        ));
+        );
     }
 
     #[test]
@@ -374,7 +375,7 @@ mod tests {
         let join = join!(
             ((((((Alpha RIGHT JOIN Bravo ON (((((((((((((Alpha::_a)) <= (((((((Bravo::_first))))))))))))))))))))))))
         );
-        assert!(matches!(
+        assert_matches!(
             join,
             Join {
                 join: JoinType::Right,
@@ -406,6 +407,6 @@ mod tests {
                 }),
                 ..
             }
-        ));
+        );
     }
 }

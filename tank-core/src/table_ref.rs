@@ -2,7 +2,7 @@ use crate::{DataSet, SqlWriter, quote_cow};
 use quote::{ToTokens, TokenStreamExt, quote};
 use std::borrow::Cow;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct TableRef {
     pub name: &'static str,
     pub schema: &'static str,

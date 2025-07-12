@@ -1,6 +1,7 @@
 use crate::{OpPrecedence, SqlWriter};
+use std::fmt::Debug;
 
-pub trait Expression: OpPrecedence + Send + Sync {
+pub trait Expression: OpPrecedence + Send + Sync + Debug {
     fn write_query(&self, writer: &dyn SqlWriter, out: &mut String, qualify_columns: bool);
 }
 
