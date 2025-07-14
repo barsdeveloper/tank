@@ -559,28 +559,33 @@ pub trait SqlWriter {
         out.push(';');
     }
 
-    fn write_select<E: Entity, D: DataSet, Expr: Expression>(
+    fn write_select<'a, I, C, S, Expr>(
         &self,
         out: &mut String,
-        from: &D,
+        columns: C,
+        from: &S,
         condition: &Expr,
         limit: Option<u32>,
     ) where
         Self: Sized,
+        I: Into<&'a dyn Expression>,
+        C: Iterator<Item = I>,
+        S: DataSet,
+        Expr: Expression,
     {
         out.push_str("SELECT ");
         separated_by(
             out,
-            E::columns_def().iter(),
+            columns,
             |out, col| {
-                self.write_column_ref(out, col.into(), D::qualified_columns());
+                col.into().write_query(self, out, S::qualified_columns());
             },
             ", ",
         );
         out.push_str("\nFROM ");
         from.write_query(self, out);
         out.push_str("\nWHERE ");
-        condition.write_query(self, out, D::qualified_columns());
+        condition.write_query(self, out, S::qualified_columns());
         if let Some(limit) = limit {
             let _ = write!(out, "\nLIMIT {}", limit);
         }

@@ -186,8 +186,9 @@ mod tests {
     #[test]
     fn test_employee_select() {
         let mut query = String::new();
-        WRITER.write_select::<Employee, _, _>(
+        WRITER.write_select(
             &mut query,
+            Employee::columns_def().iter(),
             Employee::table_ref(),
             &expr!(Employee::salary > 50000),
             Some(10),

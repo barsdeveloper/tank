@@ -98,8 +98,9 @@ mod tests {
     #[test]
     fn test_simple_entity_select() {
         let mut query = String::new();
-        WRITER.write_select::<SomeSimpleEntity, _, _>(
+        WRITER.write_select(
             &mut query,
+            SomeSimpleEntity::columns_def().iter(),
             SomeSimpleEntity::table_ref(),
             &expr!(SomeSimpleEntity::a > 100),
             Some(1000),

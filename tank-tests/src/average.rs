@@ -1,5 +1,5 @@
-use std::{assert_matches::assert_matches, sync::LazyLock};
-use tank::{Connection, Entity, Passive, QueryResult, RowsAffected};
+use std::sync::LazyLock;
+use tank::{Connection, Entity, Passive};
 use tokio::sync::Mutex;
 
 static MUTEX: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));

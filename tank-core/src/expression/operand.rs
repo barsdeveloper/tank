@@ -18,7 +18,7 @@ pub enum Operand<'a> {
 
 impl OpPrecedence for Operand<'_> {
     fn precedence(&self, _writer: &dyn SqlWriter) -> i32 {
-        1_000_000_000
+        1_000_000
     }
 }
 

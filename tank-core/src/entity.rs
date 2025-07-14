@@ -53,6 +53,7 @@ pub trait Entity: Send {
     fn find_many<Exec: Executor, Expr: Expression>(
         executor: &mut Exec,
         condition: &Expr,
+        limit: Option<u32>,
     ) -> impl Stream<Item = Result<Self>> + Send
     where
         Self: Sized;

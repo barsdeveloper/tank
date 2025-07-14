@@ -74,7 +74,7 @@ pub async fn trade_simple<C: Connection>(connection: &mut C) {
         "Failed to Trade::find_one: {:?}",
         result.unwrap_err()
     );
-    assert_eq!(Trade::find_many(connection, &true).count().await, 0);
+    assert_eq!(Trade::find_many(connection, &true, None).count().await, 0);
 
     // Save a trade
     let result = trade.save(connection).await;
@@ -130,7 +130,7 @@ pub async fn trade_simple<C: Connection>(connection: &mut C) {
         ])
     );
 
-    assert_eq!(Trade::find_many(connection, &true).count().await, 1);
+    assert_eq!(Trade::find_many(connection, &true, None).count().await, 1);
 }
 
 pub async fn trade_multiple<C: Connection>(connection: &mut C) {
@@ -252,7 +252,7 @@ pub async fn trade_multiple<C: Connection>(connection: &mut C) {
     }
 
     // Find 5 trades
-    let data = Trade::find_many(connection, &true)
+    let data = Trade::find_many(connection, &true, None)
         .try_collect::<Vec<_>>()
         .await
         .expect("Failed to query threads");

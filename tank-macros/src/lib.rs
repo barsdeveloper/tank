@@ -257,22 +257,22 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                 executor: &mut E,
                 primary_key: &Self::PrimaryKey<'_>,
             ) -> impl ::std::future::Future<Output = ::tank::Result<Option<Self>>> {
-                let mut query = String::with_capacity(256);
                 #primary_key_condition_declaration
-                ::tank::SqlWriter::write_select::<Self, _, _>(
-                    &::tank::Driver::sql_writer(executor.driver()),
-                    &mut query,
-                    Self::table_ref(),
-                    &::tank::expr!(#primary_key_condition_expression),
-                    Some(1),
-                );
-                let stream = executor.fetch(query.into());
                 async move {
-                    let mut stream = ::std::pin::pin!(stream);
+                    let condition = ::tank::expr!(#primary_key_condition_expression);
+                    let stream = ::tank::DataSet::select(
+                        Self::table_ref(),
+                        Self::columns_def()
+                            .iter()
+                            .map(|c| &c.reference as &dyn ::tank::Expression),
+                        executor,
+                        &condition,
+                        Some(1),
+                    );
+                    let mut stream = std::pin::pin!(stream);
                     ::tank::stream::StreamExt::next(&mut stream)
                         .await
-                        .transpose()?
-                        .map(Self::from_row)
+                        .map(|v| v.and_then(Self::from_row))
                         .transpose()
                 }
             }
@@ -280,18 +280,20 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
             fn find_many<Exec: ::tank::Executor, Expr: ::tank::Expression>(
                 executor: &mut Exec,
                 condition: &Expr,
+                limit: Option<u32>,
             ) -> impl ::tank::stream::Stream<Item = ::tank::Result<Self>> {
-                let mut query = String::with_capacity(256);
-                ::tank::SqlWriter::write_select::<Self, _, _>(
-                    &::tank::Driver::sql_writer(executor.driver()),
-                    &mut query,
-                    Self::table_ref(),
-                    condition,
-                    None,
-                );
-                ::tank::stream::TryStreamExt::and_then(executor.fetch(query.into()), |row| {
-                    ::tank::future::ready(Self::from_row(row))
-                })
+                ::tank::stream::StreamExt::map(
+                    ::tank::DataSet::select(
+                        Self::table_ref(),
+                        Self::columns_def()
+                            .iter()
+                            .map(|c| &c.reference as &dyn ::tank::Expression),
+                        executor,
+                        condition,
+                        limit,
+                    ),
+                    |result| result.and_then(Self::from_row),
+                )
             }
 
             fn delete_one<Exec: ::tank::Executor>(

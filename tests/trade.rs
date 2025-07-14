@@ -232,8 +232,9 @@ mod tests {
     #[test]
     fn test_trade_select() {
         let mut query = String::new();
-        WRITER.write_select::<Trade, _, _>(
+        WRITER.write_select(
             &mut query,
+            Trade::columns_def().iter(),
             Trade::table_ref(),
             &expr!(Trade::quantity >= 100 && Trade::price > 1000),
             None,

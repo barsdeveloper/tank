@@ -135,8 +135,9 @@ mod tests {
     #[test]
     fn test_odd_entity_select() {
         let mut query = String::new();
-        WRITER.write_select::<MyEntity, _, _>(
+        WRITER.write_select(
             &mut query,
+            MyEntity::columns_def().iter(),
             MyEntity::table_ref(),
             &expr!(MyEntity::_bravo < 0),
             Some(300),

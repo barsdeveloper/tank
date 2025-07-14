@@ -1,4 +1,4 @@
-use crate::{Expression, Value};
+use crate::{Expression, OpPrecedence, Value};
 use proc_macro2::TokenStream;
 use quote::{ToTokens, TokenStreamExt, quote};
 
@@ -7,7 +7,7 @@ pub trait ColumnTrait {
     fn column_ref(&self) -> &ColumnRef;
 }
 
-#[derive(Default, Debug, Clone, PartialEq)]
+#[derive(Default, Debug, Clone, Copy, PartialEq)]
 pub struct ColumnRef {
     pub name: &'static str,
     pub table: &'static str,
@@ -33,7 +33,7 @@ impl ToTokens for PrimaryKeyType {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct ColumnDef {
     pub reference: ColumnRef,
     pub column_type: &'static str,
@@ -61,5 +61,29 @@ impl ColumnDef {
 impl<'a> From<&'a ColumnDef> for &'a ColumnRef {
     fn from(value: &'a ColumnDef) -> Self {
         &value.reference
+    }
+}
+
+impl OpPrecedence for ColumnRef {
+    fn precedence(&self, _writer: &dyn crate::SqlWriter) -> i32 {
+        1_000_000
+    }
+}
+
+impl Expression for ColumnRef {
+    fn write_query(&self, writer: &dyn crate::SqlWriter, out: &mut String, qualify_columns: bool) {
+        writer.write_column_ref(out, self, qualify_columns);
+    }
+}
+
+impl OpPrecedence for ColumnDef {
+    fn precedence(&self, _writer: &dyn crate::SqlWriter) -> i32 {
+        1_000_000
+    }
+}
+
+impl Expression for ColumnDef {
+    fn write_query(&self, writer: &dyn crate::SqlWriter, out: &mut String, qualify_columns: bool) {
+        writer.write_column_ref(out, &self.reference, qualify_columns);
     }
 }

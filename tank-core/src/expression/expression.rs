@@ -20,3 +20,9 @@ impl Expression for bool {
         writer.write_value_bool(out, *self);
     }
 }
+
+impl<'a, T: Expression> From<&'a T> for &'a dyn Expression {
+    fn from(value: &'a T) -> Self {
+        value as &'a dyn Expression
+    }
+}

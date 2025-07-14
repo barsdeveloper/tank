@@ -1,4 +1,5 @@
 use crate::{DataSet, SqlWriter, quote_cow};
+use proc_macro2::TokenStream;
 use quote::{ToTokens, TokenStreamExt, quote};
 use std::borrow::Cow;
 
@@ -31,7 +32,7 @@ impl TableRef {
 }
 
 impl ToTokens for TableRef {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
         let name = &self.name;
         let schema = &self.schema;
         let alias = quote_cow(&self.alias);

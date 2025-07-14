@@ -139,8 +139,9 @@ mod tests {
     #[test]
     fn test_customer_select() {
         let mut query = String::new();
-        WRITER.write_select::<Customer, _, _>(
+        WRITER.write_select(
             &mut query,
+            Customer::columns_def().iter(),
             Customer::table_ref(),
             &expr!(len(Customer::_values) > 10),
             Some(10),
