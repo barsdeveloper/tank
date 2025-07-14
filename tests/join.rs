@@ -153,16 +153,16 @@ mod tests {
                     rhs: TableRef { name: "alpha", .. },
                     on: Some(BinaryOp {
                         op: BinaryOpType::Less,
-                        lhs: Operand::Column(ColumnRef {
+                        lhs: ColumnRef {
                             name: "column",
                             table: "another_table",
                             ..
-                        }),
-                        rhs: Operand::Column(ColumnRef {
+                        },
+                        rhs: ColumnRef {
                             name: "b",
                             table: "alpha",
                             ..
-                        }),
+                        },
                         ..
                     }),
                     ..
@@ -170,8 +170,8 @@ mod tests {
                 rhs: TableRef { name: "bravo", .. },
                 on: Some(BinaryOp {
                     op: BinaryOpType::Equal,
-                    lhs: Operand::Column(ColumnRef { name: "a", .. }),
-                    rhs: Operand::Column(ColumnRef { name: "second", .. }),
+                    lhs: ColumnRef { name: "a", .. },
+                    rhs: ColumnRef { name: "second", .. },
                     ..
                 }),
                 ..
@@ -217,34 +217,34 @@ mod tests {
                     },
                     on: Some(BinaryOp {
                         op: BinaryOpType::Less,
-                        lhs: Operand::Column(ColumnRef {
+                        lhs: ColumnRef {
                             name: "the_string",
                             table: "delta_table",
                             schema: "delta_dataset",
                             ..
-                        }),
-                        rhs: Operand::Column(ColumnRef {
+                        },
+                        rhs: ColumnRef {
                             name: "b",
                             table: "alpha",
                             schema: "my_data",
                             ..
-                        }),
+                        },
                         ..
                     }),
                     ..
                 },
                 on: Some(BinaryOp {
                     op: BinaryOpType::Equal,
-                    lhs: Operand::Column(ColumnRef {
+                    lhs: ColumnRef {
                         name: "second",
                         table: "bravo",
                         ..
-                    }),
-                    rhs: Operand::Column(ColumnRef {
+                    },
+                    rhs: ColumnRef {
                         name: "the_string",
                         table: "delta_table",
                         ..
-                    }),
+                    },
                     ..
                 }),
                 ..
@@ -278,17 +278,17 @@ mod tests {
                     },
                     on: Some(BinaryOp {
                         op: BinaryOpType::GreaterEqual,
-                        lhs: Operand::Column(ColumnRef {
+                        lhs: ColumnRef {
                             name: "b",
                             table: "alpha",
                             schema: "my_data",
                             ..
-                        }),
-                        rhs: Operand::Column(ColumnRef {
+                        },
+                        rhs: ColumnRef {
                             name: "second",
                             table: "bravo",
                             ..
-                        }),
+                        },
                         ..
                     }),
                     ..
@@ -296,16 +296,16 @@ mod tests {
                 rhs: TableRef { name: "some", .. },
                 on: Some(BinaryOp {
                     op: BinaryOpType::Equal,
-                    lhs: Operand::Column(ColumnRef {
+                    lhs: ColumnRef {
                         name: "col",
                         table: "some",
                         ..
-                    }),
-                    rhs: Operand::Column(ColumnRef {
+                    },
+                    rhs: ColumnRef {
                         name: "first",
                         table: "bravo",
                         ..
-                    }),
+                    },
                     ..
                 }),
                 ..
@@ -348,17 +348,17 @@ mod tests {
                     rhs: TableRef { name: "bravo", .. },
                     on: Some(BinaryOp {
                         op: BinaryOpType::Equal,
-                        lhs: Operand::Column(ColumnRef {
+                        lhs: ColumnRef {
                             name: "second",
                             table: "bravo",
                             ..
-                        }),
-                        rhs: Operand::Column(ColumnRef {
+                        },
+                        rhs: ColumnRef {
                             name: "b",
                             table: "alpha",
                             schema: "my_data",
                             ..
-                        }),
+                        },
                         ..
                     }),
                     ..
@@ -391,18 +391,18 @@ mod tests {
                 },
                 on: Some(BinaryOp {
                     op: BinaryOpType::LessEqual,
-                    lhs: Operand::Column(ColumnRef {
+                    lhs: ColumnRef {
                         name: "a",
                         table: "alpha",
                         schema: "my_data",
                         ..
-                    }),
-                    rhs: Operand::Column(ColumnRef {
+                    },
+                    rhs: ColumnRef {
                         name: "first",
                         table: "bravo",
                         schema: "",
                         ..
-                    }),
+                    },
                     ..
                 }),
                 ..

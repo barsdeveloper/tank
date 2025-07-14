@@ -196,7 +196,7 @@ pub fn decode_expression(expr: &Expr) -> TokenStream {
         Expr::Paren(v) => decode_expression(&v.expr),
         Expr::Path(ExprPath { path, .. }) => {
             if path.segments.len() > 1 {
-                quote! { ::tank::Operand::Column(#path.into()) }
+                quote! { #path }
             } else {
                 let ident = path
                     .get_ident()

@@ -4,7 +4,8 @@ mod tests {
     use std::assert_matches::assert_matches;
 
     use tank::{
-        BinaryOp, BinaryOpType, Expression, Operand, SqlWriter, UnaryOp, UnaryOpType, Value,
+        BinaryOp, BinaryOpType, ColumnRef, Expression, Operand, SqlWriter, UnaryOp, UnaryOpType,
+        Value,
     };
     use tank_macros::{Entity, expr};
 
@@ -377,17 +378,15 @@ mod tests {
             expr,
             BinaryOp {
                 op: BinaryOpType::Addition,
-                lhs: Operand::Column(..),
+                lhs: ColumnRef {
+                    name: "first",
+                    table: "the_table",
+                    schema: ""
+                },
                 rhs: Operand::LitInt(2),
             }
         );
 
-        let Operand::Column(ref col) = expr.lhs else {
-            panic!("Unexpected error")
-        };
-        assert_eq!(col.name, "first");
-        assert_eq!(col.table, "the_table");
-        assert_eq!(col.schema, "");
         {
             let mut out = String::new();
             expr.write_query(&WRITER, &mut out, false);
@@ -404,7 +403,11 @@ mod tests {
             expr,
             BinaryOp {
                 op: BinaryOpType::IsNot,
-                lhs: Operand::Column(..),
+                lhs: ColumnRef {
+                    name: "first",
+                    table: "the_table",
+                    schema: ""
+                },
                 rhs: Operand::Null,
             }
         );

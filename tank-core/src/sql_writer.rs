@@ -334,7 +334,6 @@ pub trait SqlWriter {
                 out.push(']');
             }
             Operand::Null => out.push_str("NULL"),
-            Operand::Column(v) => self.write_column_ref(out, v, qualify_columns),
             Operand::Type(v) => self.write_column_type(out, v),
             Operand::Variable(v) => self.write_value(out, v),
             Operand::Call(f, args) => {

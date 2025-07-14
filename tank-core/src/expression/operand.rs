@@ -1,4 +1,4 @@
-use crate::{ColumnRef, Expression, OpPrecedence, SqlWriter, Value};
+use crate::{Expression, OpPrecedence, SqlWriter, Value};
 
 #[derive(Debug)]
 pub enum Operand<'a> {
@@ -10,7 +10,6 @@ pub enum Operand<'a> {
     LitStr(&'static str),
     LitArray(&'a [Operand<'a>]),
     Null,
-    Column(ColumnRef),
     Type(Value),
     Variable(Value),
     Call(&'static str, &'a [&'a dyn Expression]),
@@ -37,7 +36,6 @@ impl PartialEq for Operand<'_> {
             (Self::LitInt(l), Self::LitInt(r)) => l == r,
             (Self::LitStr(l), Self::LitStr(r)) => l == r,
             (Self::LitArray(l), Self::LitArray(r)) => l == r,
-            (Self::Column(l), Self::Column(r)) => l == r,
             (Self::Type(l), Self::Type(r)) => l.same_type(r),
             _ => false,
         }
