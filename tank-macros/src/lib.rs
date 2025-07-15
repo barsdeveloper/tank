@@ -107,7 +107,7 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
     let row_full = metadata_and_filter
         .iter()
         .map(|(ColumnMetadata { ident, .. }, _)| quote!(self.#ident.clone().into()));
-    let columns_def = metadata_and_filter.iter().map(|(c, _)| {
+    let columns = metadata_and_filter.iter().map(|(c, _)| {
         let field = &c.ident;
         encode_column_def(&c, quote!(#ident::#field))
     });
@@ -141,16 +141,16 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                 &TABLE_REF
             }
 
-            fn columns_def() -> &'static [::tank::ColumnDef] {
+            fn columns() -> &'static [::tank::ColumnDef] {
                 static RESULT: ::std::sync::LazyLock<Box<[::tank::ColumnDef]>> =
-                    ::std::sync::LazyLock::new(|| vec![#(#columns_def),*].into_boxed_slice());
+                    ::std::sync::LazyLock::new(|| vec![#(#columns),*].into_boxed_slice());
                 &RESULT
             }
 
             fn primary_key_def() -> impl ExactSizeIterator<Item = &'static ::tank::ColumnDef> {
                 static RESULT: ::std::sync::LazyLock<Box<[&::tank::ColumnDef]>> =
                     ::std::sync::LazyLock::new(|| {
-                        let columns = #ident::columns_def();
+                        let columns = #ident::columns();
                         vec![#(&#primary_key_def),*].into_boxed_slice()
                     });
                 RESULT.iter().copied()
@@ -160,7 +160,7 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
             -> impl ExactSizeIterator<Item = impl ExactSizeIterator<Item = &'static ::tank::ColumnDef>> {
                 static RESULT: ::std::sync::LazyLock<Box<[Box<[&'static ::tank::ColumnDef]>]>> =
                     ::std::sync::LazyLock::new(|| {
-                        let columns = #ident::columns_def();
+                        let columns = #ident::columns();
                         #unique_defs
                     });
                 RESULT.iter().map(|v| v.iter().copied())
@@ -262,7 +262,7 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                     let condition = ::tank::expr!(#primary_key_condition_expression);
                     let stream = ::tank::DataSet::select(
                         Self::table_ref(),
-                        Self::columns_def()
+                        Self::columns()
                             .iter()
                             .map(|c| &c.reference as &dyn ::tank::Expression),
                         executor,
@@ -285,7 +285,7 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                 ::tank::stream::StreamExt::map(
                     ::tank::DataSet::select(
                         Self::table_ref(),
-                        Self::columns_def()
+                        Self::columns()
                             .iter()
                             .map(|c| &c.reference as &dyn ::tank::Expression),
                         executor,

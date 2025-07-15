@@ -38,7 +38,7 @@ mod tests {
 
         assert_eq!(SomeSimpleEntity::primary_key_def().len(), 0);
 
-        let columns = SomeSimpleEntity::columns_def();
+        let columns = SomeSimpleEntity::columns();
         assert_eq!(columns.len(), 3);
         assert_matches!(columns[0].name(), "a");
         assert_matches!(columns[1].name(), "b");
@@ -100,7 +100,7 @@ mod tests {
         let mut query = String::new();
         WRITER.write_select(
             &mut query,
-            SomeSimpleEntity::columns_def().iter(),
+            SomeSimpleEntity::columns().iter(),
             SomeSimpleEntity::table_ref(),
             &expr!(SomeSimpleEntity::a > 100),
             Some(1000),

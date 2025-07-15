@@ -11,7 +11,7 @@ mod tests {
             col: i32,
         }
 
-        let column = &Entity::columns_def()[0];
+        let column = &Entity::columns()[0];
         assert_eq!(column.table(), "my_table");
         assert_eq!(column.schema(), "the_schema");
         assert_eq!(column.name(), "solo_column");

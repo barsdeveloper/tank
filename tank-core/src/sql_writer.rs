@@ -486,7 +486,7 @@ pub trait SqlWriter {
         out.push_str(" (\n");
         separated_by(
             out,
-            E::columns_def().iter(),
+            E::columns().iter(),
             |out, v| {
                 self.write_create_table_column_fragment(out, v);
             },
@@ -608,7 +608,7 @@ pub trait SqlWriter {
         out.push_str(" INTO ");
         self.write_table_ref(out, E::table_ref());
         out.push_str(" (");
-        let columns = E::columns_def().iter().map(|v| v.name());
+        let columns = E::columns().iter().map(|v| v.name());
         let single = rows.peek().is_none();
         if single {
             // Inserting a single row uses row_labeled to filter out Passive::NotSet columns

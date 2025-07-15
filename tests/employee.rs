@@ -66,7 +66,7 @@ mod tests {
         );
 
         assert_eq!(Employee::primary_key_def().len(), 1);
-        let columns = Employee::columns_def();
+        let columns = Employee::columns();
         assert_eq!(columns.len(), 9);
         assert_eq!(columns[0].reference.name, "id");
         assert_eq!(columns[1].reference.name, "name");
@@ -188,7 +188,7 @@ mod tests {
         let mut query = String::new();
         WRITER.write_select(
             &mut query,
-            Employee::columns_def().iter(),
+            Employee::columns().iter(),
             Employee::table_ref(),
             &expr!(Employee::salary > 50000),
             Some(10),

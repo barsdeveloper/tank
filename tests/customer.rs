@@ -39,7 +39,7 @@ mod tests {
 
         assert_eq!(Customer::primary_key_def().len(), 0);
 
-        let columns = Customer::columns_def();
+        let columns = Customer::columns();
         assert_eq!(columns.len(), 5);
         assert_eq!(columns[0].reference.name, "transaction_ids");
         assert_eq!(columns[1].reference.name, "settings");
@@ -141,7 +141,7 @@ mod tests {
         let mut query = String::new();
         WRITER.write_select(
             &mut query,
-            Customer::columns_def().iter(),
+            Customer::columns().iter(),
             Customer::table_ref(),
             &expr!(len(Customer::_values) > 10),
             Some(10),

@@ -8,7 +8,7 @@ pub trait Entity: Send {
     type PrimaryKey<'a>;
 
     fn table_ref() -> &'static TableRef;
-    fn columns_def() -> &'static [ColumnDef];
+    fn columns() -> &'static [ColumnDef];
     fn primary_key_def() -> impl ExactSizeIterator<Item = &'static ColumnDef>;
     fn unique_defs()
     -> impl ExactSizeIterator<Item = impl ExactSizeIterator<Item = &'static ColumnDef>>;
@@ -80,7 +80,7 @@ pub trait Entity: Send {
 
 // impl<E: Entity> From<E> for RowLabeled {
 //     fn from(value: E) -> Self {
-//         let cols = E::columns_def();
+//         let cols = E::columns();
 //         RowLabeled { labels: cols.iter().map(|c| c.name()), values: () }
 //     }
 // }

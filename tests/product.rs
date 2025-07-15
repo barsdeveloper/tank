@@ -52,7 +52,7 @@ mod tests {
         assert!(!pk[0].nullable);
         assert_eq!(pk[0].primary_key, PrimaryKeyType::PrimaryKey);
 
-        let columns = Product::columns_def();
+        let columns = Product::columns();
         assert_eq!(columns.len(), 6);
         assert_eq!(columns[0].reference.name, "id");
         assert_eq!(columns[1].reference.name, "name");

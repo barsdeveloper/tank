@@ -51,7 +51,7 @@ mod tests {
         assert_eq!(pk[1].nullable, false);
         assert_eq!(pk[1].primary_key, PrimaryKeyType::PartOfPrimaryKey);
 
-        let columns = MyEntity::columns_def();
+        let columns = MyEntity::columns();
         assert_eq!(columns.len(), 5);
         assert_eq!(columns[0].reference.name, "alpha");
         assert_eq!(columns[1].reference.name, "bravo");
@@ -137,7 +137,7 @@ mod tests {
         let mut query = String::new();
         WRITER.write_select(
             &mut query,
-            MyEntity::columns_def().iter(),
+            MyEntity::columns().iter(),
             MyEntity::table_ref(),
             &expr!(MyEntity::_bravo < 0),
             Some(300),

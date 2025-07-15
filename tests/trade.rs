@@ -72,7 +72,7 @@ mod tests {
         );
 
         assert_eq!(Trade::primary_key_def().len(), 2);
-        let columns = Trade::columns_def();
+        let columns = Trade::columns();
         assert_eq!(columns.len(), 12);
         assert_eq!(columns[0].reference.name, "trade_id");
         assert_eq!(columns[1].reference.name, "order_id");
@@ -234,7 +234,7 @@ mod tests {
         let mut query = String::new();
         WRITER.write_select(
             &mut query,
-            Trade::columns_def().iter(),
+            Trade::columns().iter(),
             Trade::table_ref(),
             &expr!(Trade::quantity >= 100 && Trade::price > 1000),
             None,
