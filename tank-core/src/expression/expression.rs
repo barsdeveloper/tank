@@ -5,9 +5,15 @@ pub trait Expression: OpPrecedence + Send + Sync + Debug {
     fn write_query(&self, writer: &dyn SqlWriter, out: &mut String, qualify_columns: bool);
 }
 
+impl<T: Expression> Expression for &T {
+    fn write_query(&self, writer: &dyn SqlWriter, out: &mut String, qualify_columns: bool) {
+        (*self).write_query(writer, out, qualify_columns);
+    }
+}
+
 impl Expression for &dyn Expression {
     fn write_query(&self, writer: &dyn SqlWriter, out: &mut String, qualify_columns: bool) {
-        (**self).write_query(writer, out, qualify_columns);
+        (*self).write_query(writer, out, qualify_columns);
     }
 }
 

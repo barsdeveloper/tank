@@ -1195,7 +1195,6 @@ dependencies = [
 name = "tank-tests"
 version = "0.1.0"
 dependencies = [
- "futures",
  "rust_decimal",
  "tank",
  "time",

@@ -1,10 +1,12 @@
-use std::sync::LazyLock;
-use tank::{Connection, DataSet, Entity, Passive, expr};
+use std::assert_matches::assert_matches;
+use std::{pin::pin, sync::LazyLock};
+use tank::AsValue;
+use tank::{Connection, DataSet, Entity, Passive, RowLabeled, expr, stream::StreamExt};
 use tokio::sync::Mutex;
 
 static MUTEX: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
 
-pub async fn average<C: Connection>(connection: &mut C) {
+pub async fn aggregate_functions<C: Connection>(connection: &mut C) {
     #[derive(Default, Entity)]
     struct Values {
         id: Passive<u64>,
@@ -53,14 +55,37 @@ pub async fn average<C: Connection>(connection: &mut C) {
         );
     }
 
-    // let count = Values::table_ref().select([&expr!(COUNT(*))], connection, &true, None);
+    {
+        let mut stream =
+            pin!(Values::table_ref().select([expr!(COUNT(*))], connection, &true, None));
+        let count = stream.next().await;
+        assert!(
+            match count {
+                Some(Ok(RowLabeled { values, .. }))
+                    if match i64::try_from_value((*values)[0].clone()) {
+                        Ok(v) => v == 11745,
+                        Err(_) => false,
+                    } =>
+                {
+                    true
+                }
+                _ => false,
+            },
+            "COUNT(*) is expected to return 11745"
+        );
 
-    // for value in values {
-    //     let result = value.save(connection).await;
-    //     assert!(
-    //         result.is_ok(),
-    //         "Failed to save value: {:?}",
-    //         result.unwrap_err()
-    //     );
-    // }
+        assert!(
+            stream.next().await.is_none(),
+            "COUNT(*) is expected to return a single row"
+        );
+    }
+
+    for value in values {
+        let result = value.save(connection).await;
+        assert!(
+            result.is_ok(),
+            "Failed to save value: {:?}",
+            result.unwrap_err()
+        );
+    }
 }

@@ -1,7 +1,13 @@
-use crate::{AsValue, Expression, SqlWriter, Value};
+use crate::{Expression, SqlWriter, Value};
 
 pub trait OpPrecedence {
     fn precedence(&self, writer: &dyn SqlWriter) -> i32;
+}
+
+impl<T: OpPrecedence> OpPrecedence for &T {
+    fn precedence(&self, writer: &dyn SqlWriter) -> i32 {
+        (*self).precedence(writer)
+    }
 }
 
 impl OpPrecedence for &dyn Expression {
@@ -16,13 +22,13 @@ impl OpPrecedence for () {
     }
 }
 
-impl OpPrecedence for Value {
+impl OpPrecedence for bool {
     fn precedence(&self, _writer: &dyn SqlWriter) -> i32 {
         0
     }
 }
 
-impl<T: AsValue> OpPrecedence for T {
+impl OpPrecedence for Value {
     fn precedence(&self, _writer: &dyn SqlWriter) -> i32 {
         0
     }

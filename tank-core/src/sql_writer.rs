@@ -559,7 +559,7 @@ pub trait SqlWriter {
         out.push(';');
     }
 
-    fn write_select<'a, I, C, S, Expr>(
+    fn write_select<I, C, S, Expr>(
         &self,
         out: &mut String,
         columns: C,
@@ -568,7 +568,7 @@ pub trait SqlWriter {
         limit: Option<u32>,
     ) where
         Self: Sized,
-        I: Into<&'a dyn Expression>,
+        I: Expression,
         C: IntoIterator<Item = I>,
         S: DataSet,
         Expr: Expression,
@@ -578,7 +578,7 @@ pub trait SqlWriter {
             out,
             columns,
             |out, col| {
-                col.into().write_query(self, out, S::qualified_columns());
+                col.write_query(self, out, S::qualified_columns());
             },
             ", ",
         );

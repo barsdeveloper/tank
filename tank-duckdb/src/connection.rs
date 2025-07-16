@@ -50,11 +50,28 @@ impl DuckDBConnection {
             if rc != duckdb_state_DuckDBSuccess {
                 let message = CStr::from_ptr(duckdb_result_error(&mut *result))
                     .to_str()
-                    .expect("Error message from prepare is expected to be a valid C string");
+                    .expect(
+                        "Error message from duckdb_result_error is expected to be a valid C string",
+                    );
                 let _ = tx.send(Err(Error::msg(format!(
                     "Error while executing the unprepared query: {}",
                     message
                 ))));
+                return;
+            }
+            let statement_type = duckdb_result_statement_type(*result);
+            #[allow(non_upper_case_globals)]
+            if matches!(
+                statement_type,
+                duckdb_statement_type_DUCKDB_STATEMENT_TYPE_INSERT
+                    | duckdb_statement_type_DUCKDB_STATEMENT_TYPE_UPDATE
+                    | duckdb_statement_type_DUCKDB_STATEMENT_TYPE_DELETE
+            ) {
+                let rows_affected = duckdb_rows_changed(&mut *result);
+                let _ = tx.send(Ok(QueryResult::Affected(RowsAffected {
+                    rows_affected,
+                    ..Default::default()
+                })));
                 return;
             }
             Self::extract_result(result, tx);
@@ -69,7 +86,9 @@ impl DuckDBConnection {
             if rc != duckdb_state_DuckDBSuccess {
                 let message = CStr::from_ptr(duckdb_result_error(&mut *result))
                     .to_str()
-                    .expect("Error message from prepare is expected to be a valid C string");
+                    .expect(
+                        "Error message from duckdb_result_error is expected to be a valid C string",
+                    );
                 let _ = tx.send(Err(Error::msg(format!(
                     "Error while executing the prepared query: {}",
                     message

@@ -6,7 +6,7 @@ pub trait DataSet {
     where
         Self: Sized;
     fn write_query(&self, writer: &dyn SqlWriter, out: &mut String);
-    fn select<'a, Item, Cols, Exec, Expr>(
+    fn select<Item, Cols, Exec, Expr>(
         &self,
         columns: Cols,
         executor: &mut Exec,
@@ -15,7 +15,7 @@ pub trait DataSet {
     ) -> impl Stream<Item = Result<RowLabeled>>
     where
         Self: Sized,
-        Item: Into<&'a dyn Expression>,
+        Item: Expression,
         Cols: IntoIterator<Item = Item>,
         Exec: Executor,
         Expr: Expression,
@@ -48,7 +48,7 @@ impl<T: DataSet> DataSet for &T {
     fn write_query(&self, writer: &dyn SqlWriter, out: &mut String) {
         <T as DataSet>::write_query(self, writer, out);
     }
-    fn select<'a, Item, Cols, Exec: Executor, Expr: Expression>(
+    fn select<Item, Cols, Exec: Executor, Expr: Expression>(
         &self,
         columns: Cols,
         executor: &mut Exec,
@@ -57,7 +57,7 @@ impl<T: DataSet> DataSet for &T {
     ) -> impl Stream<Item = Result<RowLabeled>>
     where
         Self: Sized,
-        Item: Into<&'a dyn Expression>,
+        Item: Expression,
         Cols: IntoIterator<Item = Item>,
         Exec: Executor,
         Expr: Expression,

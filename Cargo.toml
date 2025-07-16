@@ -17,7 +17,6 @@ categories = ["database"]
 
 [workspace.dependencies]
 anyhow = { version = "1.0.97", features = ["backtrace"] }
-convert_case = "0.7.1"
 futures = "0.3.31"
 indoc = "2.0.6"
 log = "0.4.27"
@@ -25,8 +24,6 @@ proc-macro2 = "1.0.93"
 quote = "1.0.38"
 rust_decimal = "1.37.1"
 syn = { version = "2.0.96", features = ["full"] }
-tank-core = "0.1.0"
-tank-duckdb = "0.1.0"
 time = { version = "0.3.41", features = ["macros", "parsing"] }
 uuid = "1.16.0"
 
