@@ -1,6 +1,5 @@
-use crate::{Executor, PreparedCache, Query, Result};
+use crate::{Executor, PreparedCache, Query, Result, stream::StreamExt};
 use async_stream::try_stream;
-use futures::StreamExt;
 use std::{future::Future, pin::pin};
 
 pub trait Connection: Executor {

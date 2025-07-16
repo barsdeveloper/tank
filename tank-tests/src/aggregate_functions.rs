@@ -1,4 +1,3 @@
-use std::assert_matches::assert_matches;
 use std::{pin::pin, sync::LazyLock};
 use tank::AsValue;
 use tank::{Connection, DataSet, Entity, Passive, RowLabeled, expr, stream::StreamExt};

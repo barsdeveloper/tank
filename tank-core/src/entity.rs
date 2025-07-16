@@ -1,7 +1,7 @@
 use crate::{
     ColumnDef, Executor, Expression, Result, Row, RowLabeled, RowsAffected, TableRef, Value,
+    stream::Stream,
 };
-use futures::Stream;
 use std::future::Future;
 
 pub trait Entity: Send {

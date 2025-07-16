@@ -1,6 +1,5 @@
 use crate::{DuckDBPrepared, cbox::CBox, driver::DuckDBDriver, extract_value::extract_value};
 use flume::Sender;
-use futures::Stream;
 use libduckdb_sys::*;
 use std::{
     collections::BTreeMap,
@@ -14,6 +13,7 @@ use std::{
 };
 use tank_core::{
     Connection, Context, Error, Executor, Query, QueryResult, Result, RowLabeled, RowsAffected,
+    stream::Stream,
 };
 use tokio::{sync::RwLock, task::spawn_blocking};
 use urlencoding::decode;

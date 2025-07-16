@@ -1,5 +1,7 @@
-use crate::{Driver, Query, QueryResult, Result, RowLabeled, RowsAffected};
-use futures::{Stream, StreamExt, TryStreamExt};
+use crate::{
+    Driver, Query, QueryResult, Result, RowLabeled, RowsAffected,
+    stream::{Stream, StreamExt, TryStreamExt},
+};
 use std::future::Future;
 
 pub trait Executor: Send + Sized {

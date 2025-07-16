@@ -1166,7 +1166,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "flume",
- "futures",
  "libduckdb-sys",
  "log",
  "rust_decimal",

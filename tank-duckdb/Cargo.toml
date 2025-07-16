@@ -10,7 +10,6 @@ repository.workspace = true
 [dependencies]
 anyhow = { version = "1.0.97", features = ["backtrace"] }
 flume = "0.11.1"
-futures = "0.3.31"
 libduckdb-sys = { version = "1.3.0", features = ["bundled"] }
 log = { workspace = true }
 rust_decimal = { workspace = true }
