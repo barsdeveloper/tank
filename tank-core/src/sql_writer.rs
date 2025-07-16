@@ -349,6 +349,7 @@ pub trait SqlWriter {
                 );
                 out.push(')');
             }
+            Operand::Asterisk => out.push('*'),
         };
     }
 
@@ -486,7 +487,7 @@ pub trait SqlWriter {
         out.push_str(" (\n");
         separated_by(
             out,
-            E::columns().iter(),
+            E::columns(),
             |out, v| {
                 self.write_create_table_column_fragment(out, v);
             },
@@ -568,7 +569,7 @@ pub trait SqlWriter {
     ) where
         Self: Sized,
         I: Into<&'a dyn Expression>,
-        C: Iterator<Item = I>,
+        C: IntoIterator<Item = I>,
         S: DataSet,
         Expr: Expression,
     {

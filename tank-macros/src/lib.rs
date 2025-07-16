@@ -5,6 +5,7 @@ mod decode_join;
 mod decode_table;
 mod encode_column_def;
 mod encode_column_ref;
+mod frag_evaluated;
 mod from_row_trait;
 
 use crate::{
@@ -17,13 +18,14 @@ use column_trait::column_trait;
 use decode_column::decode_column;
 use decode_expression::decode_expression;
 use decode_join::JoinParsed;
+use frag_evaluated::flag_evaluated;
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::{
     Expr, Ident, Index, ItemStruct, parse_macro_input, punctuated::Punctuated, token::AndAnd,
 };
-use tank_core::{PrimaryKeyType, flag_evaluated};
+use tank_core::PrimaryKeyType;
 
 #[proc_macro_derive(Entity, attributes(tank))]
 pub fn derive_entity(input: TokenStream) -> TokenStream {

@@ -188,6 +188,13 @@ pub fn decode_expression(expr: &Expr) -> TokenStream {
                 .eq(["tank", "evaluated"].into_iter())
             {
                 quote! { ::tank::Operand::Variable(#tokens.into()) }
+            } else if path
+                .segments
+                .iter()
+                .map(|v| v.ident.to_string())
+                .eq(["tank", "asterisk"].into_iter())
+            {
+                quote! { ::tank::Operand::Asterisk }
             } else {
                 quote! { #path!(#tokens) }
             }

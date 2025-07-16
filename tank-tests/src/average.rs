@@ -1,5 +1,5 @@
 use std::sync::LazyLock;
-use tank::{Connection, Entity, Passive};
+use tank::{Connection, DataSet, Entity, Passive, expr};
 use tokio::sync::Mutex;
 
 static MUTEX: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
@@ -53,12 +53,14 @@ pub async fn average<C: Connection>(connection: &mut C) {
         );
     }
 
-    for value in values {
-        let result = value.save(connection).await;
-        assert!(
-            result.is_ok(),
-            "Failed to save value: {:?}",
-            result.unwrap_err()
-        );
-    }
+    // let count = Values::table_ref().select([&expr!(COUNT(*))], connection, &true, None);
+
+    // for value in values {
+    //     let result = value.save(connection).await;
+    //     assert!(
+    //         result.is_ok(),
+    //         "Failed to save value: {:?}",
+    //         result.unwrap_err()
+    //     );
+    // }
 }

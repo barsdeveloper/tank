@@ -137,7 +137,7 @@ mod tests {
         let mut query = String::new();
         WRITER.write_select(
             &mut query,
-            MyEntity::columns().iter(),
+            MyEntity::columns(),
             MyEntity::table_ref(),
             &expr!(MyEntity::_bravo < 0),
             Some(300),

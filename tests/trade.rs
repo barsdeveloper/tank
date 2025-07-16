@@ -234,7 +234,7 @@ mod tests {
         let mut query = String::new();
         WRITER.write_select(
             &mut query,
-            Trade::columns().iter(),
+            Trade::columns(),
             Trade::table_ref(),
             &expr!(Trade::quantity >= 100 && Trade::price > 1000),
             None,

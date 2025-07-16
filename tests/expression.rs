@@ -204,6 +204,15 @@ mod tests {
     }
 
     #[test]
+    fn test_asterisk_expressions() {
+        let expr = expr!(COUNT(*));
+        let mut out = String::new();
+        expr.write_query(&WRITER, &mut out, false);
+        assert_eq!(out, "COUNT(*)");
+        assert_matches!(expr, Operand::Call("COUNT", _));
+    }
+
+    #[test]
     fn test_complex_expressions() {
         let expr = expr!(90.5 - -0.54 * 2 < 7 / 2);
         let mut out = String::new();

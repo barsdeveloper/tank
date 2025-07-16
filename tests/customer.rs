@@ -141,7 +141,7 @@ mod tests {
         let mut query = String::new();
         WRITER.write_select(
             &mut query,
-            Customer::columns().iter(),
+            Customer::columns(),
             Customer::table_ref(),
             &expr!(len(Customer::_values) > 10),
             Some(10),

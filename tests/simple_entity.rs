@@ -100,7 +100,7 @@ mod tests {
         let mut query = String::new();
         WRITER.write_select(
             &mut query,
-            SomeSimpleEntity::columns().iter(),
+            SomeSimpleEntity::columns(),
             SomeSimpleEntity::table_ref(),
             &expr!(SomeSimpleEntity::a > 100),
             Some(1000),

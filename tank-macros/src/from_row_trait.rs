@@ -45,10 +45,7 @@ pub(crate) fn from_row_trait(item: &ItemStruct) -> (Ident, TokenStream) {
     let create_result = fields.clone().map(|(ident, _ty, col)| {
         let column = &col.name;
         quote! {
-            #ident: #ident.ok_or(::tank::Error::msg(format!(
-                "Column `{}` does not exist in the row provided",
-                #column
-            )))?
+            #ident: #ident.ok_or(__make_error__(#column))?
         }
     });
     let create_result = quote! {
@@ -88,6 +85,10 @@ pub(crate) fn from_row_trait(item: &ItemStruct) -> (Ident, TokenStream) {
                     {
                         #field_assignment_holder
                     }
+                    let __make_error__ = |name: &str| ::tank::Error::msg(format!(
+                        "Column `{}` does not exist in the row provided",
+                        name
+                    ));
                     Ok(#create_result)
                 }
             }

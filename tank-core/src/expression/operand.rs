@@ -13,6 +13,7 @@ pub enum Operand<'a> {
     Type(Value),
     Variable(Value),
     Call(&'static str, &'a [&'a dyn Expression]),
+    Asterisk,
 }
 
 impl OpPrecedence for Operand<'_> {

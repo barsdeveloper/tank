@@ -50,7 +50,7 @@ mod tests {
             let mut out = String::new();
             WRITER.write_select(
                 &mut out,
-                Table::columns().iter(),
+                Table::columns(),
                 Table::table_ref(),
                 &expr!(Table::_second_column < 100 && Table::_first_column == "OK"),
                 None,
@@ -138,7 +138,7 @@ mod tests {
             let mut out = String::new();
             WRITER.write_select(
                 &mut out,
-                Cart::columns().iter(),
+                Cart::columns(),
                 Cart::table_ref(),
                 &expr!(Cart::is_active == true && Cart::total_price > 100),
                 Some(1000),
