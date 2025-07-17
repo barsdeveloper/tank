@@ -9,10 +9,12 @@ pub async fn aggregate_functions<C: Connection>(connection: &mut C) {
     #[derive(Default, Entity)]
     struct Values {
         id: Passive<u64>,
+        /// This column contains the actual value
         value: u32,
     }
     let _lock = MUTEX.lock();
 
+    // Cleanup
     let result = Values::drop_table(connection, true, false).await;
     assert!(
         result.is_ok(),
@@ -20,6 +22,7 @@ pub async fn aggregate_functions<C: Connection>(connection: &mut C) {
         result.unwrap_err()
     );
 
+    // Setup
     let result = Values::create_table(connection, false, false).await;
     assert!(
         result.is_ok(),
@@ -27,13 +30,13 @@ pub async fn aggregate_functions<C: Connection>(connection: &mut C) {
         result.unwrap_err()
     );
 
+    // Insert
     // 1 + .. + 11745 = 68978385
     // avg(1, .., 11745) = 5873
     let mut values = (1..11746).map(|value| Values {
         id: value.into(),
         value: value as u32,
     });
-
     loop {
         let rows = values.by_ref().take(2000).collect::<Vec<_>>();
         if rows.is_empty() {
@@ -54,37 +57,37 @@ pub async fn aggregate_functions<C: Connection>(connection: &mut C) {
         );
     }
 
+    // SELET COUNT(*), SUM(value)
     {
-        let mut stream =
-            pin!(Values::table_ref().select([expr!(COUNT(*))], connection, &true, None));
+        let mut stream = pin!(Values::table_ref().select(
+            [expr!(COUNT(*)), expr!(SUM(Values::value))],
+            connection,
+            &true,
+            None
+        ));
         let count = stream.next().await;
         assert!(
-            match count {
-                Some(Ok(RowLabeled { values, .. }))
-                    if match i64::try_from_value((*values)[0].clone()) {
-                        Ok(v) => v == 11745,
-                        Err(_) => false,
-                    } =>
-                {
-                    true
-                }
-                _ => false,
-            },
-            "COUNT(*) is expected to return 11745"
-        );
-
-        assert!(
             stream.next().await.is_none(),
-            "COUNT(*) is expected to return a single row"
+            "The query is expected to return a single row"
         );
-    }
-
-    for value in values {
-        let result = value.save(connection).await;
-        assert!(
-            result.is_ok(),
-            "Failed to save value: {:?}",
-            result.unwrap_err()
+        let expected = (11745, 68978385);
+        let actual = match count {
+            Some(Ok(RowLabeled { values, .. })) => {
+                let a = i128::try_from_value((*values)[0].clone());
+                let b = i128::try_from_value((*values)[1].clone());
+                match (a, b) {
+                    (Ok(a), Ok(b)) => Some((a, b)),
+                    (Err(e), _) => panic!("{}", e),
+                    (_, Err(e)) => panic!("{}", e),
+                }
+            }
+            _ => None,
+        };
+        assert_eq!(
+            actual,
+            Some(expected),
+            "SELECT COUNT(*), SUM(value) is expected to return {:?}",
+            expected
         );
     }
 }

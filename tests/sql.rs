@@ -146,11 +146,11 @@ mod tests {
             assert_eq!(
                 out,
                 indoc! {"
-                SELECT id, user_id, created_at, items, is_active, total_price
-                FROM cart
-                WHERE is_active = true AND total_price > 100
-                LIMIT 1000;
-            "}
+                    SELECT id, user_id, created_at, items, is_active, total_price
+                    FROM cart
+                    WHERE is_active = true AND total_price > 100
+                    LIMIT 1000;
+                "}
                 .trim()
             )
         }
@@ -169,13 +169,13 @@ mod tests {
             };
             WRITER.write_insert(&mut out, iter::once(&cart), false);
             assert_eq!(
-            out,
-            indoc! {"
-                INSERT INTO cart (user_id, created_at, items, is_active, total_price)
-                VALUES ('b0fa843f-6ae4-4a16-a13c-ddf5512f3bb2', '2025-05-31 12:30:11.0', [], false, 0);
-            "}
-            .trim()
-        )
+                out,
+                indoc! {"
+                    INSERT INTO cart (user_id, created_at, items, is_active, total_price)
+                    VALUES ('b0fa843f-6ae4-4a16-a13c-ddf5512f3bb2', '2025-05-31 12:30:11.0', [], false, 0);
+                "}
+                .trim()
+            )
         }
         {
             let mut out = String::new();
@@ -196,13 +196,13 @@ mod tests {
             };
             WRITER.write_insert(&mut out, iter::once(&cart), true);
             assert_eq!(
-            out,
-            indoc! {"
-                INSERT OR REPLACE INTO cart (user_id, created_at, items, is_active, total_price)
-                VALUES ('22222222-2222-2222-2222-222222222222', '2020-01-19 19:26:54.0', ['30c68157-5c43-452d-8caa-300776260b3f','772ba17d-b3bd-4771-a34e-2926d4731b44','3d4e9cb1-021f-48ab-848e-6c97d0ad670d'], true, 25.99);
-            "}
-            .trim()
-        )
+                out,
+                indoc! {"
+                    INSERT OR REPLACE INTO cart (user_id, created_at, items, is_active, total_price)
+                    VALUES ('22222222-2222-2222-2222-222222222222', '2020-01-19 19:26:54.0', ['30c68157-5c43-452d-8caa-300776260b3f','772ba17d-b3bd-4771-a34e-2926d4731b44','3d4e9cb1-021f-48ab-848e-6c97d0ad670d'], true, 25.99);
+                "}
+                .trim()
+            )
         }
     }
 }

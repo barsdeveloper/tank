@@ -513,6 +513,21 @@ pub trait SqlWriter {
         }
         out.push_str("\n)");
         out.push(';');
+        self.write_column_comments::<E>(out);
+    }
+
+    fn write_column_comments<E>(&self, out: &mut String)
+    where
+        Self: Sized,
+        E: Entity,
+    {
+        for c in E::columns().iter().filter(|c| !c.comment.is_empty()) {
+            out.push_str("\nCOMMENT ON COLUMN ");
+            self.write_column_ref(out, c.into(), true);
+            out.push_str(" IS ");
+            self.write_value_string(out, c.comment);
+            out.push(';');
+        }
     }
 
     fn write_create_table_column_fragment(&self, out: &mut String, column: &ColumnDef) {
@@ -537,14 +552,6 @@ pub trait SqlWriter {
         if column.unique && column.primary_key != PrimaryKeyType::PrimaryKey {
             out.push_str(" UNIQUE");
         }
-        if !column.comment.is_empty() {
-            self.write_create_table_column_fragment_comment(out, column);
-        }
-    }
-
-    fn write_create_table_column_fragment_comment(&self, out: &mut String, column: &ColumnDef) {
-        out.push_str(" COMMENT ");
-        self.write_value_string(out, column.comment);
     }
 
     fn write_drop_table<E: Entity>(&self, out: &mut String, if_exists: bool)

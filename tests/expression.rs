@@ -210,6 +210,17 @@ mod tests {
         expr.write_query(&WRITER, &mut out, false);
         assert_eq!(out, "COUNT(*)");
         assert_matches!(expr, Operand::Call("COUNT", _));
+
+        #[derive(Entity)]
+        struct ATable {
+            #[tank(name = "my_column")]
+            a_column: u8,
+        }
+        let expr = expr!(SUM(ATable::a_column));
+        let mut out = String::new();
+        expr.write_query(&WRITER, &mut out, false);
+        assert_eq!(out, "SUM(my_column)");
+        assert_matches!(expr, Operand::Call("SUM", _));
     }
 
     #[test]

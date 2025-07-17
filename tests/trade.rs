@@ -202,18 +202,20 @@ mod tests {
                 CREATE TABLE trading.company.trade_execution (
                 trade_id UBIGINT,
                 order_id UUID NOT NULL DEFAULT '241d362d-797e-4769-b3f6-412440c8cf68',
-                symbol VARCHAR NOT NULL COMMENT 'Ticker symbol',
+                symbol VARCHAR NOT NULL,
                 price DECIMAL NOT NULL,
                 quantity UINTEGER NOT NULL,
                 execution_time TIMESTAMP,
                 currency VARCHAR,
                 is_internalized BOOLEAN NOT NULL,
-                venue VARCHAR COMMENT 'Exchange',
+                venue VARCHAR,
                 child_trade_ids BIGINT[],
                 metadata BLOB,
                 tags MAP(VARCHAR, VARCHAR),
                 PRIMARY KEY (trade_id, execution_time)
                 );
+                COMMENT ON COLUMN trading.company.trade_execution.symbol IS 'Ticker symbol';
+                COMMENT ON COLUMN trading.company.trade_execution.venue IS 'Exchange';
             "}
             .trim()
         );

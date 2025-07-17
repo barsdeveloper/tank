@@ -34,6 +34,4 @@ impl SqlWriter for DuckDBSqlWriter {
             }
         };
     }
-
-    fn write_create_table_column_fragment_comment(&self, _out: &mut String, _column: &ColumnDef) {}
 }

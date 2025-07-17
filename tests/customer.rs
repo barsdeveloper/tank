@@ -122,8 +122,9 @@ mod tests {
                 settings VARCHAR[] DEFAULT ['discount', 'newsletter'],
                 values FLOAT[],
                 signup_duration INTERVAL NOT NULL,
-                recent_purchases BIGINT[][] COMMENT 'List of all the full cart products\nIt''s a list of lists of ids\n\nCan also be empty'
+                recent_purchases BIGINT[][]
                 );
+                COMMENT ON COLUMN customers.recent_purchases IS 'List of all the full cart products\nIt''s a list of lists of ids\n\nCan also be empty';
             "}
             .trim()
         );
