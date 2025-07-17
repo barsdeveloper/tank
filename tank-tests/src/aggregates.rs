@@ -5,7 +5,7 @@ use tokio::sync::Mutex;
 
 static MUTEX: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
 
-pub async fn aggregate_functions<C: Connection>(connection: &mut C) {
+pub async fn aggregates<C: Connection>(connection: &mut C) {
     #[derive(Default, Entity)]
     struct Values {
         id: Passive<u64>,

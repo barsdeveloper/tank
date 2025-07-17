@@ -1,4 +1,5 @@
 #![feature(array_try_from_fn)]
+mod as_value;
 mod column;
 mod connection;
 mod data_set;
@@ -18,6 +19,7 @@ mod util;
 mod value;
 
 pub use ::anyhow::Context;
+pub use as_value::*;
 pub use column::*;
 pub use connection::*;
 pub use data_set::*;
