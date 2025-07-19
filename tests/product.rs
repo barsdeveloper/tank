@@ -137,8 +137,8 @@ mod tests {
         assert_eq!(
             query,
             indoc! {"
-                INSERT INTO products (name, price, available, tags, added_on)
-                VALUES ('Smartphone', 499.99, true, ['electronics','mobile'], '2025-06-24 10:30:07.0');
+                INSERT INTO products (name, price, available, tags, added_on) VALUES
+                ('Smartphone', 499.99, true, ['electronics','mobile'], '2025-06-24 10:30:07.0');
             "}
             .trim()
         );
@@ -180,8 +180,7 @@ mod tests {
         assert_eq!(
             query,
             indoc! {"
-                INSERT INTO products (id, name, price, available, tags, added_on)
-                VALUES
+                INSERT INTO products (id, name, price, available, tags, added_on) VALUES
                 (74, 'Headphones', 129.95, false, ['electronics','audio'], '2025-07-08 14:15:01.0'),
                 (DEFAULT, 'Smartphone', 499.99, true, ['electronics','mobile'], '2025-06-24 10:30:07.0'),
                 (DEFAULT, 'Mouse', 39.99, true, ['electronics','accessories'], '2025-07-09 9:45:30.0');

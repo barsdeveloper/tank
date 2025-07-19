@@ -1,5 +1,5 @@
 use std::fmt::Write;
-use tank_core::{ColumnDef, GenericSqlWriter, SqlWriter, Value};
+use tank_core::{GenericSqlWriter, SqlWriter, Value};
 
 #[derive(Default)]
 pub struct DuckDBSqlWriter {}

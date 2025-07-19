@@ -255,7 +255,7 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                 executor.execute(::tank::Query::Raw(query.into()))
             }
 
-            fn find_one<E: ::tank::Executor>(
+            fn find_pk<E: ::tank::Executor>(
                 executor: &mut E,
                 primary_key: &Self::PrimaryKey<'_>,
             ) -> impl ::std::future::Future<Output = ::tank::Result<Option<Self>>> {
@@ -300,7 +300,7 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
 
             fn delete_one<Exec: ::tank::Executor>(
                 executor: &mut Exec,
-                primary_key: &Self::PrimaryKey<'_>,
+                primary_key: Self::PrimaryKey<'_>,
             ) -> impl ::std::future::Future<Output = ::tank::Result<::tank::RowsAffected>> + Send
             where
                 Self: Sized
@@ -345,20 +345,6 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
 
             fn primary_key<'a>(&'a self) -> Self::PrimaryKey<'a> {
                 (#(&#primary_key,)*)
-            }
-
-            fn save<Exec: ::tank::Executor>(
-                &self,
-                executor: &mut Exec,
-            ) -> impl ::std::future::Future<Output = ::tank::Result<()>> {
-                let mut query = String::with_capacity(256);
-                ::tank::SqlWriter::write_insert(
-                    &::tank::Driver::sql_writer(executor.driver()),
-                    &mut query,
-                    ::std::iter::once(self),
-                    true,
-                );
-                async { executor.execute(query.into()).await.map(|_| ()) }
             }
         }
     }

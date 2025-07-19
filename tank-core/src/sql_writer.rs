@@ -1,6 +1,6 @@
 use crate::{
-    BinaryOp, BinaryOpType, ColumnDef, ColumnRef, DataSet, Entity, Expression, Interval, Join,
-    JoinType, Operand, PrimaryKeyType, TableRef, UnaryOp, UnaryOpType, Value,
+    BinaryOp, BinaryOpType, ColumnDef, ColumnRef, DataSet, EitherIterator, Entity, Expression,
+    Interval, Join, JoinType, Operand, PrimaryKeyType, TableRef, UnaryOp, UnaryOpType, Value,
     possibly_parenthesized, separated_by,
 };
 use std::fmt::Write;
@@ -496,12 +496,7 @@ pub trait SqlWriter {
         let primary_key = E::primary_key_def();
         if primary_key.len() > 1 {
             out.push_str(",\nPRIMARY KEY (");
-            separated_by(
-                out,
-                E::primary_key_def(),
-                |out, v| out.push_str(v.name()),
-                ", ",
-            );
+            separated_by(out, primary_key, |out, v| out.push_str(v.name()), ", ");
             out.push(')');
         }
         for unique in E::unique_defs() {
@@ -599,38 +594,34 @@ pub trait SqlWriter {
         out.push(';');
     }
 
-    fn write_insert<'b, E, It>(&self, out: &mut String, entities: It, replace: bool)
+    fn write_insert<'b, E, It>(&self, out: &mut String, entities: It, update: bool)
     where
         Self: Sized,
         E: Entity + 'b,
-        It: Iterator<Item = &'b E>,
+        It: IntoIterator<Item = &'b E>,
     {
-        let mut rows = entities.map(Entity::row_filtered).peekable();
+        let mut rows = entities.into_iter().map(Entity::row_filtered).peekable();
         let Some(mut row) = rows.next() else {
             return;
         };
-        out.push_str("INSERT");
-        if replace {
-            out.push_str(" OR REPLACE");
-        }
-        out.push_str(" INTO ");
+        out.push_str("INSERT INTO ");
         self.write_table_ref(out, E::table_ref());
         out.push_str(" (");
-        let columns = E::columns().iter().map(|v| v.name());
+        let columns = E::columns().iter();
         let single = rows.peek().is_none();
         if single {
             // Inserting a single row uses row_labeled to filter out Passive::NotSet columns
-            separated_by(out, row.iter().map(|v| v.0), |out, v| out.push_str(v), ", ");
+            separated_by(out, row.iter(), |out, v| out.push_str(v.0), ", ");
         } else {
-            // Inserting more rows will list all columns
-            separated_by(out, columns.clone(), |out, v| out.push_str(v), ", ");
+            // Inserting more rows will list all columns, Passive::NotSet columns will result in DEFAULT value
+            separated_by(out, columns.clone(), |out, v| out.push_str(v.name()), ", ");
         };
-        out.push_str(")\nVALUES");
+        out.push_str(") VALUES\n");
         if single {
-            out.push_str(" (");
+            out.push('(');
             separated_by(
                 out,
-                row.into_iter().map(|v| v.1),
+                row.iter().map(|v| &v.1),
                 |out, v| self.write_value(out, &v),
                 ", ",
             );
@@ -639,27 +630,25 @@ pub trait SqlWriter {
             let mut separate = false;
             loop {
                 if separate {
-                    out.push(',');
+                    out.push_str(",\n");
                 }
-                out.push_str("\n(");
+                out.push('(');
                 let mut fields = row.iter();
                 let mut field = fields.next();
-                {
-                    let mut separate = false;
-                    for name in columns.clone() {
-                        if separate {
-                            out.push_str(", ");
-                        }
-                        if Some(name) == field.map(|v| v.0) {
+                separated_by(
+                    out,
+                    E::columns(),
+                    |out, col| {
+                        if Some(col.name()) == field.map(|v| v.0) {
                             self.write_value(out, field.map(|v| &v.1).expect("Exists"));
                             field = fields.next();
                         } else {
                             out.push_str("DEFAULT");
                         }
-                        separate = true;
-                    }
-                    out.push(')');
-                }
+                    },
+                    ", ",
+                );
+                out.push(')');
                 separate = true;
                 if let Some(next) = rows.next() {
                     row = next;
@@ -668,7 +657,36 @@ pub trait SqlWriter {
                 };
             }
         }
+        if update {
+            self.write_insert_update_fragment::<E, _>(out, columns);
+        }
         out.push(';');
+    }
+
+    fn write_insert_update_fragment<'a, E, It>(&self, out: &mut String, columns: It)
+    where
+        Self: Sized,
+        E: Entity,
+        It: Iterator<Item = &'a ColumnDef>,
+    {
+        out.push_str("\nON CONFLICT");
+        let pk = E::primary_key_def();
+        if pk.len() > 0 {
+            out.push_str(" (");
+            separated_by(out, pk, |out, v| out.push_str(v.name()), ", ");
+            out.push(')');
+        }
+        out.push_str(" DO UPDATE SET\n");
+        separated_by(
+            out,
+            columns.filter(|c| c.primary_key == PrimaryKeyType::None),
+            |out, v| {
+                out.push_str(v.name());
+                out.push_str(" = EXCLUDED.");
+                out.push_str(v.name());
+            },
+            ",\n",
+        );
     }
 
     fn write_delete<E: Entity, Expr: Expression>(&self, out: &mut String, condition: &Expr)

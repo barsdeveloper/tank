@@ -72,8 +72,8 @@ mod tests {
             assert_eq!(
                 out,
                 indoc! {"
-                    INSERT INTO my_table (special_column, second_column, third_column)
-                    VALUES (NULL, 0.0, 0);
+                    INSERT INTO my_table (special_column, second_column, third_column) VALUES
+                    (NULL, 0.0, 0);
                 "}
                 .trim()
             )
@@ -85,12 +85,16 @@ mod tests {
                 _second_column: 512.5.into(),
                 _third_column: 478,
             };
-            WRITER.write_insert(&mut out, iter::once(&table), true);
+            WRITER.write_insert(&mut out, [&table], true);
             assert_eq!(
                 out,
                 indoc! {"
-                    INSERT OR REPLACE INTO my_table (special_column, second_column, third_column)
-                    VALUES ('hello', 512.5, 478);
+                    INSERT INTO my_table (special_column, second_column, third_column) VALUES
+                    ('hello', 512.5, 478)
+                    ON CONFLICT DO UPDATE SET
+                    special_column = EXCLUDED.special_column,
+                    second_column = EXCLUDED.second_column,
+                    third_column = EXCLUDED.third_column;
                 "}
                 .trim()
             )
@@ -171,8 +175,8 @@ mod tests {
             assert_eq!(
                 out,
                 indoc! {"
-                    INSERT INTO cart (user_id, created_at, items, is_active, total_price)
-                    VALUES ('b0fa843f-6ae4-4a16-a13c-ddf5512f3bb2', '2025-05-31 12:30:11.0', [], false, 0);
+                    INSERT INTO cart (user_id, created_at, items, is_active, total_price) VALUES
+                    ('b0fa843f-6ae4-4a16-a13c-ddf5512f3bb2', '2025-05-31 12:30:11.0', [], false, 0);
                 "}
                 .trim()
             )
@@ -198,8 +202,14 @@ mod tests {
             assert_eq!(
                 out,
                 indoc! {"
-                    INSERT OR REPLACE INTO cart (user_id, created_at, items, is_active, total_price)
-                    VALUES ('22222222-2222-2222-2222-222222222222', '2020-01-19 19:26:54.0', ['30c68157-5c43-452d-8caa-300776260b3f','772ba17d-b3bd-4771-a34e-2926d4731b44','3d4e9cb1-021f-48ab-848e-6c97d0ad670d'], true, 25.99);
+                    INSERT INTO cart (user_id, created_at, items, is_active, total_price) VALUES
+                    ('22222222-2222-2222-2222-222222222222', '2020-01-19 19:26:54.0', ['30c68157-5c43-452d-8caa-300776260b3f','772ba17d-b3bd-4771-a34e-2926d4731b44','3d4e9cb1-021f-48ab-848e-6c97d0ad670d'], true, 25.99)
+                    ON CONFLICT (id) DO UPDATE SET
+                    user_id = EXCLUDED.user_id,
+                    created_at = EXCLUDED.created_at,
+                    items = EXCLUDED.items,
+                    is_active = EXCLUDED.is_active,
+                    total_price = EXCLUDED.total_price;
                 "}
                 .trim()
             )

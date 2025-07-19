@@ -68,10 +68,10 @@ pub async fn trade_simple<C: Connection>(connection: &mut C) {
     };
 
     // Expect to find no trades
-    let result = Trade::find_one(connection, &trade.primary_key()).await;
+    let result = Trade::find_pk(connection, &trade.primary_key()).await;
     assert!(
         result.is_ok(),
-        "Failed to Trade::find_one: {:?}",
+        "Failed to Trade::find_pk: {:?}",
         result.unwrap_err()
     );
     assert_eq!(Trade::find_many(connection, &true, None).count().await, 0);
@@ -85,7 +85,7 @@ pub async fn trade_simple<C: Connection>(connection: &mut C) {
     );
 
     // Expect to find the only trade
-    let result = Trade::find_one(connection, &trade.primary_key()).await;
+    let result = Trade::find_pk(connection, &trade.primary_key()).await;
     assert!(
         result.is_ok(),
         "Failed to find trade: {:?}",
@@ -95,7 +95,7 @@ pub async fn trade_simple<C: Connection>(connection: &mut C) {
     let result = result.expect("The query succeeded");
     assert!(
         result.is_some(),
-        "Expected Trade::find_one to return some result",
+        "Expected Trade::find_pk to return some result",
     );
     let result = result.unwrap();
     assert_eq!(result.trade, 46923);
@@ -261,7 +261,7 @@ pub async fn trade_multiple<C: Connection>(connection: &mut C) {
     // Verify data integrity
     for (i, expected) in trades.iter().enumerate() {
         let actual_a = &data[i];
-        let actual_b = Trade::find_one(connection, &expected.primary_key()).await;
+        let actual_b = Trade::find_pk(connection, &expected.primary_key()).await;
         assert!(
             actual_b.is_ok(),
             "Query failed for trade {}: {:?}",

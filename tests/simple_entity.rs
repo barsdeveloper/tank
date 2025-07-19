@@ -124,8 +124,12 @@ mod tests {
         assert_eq!(
             query,
             indoc! {"
-                INSERT OR REPLACE INTO simple_entity (a, b, c)
-                VALUES (40, 'hello', 777);
+                INSERT INTO simple_entity (a, b, c) VALUES
+                (40, 'hello', 777)
+                ON CONFLICT DO UPDATE SET
+                a = EXCLUDED.a,
+                b = EXCLUDED.b,
+                c = EXCLUDED.c;
             "}
             .trim()
         );

@@ -1,17 +1,18 @@
+use std::collections::BTreeSet;
 use std::{pin::pin, sync::LazyLock};
 use tank::AsValue;
 use tank::{Connection, DataSet, Entity, Passive, RowLabeled, expr, stream::StreamExt};
 use tokio::sync::Mutex;
 
 static MUTEX: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
+#[derive(Default, Entity)]
+struct Values {
+    id: Passive<u64>,
+    /// This column contains the actual value
+    value: u32,
+}
 
 pub async fn aggregates<C: Connection>(connection: &mut C) {
-    #[derive(Default, Entity)]
-    struct Values {
-        id: Passive<u64>,
-        /// This column contains the actual value
-        value: u32,
-    }
     let _lock = MUTEX.lock();
 
     // Cleanup
@@ -57,7 +58,7 @@ pub async fn aggregates<C: Connection>(connection: &mut C) {
         );
     }
 
-    // SELET COUNT(*), SUM(value)
+    // SELECT COUNT(*), SUM(value)
     {
         let mut stream = pin!(Values::table_ref().select(
             [expr!(COUNT(*)), expr!(SUM(Values::value))],
@@ -89,5 +90,32 @@ pub async fn aggregates<C: Connection>(connection: &mut C) {
             "SELECT COUNT(*), SUM(value) is expected to return {:?}",
             expected
         );
+    }
+
+    // SELECT *
+    {
+        let cols = [expr!(*)];
+        {
+            let stream = pin!(Values::table_ref().select(&cols, connection, &true, None));
+            let values = stream
+                .map(|row| {
+                    let row = row.expect("Error while retriever the row");
+                    let i = row
+                        .names()
+                        .iter()
+                        .enumerate()
+                        .find_map(|(i, v)| if v == "value" { Some(i) } else { None })
+                        .expect("Column `value` must be present");
+                    u32::try_from_value(row.values[i].clone())
+                        .expect("The result must convert back to u32")
+                })
+                .collect::<BTreeSet<_>>()
+                .await;
+            assert!(
+                values.into_iter().eq((1..11746).into_iter()),
+                "The result received from the db contains all the values that were inserted"
+            );
+        }
+        let _cols = cols; // Can still use it afterwards because it was borrowed to select
     }
 }

@@ -3,6 +3,29 @@ use quote::{ToTokens, quote};
 use std::{borrow::Cow, cmp::min};
 use syn::Path;
 
+#[derive(Clone)]
+pub enum EitherIterator<A, B>
+where
+    A: Iterator,
+    B: Iterator<Item = A::Item>,
+{
+    Left(A),
+    Right(B),
+}
+impl<A, B> Iterator for EitherIterator<A, B>
+where
+    A: Iterator,
+    B: Iterator<Item = A::Item>,
+{
+    type Item = A::Item;
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            EitherIterator::Left(a) => a.next(),
+            EitherIterator::Right(b) => b.next(),
+        }
+    }
+}
+
 pub fn quote_cow<T: ToOwned + ToTokens + ?Sized>(value: &Cow<T>) -> TokenStream
 where
     <T as ToOwned>::Owned: ToTokens,
@@ -25,14 +48,14 @@ pub fn matches_path(path: &Path, expect: &[&str]) -> bool {
 
 pub fn separated_by<T, F>(
     out: &mut String,
-    vec: impl IntoIterator<Item = T>,
+    values: impl IntoIterator<Item = T>,
     mut f: F,
     separator: &str,
 ) where
     F: FnMut(&mut String, T),
 {
     let mut first = true;
-    for v in vec {
+    for v in values {
         if !first {
             out.push_str(separator);
         }

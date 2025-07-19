@@ -215,8 +215,8 @@ mod tests {
         assert_eq!(
             query,
             indoc! {"
-                INSERT INTO company.employee (id, name, hire_date, working_hours, salary, skills, documents, deleted)
-                VALUES (501, 'Bob Smith', '2022-01-20', ['9:00:00.0','18:00:00.0'], 75000.0, ['Rust','SQL'], {'contract.pdf':'\\x25\\x50\\x44\\x46'}, true);
+                INSERT INTO company.employee (id, name, hire_date, working_hours, salary, skills, documents, deleted) VALUES
+                (501, 'Bob Smith', '2022-01-20', ['9:00:00.0','18:00:00.0'], 75000.0, ['Rust','SQL'], {'contract.pdf':'\\x25\\x50\\x44\\x46'}, true);
             "}
             .trim()
         );
@@ -231,8 +231,8 @@ mod tests {
         assert_eq!(
             query,
             indoc! {"
-                INSERT INTO company.employee (id, name, hire_date, working_hours, salary, skills, documents, access, deleted)
-                VALUES (501, 'Bob Smith', '2022-01-20', ['9:00:00.0','18:00:00.0'], 75000.0, ['Rust','SQL'], {'contract.pdf':'\\x25\\x50\\x44\\x46'}, '8f8fcc51-2fa9-4118-b14f-af2d8301a89a', true);
+                INSERT INTO company.employee (id, name, hire_date, working_hours, salary, skills, documents, access, deleted) VALUES
+                (501, 'Bob Smith', '2022-01-20', ['9:00:00.0','18:00:00.0'], 75000.0, ['Rust','SQL'], {'contract.pdf':'\\x25\\x50\\x44\\x46'}, '8f8fcc51-2fa9-4118-b14f-af2d8301a89a', true);
             "}
             .trim()
         );
