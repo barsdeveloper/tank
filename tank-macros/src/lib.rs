@@ -230,7 +230,7 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                 ::tank::SqlWriter::write_insert(
                     &::tank::Driver::sql_writer(executor.driver()),
                     &mut query,
-                    ::std::iter::once(entity),
+                    [entity],
                     false,
                 );
                 executor.execute(::tank::Query::Raw(query.into()))

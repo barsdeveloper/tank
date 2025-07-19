@@ -4,7 +4,7 @@
 #[cfg(test)]
 mod tests {
     use indoc::indoc;
-    use std::{assert_matches::assert_matches, borrow::Cow, collections::HashMap, iter};
+    use std::{assert_matches::assert_matches, borrow::Cow, collections::HashMap};
     use tank::{
         Entity, Expression, GenericSqlWriter, Operand, Passive, PrimaryKeyType, SqlWriter,
         TableRef, Value, expr,
@@ -211,7 +211,7 @@ mod tests {
         docs.insert("contract.pdf".to_string(), vec![1, 2, 3, 4]);
         let employee = Employee::sample();
         let mut query = String::new();
-        WRITER.write_insert(&mut query, iter::once(&employee), false);
+        WRITER.write_insert(&mut query, [&employee], false);
         assert_eq!(
             query,
             indoc! {"
@@ -227,7 +227,7 @@ mod tests {
             ..Employee::sample()
         };
         let mut query = String::new();
-        WRITER.write_insert(&mut query, iter::once(&employee), false);
+        WRITER.write_insert(&mut query, [&employee], false);
         assert_eq!(
             query,
             indoc! {"

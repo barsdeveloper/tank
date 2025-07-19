@@ -2,7 +2,7 @@
 #[cfg(test)]
 mod tests {
     use indoc::indoc;
-    use std::{assert_matches::assert_matches, borrow::Cow, iter};
+    use std::{assert_matches::assert_matches, borrow::Cow};
     use tank::{Entity, GenericSqlWriter, PrimaryKeyType, SqlWriter, TableRef, Value, expr};
 
     #[derive(Entity)]
@@ -120,7 +120,7 @@ mod tests {
     #[test]
     fn test_simple_entity_insert() {
         let mut query = String::new();
-        WRITER.write_insert(&mut query, iter::once(&SomeSimpleEntity::make_some()), true);
+        WRITER.write_insert(&mut query, [&SomeSimpleEntity::make_some()], true);
         assert_eq!(
             query,
             indoc! {"

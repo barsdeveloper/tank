@@ -3,7 +3,7 @@
 mod tests {
     use indoc::indoc;
     use rust_decimal::Decimal;
-    use std::{assert_matches::assert_matches, borrow::Cow, iter};
+    use std::{assert_matches::assert_matches, borrow::Cow};
     use tank::{Entity, GenericSqlWriter, Passive, PrimaryKeyType, SqlWriter, TableRef, Value};
     use time::{Date, Month, PrimitiveDateTime, Time};
 
@@ -133,7 +133,7 @@ mod tests {
     #[tokio::test]
     async fn test_product_insert() {
         let mut query = String::new();
-        WRITER.write_insert(&mut query, iter::once(&Product::sample()), false);
+        WRITER.write_insert(&mut query, [&Product::sample()], false);
         assert_eq!(
             query,
             indoc! {"

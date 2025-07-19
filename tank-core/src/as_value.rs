@@ -3,6 +3,7 @@ use quote::ToTokens;
 use rust_decimal::{Decimal, prelude::FromPrimitive};
 use std::{
     array,
+    borrow::Cow,
     collections::{BTreeMap, HashMap, LinkedList, VecDeque},
     hash::Hash,
     rc::Rc,
@@ -140,6 +141,27 @@ impl_as_value!(
     Value::Decimal => |v: Decimal| Ok(v.try_into()?),
 );
 impl_as_value!(String, Value::Varchar => |v| Ok(v));
+impl<'a> AsValue for Cow<'a, str> {
+    fn as_empty_value() -> Value {
+        Value::Varchar(None)
+    }
+    fn as_value(self) -> Value {
+        Value::Varchar(Some(self.into()))
+    }
+    fn try_from_value(value: Value) -> Result<Self>
+    where
+        Self: Sized,
+    {
+        let Value::Varchar(Some(value)) = value else {
+            return Err(Error::msg(format!(
+                "Cannot convert `{}` into `{}`",
+                value.to_token_stream().to_string(),
+                stringify!(Cow<'a, str>),
+            )));
+        };
+        Ok(value.into())
+    }
+}
 impl_as_value!(Box<[u8]>, Value::Blob => |v| Ok(v));
 impl_as_value!(
     time::Date,
@@ -388,5 +410,10 @@ impl_as_value!(Rc);
 impl<T: AsValue> From<T> for Value {
     fn from(value: T) -> Self {
         value.as_value()
+    }
+}
+impl From<&'static str> for Value {
+    fn from(value: &'static str) -> Self {
+        Value::Varchar(Some(value.into()))
     }
 }

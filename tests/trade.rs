@@ -8,7 +8,6 @@ mod tests {
         assert_matches::assert_matches,
         borrow::Cow,
         collections::{BTreeMap, HashMap},
-        iter,
     };
     use tank::{
         Entity, Expression, GenericSqlWriter, Operand, Passive, PrimaryKeyType, SqlWriter,
@@ -258,7 +257,7 @@ mod tests {
         docs.insert("contract.pdf".to_string(), vec![1, 2, 3, 4]);
         let employee = Trade::sample();
         let mut query = String::new();
-        WRITER.write_insert(&mut query, iter::once(&employee), false);
+        WRITER.write_insert(&mut query, [&employee], false);
         assert!(
             // Last part of the query (the map) is removed becaus order of keys is not defined. Value stores a HashMap
             query.starts_with(indoc! {"

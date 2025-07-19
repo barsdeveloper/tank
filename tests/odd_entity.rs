@@ -3,7 +3,7 @@
 mod tests {
     use indoc::indoc;
     use rust_decimal::{Decimal, prelude::FromPrimitive};
-    use std::{assert_matches::assert_matches, borrow::Cow, iter, sync::Arc, time::Duration};
+    use std::{assert_matches::assert_matches, borrow::Cow, sync::Arc, time::Duration};
     use tank::{Entity, GenericSqlWriter, PrimaryKeyType, SqlWriter, TableRef, Value, expr};
 
     #[derive(Entity)]
@@ -157,7 +157,7 @@ mod tests {
     #[test]
     fn test_odd_entity_insert() {
         let mut query = String::new();
-        WRITER.write_insert(&mut query, iter::once(&MyEntity::sample()), true);
+        WRITER.write_insert(&mut query, [&MyEntity::sample()], true);
         assert_eq!(
             query,
             indoc! {"

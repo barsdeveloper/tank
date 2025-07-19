@@ -2,7 +2,7 @@
 mod tests {
     use indoc::indoc;
     use rust_decimal::Decimal;
-    use std::{iter, str::FromStr};
+    use std::str::FromStr;
     use tank::{Entity, Passive, SqlWriter, expr};
     use time::{Date, Month, PrimitiveDateTime, Time};
     use uuid::Uuid;
@@ -68,7 +68,7 @@ mod tests {
         {
             let mut out = String::new();
             let table = Table::default();
-            WRITER.write_insert(&mut out, iter::once(&table), false);
+            WRITER.write_insert(&mut out, [&table], false);
             assert_eq!(
                 out,
                 indoc! {"
@@ -171,7 +171,7 @@ mod tests {
                 is_active: Default::default(),
                 total_price: Default::default(),
             };
-            WRITER.write_insert(&mut out, iter::once(&cart), false);
+            WRITER.write_insert(&mut out, [&cart], false);
             assert_eq!(
                 out,
                 indoc! {"
@@ -198,7 +198,7 @@ mod tests {
                 is_active: true,
                 total_price: Decimal::new(2599, 2), // 25.99
             };
-            WRITER.write_insert(&mut out, iter::once(&cart), true);
+            WRITER.write_insert(&mut out, [&cart], true);
             assert_eq!(
                 out,
                 indoc! {"

@@ -136,9 +136,9 @@ impl PartialEq for Value {
             (Self::List(l, ..), Self::List(r, ..)) => l == r && self.same_type(other),
             (Self::Map(None, ..), Self::Map(None, ..)) => self.same_type(other),
             (Self::Map(Some(l), ..), Self::Map(Some(r), ..)) => {
-                l.is_empty() && r.is_empty() && self.same_type(other)
+                l.is_empty() == r.is_empty() && self.same_type(other)
             }
-            (Self::Map(..), Self::Map(..)) => false,
+            (Self::Map(..), Self::Map(..)) => self.same_type(other),
             _ => false,
         }
     }
