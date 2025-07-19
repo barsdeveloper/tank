@@ -617,45 +617,34 @@ pub trait SqlWriter {
             separated_by(out, columns.clone(), |out, v| out.push_str(v.name()), ", ");
         };
         out.push_str(") VALUES\n");
-        if single {
+        let mut separate = false;
+        loop {
+            if separate {
+                out.push_str(",\n");
+            }
             out.push('(');
+            let mut fields = row.iter();
+            let mut field = fields.next();
             separated_by(
                 out,
-                row.iter().map(|v| &v.1),
-                |out, v| self.write_value(out, &v),
+                E::columns(),
+                |out, col| {
+                    if Some(col.name()) == field.map(|v| v.0) {
+                        self.write_value(out, field.map(|v| &v.1).expect("Exists"));
+                        field = fields.next();
+                    } else if !single {
+                        out.push_str("DEFAULT");
+                    }
+                },
                 ", ",
             );
             out.push(')');
-        } else {
-            let mut separate = false;
-            loop {
-                if separate {
-                    out.push_str(",\n");
-                }
-                out.push('(');
-                let mut fields = row.iter();
-                let mut field = fields.next();
-                separated_by(
-                    out,
-                    E::columns(),
-                    |out, col| {
-                        if Some(col.name()) == field.map(|v| v.0) {
-                            self.write_value(out, field.map(|v| &v.1).expect("Exists"));
-                            field = fields.next();
-                        } else {
-                            out.push_str("DEFAULT");
-                        }
-                    },
-                    ", ",
-                );
-                out.push(')');
-                separate = true;
-                if let Some(next) = rows.next() {
-                    row = next;
-                } else {
-                    break;
-                };
-            }
+            separate = true;
+            if let Some(next) = rows.next() {
+                row = next;
+            } else {
+                break;
+            };
         }
         if update {
             self.write_insert_update_fragment::<E, _>(out, columns);

@@ -54,13 +54,13 @@ pub fn separated_by<T, F>(
 ) where
     F: FnMut(&mut String, T),
 {
-    let mut first = true;
+    let mut len = out.len();
     for v in values {
-        if !first {
+        if out.len() > len {
             out.push_str(separator);
         }
+        len = out.len();
         f(out, v);
-        first = false;
     }
 }
 
