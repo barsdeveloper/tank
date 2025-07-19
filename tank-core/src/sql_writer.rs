@@ -617,6 +617,7 @@ pub trait SqlWriter {
             separated_by(out, columns.clone(), |out, v| out.push_str(v.name()), ", ");
         };
         out.push_str(") VALUES\n");
+        let mut first_row = None;
         let mut separate = false;
         loop {
             if separate {
@@ -640,14 +641,31 @@ pub trait SqlWriter {
             );
             out.push(')');
             separate = true;
+            if first_row.is_none() {
+                first_row = row.into();
+            }
             if let Some(next) = rows.next() {
                 row = next;
             } else {
                 break;
             };
         }
+        let first_row = first_row
+            .expect("Should have at least one row")
+            .into_iter()
+            .map(|(v, _)| v);
         if update {
-            self.write_insert_update_fragment::<E, _>(out, columns);
+            self.write_insert_update_fragment::<E, _>(
+                out,
+                if single {
+                    EitherIterator::Left(
+                        // If there is only one row to insert then list only the columns that appear
+                        columns.filter(|c| first_row.clone().find(|n| *n == c.name()).is_some()),
+                    )
+                } else {
+                    EitherIterator::Right(columns)
+                },
+            );
         }
         out.push(';');
     }

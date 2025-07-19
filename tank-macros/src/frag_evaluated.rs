@@ -1,4 +1,4 @@
-use proc_macro2::{Delimiter, Group, Punct, Spacing, TokenStream, TokenTree};
+use proc_macro2::{Delimiter, Group, Spacing, TokenStream, TokenTree};
 use quote::quote;
 use std::iter;
 

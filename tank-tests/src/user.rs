@@ -1,6 +1,9 @@
-use std::{collections::BTreeMap, sync::LazyLock};
+use std::{
+    collections::{BTreeMap, HashSet},
+    sync::LazyLock,
+};
 use tank::{
-    Connection, Entity, Error, Passive, expr,
+    Connection, Entity, Passive, expr,
     stream::{StreamExt, TryStreamExt},
 };
 use time::macros::datetime;
@@ -28,7 +31,7 @@ pub struct UserProfile {
 pub async fn users<C: Connection>(connection: &mut C) {
     let _lock = MUTEX.lock().await;
 
-    // 1. SETUP: Clean up any previous state and create a fresh table.
+    // Cleanup
     let result = UserProfile::drop_table(connection, true, false).await;
     assert!(
         result.is_ok(),
@@ -36,6 +39,7 @@ pub async fn users<C: Connection>(connection: &mut C) {
         result.unwrap_err()
     );
 
+    // Setup
     let result = UserProfile::create_table(connection, false, true).await;
     assert!(
         result.is_ok(),
@@ -43,7 +47,7 @@ pub async fn users<C: Connection>(connection: &mut C) {
         result.unwrap_err()
     );
 
-    // 2. CREATE: Prepare and insert a batch of user profiles.
+    // Insert
     let users_to_create = vec![
         UserProfile {
             id: Uuid::parse_str("a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1")
@@ -52,7 +56,7 @@ pub async fn users<C: Connection>(connection: &mut C) {
             username: "alice".into(),
             email: "alice@example.com".into(),
             full_name: Some("Alice Wonderland".into()),
-            follower_count: 1200,
+            follower_count: 56,
             is_active: true,
             last_login: Some(datetime!(2025-07-15 10:00:00)),
             preferences: Some(BTreeMap::from_iter([("theme".into(), "dark".into())])),
@@ -85,9 +89,9 @@ pub async fn users<C: Connection>(connection: &mut C) {
             id: Uuid::parse_str("d4d4d4d4-d4d4-d4d4-d4d4-d4d4d4d4d4d4")
                 .unwrap()
                 .into(),
-            username: "diana".into(),
-            email: "diana@example.com".into(),
-            full_name: Some("Diana Prince".into()),
+            username: "dean".into(),
+            email: "dean@example.com".into(),
+            full_name: Some("Dean Martin".into()),
             follower_count: 15000,
             is_active: true,
             last_login: None,
@@ -118,108 +122,98 @@ pub async fn users<C: Connection>(connection: &mut C) {
     );
     assert_eq!(result.unwrap().rows_affected, 5);
 
-    // 3. READ: Test various filtering conditions.
-    // Find active users (should be 3: alice, charlie, diana)
+    // Find active users (should be 3: alice, charlie, dean)
     let active_users = UserProfile::find_many(connection, &expr!(is_active), None)
         .try_collect::<Vec<_>>()
         .await
         .unwrap();
     assert_eq!(active_users.len(), 3);
+    let active_users = active_users
+        .into_iter()
+        .map(|u| u.username)
+        .collect::<HashSet<_>>();
+    assert_eq!(
+        active_users,
+        HashSet::from_iter(["alice".into(), "charlie".into(), "dean".into()])
+    );
 
-    // Find users with more than 1000 followers (should be 3: alice, charlie, diana)
+    // Find users with more than 1000 followers (should be 2: charlie, dean)
     let popular_users = UserProfile::find_many(connection, &expr!(follower_count > 1000), None)
         .try_collect::<Vec<_>>()
         .await
         .unwrap();
-    assert_eq!(popular_users.len(), 3);
+    assert_eq!(popular_users.len(), 2);
 
-    // 4. UPDATE: Find a user, modify them, and save.
-    let mut bob = UserProfile::find_many(connection, &expr!(username == "bob"), None)
-        .try_collect::<Vec<_>>()
+    // 4. Update a Bob
+    let mut bob = UserProfile::find_one(connection, &expr!(username == "bob"))
         .await
-        .and_then(|v| {
-            if v.len() == 1 {
-                Ok(v)
-            } else {
-                Err(Error::msg("The result does not have 1 row"))
-            }
-        })
-        .expect("Query for Bob failed")
-        .into_iter()
-        .next()
-        .unwrap();
+        .expect("Expected query to succeed")
+        .expect("Could not find bob ");
 
     bob.is_active = true;
     bob.full_name = Some("Robert Builder".into());
     bob.last_login = Some(datetime!(2025-07-17 20:00:00));
-
     let result = bob.save(connection).await;
     assert!(
         result.is_ok(),
         "Failed to save Bob: {:?}",
         result.unwrap_err()
     );
-
-    // Verify Bob's update
     let updated_bob = UserProfile::find_pk(connection, &bob.primary_key())
         .await
-        .unwrap()
-        .unwrap();
+        .expect("Expected query to succeed")
+        .expect("Could not find bob ");
     assert_eq!(updated_bob.is_active, true);
     assert_eq!(updated_bob.full_name, Some("Robert Builder".into()));
     assert!(updated_bob.last_login.is_some());
 
-    // Now there should be 4 active users
+    // There must be 4 active users
     let active_users_after_update = UserProfile::find_many(connection, &expr!(is_active), None)
         .try_collect::<Vec<_>>()
         .await
         .unwrap();
     assert_eq!(active_users_after_update.len(), 4);
 
-    // 5. DELETE (Single): Find a user and delete them.
+    // Find eve user and delete it.
     let eve = UserProfile::find_one(connection, &expr!(username == "eve"))
         .await
-        .unwrap()
-        .unwrap();
+        .expect("Expected query to succeed")
+        .expect("Could not find eve ");
     let result = eve.delete(connection).await;
     assert!(
         result.is_ok(),
         "Failed to delete Eve: {:?}",
         result.unwrap_err()
     );
-
-    // Verify Eve is gone
     let maybe_eve = UserProfile::find_pk(connection, &eve.primary_key())
         .await
-        .unwrap();
+        .expect("Expected query to succeed");
     assert!(maybe_eve.is_none(), "Eve should have been deleted");
+
+    // There must be 5 total users
     let total_users = UserProfile::find_many(connection, &true, None)
         .count()
         .await;
     assert_eq!(total_users, 4, "There should be 4 users remaining");
 
-    // 6. DELETE (Batch): Delete users based on a filter.
-    // Delete all users who have not logged in (only Diana remains)
-    let result = UserProfile::delete_many(connection, &expr!(last_login IS NULL)).await;
-    assert!(
-        result.is_ok(),
-        "Failed to batch delete users: {:?}",
-        result.unwrap_err()
-    );
-    assert_eq!(result.unwrap().rows_affected, 1);
+    // Delete all users who never logged in (only Dean)
+    let result = UserProfile::delete_many(connection, &expr!(last_login IS NULL))
+        .await
+        .expect("Expected query to succeed");
+    assert_eq!(result.rows_affected, 1, "Should have removed 1 rows");
 
-    // Verify only 3 users are left (alice, bob, charlie)
+    // There must be 3 users left (alice, bob, charlie)
     let final_users = UserProfile::find_many(connection, &true, None)
         .try_collect::<Vec<_>>()
         .await
-        .unwrap();
+        .expect("Expected query to succeed");
     assert_eq!(final_users.len(), 3);
-
     let final_usernames = final_users
         .into_iter()
         .map(|u| u.username)
-        .collect::<std::collections::HashSet<_>>();
-    let expected_usernames =
-        std::collections::HashSet::from_iter(["alice".into(), "bob".into(), "charlie".into()]);
-    assert_eq!(final_usernames, expected_usernames);
+        .collect::<HashSet<_>>();
+    assert_eq!(
+        final_usernames,
+        HashSet::from_iter(["alice".into(), "bob".into(), "charlie".into()])
+    );
 }
