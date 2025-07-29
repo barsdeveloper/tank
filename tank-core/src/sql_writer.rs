@@ -257,9 +257,12 @@ pub trait SqlWriter {
         ];
         for &(name, factor) in UNITS {
             if nanos % factor == 0 {
-                write_unit!(out, nanos / factor, name);
-                units += 1;
-                break;
+                let value = nanos / factor;
+                if units == 0 || value != 0 {
+                    write_unit!(out, value, name);
+                    units += 1;
+                    break;
+                }
             }
         }
         if units > 1 {

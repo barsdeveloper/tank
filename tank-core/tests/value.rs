@@ -3,8 +3,9 @@
 #[cfg(test)]
 mod tests {
     use rust_decimal::{Decimal, prelude::FromPrimitive};
-    use std::assert_matches::assert_matches;
+    use std::{assert_matches::assert_matches, borrow::Cow};
     use tank_core::{AsValue, Value};
+    use time::Month;
 
     #[test]
     fn value_none() {
@@ -228,6 +229,7 @@ mod tests {
             2.25
         );
     }
+
     #[test]
     fn value_string() {
         let var = "Hello World!";
@@ -238,5 +240,136 @@ mod tests {
         let val = var.as_value();
         let var: String = AsValue::try_from_value(val).unwrap();
         assert_eq!(var, "Hello World!");
+    }
+
+    #[test]
+    fn value_cow_str() {
+        let var = Cow::Borrowed("Hello World!");
+        let val: Value = var.into();
+        assert_eq!(val, Value::Varchar(Some("Hello World!".into())));
+        let var: Cow<'_, str> = AsValue::try_from_value(val).unwrap();
+        let val = var.as_value();
+        let var: Cow<'_, str> = AsValue::try_from_value(val).unwrap();
+        assert_eq!(var, "Hello World!");
+        assert_matches!(
+            <Cow<'static, str> as AsValue>::as_empty_value(),
+            Value::Varchar(..)
+        );
+        assert_matches!(
+            <Cow<'static, str> as AsValue>::try_from_value(Value::Boolean(Some(false))),
+            Err(..),
+        );
+    }
+
+    #[test]
+    fn value_date() {
+        let var = time::Date::from_calendar_date(2025, Month::July, 21).unwrap();
+        let val: Value = var.into();
+        assert_eq!(val, Value::Date(Some(var)));
+        assert_ne!(val, Value::Null);
+        let var: time::Date = AsValue::try_from_value(val).unwrap();
+        let val = var.as_value();
+        let var: time::Date = AsValue::try_from_value(val).unwrap();
+        assert_eq!(
+            var,
+            time::Date::from_calendar_date(2025, Month::July, 21).unwrap()
+        );
+        let val: time::Date =
+            AsValue::try_from_value(Value::Varchar(Some("2025-01-22".into()))).unwrap();
+        assert_eq!(
+            val,
+            time::Date::from_calendar_date(2025, Month::January, 22).unwrap()
+        );
+    }
+
+    #[test]
+    fn value_time() {
+        let var = time::Time::from_hms(0, 57, 21).unwrap();
+        let val: Value = var.into();
+        assert_eq!(val, Value::Time(Some(var)));
+        assert_ne!(val, Value::Null);
+        let var: time::Time = AsValue::try_from_value(val).unwrap();
+        let val = var.as_value();
+        let var: time::Time = AsValue::try_from_value(val).unwrap();
+        assert_eq!(var, time::Time::from_hms(0, 57, 21).unwrap());
+        assert_eq!(
+            time::Time::try_from_value(Value::Varchar(Some("13:22".into()))).unwrap(),
+            time::Time::from_hms(13, 22, 0).unwrap()
+        );
+    }
+
+    #[test]
+    fn value_datetime() {
+        let var = time::PrimitiveDateTime::new(
+            time::Date::from_calendar_date(2025, Month::July, 29).unwrap(),
+            time::Time::from_hms(13, 52, 13).unwrap(),
+        );
+        let val: Value = var.into();
+        assert_eq!(val, Value::Timestamp(Some(var)));
+        assert_ne!(val, Value::Varchar(None));
+        let var: time::PrimitiveDateTime = AsValue::try_from_value(val).unwrap();
+        let val = var.as_value();
+        let var: time::PrimitiveDateTime = AsValue::try_from_value(val).unwrap();
+        assert_eq!(
+            var,
+            time::PrimitiveDateTime::new(
+                time::Date::from_calendar_date(2025, Month::July, 29).unwrap(),
+                time::Time::from_hms(13, 52, 13).unwrap(),
+            )
+        );
+        let val: time::PrimitiveDateTime =
+            AsValue::try_from_value(Value::Varchar(Some("2025-07-29T14:52:36.500".into())))
+                .unwrap();
+        assert_eq!(
+            val,
+            time::PrimitiveDateTime::new(
+                time::Date::from_calendar_date(2025, Month::July, 29).unwrap(),
+                time::Time::from_hms_milli(14, 52, 36, 500).unwrap()
+            )
+        );
+        assert_ne!(
+            val,
+            time::PrimitiveDateTime::new(
+                time::Date::from_calendar_date(2025, Month::July, 29).unwrap(),
+                time::Time::from_hms(14, 52, 36).unwrap()
+            )
+        );
+        let val: time::PrimitiveDateTime =
+            AsValue::try_from_value(Value::Varchar(Some("2025-07-29T14:52:36".into()))).unwrap();
+        assert_eq!(
+            val,
+            time::PrimitiveDateTime::new(
+                time::Date::from_calendar_date(2025, Month::July, 29).unwrap(),
+                time::Time::from_hms(14, 52, 36).unwrap()
+            )
+        );
+        let val: time::PrimitiveDateTime =
+            AsValue::try_from_value(Value::Varchar(Some("2025-07-29 14:52:36.500".into())))
+                .unwrap();
+        assert_eq!(
+            val,
+            time::PrimitiveDateTime::new(
+                time::Date::from_calendar_date(2025, Month::July, 29).unwrap(),
+                time::Time::from_hms_milli(14, 52, 36, 500).unwrap()
+            )
+        );
+        let val: time::PrimitiveDateTime =
+            AsValue::try_from_value(Value::Varchar(Some("2025-07-29 14:52:36".into()))).unwrap();
+        assert_eq!(
+            val,
+            time::PrimitiveDateTime::new(
+                time::Date::from_calendar_date(2025, Month::July, 29).unwrap(),
+                time::Time::from_hms(14, 52, 36).unwrap()
+            )
+        );
+        let val: time::PrimitiveDateTime =
+            AsValue::try_from_value(Value::Varchar(Some("2025-07-29 14:52".into()))).unwrap();
+        assert_eq!(
+            val,
+            time::PrimitiveDateTime::new(
+                time::Date::from_calendar_date(2025, Month::July, 29).unwrap(),
+                time::Time::from_hms(14, 52, 00).unwrap()
+            )
+        );
     }
 }

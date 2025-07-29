@@ -31,6 +31,10 @@ mod tests {
         );
 
         test_interval!(Interval::from_micros(1), "INTERVAL 1 MICROSECOND");
+        test_interval!(
+            Interval::from_duration(&std::time::Duration::from_micros(1)),
+            "INTERVAL 1 MICROSECOND"
+        );
         test_interval!(Interval::from_micros(2), "INTERVAL 2 MICROSECONDS");
         test_interval!(Interval::from_micros(999), "INTERVAL 999 MICROSECONDS");
         test_interval!(Interval::from_micros(1_001), "INTERVAL 1001 MICROSECONDS");
@@ -88,6 +92,8 @@ mod tests {
         test_interval!(Interval::from_weeks(104), "INTERVAL 728 DAYS");
         test_interval!(Interval::from_weeks(260), "INTERVAL 1820 DAYS");
         test_interval!(Interval::from_weeks(1_000), "INTERVAL 7000 DAYS");
+        test_interval!(Interval::from_months(1), "INTERVAL 1 MONTH");
+        test_interval!(Interval::from_months(5), "INTERVAL 5 MONTHS");
 
         test_interval!(
             Interval {

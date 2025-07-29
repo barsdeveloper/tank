@@ -76,6 +76,14 @@ pub async fn trade_simple<C: Connection>(connection: &mut C) {
     );
     assert_eq!(Trade::find_many(connection, &true, None).count().await, 0);
 
+    // Delete unexisting trade
+    let result = trade.delete(connection).await;
+    assert!(
+        result.is_err(),
+        "Failed to save trade: {:?}",
+        result.unwrap_err()
+    );
+
     // Save a trade
     let result = trade.save(connection).await;
     assert!(

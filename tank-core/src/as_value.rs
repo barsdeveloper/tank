@@ -42,7 +42,6 @@ macro_rules! impl_as_value {
         }
     };
 }
-
 impl_as_value!(
     bool,
     Value::Boolean => |v| Ok(v),
@@ -174,26 +173,83 @@ impl_as_value!(
 impl_as_value!(
     time::Time,
     Value::Time => |v| Ok(v),
-    Value::Varchar => |v: String| Ok(time::Time::parse(
-        &v,
-        format_description!("[hour]:[minute]:[second].[subsecond]")
-    )?),
+    Value::Varchar => |v: String| {
+        time::Time::parse(
+            &v,
+            format_description!("[hour]:[minute]:[second].[subsecond]"),
+        )
+        .or(time::Time::parse(
+            &v,
+            format_description!("[hour]:[minute]:[second]"),
+        ))
+        .or(time::Time::parse(
+            &v,
+            format_description!("[hour]:[minute]"),
+        ))
+        .map_err(Into::into)
+    },
 );
 impl_as_value!(
     time::PrimitiveDateTime,
     Value::Timestamp => |v| Ok(v),
-    Value::Varchar => |v: String| Ok(time::PrimitiveDateTime::parse(
-        &v,
-        format_description!("[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond]")
-    )?),
+    Value::Varchar => |v: String| {
+        time::PrimitiveDateTime::parse(
+            &v,
+            format_description!("[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond]")
+        )
+        .or(time::PrimitiveDateTime::parse(
+            &v,
+            format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]")
+        ))
+        .or(time::PrimitiveDateTime::parse(
+            &v,
+            format_description!("[year]-[month]-[day]T[hour]:[minute]")
+        ))
+        .or(time::PrimitiveDateTime::parse(
+            &v,
+            format_description!("[year]-[month]-[day] [hour]:[minute]:[second].[subsecond]")
+        ))
+        .or(time::PrimitiveDateTime::parse(
+            &v,
+            format_description!("[year]-[month]-[day] [hour]:[minute]:[second]")
+        ))
+        .or(time::PrimitiveDateTime::parse(
+            &v,
+            format_description!("[year]-[month]-[day] [hour]:[minute]")
+        ))
+        .map_err(Into::into)
+    },
 );
 impl_as_value!(
     time::OffsetDateTime,
     Value::TimestampWithTimezone => |v| Ok(v),
-    Value::Varchar => |v: String| Ok(time::OffsetDateTime::parse(
-        &v,
-        format_description!("[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond][offset_hour sign:mandatory]:[offset_minute]")
-    )?),
+    Value::Varchar => |v: String| {
+        time::OffsetDateTime::parse(
+            &v,
+            format_description!("[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond][offset_hour sign:mandatory]:[offset_minute]")
+        )
+        .or(time::OffsetDateTime::parse(
+            &v,
+            format_description!("[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond][offset_hour sign:mandatory]")
+        ))
+        .or(time::OffsetDateTime::parse(
+            &v,
+            format_description!("[year]-[month]-[day]T[hour]:[minute]:[second][offset_hour sign:mandatory]:[offset_minute]")
+        ))
+        .or(time::OffsetDateTime::parse(
+            &v,
+            format_description!("[year]-[month]-[day]T[hour]:[minute]:[second][offset_hour sign:mandatory]")
+        ))
+        .or(time::OffsetDateTime::parse(
+            &v,
+            format_description!("[year]-[month]-[day]T[hour]:[minute][offset_hour sign:mandatory]:[offset_minute]")
+        ))
+        .or(time::OffsetDateTime::parse(
+            &v,
+            format_description!("[year]-[month]-[day]T[hour]:[minute][offset_hour sign:mandatory]")
+        ))
+        .map_err(Into::into)
+    }
 );
 impl_as_value!(Interval, Value::Interval => |v| Ok(v));
 impl_as_value!(std::time::Duration, Value::Interval => |v: Interval| Ok(v.into()));
@@ -295,7 +351,6 @@ macro_rules! impl_as_value {
         }
     };
 }
-
 impl_as_value!(Vec);
 impl_as_value!(VecDeque);
 impl_as_value!(LinkedList);
@@ -338,7 +393,6 @@ macro_rules! impl_as_value {
         }
     }
 }
-
 impl_as_value!(BTreeMap, Ord);
 impl_as_value!(HashMap, Eq, Hash);
 
@@ -403,7 +457,6 @@ macro_rules! impl_as_value {
         }
     };
 }
-
 impl_as_value!(Arc);
 impl_as_value!(Rc);
 
@@ -412,6 +465,7 @@ impl<T: AsValue> From<T> for Value {
         value.as_value()
     }
 }
+
 impl From<&'static str> for Value {
     fn from(value: &'static str) -> Self {
         Value::Varchar(Some(value.into()))
