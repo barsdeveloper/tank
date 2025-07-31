@@ -81,7 +81,7 @@ mod tests {
             }
         );
 
-        let expr = expr!(true as i32);
+        let expr = expr!(CAST(true as i32));
         let mut out = String::new();
         expr.write_query(&WRITER, &mut out, false);
         assert_eq!(out, "CAST(true AS INTEGER)");
@@ -94,7 +94,7 @@ mod tests {
             }
         );
 
-        let expr = expr!("1.5" as f64);
+        let expr = expr!(CAST("1.5" as f64));
         let mut out = String::new();
         expr.write_query(&WRITER, &mut out, false);
         assert_eq!(out, "CAST('1.5' AS DOUBLE)");
@@ -176,7 +176,7 @@ mod tests {
             }
         );
 
-        let expr = expr!(true as i32);
+        let expr = expr!(CAST(true as i32));
         let mut out = String::new();
         expr.write_query(&WRITER, &mut out, false);
         assert_eq!(out, "CAST(true AS INTEGER)");
@@ -433,7 +433,8 @@ mod tests {
             }
         );
 
-        let expr = expr!(MyEntity::_first as String == MyEntity::_second && MyEntity::_first > 0);
+        let expr =
+            expr!(CAST(MyEntity::_first as String) == MyEntity::_second && MyEntity::_first > 0);
         let mut out = String::new();
         expr.write_query(&WRITER, &mut out, true);
         assert_eq!(

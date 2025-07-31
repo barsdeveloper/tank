@@ -21,6 +21,20 @@ macro_rules! write_float {
 pub trait SqlWriter {
     fn as_dyn(&self) -> &dyn SqlWriter;
 
+    fn write_identifier_quoted(&self, out: &mut String, value: &str) {
+        out.push('"');
+        let mut position = 0;
+        for (i, c) in value.char_indices() {
+            if c == '"' {
+                out.push_str(&value[position..i]);
+                out.push_str("\"\"");
+                position = i + 1;
+            }
+        }
+        out.push_str(&value[position..]);
+        out.push('"');
+    }
+
     fn write_table_ref(&self, out: &mut String, value: &TableRef) {
         if !value.alias.is_empty() {
             out.push_str(&value.alias);
@@ -280,7 +294,6 @@ pub trait SqlWriter {
 
     fn expression_binary_op_precedence<'a>(&self, value: &BinaryOpType) -> i32 {
         match value {
-            BinaryOpType::Cast => 1200,
             BinaryOpType::Or => 200,
             BinaryOpType::And => 300,
             BinaryOpType::Equal => 400,
@@ -307,6 +320,8 @@ pub trait SqlWriter {
             BinaryOpType::Division => 1000,
             BinaryOpType::Remainder => 1000,
             BinaryOpType::Indexing => 1100,
+            BinaryOpType::Cast => 1200,
+            BinaryOpType::Alias => 1300,
         }
     }
 
@@ -407,6 +422,7 @@ pub trait SqlWriter {
             BinaryOpType::GreaterEqual => ("", " >= ", "", false, false),
             BinaryOpType::And => ("", " AND ", "", false, false),
             BinaryOpType::Or => ("", " OR ", "", false, false),
+            BinaryOpType::Alias => ("", " AS ", "", false, false),
         };
         let precedence = self.expression_binary_op_precedence(&value.op);
         out.push_str(prefix);

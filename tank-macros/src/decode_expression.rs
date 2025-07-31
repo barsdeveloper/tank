@@ -109,31 +109,23 @@ pub fn decode_expression(expr: &Expr) -> TokenStream {
                 }
             }
         }
-        Expr::Cast(expr_cast) => {
-            let lhs = decode_expression(&expr_cast.expr);
-            let rhs = match expr_cast.ty.as_ref() {
-                Type::Path(TypePath { path, .. }) => 'r: {
-                    if path.segments.len() == 1 {
-                        let v = &path
-                            .segments
-                            .first()
-                            .expect("Cast path type has exactly one segment")
-                            .ident;
-                        if v == "IS" || v == "LIKE" || v == "REGEXP" || v == "GLOB" {
-                            break 'r quote! {};
-                        }
-                    }
-                    decode_type(&expr_cast.ty).0.value.into_token_stream()
-                }
+        Expr::Cast(cast) => {
+            let lhs = decode_expression(&cast.expr);
+            let rhs = match cast.ty.as_ref() {
+                Type::Path(TypePath { path, .. }) => decode_expression(&Expr::Path(ExprPath {
+                    attrs: Default::default(),
+                    qself: None,
+                    path: path.clone(),
+                })),
                 _ => panic!(
                     "Unexpected cast type, cast can only be a type or the special keyworkds: `IS`, `LIKE`, `REGEXP`, `GLOB`"
                 ),
             };
             quote! {
                 ::tank::BinaryOp {
-                    op: ::tank::BinaryOpType::Cast,
+                    op: ::tank::BinaryOpType::Alias,
                     lhs: #lhs,
-                    rhs: ::tank::Operand::Type(#rhs),
+                    rhs: #rhs,
                 }
             }
         }
@@ -159,9 +151,31 @@ pub fn decode_expression(expr: &Expr) -> TokenStream {
                     v.into_token_stream(),
                 );
             };
-            let path = path.into_token_stream().to_string();
-            let args = v.args.iter().map(|v| decode_expression(v));
-            quote! { ::tank::Operand::Call(&#path, &[#(&#args),*]) }
+            if path.is_ident("CAST")
+                && v.args.len() == 1
+                && let Some(Expr::Cast(cast)) = v.args.first()
+            {
+                let lhs = decode_expression(&cast.expr);
+                let rhs = match cast.ty.as_ref() {
+                    Type::Path(TypePath { path, .. }) => {
+                        decode_type(&cast.ty).0.value.into_token_stream()
+                    }
+                    _ => panic!(
+                        "Unexpected cast type, cast can only be a Rust valid type (check tank::Value)"
+                    ),
+                };
+                quote! {
+                    ::tank::BinaryOp {
+                        op: ::tank::BinaryOpType::Cast,
+                        lhs: #lhs,
+                        rhs: ::tank::Operand::Type(#rhs),
+                    }
+                }
+            } else {
+                let args = v.args.iter().map(|v| decode_expression(v));
+                let path = path.into_token_stream().to_string();
+                quote! { ::tank::Operand::Call(&#path, &[#(&#args),*]) }
+            }
         }
         Expr::Lit(ExprLit { lit: v, .. }) => {
             let v = match v {

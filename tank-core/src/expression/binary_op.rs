@@ -32,6 +32,7 @@ pub enum BinaryOpType {
     GreaterEqual,
     And,
     Or,
+    Alias,
 }
 
 impl OpPrecedence for BinaryOpType {
@@ -97,6 +98,7 @@ impl Display for BinaryOpType {
             BinaryOpType::GreaterEqual => "GreaterEqual",
             BinaryOpType::And => "And",
             BinaryOpType::Or => "Or",
+            BinaryOpType::Alias => "Alias",
         })
     }
 }
