@@ -2,11 +2,11 @@
 #[cfg(test)]
 mod tests {
     use std::assert_matches::assert_matches;
-
     use tank::{
-        BinaryOp, BinaryOpType, ColumnRef, Expression, Operand, SqlWriter, UnaryOp, UnaryOpType,
-        Value,
+        BinaryOp, BinaryOpType, ColumnRef, Expression, OpPrecedence, Operand, SqlWriter, UnaryOp,
+        UnaryOpType, Value,
     };
+    use tank_core::Entity;
     use tank_macros::{Entity, expr};
 
     struct Writer;
@@ -392,6 +392,7 @@ mod tests {
             _second: String,
             _third: Vec<f64>,
         }
+        assert!(MyEntity::columns()[0].precedence(&WRITER) > 0); // For coverage purpose
 
         let expr = expr!(MyEntity::_first + 2);
         assert_matches!(
@@ -429,6 +430,46 @@ mod tests {
                     schema: ""
                 },
                 rhs: Operand::Null,
+            }
+        );
+
+        let expr = expr!(MyEntity::_first as String == MyEntity::_second && MyEntity::_first > 0);
+        let mut out = String::new();
+        expr.write_query(&WRITER, &mut out, true);
+        assert_eq!(
+            out,
+            "CAST(the_table.first AS VARCHAR) = the_table.second AND the_table.first > 0"
+        );
+        assert_matches!(
+            expr,
+            BinaryOp {
+                op: BinaryOpType::And,
+                lhs: BinaryOp {
+                    op: BinaryOpType::Equal,
+                    lhs: BinaryOp {
+                        op: BinaryOpType::Cast,
+                        lhs: ColumnRef {
+                            name: "first",
+                            table: "the_table",
+                            schema: ""
+                        },
+                        rhs: Operand::Type(Value::Varchar(None)),
+                    },
+                    rhs: ColumnRef {
+                        name: "second",
+                        table: "the_table",
+                        schema: ""
+                    },
+                },
+                rhs: BinaryOp {
+                    op: BinaryOpType::Greater,
+                    lhs: ColumnRef {
+                        name: "first",
+                        table: "the_table",
+                        schema: ""
+                    },
+                    rhs: Operand::LitInt(0),
+                },
             }
         );
     }

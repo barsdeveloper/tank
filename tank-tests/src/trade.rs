@@ -31,21 +31,13 @@ pub struct Trade {
 pub async fn trade_simple<C: Connection>(connection: &mut C) {
     let _lock = MUTEX.lock().await;
 
-    // Cleanup
-    let result = Trade::drop_table(connection, true, false).await;
-    assert!(
-        result.is_ok(),
-        "Failed to Trade::drop_table: {:?}",
-        result.unwrap_err()
-    );
-
-    // Create table again to be sure it's empty
-    let result = Trade::create_table(connection, false, true).await;
-    assert!(
-        result.is_ok(),
-        "Failed to Trade::create_table: {:?}",
-        result.unwrap_err()
-    );
+    // Setup
+    Trade::drop_table(connection, true, false)
+        .await
+        .expect("Failed to drop Trade table");
+    Trade::create_table(connection, false, true)
+        .await
+        .expect("Failed to create Trade table");
 
     // Trade object
     let trade = Trade {
@@ -68,19 +60,17 @@ pub async fn trade_simple<C: Connection>(connection: &mut C) {
     };
 
     // Expect to find no trades
-    let result = Trade::find_pk(connection, &trade.primary_key()).await;
-    assert!(
-        result.is_ok(),
-        "Failed to Trade::find_pk: {:?}",
-        result.unwrap_err()
-    );
+    let result = Trade::find_pk(connection, &trade.primary_key())
+        .await
+        .expect("Failed to find by primary key");
+    assert!(result.is_none(), "Expected no trades at this time");
     assert_eq!(Trade::find_many(connection, &true, None).count().await, 0);
 
     // Delete unexisting trade
     let result = trade.delete(connection).await;
     assert!(
         result.is_err(),
-        "Failed to save trade: {:?}",
+        "Failed to delete trade: {:?}",
         result.unwrap_err()
     );
 

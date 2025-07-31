@@ -15,21 +15,13 @@ struct Values {
 pub async fn aggregates<C: Connection>(connection: &mut C) {
     let _lock = MUTEX.lock();
 
-    // Cleanup
-    let result = Values::drop_table(connection, true, false).await;
-    assert!(
-        result.is_ok(),
-        "Failed to Values::drop_table: {:?}",
-        result.unwrap_err()
-    );
-
     // Setup
-    let result = Values::create_table(connection, false, false).await;
-    assert!(
-        result.is_ok(),
-        "Failed to Values::create_table: {:?}",
-        result.unwrap_err()
-    );
+    Values::drop_table(connection, true, false)
+        .await
+        .expect("Failed to drop Values table");
+    Values::create_table(connection, false, false)
+        .await
+        .expect("Failed to create Values table");
 
     // Insert
     // 1 + .. + 11745 = 68978385

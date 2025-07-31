@@ -83,12 +83,12 @@ impl Parse for JoinType {
 impl ToTokens for JoinType {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         tokens.append_all(match self {
-            JoinType::Inner => quote! { JoinType::Inner },
-            JoinType::Outer => quote! { JoinType::Outer },
-            JoinType::Left => quote! { JoinType::Left },
-            JoinType::Right => quote! { JoinType::Right },
-            JoinType::Cross => quote! { JoinType::Cross },
-            JoinType::Natural => quote! { JoinType::Natural },
+            JoinType::Inner => quote! { ::tank::JoinType::Inner },
+            JoinType::Outer => quote! { ::tank::JoinType::Outer },
+            JoinType::Left => quote! { ::tank::JoinType::Left },
+            JoinType::Right => quote! { ::tank::JoinType::Right },
+            JoinType::Cross => quote! { ::tank::JoinType::Cross },
+            JoinType::Natural => quote! { ::tank::JoinType::Natural },
         });
     }
 }

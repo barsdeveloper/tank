@@ -7,6 +7,21 @@ pub enum Passive<T: AsValue> {
     NotSet,
 }
 
+impl<T: AsValue> Passive<T> {
+    pub fn expect(self, msg: &str) -> T {
+        match self {
+            Passive::Set(v) => v,
+            Passive::NotSet => panic!("{}", msg),
+        }
+    }
+    pub fn unwrap(self) -> T {
+        match self {
+            Passive::Set(v) => v,
+            Passive::NotSet => panic!("called `Passive::unwrap()` on a `NotSet` value"),
+        }
+    }
+}
+
 impl<T: AsValue + PartialEq> PartialEq for Passive<T> {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {

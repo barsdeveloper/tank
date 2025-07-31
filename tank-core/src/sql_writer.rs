@@ -280,7 +280,7 @@ pub trait SqlWriter {
 
     fn expression_binary_op_precedence<'a>(&self, value: &BinaryOpType) -> i32 {
         match value {
-            BinaryOpType::Cast => 100,
+            BinaryOpType::Cast => 1200,
             BinaryOpType::Or => 200,
             BinaryOpType::And => 300,
             BinaryOpType::Equal => 400,
