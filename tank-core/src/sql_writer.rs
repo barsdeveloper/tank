@@ -287,41 +287,41 @@ pub trait SqlWriter {
 
     fn expression_unary_op_precedence<'a>(&self, value: &UnaryOpType) -> i32 {
         match value {
-            UnaryOpType::Negative => 1050,
-            UnaryOpType::Not => 350,
+            UnaryOpType::Negative => 1250,
+            UnaryOpType::Not => 250,
         }
     }
 
     fn expression_binary_op_precedence<'a>(&self, value: &BinaryOpType) -> i32 {
         match value {
-            BinaryOpType::Or => 200,
-            BinaryOpType::And => 300,
-            BinaryOpType::Equal => 400,
-            BinaryOpType::NotEqual => 400,
-            BinaryOpType::Less => 400,
-            BinaryOpType::Greater => 400,
-            BinaryOpType::LessEqual => 400,
-            BinaryOpType::GreaterEqual => 400,
-            BinaryOpType::Is => 500,
-            BinaryOpType::IsNot => 500,
-            BinaryOpType::Like => 500,
-            BinaryOpType::NotLike => 500,
-            BinaryOpType::Regexp => 500,
-            BinaryOpType::NotRegexp => 500,
-            BinaryOpType::Glob => 500,
-            BinaryOpType::NotGlob => 500,
-            BinaryOpType::BitwiseOr => 600,
-            BinaryOpType::BitwiseAnd => 700,
-            BinaryOpType::ShiftLeft => 800,
-            BinaryOpType::ShiftRight => 800,
-            BinaryOpType::Subtraction => 900,
-            BinaryOpType::Addition => 900,
-            BinaryOpType::Multiplication => 1000,
-            BinaryOpType::Division => 1000,
-            BinaryOpType::Remainder => 1000,
-            BinaryOpType::Indexing => 1100,
-            BinaryOpType::Cast => 1200,
-            BinaryOpType::Alias => 1300,
+            BinaryOpType::Or => 100,
+            BinaryOpType::And => 200,
+            BinaryOpType::Equal => 300,
+            BinaryOpType::NotEqual => 300,
+            BinaryOpType::Less => 300,
+            BinaryOpType::Greater => 300,
+            BinaryOpType::LessEqual => 300,
+            BinaryOpType::GreaterEqual => 300,
+            BinaryOpType::Is => 400,
+            BinaryOpType::IsNot => 400,
+            BinaryOpType::Like => 400,
+            BinaryOpType::NotLike => 400,
+            BinaryOpType::Regexp => 400,
+            BinaryOpType::NotRegexp => 400,
+            BinaryOpType::Glob => 400,
+            BinaryOpType::NotGlob => 400,
+            BinaryOpType::BitwiseOr => 500,
+            BinaryOpType::BitwiseAnd => 600,
+            BinaryOpType::ShiftLeft => 700,
+            BinaryOpType::ShiftRight => 700,
+            BinaryOpType::Subtraction => 800,
+            BinaryOpType::Addition => 800,
+            BinaryOpType::Multiplication => 900,
+            BinaryOpType::Division => 900,
+            BinaryOpType::Remainder => 900,
+            BinaryOpType::Indexing => 1000,
+            BinaryOpType::Cast => 1100,
+            BinaryOpType::Alias => 1200,
         }
     }
 
@@ -580,33 +580,33 @@ pub trait SqlWriter {
         out.push(';');
     }
 
-    fn write_select<I, C, S, Expr>(
+    fn write_select<Item, Cols, Data, Cond>(
         &self,
         out: &mut String,
-        columns: C,
-        from: &S,
-        condition: &Expr,
+        columns: Cols,
+        from: &Data,
+        condition: &Cond,
         limit: Option<u32>,
     ) where
         Self: Sized,
-        I: Expression,
-        C: IntoIterator<Item = I>,
-        S: DataSet,
-        Expr: Expression,
+        Item: Expression,
+        Cols: IntoIterator<Item = Item>,
+        Data: DataSet,
+        Cond: Expression,
     {
         out.push_str("SELECT ");
         separated_by(
             out,
             columns,
             |out, col| {
-                col.write_query(self, out, S::qualified_columns());
+                col.write_query(self, out, Data::qualified_columns());
             },
             ", ",
         );
         out.push_str("\nFROM ");
         from.write_query(self, out);
         out.push_str("\nWHERE ");
-        condition.write_query(self, out, S::qualified_columns());
+        condition.write_query(self, out, Data::qualified_columns());
         if let Some(limit) = limit {
             let _ = write!(out, "\nLIMIT {}", limit);
         }
