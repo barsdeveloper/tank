@@ -266,7 +266,7 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                         Self::table_ref(),
                         Self::columns()
                             .iter()
-                            .map(|c| &c.reference as &dyn ::tank::Expression),
+                            .map(|c| &c.column_ref as &dyn ::tank::Expression),
                         executor,
                         &condition,
                         Some(1),
@@ -289,7 +289,7 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                         Self::table_ref(),
                         Self::columns()
                             .iter()
-                            .map(|c| &c.reference as &dyn ::tank::Expression),
+                            .map(|c| &c.column_ref as &dyn ::tank::Expression),
                         executor,
                         condition,
                         limit,

@@ -139,7 +139,12 @@ impl_as_value!(
     Value::Float32 => |v| Ok(v as f64),
     Value::Decimal => |v: Decimal| Ok(v.try_into()?),
 );
-impl_as_value!(String, Value::Varchar => |v| Ok(v));
+impl_as_value!(char, Value::Char => |v| Ok(v));
+impl_as_value!(
+    String,
+    Value::Varchar => |v| Ok(v),
+    Value::Char => |v: char| Ok(v.into()),
+);
 impl<'a> AsValue for Cow<'a, str> {
     fn as_empty_value() -> Value {
         Value::Varchar(None)

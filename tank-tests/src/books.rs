@@ -1,7 +1,7 @@
-use std::{collections::HashSet, ops::Deref, sync::LazyLock};
+use std::{collections::HashSet, sync::LazyLock};
 use tank::{
     Connection, DataSet, Entity, Expression, Passive, RowLabeled, Value, expr, join,
-    stream::{StreamExt, TryStreamExt},
+    stream::TryStreamExt,
 };
 use tokio::sync::Mutex;
 use uuid::Uuid;
@@ -24,7 +24,9 @@ pub struct Book {
     pub isbn: [u8; 13],
     pub title: String,
     /// Main author
+    #[tank(references = author(author_id))]
     pub author: Uuid,
+    #[tank(references = author(author_id))]
     pub co_author: Option<Uuid>,
     pub year: i32,
 }

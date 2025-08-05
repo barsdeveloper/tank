@@ -157,9 +157,7 @@ pub fn decode_expression(expr: &Expr) -> TokenStream {
             {
                 let lhs = decode_expression(&cast.expr);
                 let rhs = match cast.ty.as_ref() {
-                    Type::Path(TypePath { path, .. }) => {
-                        decode_type(&cast.ty).0.value.into_token_stream()
-                    }
+                    Type::Path(..) => decode_type(&cast.ty).0.value.into_token_stream(),
                     _ => panic!(
                         "Unexpected cast type, cast can only be a Rust valid type (check tank::Value)"
                     ),
@@ -223,10 +221,10 @@ pub fn decode_expression(expr: &Expr) -> TokenStream {
                     .get_ident()
                     .expect("The path is expected to be identifier");
                 if ident == "NULL" {
-                    quote! { ::tank::Operand::Null }
+                    quote!(::tank::Operand::Null)
                 } else {
                     let v = LitStr::new(&path.to_token_stream().to_string(), path.span());
-                    quote! { ::tank::Operand::LitIdent(#v) }
+                    quote!(::tank::Operand::LitIdent(#v))
                 }
             }
         }

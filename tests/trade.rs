@@ -5,13 +5,14 @@ mod tests {
     use indoc::indoc;
     use rust_decimal::Decimal;
     use std::{
+        array,
         assert_matches::assert_matches,
         borrow::Cow,
         collections::{BTreeMap, HashMap},
     };
     use tank::{
-        Entity, Expression, GenericSqlWriter, Operand, Passive, PrimaryKeyType, SqlWriter,
-        TableRef, Value, expr,
+        ColumnRef, Entity, Expression, GenericSqlWriter, Operand, Passive, PrimaryKeyType,
+        SqlWriter, TableRef, Value, expr,
     };
     use time::macros::datetime;
     use uuid::Uuid;
@@ -21,10 +22,11 @@ mod tests {
     pub struct Trade {
         #[tank(name = "trade_id")]
         pub trade: u64,
-        #[tank(name = "order_id", default = "241d362d-797e-4769-b3f6-412440c8cf68")]
+        #[tank(name = "order_id", default = "241d362d-797e-4769-b3f6-412440c8cf68", references = order(id))]
         pub order: Uuid,
         /// Ticker symbol
         pub symbol: String,
+        pub isin: [char; 12],
         pub price: rust_decimal::Decimal,
         pub quantity: u32,
         pub execution_time: Passive<time::PrimitiveDateTime>,
@@ -41,19 +43,21 @@ mod tests {
             Self {
                 trade: 46923,
                 order: Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap(),
-                symbol: "AAPL".to_string(),
-                price: Decimal::new(19255, 2), // 192.55
-                quantity: 50,
-                execution_time: Passive::Set(datetime!(2025-06-07 14:32:00)),
-                currency: Some("USD".to_string()),
+                symbol: "RIVN".to_string(),
+                isin: array::from_fn(|i| "US76954A1034".chars().nth(i).unwrap()),
+                price: Decimal::new(1226, 2), // 12.26
+                quantity: 500,
+                execution_time: datetime!(2025-06-07 14:32:00).into(),
+                currency: Some("USD".into()),
                 is_internalized: true,
-                venue: Some("NASDAQ".to_string()),
-                child_trade_ids: Some(vec![36209, 85320]),
-                metadata: Some(b"Metadata Bytes".to_vec().into_boxed_slice()),
-                tags: Some(BTreeMap::from_iter([
+                venue: Some("NASDAQ".into()),
+                child_trade_ids: vec![36209, 85320].into(),
+                metadata: b"Metadata Bytes".to_vec().into_boxed_slice().into(),
+                tags: BTreeMap::from_iter([
                     ("source".into(), "internal".into()),
                     ("strategy".into(), "scalping".into()),
-                ])),
+                ])
+                .into(),
             }
         }
     }
@@ -72,43 +76,43 @@ mod tests {
 
         assert_eq!(Trade::primary_key_def().len(), 2);
         let columns = Trade::columns();
-        assert_eq!(columns.len(), 12);
-        assert_eq!(columns[0].reference.name, "trade_id");
-        assert_eq!(columns[1].reference.name, "order_id");
-        assert_eq!(columns[2].reference.name, "symbol");
-        assert_eq!(columns[3].reference.name, "price");
-        assert_eq!(columns[4].reference.name, "quantity");
-        assert_eq!(columns[5].reference.name, "execution_time");
-        assert_eq!(columns[6].reference.name, "currency");
-        assert_eq!(columns[7].reference.name, "is_internalized");
-        assert_eq!(columns[8].reference.name, "venue");
-        assert_eq!(columns[9].reference.name, "child_trade_ids");
-        assert_eq!(columns[10].reference.name, "metadata");
-        assert_eq!(columns[11].reference.name, "tags");
-        assert_eq!(columns[0].reference.table, "trade_execution");
-        assert_eq!(columns[1].reference.table, "trade_execution");
-        assert_eq!(columns[2].reference.table, "trade_execution");
-        assert_eq!(columns[3].reference.table, "trade_execution");
-        assert_eq!(columns[4].reference.table, "trade_execution");
-        assert_eq!(columns[5].reference.table, "trade_execution");
-        assert_eq!(columns[6].reference.table, "trade_execution");
-        assert_eq!(columns[7].reference.table, "trade_execution");
-        assert_eq!(columns[8].reference.table, "trade_execution");
-        assert_eq!(columns[9].reference.table, "trade_execution");
-        assert_eq!(columns[10].reference.table, "trade_execution");
-        assert_eq!(columns[11].reference.table, "trade_execution");
-        assert_eq!(columns[0].reference.schema, "trading.company");
-        assert_eq!(columns[1].reference.schema, "trading.company");
-        assert_eq!(columns[2].reference.schema, "trading.company");
-        assert_eq!(columns[3].reference.schema, "trading.company");
-        assert_eq!(columns[4].reference.schema, "trading.company");
-        assert_eq!(columns[5].reference.schema, "trading.company");
-        assert_eq!(columns[6].reference.schema, "trading.company");
-        assert_eq!(columns[7].reference.schema, "trading.company");
-        assert_eq!(columns[8].reference.schema, "trading.company");
-        assert_eq!(columns[9].reference.schema, "trading.company");
-        assert_eq!(columns[10].reference.schema, "trading.company");
-        assert_eq!(columns[11].reference.schema, "trading.company");
+        assert_eq!(columns.len(), 13);
+        assert_eq!(columns[0].column_ref.name, "trade_id");
+        assert_eq!(columns[1].column_ref.name, "order_id");
+        assert_eq!(columns[2].column_ref.name, "symbol");
+        assert_eq!(columns[3].column_ref.name, "price");
+        assert_eq!(columns[4].column_ref.name, "quantity");
+        assert_eq!(columns[5].column_ref.name, "execution_time");
+        assert_eq!(columns[6].column_ref.name, "currency");
+        assert_eq!(columns[7].column_ref.name, "is_internalized");
+        assert_eq!(columns[8].column_ref.name, "venue");
+        assert_eq!(columns[9].column_ref.name, "child_trade_ids");
+        assert_eq!(columns[10].column_ref.name, "metadata");
+        assert_eq!(columns[11].column_ref.name, "tags");
+        assert_eq!(columns[0].column_ref.table, "trade_execution");
+        assert_eq!(columns[1].column_ref.table, "trade_execution");
+        assert_eq!(columns[2].column_ref.table, "trade_execution");
+        assert_eq!(columns[3].column_ref.table, "trade_execution");
+        assert_eq!(columns[4].column_ref.table, "trade_execution");
+        assert_eq!(columns[5].column_ref.table, "trade_execution");
+        assert_eq!(columns[6].column_ref.table, "trade_execution");
+        assert_eq!(columns[7].column_ref.table, "trade_execution");
+        assert_eq!(columns[8].column_ref.table, "trade_execution");
+        assert_eq!(columns[9].column_ref.table, "trade_execution");
+        assert_eq!(columns[10].column_ref.table, "trade_execution");
+        assert_eq!(columns[11].column_ref.table, "trade_execution");
+        assert_eq!(columns[0].column_ref.schema, "trading.company");
+        assert_eq!(columns[1].column_ref.schema, "trading.company");
+        assert_eq!(columns[2].column_ref.schema, "trading.company");
+        assert_eq!(columns[3].column_ref.schema, "trading.company");
+        assert_eq!(columns[4].column_ref.schema, "trading.company");
+        assert_eq!(columns[5].column_ref.schema, "trading.company");
+        assert_eq!(columns[6].column_ref.schema, "trading.company");
+        assert_eq!(columns[7].column_ref.schema, "trading.company");
+        assert_eq!(columns[8].column_ref.schema, "trading.company");
+        assert_eq!(columns[9].column_ref.schema, "trading.company");
+        assert_eq!(columns[10].column_ref.schema, "trading.company");
+        assert_eq!(columns[11].column_ref.schema, "trading.company");
         assert_matches!(columns[0].value, Value::UInt64(..));
         assert_matches!(columns[1].value, Value::Uuid(..));
         assert_matches!(columns[2].value, Value::Varchar(..));
@@ -175,6 +179,23 @@ mod tests {
         assert_eq!(columns[7].unique, false);
         assert_eq!(columns[8].unique, false);
         assert_eq!(columns[9].unique, false);
+        assert_eq!(columns[0].references, None);
+        assert_eq!(
+            columns[1].references,
+            Some(ColumnRef {
+                name: "id",
+                table: "order",
+                ..Default::default()
+            })
+        );
+        assert_eq!(columns[2].references, None);
+        assert_eq!(columns[3].references, None);
+        assert_eq!(columns[4].references, None);
+        assert_eq!(columns[5].references, None);
+        assert_eq!(columns[6].references, None);
+        assert_eq!(columns[7].references, None);
+        assert_eq!(columns[8].references, None);
+        assert_eq!(columns[9].references, None);
         assert_eq!(columns[10].unique, false);
         assert_eq!(columns[11].unique, false);
         assert_eq!(columns[0].passive, false);
@@ -200,8 +221,9 @@ mod tests {
             indoc! {"
                 CREATE TABLE trading.company.trade_execution (
                 trade_id UBIGINT,
-                order_id UUID NOT NULL DEFAULT '241d362d-797e-4769-b3f6-412440c8cf68',
+                order_id UUID NOT NULL DEFAULT '241d362d-797e-4769-b3f6-412440c8cf68' REFERENCES order(id),
                 symbol VARCHAR NOT NULL,
+                isin CHAR(1)[12],
                 price DECIMAL NOT NULL,
                 quantity UINTEGER NOT NULL,
                 execution_time TIMESTAMP,

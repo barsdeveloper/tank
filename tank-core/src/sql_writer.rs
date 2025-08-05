@@ -80,6 +80,7 @@ pub trait SqlWriter {
                     let _ = write!(out, "({}, {})", precision, scale);
                 }
             }
+            Value::Char(..) => out.push_str("CHAR(1)"),
             Value::Varchar(..) => out.push_str("VARCHAR"),
             Value::Blob(..) => out.push_str("BLOB"),
             Value::Date(..) => out.push_str("DATE"),
@@ -103,7 +104,10 @@ pub trait SqlWriter {
                 self.write_column_type(out, value);
                 out.push(')');
             }
-            _ => panic!("Unexpected tank::Value, cannot get the sql type"),
+            _ => panic!(
+                "Unexpected tank::Value, cannot get the sql type from {:?} variant",
+                value
+            ),
         };
     }
 
@@ -124,6 +128,7 @@ pub trait SqlWriter {
             | Value::Float32(None, ..)
             | Value::Float64(None, ..)
             | Value::Decimal(None, ..)
+            | Value::Char(None, ..)
             | Value::Varchar(None, ..)
             | Value::Blob(None, ..)
             | Value::Date(None, ..)
@@ -149,6 +154,7 @@ pub trait SqlWriter {
             Value::Float32(Some(v), ..) => write_float!(out, *v),
             Value::Float64(Some(v), ..) => write_float!(out, *v),
             Value::Decimal(Some(v), ..) => drop(write!(out, "{}", v)),
+            Value::Char(Some(v), ..) => out.push(*v),
             Value::Varchar(Some(v), ..) => self.write_value_string(out, v),
             Value::Blob(Some(v), ..) => {
                 out.push('\'');
@@ -565,6 +571,13 @@ pub trait SqlWriter {
         }
         if column.unique && column.primary_key != PrimaryKeyType::PrimaryKey {
             out.push_str(" UNIQUE");
+        }
+        if let Some(references) = column.references {
+            out.push_str(" REFERENCES ");
+            self.write_table_ref(out, &references.table_ref());
+            out.push('(');
+            self.write_column_ref(out, &references, false);
+            out.push(')');
         }
     }
 

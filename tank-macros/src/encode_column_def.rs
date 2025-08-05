@@ -2,7 +2,7 @@ use crate::decode_column::ColumnMetadata;
 use proc_macro2::TokenStream;
 use quote::quote;
 
-pub fn encode_column_def(metadata: &ColumnMetadata, reference: TokenStream) -> TokenStream {
+pub fn encode_column_def(metadata: &ColumnMetadata, column_ref: TokenStream) -> TokenStream {
     let column_type = &metadata.column_type;
     let value = &metadata.value;
     let nullable = &metadata.nullable;
@@ -11,17 +11,33 @@ pub fn encode_column_def(metadata: &ColumnMetadata, reference: TokenStream) -> T
         .as_ref()
         .map_or(quote!(None), |v| quote!(Some(Box::new(#v))));
     let primary_key = &metadata.primary_key;
+    let references = if let Some((table, column)) = &metadata.references {
+        let (schema, table) = match table.rsplit_once('.') {
+            Some((schema, table)) => (schema.to_string(), table.to_string()),
+            _ => (String::new(), table.to_string()),
+        };
+        quote! {
+            Some(::tank::ColumnRef {
+                name: #column,
+                table: #table,
+                schema: #schema,
+            })
+        }
+    } else {
+        quote!(None)
+    };
     let unique = &metadata.unique;
     let passive = &metadata.passive;
     let comment = &metadata.comment;
     quote! {
         ::tank::ColumnDef {
-            reference: #reference,
+            column_ref: #column_ref,
             column_type: #column_type,
             value: #value,
             nullable: #nullable,
             default: #default,
             primary_key: #primary_key,
+            references: #references,
             unique: #unique,
             passive: #passive,
             comment: #comment,

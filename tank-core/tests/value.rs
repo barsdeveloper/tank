@@ -231,6 +231,16 @@ mod tests {
     }
 
     #[test]
+    fn value_char() {
+        let var = 'a';
+        let val: Value = var.into();
+        assert_eq!(val, Value::Char(Some('a')));
+        assert_ne!(val, Value::Char(Some('b')));
+        let var: char = AsValue::try_from_value(val).unwrap();
+        assert_eq!(var, 'a');
+    }
+
+    #[test]
     fn value_string() {
         let var = "Hello World!";
         let val: Value = var.into();
@@ -240,6 +250,7 @@ mod tests {
         let val = var.as_value();
         let var: String = AsValue::try_from_value(val).unwrap();
         assert_eq!(var, "Hello World!");
+        assert_eq!(String::try_from_value('x'.into()).unwrap(), "x")
     }
 
     #[test]

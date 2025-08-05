@@ -3,7 +3,7 @@ use proc_macro2::TokenStream;
 use quote::{ToTokens, TokenStreamExt, quote};
 use std::borrow::Cow;
 
-#[derive(Clone, Debug)]
+#[derive(Default, Clone, PartialEq, Eq, Debug)]
 pub struct TableRef {
     pub name: &'static str,
     pub schema: &'static str,

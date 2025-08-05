@@ -38,6 +38,8 @@ pub fn decode_type(ty: &Type) -> (TypeDecoded, Option<CheckPassive>) {
                     break 'data_type Value::Float32(None);
                 } else if ident == "f64" {
                     break 'data_type Value::Float64(None);
+                } else if ident == "char" {
+                    break 'data_type Value::Char(None);
                 }
             }
             if matches_path(path, &["std", "string", "String"]) {

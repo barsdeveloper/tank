@@ -1,4 +1,4 @@
-use crate::{Expression, OpPrecedence, Value};
+use crate::{Expression, OpPrecedence, TableRef, Value};
 use proc_macro2::TokenStream;
 use quote::{ToTokens, TokenStreamExt, quote};
 
@@ -12,6 +12,16 @@ pub struct ColumnRef {
     pub name: &'static str,
     pub table: &'static str,
     pub schema: &'static str,
+}
+
+impl ColumnRef {
+    pub fn table_ref(&self) -> TableRef {
+        TableRef {
+            name: self.table,
+            schema: self.schema,
+            ..Default::default()
+        }
+    }
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -35,32 +45,33 @@ impl ToTokens for PrimaryKeyType {
 
 #[derive(Default, Debug)]
 pub struct ColumnDef {
-    pub reference: ColumnRef,
+    pub column_ref: ColumnRef,
     pub column_type: &'static str,
     pub value: Value,
     pub nullable: bool,
     pub default: Option<Box<dyn Expression>>,
     pub primary_key: PrimaryKeyType,
     pub unique: bool,
+    pub references: Option<ColumnRef>,
     pub passive: bool,
     pub comment: &'static str,
 }
 
 impl ColumnDef {
     pub fn name(&self) -> &'static str {
-        &self.reference.name
+        &self.column_ref.name
     }
     pub fn table(&self) -> &'static str {
-        &self.reference.table
+        &self.column_ref.table
     }
     pub fn schema(&self) -> &'static str {
-        &self.reference.schema
+        &self.column_ref.schema
     }
 }
 
 impl<'a> From<&'a ColumnDef> for &'a ColumnRef {
     fn from(value: &'a ColumnDef) -> Self {
-        &value.reference
+        &value.column_ref
     }
 }
 
@@ -84,6 +95,6 @@ impl OpPrecedence for ColumnDef {
 
 impl Expression for ColumnDef {
     fn write_query(&self, writer: &dyn crate::SqlWriter, out: &mut String, qualify_columns: bool) {
-        writer.write_column_ref(out, &self.reference, qualify_columns);
+        writer.write_column_ref(out, &self.column_ref, qualify_columns);
     }
 }

@@ -1,4 +1,5 @@
-use crate::AsValue;
+use crate::{AsValue, ColumnDef, Entity, TableRef};
+use std::{marker::PhantomData, mem};
 
 #[derive(Debug, Default)]
 pub enum Passive<T: AsValue> {
@@ -26,7 +27,7 @@ impl<T: AsValue + PartialEq> PartialEq for Passive<T> {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::Set(lhs), Self::Set(rhs)) => lhs == rhs,
-            _ => core::mem::discriminant(self) == core::mem::discriminant(other),
+            _ => mem::discriminant(self) == mem::discriminant(other),
         }
     }
 }
@@ -46,5 +47,25 @@ where
 impl<T: AsValue> From<T> for Passive<T> {
     fn from(value: T) -> Self {
         Self::Set(value)
+    }
+}
+
+pub struct References<T: Entity> {
+    entity: PhantomData<T>,
+    columns: Box<[ColumnDef]>,
+}
+
+impl<T: Entity> References<T> {
+    pub fn new(columns: Box<[ColumnDef]>) -> Self {
+        Self {
+            columns,
+            entity: Default::default(),
+        }
+    }
+    pub fn table_ref(&self) -> TableRef {
+        T::table_ref().clone()
+    }
+    pub fn columns(&self) -> &[ColumnDef] {
+        &self.columns
     }
 }

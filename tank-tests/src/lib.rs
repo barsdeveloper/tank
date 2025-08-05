@@ -6,6 +6,7 @@ mod trade;
 mod user;
 
 use crate::{
+    books::books,
     trade::{trade_multiple, trade_simple},
     user::users,
 };
@@ -17,4 +18,5 @@ pub async fn execute_tests<C: Connection>(connection: &mut C) {
     trade_multiple(connection).await;
     aggregates(connection).await;
     users(connection).await;
+    books(connection).await;
 }
