@@ -154,13 +154,17 @@ pub trait SqlWriter {
             Value::Float32(Some(v), ..) => write_float!(out, *v),
             Value::Float64(Some(v), ..) => write_float!(out, *v),
             Value::Decimal(Some(v), ..) => drop(write!(out, "{}", v)),
-            Value::Char(Some(v), ..) => out.push(*v),
+            Value::Char(Some(v), ..) => {
+                out.push('\'');
+                out.push(*v);
+                out.push('\'');
+            }
             Value::Varchar(Some(v), ..) => self.write_value_string(out, v),
             Value::Blob(Some(v), ..) => {
                 out.push('\'');
-                v.iter().for_each(|b| {
+                for b in v.iter() {
                     let _ = write!(out, "\\x{:X}", b);
-                });
+                }
                 out.push('\'');
             }
             Value::Date(Some(v), ..) => {

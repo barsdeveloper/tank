@@ -80,15 +80,16 @@ mod tests {
         assert_eq!(columns[0].column_ref.name, "trade_id");
         assert_eq!(columns[1].column_ref.name, "order_id");
         assert_eq!(columns[2].column_ref.name, "symbol");
-        assert_eq!(columns[3].column_ref.name, "price");
-        assert_eq!(columns[4].column_ref.name, "quantity");
-        assert_eq!(columns[5].column_ref.name, "execution_time");
-        assert_eq!(columns[6].column_ref.name, "currency");
-        assert_eq!(columns[7].column_ref.name, "is_internalized");
-        assert_eq!(columns[8].column_ref.name, "venue");
-        assert_eq!(columns[9].column_ref.name, "child_trade_ids");
-        assert_eq!(columns[10].column_ref.name, "metadata");
-        assert_eq!(columns[11].column_ref.name, "tags");
+        assert_eq!(columns[3].column_ref.name, "isin");
+        assert_eq!(columns[4].column_ref.name, "price");
+        assert_eq!(columns[5].column_ref.name, "quantity");
+        assert_eq!(columns[6].column_ref.name, "execution_time");
+        assert_eq!(columns[7].column_ref.name, "currency");
+        assert_eq!(columns[8].column_ref.name, "is_internalized");
+        assert_eq!(columns[9].column_ref.name, "venue");
+        assert_eq!(columns[10].column_ref.name, "child_trade_ids");
+        assert_eq!(columns[11].column_ref.name, "metadata");
+        assert_eq!(columns[12].column_ref.name, "tags");
         assert_eq!(columns[0].column_ref.table, "trade_execution");
         assert_eq!(columns[1].column_ref.table, "trade_execution");
         assert_eq!(columns[2].column_ref.table, "trade_execution");
@@ -101,6 +102,7 @@ mod tests {
         assert_eq!(columns[9].column_ref.table, "trade_execution");
         assert_eq!(columns[10].column_ref.table, "trade_execution");
         assert_eq!(columns[11].column_ref.table, "trade_execution");
+        assert_eq!(columns[12].column_ref.table, "trade_execution");
         assert_eq!(columns[0].column_ref.schema, "trading.company");
         assert_eq!(columns[1].column_ref.schema, "trading.company");
         assert_eq!(columns[2].column_ref.schema, "trading.company");
@@ -113,19 +115,21 @@ mod tests {
         assert_eq!(columns[9].column_ref.schema, "trading.company");
         assert_eq!(columns[10].column_ref.schema, "trading.company");
         assert_eq!(columns[11].column_ref.schema, "trading.company");
+        assert_eq!(columns[12].column_ref.schema, "trading.company");
         assert_matches!(columns[0].value, Value::UInt64(..));
         assert_matches!(columns[1].value, Value::Uuid(..));
         assert_matches!(columns[2].value, Value::Varchar(..));
-        assert_matches!(columns[3].value, Value::Decimal(..));
-        assert_matches!(columns[4].value, Value::UInt32(..));
-        assert_matches!(columns[5].value, Value::Timestamp(..));
-        assert_matches!(columns[6].value, Value::Varchar(..));
-        assert_matches!(columns[7].value, Value::Boolean(..));
-        assert_matches!(columns[8].value, Value::Varchar(..));
-        assert_matches!(columns[9].value, Value::List(_, box Value::Int64(..), ..));
-        assert_matches!(columns[10].value, Value::Blob(..));
+        assert_matches!(columns[3].value, Value::Array(_, box Value::Char(..), 12));
+        assert_matches!(columns[4].value, Value::Decimal(..));
+        assert_matches!(columns[5].value, Value::UInt32(..));
+        assert_matches!(columns[6].value, Value::Timestamp(..));
+        assert_matches!(columns[7].value, Value::Varchar(..));
+        assert_matches!(columns[8].value, Value::Boolean(..));
+        assert_matches!(columns[9].value, Value::Varchar(..));
+        assert_matches!(columns[10].value, Value::List(_, box Value::Int64(..), ..));
+        assert_matches!(columns[11].value, Value::Blob(..));
         assert_matches!(
-            columns[11].value,
+            columns[12].value,
             Value::Map(_, box Value::Varchar(..), box Value::Varchar(..), ..)
         );
         assert_eq!(columns[0].nullable, false);
@@ -134,12 +138,13 @@ mod tests {
         assert_eq!(columns[3].nullable, false);
         assert_eq!(columns[4].nullable, false);
         assert_eq!(columns[5].nullable, false);
-        assert_eq!(columns[6].nullable, true);
-        assert_eq!(columns[7].nullable, false);
-        assert_eq!(columns[8].nullable, true);
+        assert_eq!(columns[6].nullable, false);
+        assert_eq!(columns[7].nullable, true);
+        assert_eq!(columns[8].nullable, false);
         assert_eq!(columns[9].nullable, true);
         assert_eq!(columns[10].nullable, true);
         assert_eq!(columns[11].nullable, true);
+        assert_eq!(columns[12].nullable, true);
         assert_matches!(columns[0].default, None);
         let column1_default =
             columns[1].default.as_deref().unwrap() as *const dyn Expression as *const Operand;
@@ -157,18 +162,20 @@ mod tests {
         assert_matches!(columns[9].default, None);
         assert_matches!(columns[10].default, None);
         assert_matches!(columns[11].default, None);
+        assert_matches!(columns[12].default, None);
         assert_eq!(columns[0].primary_key, PrimaryKeyType::PartOfPrimaryKey);
         assert_eq!(columns[1].primary_key, PrimaryKeyType::None);
         assert_eq!(columns[2].primary_key, PrimaryKeyType::None);
         assert_eq!(columns[3].primary_key, PrimaryKeyType::None);
         assert_eq!(columns[4].primary_key, PrimaryKeyType::None);
-        assert_eq!(columns[5].primary_key, PrimaryKeyType::PartOfPrimaryKey);
-        assert_eq!(columns[6].primary_key, PrimaryKeyType::None);
+        assert_eq!(columns[5].primary_key, PrimaryKeyType::None);
+        assert_eq!(columns[6].primary_key, PrimaryKeyType::PartOfPrimaryKey);
         assert_eq!(columns[7].primary_key, PrimaryKeyType::None);
         assert_eq!(columns[8].primary_key, PrimaryKeyType::None);
         assert_eq!(columns[9].primary_key, PrimaryKeyType::None);
         assert_eq!(columns[10].primary_key, PrimaryKeyType::None);
         assert_eq!(columns[11].primary_key, PrimaryKeyType::None);
+        assert_eq!(columns[12].primary_key, PrimaryKeyType::None);
         assert_eq!(columns[0].unique, false);
         assert_eq!(columns[1].unique, false);
         assert_eq!(columns[2].unique, false);
@@ -179,6 +186,9 @@ mod tests {
         assert_eq!(columns[7].unique, false);
         assert_eq!(columns[8].unique, false);
         assert_eq!(columns[9].unique, false);
+        assert_eq!(columns[10].unique, false);
+        assert_eq!(columns[11].unique, false);
+        assert_eq!(columns[12].unique, false);
         assert_eq!(columns[0].references, None);
         assert_eq!(
             columns[1].references,
@@ -196,20 +206,22 @@ mod tests {
         assert_eq!(columns[7].references, None);
         assert_eq!(columns[8].references, None);
         assert_eq!(columns[9].references, None);
-        assert_eq!(columns[10].unique, false);
-        assert_eq!(columns[11].unique, false);
+        assert_eq!(columns[10].references, None);
+        assert_eq!(columns[11].references, None);
+        assert_eq!(columns[12].references, None);
         assert_eq!(columns[0].passive, false);
         assert_eq!(columns[1].passive, false);
         assert_eq!(columns[2].passive, false);
         assert_eq!(columns[3].passive, false);
         assert_eq!(columns[4].passive, false);
-        assert_eq!(columns[5].passive, true);
-        assert_eq!(columns[6].passive, false);
+        assert_eq!(columns[5].passive, false);
+        assert_eq!(columns[6].passive, true);
         assert_eq!(columns[7].passive, false);
         assert_eq!(columns[8].passive, false);
         assert_eq!(columns[9].passive, false);
         assert_eq!(columns[10].passive, false);
         assert_eq!(columns[11].passive, false);
+        assert_eq!(columns[12].passive, false);
     }
 
     #[test]
@@ -223,7 +235,7 @@ mod tests {
                 trade_id UBIGINT,
                 order_id UUID NOT NULL DEFAULT '241d362d-797e-4769-b3f6-412440c8cf68' REFERENCES order(id),
                 symbol VARCHAR NOT NULL,
-                isin CHAR(1)[12],
+                isin CHAR(1)[12] NOT NULL,
                 price DECIMAL NOT NULL,
                 quantity UINTEGER NOT NULL,
                 execution_time TIMESTAMP,
@@ -265,7 +277,7 @@ mod tests {
         assert_eq!(
             query,
             indoc! {"
-                SELECT trade_id, order_id, symbol, price, quantity, execution_time, currency, is_internalized, venue, child_trade_ids, metadata, tags
+                SELECT trade_id, order_id, symbol, isin, price, quantity, execution_time, currency, is_internalized, venue, child_trade_ids, metadata, tags
                 FROM trading.company.trade_execution
                 WHERE quantity >= 100 AND price > 1000;
             "}
@@ -274,7 +286,7 @@ mod tests {
     }
 
     #[test]
-    fn test_employee_insert() {
+    fn test_trade_insert() {
         let mut docs = HashMap::new();
         docs.insert("contract.pdf".to_string(), vec![1, 2, 3, 4]);
         let employee = Trade::sample();
@@ -283,14 +295,14 @@ mod tests {
         assert!(
             // Last part of the query (the map) is removed becaus order of keys is not defined. Value stores a HashMap
             query.starts_with(indoc! {"
-                INSERT INTO trading.company.trade_execution (trade_id, order_id, symbol, price, quantity, execution_time, currency, is_internalized, venue, child_trade_ids, metadata, tags) VALUES
-                (46923, '550e8400-e29b-41d4-a716-446655440000', 'AAPL', 192.55, 50, '2025-06-07 14:32:00.0', 'USD', true, 'NASDAQ', [36209,85320], '\\x4D\\x65\\x74\\x61\\x64\\x61\\x74\\x61\\x20\\x42\\x79\\x74\\x65\\x73',
+                INSERT INTO trading.company.trade_execution (trade_id, order_id, symbol, isin, price, quantity, execution_time, currency, is_internalized, venue, child_trade_ids, metadata, tags) VALUES
+                (46923, '550e8400-e29b-41d4-a716-446655440000', 'RIVN', ['U','S','7','6','9','5','4','A','1','0','3','4'], 12.26, 500, '2025-06-07 14:32:00.0', 'USD', true, 'NASDAQ', [36209,85320], '\\x4D\\x65\\x74\\x61\\x64\\x61\\x74\\x61\\x20\\x42\\x79\\x74\\x65\\x73',
             "}.trim())
     );
     }
 
     #[test]
-    fn test_sql_delete() {
+    fn test_trade_delete() {
         let mut query = String::new();
         WRITER.write_delete::<Trade, _>(&mut query, &expr!(Trade::trade == 68391));
         assert_eq!(

@@ -13,7 +13,7 @@ use std::{
 };
 use tank_core::{
     Connection, Context, Error, Executor, Query, QueryResult, Result, RowLabeled, RowsAffected,
-    stream::Stream,
+    sink::SinkExt, stream::Stream,
 };
 use tokio::{sync::RwLock, task::spawn_blocking};
 use urlencoding::decode;
@@ -132,7 +132,7 @@ impl DuckDBConnection {
                     .iter()
                     .map(|v| v.5.to_string())
                     .collect::<Arc<[String]>>();
-                (0..rows).for_each(|row| {
+                for row in 0..rows {
                     let columns = (0..cols).map(|col| {
                         let col = col as usize;
                         let info = &info[col];
@@ -148,7 +148,7 @@ impl DuckDBConnection {
                     let row =
                         RowLabeled::new(names.clone(), columns.collect::<Result<_>>().unwrap());
                     let _ = tx.send(Ok(QueryResult::RowLabeled(row)));
-                });
+                }
             }
         }
     }

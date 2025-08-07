@@ -24,9 +24,9 @@ pub struct Book {
     pub isbn: [u8; 13],
     pub title: String,
     /// Main author
-    #[tank(references = author(author_id))]
+    #[tank(references = testing.authors(author_id))]
     pub author: Uuid,
-    #[tank(references = author(author_id))]
+    #[tank(references = testing.authors(author_id))]
     pub co_author: Option<Uuid>,
     pub year: i32,
 }

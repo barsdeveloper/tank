@@ -3,7 +3,8 @@ use proc_macro2::{TokenStream, TokenTree};
 use quote::ToTokens;
 use std::fmt::Debug;
 use syn::{
-    Expr, ExprCall, ExprLit, ExprMethodCall, Field, Ident, Lit, LitStr, Type, parse::ParseBuffer, ExprPath
+    Expr, ExprCall, ExprLit, ExprMethodCall, ExprPath, Field, Ident, Lit, LitStr, Type,
+    parse::ParseBuffer,
 };
 use tank_core::{CheckPassive, PrimaryKeyType, TypeDecoded, Value, decode_type};
 
@@ -52,6 +53,8 @@ pub fn decode_column(field: &Field) -> ColumnMetadata {
         },
         check_passive,
     ) = if let Type::Path(..) = &field.ty {
+        decode_type(&field.ty)
+    } else if let Type::Array(..) = &field.ty {
         decode_type(&field.ty)
     } else {
         Default::default()
@@ -112,22 +115,50 @@ pub fn decode_column(field: &Field) -> ColumnMetadata {
                     metadata.primary_key = PrimaryKeyType::PrimaryKey;
                     metadata.nullable = false;
                 } else if arg.path.is_ident("references") {
-                    let Ok(reference) =arg.value()
-                    .and_then(|v| 
-                        v.parse::<ExprCall>().map(|v| (v.func.to_token_stream().to_string(), v.args))
-                        .or_else(|_| v.parse::<ExprMethodCall>().map(|v| (v.method.to_token_stream().to_string(), v.args)))
-                    )
-                        .map(|(func, args)| {
-                            if args.len() != 1 {
-                                panic!("Expected references to have a single argument");
+                    let Ok(reference) = arg
+                        .value()
+                        .and_then(|v| {
+                            if let Ok(v) = v.fork().parse::<ExprMethodCall>().map(|v| {
+                                if !v.attrs.is_empty() {
+                                    panic!("Table reference cannot have attributes");
+                                }
+                                if v.turbofish.is_some() {
+                                    panic!("Table reference cannot have template arguments");
+                                }
+                                (v.method.to_token_stream().to_string(), v.args)
+                            }) {
+                                return Ok(v);
                             }
-                            (func, args.iter().map(|v| match v {
-                                Expr::Lit(ExprLit{lit: Lit::Str(v), ..}) => v.value(),
-                                Expr::Path(ExprPath {path,..}) if path.segments.len() == 1 => path.get_ident().unwrap().to_string(),
-                                _ => panic!("Expected the referred column name to be either a string or a identifier")
-                             }).take(1).next().unwrap() )
-                            }) else {
-                            panic!("");
+                            if let Ok(v) = v.fork().parse::<ExprCall>().map(|v| {
+                                if !v.attrs.is_empty() {
+                                    panic!("Table reference cannot have attributes");
+                                }
+                                (v.func.to_token_stream().to_string(), v.args)
+                            }) {
+                                return Ok(v);
+                            }
+                            panic!("Unexpected expression syntax for `references` {:?}, use it like: `MyEntity::column` or `schema.table_name(column_name)`", v.to_string());
+                        })
+                            .map(|(func, args)| {
+                                if args.len() != 1 {
+                                    panic!("Expected references to have a single argument");
+                                }
+                                (
+                                    func,
+                                    args
+                                        .iter()
+                                        .map(|v| match v {
+                                            Expr::Lit(ExprLit{lit: Lit::Str(v), ..}) => v.value(),
+                                            Expr::Path(ExprPath {path,..}) if path.segments.len() == 1 => path.get_ident().unwrap().to_string(),
+                                            _ => panic!("Expected the referred column name to be either a string or a identifier")
+                                        })
+                                        .take(1)
+                                        .next()
+                                        .unwrap(),
+                                )
+                            }
+                        ) else {
+                            panic!("Error while parsing `references` use it like: `MyEntity::column` or `schema.table_name(column_name)`");
                         };
                     metadata.references = reference.into();
                 } else if arg.path.is_ident("unique") {

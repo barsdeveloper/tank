@@ -1,5 +1,5 @@
 use crate::cbox::CBox;
-use anyhow::{anyhow, Error};
+use anyhow::{Error, anyhow};
 use libduckdb_sys::*;
 use rust_decimal::Decimal;
 use std::{ffi::c_void, ptr, slice};
@@ -34,7 +34,8 @@ pub(crate) fn extract_value(
     validity: *mut u64,
 ) -> Result<Value> {
     unsafe {
-        let is_valid = !data.is_null() && duckdb_validity_row_is_valid(validity, row as u64);
+        let has_data = !data.is_null() || type_id == DUCKDB_TYPE_DUCKDB_TYPE_ARRAY;
+        let is_valid = has_data && duckdb_validity_row_is_valid(validity, row as u64);
         let result = match type_id {
             DUCKDB_TYPE_DUCKDB_TYPE_BOOLEAN => Value::Boolean(if is_valid {
                 Some(*(data as *const bool).add(row))
@@ -206,9 +207,9 @@ pub(crate) fn extract_value(
             //  DUCKDB_TYPE_DUCKDB_TYPE_ENUM =>
             DUCKDB_TYPE_DUCKDB_TYPE_LIST | DUCKDB_TYPE_DUCKDB_TYPE_ARRAY => {
                 let is_array = type_id == DUCKDB_TYPE_DUCKDB_TYPE_ARRAY;
-                let (vector, logical_type) = if is_array {
+                let (vector, child_logical_type) = if is_array {
                     (
-                        duckdb_array_vector_get_child(vector),
+                        duckdb_array_vector_get_child(vector), // vector will be the child vector
                         duckdb_array_type_child_type(logical_type),
                     )
                 } else {
@@ -217,21 +218,22 @@ pub(crate) fn extract_value(
                         duckdb_list_type_child_type(logical_type),
                     )
                 };
-                let logical_type =
-                    CBox::new(logical_type, |mut v| duckdb_destroy_logical_type(&mut v));
-                let type_id = duckdb_get_type_id(*logical_type);
+                let child_logical_type = CBox::new(child_logical_type, |mut v| {
+                    duckdb_destroy_logical_type(&mut v)
+                });
+                let type_id = duckdb_get_type_id(*child_logical_type);
+                let validity = duckdb_vector_get_validity(vector); // Will be null
                 let element_type = extract_value(
                     vector,
                     0,
-                    *logical_type,
+                    *child_logical_type,
                     type_id,
                     ptr::null(),
-                    ptr::null_mut(),
+                    validity,
                 )?;
                 let value = if is_valid {
-                    let validity = duckdb_vector_get_validity(vector);
                     let range = if is_array {
-                        let size = duckdb_array_type_array_size(*logical_type) as usize;
+                        let size = duckdb_array_type_array_size(logical_type) as usize;
                         let begin = row * size;
                         begin..(begin + size)
                     } else {
@@ -244,14 +246,15 @@ pub(crate) fn extract_value(
                     Some(
                         range
                             .map(|i| {
-                                Ok(extract_value(
+                                let element = extract_value(
                                     vector,
                                     i,
-                                    *logical_type,
+                                    *child_logical_type,
                                     type_id,
                                     data,
                                     validity,
-                                )?)
+                                )?;
+                                Ok(element)
                             })
                             .collect::<Result<_>>()?,
                     )
@@ -273,11 +276,11 @@ pub(crate) fn extract_value(
                 let vector = duckdb_list_vector_get_child(vector);
                 let value = if is_valid {
                     let keys = duckdb_struct_vector_get_child(vector, 0);
-                    let keys_data = duckdb_vector_get_data(keys);
-                    let keys_validity = duckdb_vector_get_validity(keys);
                     let vals = duckdb_struct_vector_get_child(vector, 1);
-                    let vals_validity = duckdb_vector_get_validity(vals);
+                    let keys_data = duckdb_vector_get_data(keys);
                     let vals_data = duckdb_vector_get_data(vals);
+                    let keys_validity = duckdb_vector_get_validity(keys);
+                    let vals_validity = duckdb_vector_get_validity(vals);
                     let entry = &*(data as *const duckdb_list_entry).add(row);
                     let map = ((entry.offset as usize)..((entry.offset + entry.length) as usize))
                         .map(|i| {
@@ -320,10 +323,9 @@ pub(crate) fn extract_value(
             DUCKDB_TYPE_DUCKDB_TYPE_SQLNULL => Value::Null,
             _ => {
                 return Err(anyhow!(
-                        "Invalid type value: {}, must be one of the expected DUCKDB_TYPE_DUCKDB_TYPE_* variant",
-                        type_id
-                    ),
-                );
+                    "Invalid type value: {}, must be one of the expected DUCKDB_TYPE_DUCKDB_TYPE_* variant",
+                    type_id
+                ));
             }
         };
         Ok(result)

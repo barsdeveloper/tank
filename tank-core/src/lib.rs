@@ -41,6 +41,7 @@ pub mod stream {
     pub use ::futures::stream::*;
 }
 pub use ::futures::future;
+pub use ::futures::sink;
 
 pub type Result<T> = anyhow::Result<T>;
 pub type Error = anyhow::Error;

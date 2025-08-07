@@ -20,9 +20,9 @@ impl SqlWriter for DuckDBSqlWriter {
         let _ = match value {
             Value::Blob(Some(v), ..) => {
                 out.push('\'');
-                v.iter().for_each(|b| {
+                for b in v.iter() {
                     let _ = write!(out, "\\x{:X}", b);
-                });
+                }
                 out.push('\'');
             }
             Value::Map(Some(_v), ..) => {

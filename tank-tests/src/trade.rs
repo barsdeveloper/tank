@@ -102,7 +102,7 @@ pub async fn trade_simple<C: Connection>(connection: &mut C) {
         "US76954A1034"
     );
     assert_eq!(result.price, Decimal::new(1226, 2));
-    assert_eq!(result.quantity, 50);
+    assert_eq!(result.quantity, 500);
     assert_eq!(
         result.execution_time,
         Passive::Set(datetime!(2025-06-07 14:32:00))

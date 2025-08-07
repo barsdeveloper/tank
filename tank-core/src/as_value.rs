@@ -33,8 +33,8 @@ macro_rules! impl_as_value {
                     $value(Some(v), ..) => $expr(v),
                     $($pat_rest(Some(v), ..) => $expr_rest(v),)*
                     _ => Err(Error::msg(format!(
-                        "Cannot convert `{}` into `{}`",
-                        value.to_token_stream().to_string(),
+                        "Cannot convert `{:?}` into `{}`",
+                        value,
                         stringify!($source),
                     ))),
                 }
@@ -139,7 +139,16 @@ impl_as_value!(
     Value::Float32 => |v| Ok(v as f64),
     Value::Decimal => |v: Decimal| Ok(v.try_into()?),
 );
-impl_as_value!(char, Value::Char => |v| Ok(v));
+impl_as_value!(char,
+    Value::Char => |v| Ok(v),
+    Value::Varchar => |v: String| {
+        if v.len() != 1 {
+            Err(Error::msg("Cannot convert Value::Varchar containing more then one character into a char."))
+        } else {
+            Ok(v.chars().next().unwrap())
+        }
+    }
+);
 impl_as_value!(
     String,
     Value::Varchar => |v| Ok(v),
@@ -158,9 +167,8 @@ impl<'a> AsValue for Cow<'a, str> {
     {
         let Value::Varchar(Some(value)) = value else {
             return Err(Error::msg(format!(
-                "Cannot convert `{}` into `{}`",
+                "Cannot convert `{}` into `Cow<'a, str>`",
                 value.to_token_stream().to_string(),
-                stringify!(Cow<'a, str>),
             )));
         };
         Ok(value.into())
@@ -287,9 +295,8 @@ impl AsValue for Decimal {
             Value::Float64(Some(v), ..) => Ok(Decimal::from_f64(v)
                 .ok_or(Error::msg("Could not convert the Float64 into Decimal"))?),
             _ => Err(Error::msg(format!(
-                "Cannot convert `{}` into `{}`",
-                value.to_token_stream().to_string(),
-                stringify!(rust_decimal::Decimal),
+                "Cannot convert `{:?}` into `rust_decimal::Decimal`",
+                value,
             ))),
         }
     }
@@ -308,15 +315,21 @@ impl<T: AsValue, const N: usize> AsValue for [T; N] {
     }
     fn try_from_value(value: Value) -> Result<Self> {
         let err = Error::msg(format!(
-            "Cannot convert `{}` into `{}`",
-            value.to_token_stream().to_string(),
-            stringify!(Vec<T>),
+            "Cannot convert `{:?}` into array `[T; {}]`",
+            value, N
         ));
         if let Value::List(Some(v), ..) = value {
             if v.len() == N {
                 let mut it = v.into_iter();
-                let result =
-                    array::try_from_fn(|_| T::try_from_value(it.next().ok_or(Error::msg(""))?))?;
+                let result = array::try_from_fn(|i| {
+                    T::try_from_value(it.next().ok_or(
+                            Error::msg(format!(
+                                "Expected to receive a list of {} elements but there is no element with undex {}",
+                                N,
+                                i,
+                            ))
+                        )?)
+                })?;
                 return Ok(result);
             }
         }
@@ -342,13 +355,14 @@ macro_rules! impl_as_value {
                         .into_iter()
                         .map(|v| Ok::<_, Error>(<T as AsValue>::try_from_value(v)?))
                         .collect::<Result<_>>()?),
+                    Value::List(None, ..) => Ok($list::<T>::new()),
                     Value::Array(Some(v), ..) => Ok(v
                         .into_iter()
                         .map(|v| Ok::<_, Error>(<T as AsValue>::try_from_value(v)?))
                         .collect::<Result<_>>()?),
                     _ => Err(Error::msg(format!(
-                        "Cannot convert `{}` into `{}`",
-                        value.to_token_stream().to_string(),
+                        "Cannot convert `{:?}` into list-like `{}`",
+                        value,
                         stringify!($list<T>),
                     ))),
                 }
@@ -389,8 +403,8 @@ macro_rules! impl_as_value {
                         .collect::<Result<_>>()?)
                 } else {
                     Err(Error::msg(format!(
-                        "Cannot convert `{}` into `{}`",
-                        value.to_token_stream().to_string(),
+                        "Cannot convert `{:?}` into map `{}`",
+                        value,
                         stringify!($map<K, V>),
                     )))
                 }
