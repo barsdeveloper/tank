@@ -40,6 +40,8 @@ pub fn decode_type(ty: &Type) -> (TypeDecoded, Option<CheckPassive>) {
                     break 'data_type Value::Float64(None);
                 } else if ident == "char" {
                     break 'data_type Value::Char(None);
+                } else if ident == "str" {
+                    break 'data_type Value::Varchar(None);
                 }
             }
             if matches_path(path, &["std", "string", "String"]) {
@@ -59,11 +61,13 @@ pub fn decode_type(ty: &Type) -> (TypeDecoded, Option<CheckPassive>) {
             } else {
                 let is_passive = matches_path(path, &["tank", "Passive"]);
                 let is_option = matches_path(path, &["std", "option", "Option"]);
+                let is_cow = matches_path(path, &["std", "borrow", "Cow"]);
                 let is_list = matches_path(path, &["std", "vec", "Vec"]);
                 let is_map = matches_path(path, &["std", "collections", "HashMap"])
                     || matches_path(path, &["std", "collections", "BTreeMap"]);
                 let is_wrapper = is_option
                     || is_passive
+                    || is_cow
                     || matches_path(path, &["std", "boxed", "Box"])
                     || matches_path(path, &["std", "sync", "Arc"]);
                 if is_wrapper || is_list || is_map {
@@ -74,12 +78,17 @@ pub fn decode_type(ty: &Type) -> (TypeDecoded, Option<CheckPassive>) {
                         .arguments
                     {
                         PathArguments::AngleBracketed(bracketed) => {
-                            if let GenericArgument::Type(first_type) = bracketed
-                                .args
-                                .first()
-                                .expect("Must have at least one generic argument")
-                            {
-                                let first_type = decode_type(&first_type);
+                            let mut args = bracketed.args.iter();
+                            let mut generic_type = args
+                                .next()
+                                .expect("Must have at least one generic argument");
+                            if is_cow {
+                                generic_type = args
+                                    .next()
+                                    .expect("Must have at least two generic argument");
+                            }
+                            if let GenericArgument::Type(generic_type) = generic_type {
+                                let first_type = decode_type(&generic_type);
                                 if first_type.1.is_some() {
                                     filter_passive = first_type.1;
                                 }

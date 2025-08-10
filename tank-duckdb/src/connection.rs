@@ -55,6 +55,13 @@ impl DuckDBConnection {
                 let _ = tx.send(Err(Error::msg(message.to_owned())));
                 return;
             }
+            let error = duckdb_result_error(&mut *result);
+            if error != ptr::null() {
+                let _ =tx.send(Err(Error::msg(CStr::from_ptr(error).to_str().expect(
+                    "Error message from duckdb_result_error is expected to be a valid C string",
+                ).to_owned())));
+                return;
+            }
             let statement_type = duckdb_result_statement_type(*result);
             #[allow(non_upper_case_globals)]
             if matches!(

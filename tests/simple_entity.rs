@@ -128,11 +128,7 @@ mod tests {
             query,
             indoc! {"
                 INSERT INTO simple_entity (a, b, c) VALUES
-                (40, 'hello', 777)
-                ON CONFLICT DO UPDATE SET
-                a = EXCLUDED.a,
-                b = EXCLUDED.b,
-                c = EXCLUDED.c;
+                (40, 'hello', 777);
             "}
             .trim()
         );

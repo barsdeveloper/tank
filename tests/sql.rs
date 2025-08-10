@@ -24,6 +24,7 @@ mod tests {
             #[tank(name = "special_column")]
             _first_column: Option<String>,
             _second_column: Box<f64>,
+            #[tank(primary_key)]
             _third_column: i32,
         }
         {
@@ -35,7 +36,7 @@ mod tests {
                     CREATE TABLE my_table (
                     special_column VARCHAR,
                     second_column DOUBLE NOT NULL,
-                    third_column INTEGER NOT NULL
+                    third_column INTEGER PRIMARY KEY
                     );
                 "}
                 .trim()
@@ -91,10 +92,9 @@ mod tests {
                 indoc! {"
                     INSERT INTO my_table (special_column, second_column, third_column) VALUES
                     ('hello', 512.5, 478)
-                    ON CONFLICT DO UPDATE SET
+                    ON CONFLICT (third_column) DO UPDATE SET
                     special_column = EXCLUDED.special_column,
-                    second_column = EXCLUDED.second_column,
-                    third_column = EXCLUDED.third_column;
+                    second_column = EXCLUDED.second_column;
                 "}
                 .trim()
             )

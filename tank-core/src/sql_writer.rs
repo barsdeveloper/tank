@@ -711,8 +711,11 @@ pub trait SqlWriter {
         E: Entity,
         It: Iterator<Item = &'a ColumnDef>,
     {
-        out.push_str("\nON CONFLICT");
         let pk = E::primary_key_def();
+        if pk.len() == 0 {
+            return;
+        }
+        out.push_str("\nON CONFLICT");
         if pk.len() > 0 {
             out.push_str(" (");
             separated_by(out, pk, |out, v| out.push_str(v.name()), ", ");

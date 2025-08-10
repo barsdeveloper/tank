@@ -1,4 +1,4 @@
-use futures::{FutureExt, StreamExt};
+use futures::{FutureExt, StreamExt, TryFutureExt};
 
 use crate::{
     ColumnDef, Driver, Error, Executor, Expression, Result, Row, RowLabeled, RowsAffected,
@@ -97,7 +97,7 @@ pub trait Entity: Send {
             .driver()
             .sql_writer()
             .write_insert(&mut query, [self].into_iter(), true);
-        executor.execute(query.into()).map(|_| Ok(()))
+        executor.execute(query.into()).map_ok(|_| ())
     }
     fn delete<Exec: Executor>(&self, executor: &mut Exec) -> impl Future<Output = Result<()>> + Send
     where
