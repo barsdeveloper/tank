@@ -17,6 +17,7 @@ pub struct Join<L: DataSet, R: DataSet, E: Expression> {
 #[derive(Default, Clone, Copy, Debug)]
 pub enum JoinType {
     #[default]
+    Default,
     Inner,
     Outer,
     Left,
@@ -52,8 +53,8 @@ impl Parse for JoinType {
             _ => "".to_string(),
         });
         let patterns: &[(&[&str], JoinType)] = &[
+            (&["JOIN"], JoinType::Default),
             (&["INNER", "JOIN"], JoinType::Inner),
-            (&["JOIN"], JoinType::Inner),
             (&["FULL", "OUTER", "JOIN"], JoinType::Outer),
             (&["OUTER", "JOIN"], JoinType::Outer),
             (&["LEFT", "OUTER", "JOIN"], JoinType::Left),
@@ -83,6 +84,7 @@ impl Parse for JoinType {
 impl ToTokens for JoinType {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         tokens.append_all(match self {
+            JoinType::Default => quote! { ::tank::JoinType::Default },
             JoinType::Inner => quote! { ::tank::JoinType::Inner },
             JoinType::Outer => quote! { ::tank::JoinType::Outer },
             JoinType::Left => quote! { ::tank::JoinType::Left },

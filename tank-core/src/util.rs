@@ -1,6 +1,10 @@
+use crate::{
+    Result,
+    stream::{Stream, TryStreamExt},
+};
 use proc_macro2::TokenStream;
 use quote::{ToTokens, quote};
-use std::{borrow::Cow, cmp::min};
+use std::{borrow::Cow, cmp::min, fmt::Display};
 use syn::Path;
 
 #[derive(Clone)]
@@ -62,6 +66,14 @@ pub fn separated_by<T, F>(
         len = out.len();
         f(out, v);
     }
+}
+
+pub fn add_error_context<T, S: Stream<Item = Result<T>>, Q: Display>(
+    stream: S,
+    query: &Q,
+) -> impl Stream<Item = Result<T>> + use<T, S, Q> {
+    let query = format!("{}", query).chars().take(500).collect::<String>();
+    stream.map_err(move |e| e.context(format!("While executing the query:\n{}", query)))
 }
 
 #[macro_export]

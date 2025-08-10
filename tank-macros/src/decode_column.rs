@@ -125,7 +125,7 @@ pub fn decode_column(field: &Field) -> ColumnMetadata {
                                 if v.turbofish.is_some() {
                                     panic!("Table reference cannot have template arguments");
                                 }
-                                (v.method.to_token_stream().to_string(), v.args)
+                                (format!("{}.{}", v.receiver.to_token_stream(), v.method.to_token_stream().to_string()), v.args)
                             }) {
                                 return Ok(v);
                             }

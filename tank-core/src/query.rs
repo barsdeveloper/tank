@@ -1,5 +1,8 @@
 use crate::Value;
-use std::sync::Arc;
+use std::{
+    fmt::{self, Display},
+    sync::Arc,
+};
 
 pub trait Prepared: Clone + Send + Sync {}
 
@@ -30,6 +33,15 @@ impl<P: Prepared> From<Arc<str>> for Query<P> {
 impl<P: Prepared> From<P> for Query<P> {
     fn from(value: P) -> Self {
         Query::Prepared(value)
+    }
+}
+
+impl<P: Prepared> Display for Query<P> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Query::Raw(query) => f.write_str(query),
+            Query::Prepared(_) => todo!(),
+        }
     }
 }
 

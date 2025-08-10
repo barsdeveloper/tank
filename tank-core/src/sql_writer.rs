@@ -35,8 +35,8 @@ pub trait SqlWriter {
         out.push('"');
     }
 
-    fn write_table_ref(&self, out: &mut String, value: &TableRef) {
-        if !value.alias.is_empty() {
+    fn write_table_ref(&self, out: &mut String, value: &TableRef, is_declaration: bool) {
+        if !is_declaration && !value.alias.is_empty() {
             out.push_str(&value.alias);
         } else {
             if !value.schema.is_empty() {
@@ -44,6 +44,10 @@ pub trait SqlWriter {
                 out.push('.');
             }
             out.push_str(&value.name);
+        }
+        if is_declaration {
+            out.push(' ');
+            out.push_str(&value.alias);
         }
     }
 
@@ -340,13 +344,7 @@ pub trait SqlWriter {
             Operand::LitBool(v) => self.write_value_bool(out, *v),
             Operand::LitFloat(v) => write_float!(out, *v),
             Operand::LitIdent(v) => out.push_str(v),
-            Operand::LitField(v) => {
-                v.iter().fold('\0', |sep, segment| {
-                    out.push(sep);
-                    out.push_str(segment);
-                    '.'
-                });
-            }
+            Operand::LitField(v) => separated_by(out, *v, |out, v| out.push_str(v), "."),
             Operand::LitInt(v) => write_integer!(out, *v),
             Operand::LitStr(v) => self.write_value_string(out, v),
             Operand::LitArray(v) => {
@@ -452,6 +450,7 @@ pub trait SqlWriter {
 
     fn write_join_type(&self, out: &mut String, join_type: &JoinType) {
         out.push_str(match &join_type {
+            JoinType::Default => "JOIN",
             JoinType::Inner => "INNER JOIN",
             JoinType::Outer => "OUTER JOIN",
             JoinType::Left => "LEFT JOIN",
@@ -512,7 +511,7 @@ pub trait SqlWriter {
         if if_not_exists {
             out.push_str("IF NOT EXISTS ");
         }
-        self.write_table_ref(out, E::table_ref());
+        self.write_table_ref(out, E::table_ref(), false);
         out.push_str(" (\n");
         separated_by(
             out,
@@ -578,7 +577,7 @@ pub trait SqlWriter {
         }
         if let Some(references) = column.references {
             out.push_str(" REFERENCES ");
-            self.write_table_ref(out, &references.table_ref());
+            self.write_table_ref(out, &references.table_ref(), false);
             out.push('(');
             self.write_column_ref(out, &references, false);
             out.push(')');
@@ -593,7 +592,7 @@ pub trait SqlWriter {
         if if_exists {
             out.push_str("IF EXISTS ");
         }
-        self.write_table_ref(out, E::table_ref());
+        self.write_table_ref(out, E::table_ref(), false);
         out.push(';');
     }
 
@@ -641,7 +640,7 @@ pub trait SqlWriter {
             return;
         };
         out.push_str("INSERT INTO ");
-        self.write_table_ref(out, E::table_ref());
+        self.write_table_ref(out, E::table_ref(), false);
         out.push_str(" (");
         let columns = E::columns().iter();
         let single = rows.peek().is_none();
@@ -737,7 +736,7 @@ pub trait SqlWriter {
         Self: Sized,
     {
         out.push_str("DELETE FROM ");
-        self.write_table_ref(out, E::table_ref());
+        self.write_table_ref(out, E::table_ref(), false);
         out.push_str("\nWHERE ");
         condition.write_query(self, out, false);
         out.push(';');

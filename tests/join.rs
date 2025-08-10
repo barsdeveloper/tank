@@ -3,8 +3,18 @@
 mod tests {
     use std::{assert_matches::assert_matches, borrow::Cow};
     use tank::{
-        BinaryOp, BinaryOpType, ColumnRef, Entity, Join, JoinType, Operand, TableRef, join,
+        BinaryOp, BinaryOpType, ColumnRef, DataSet, DeclareTableRef, Entity, Join, JoinType,
+        Operand, SqlWriter, TableRef, join,
     };
+
+    struct Writer;
+    impl SqlWriter for Writer {
+        fn as_dyn(&self) -> &dyn SqlWriter {
+            self
+        }
+    }
+
+    const WRITER: Writer = Writer {};
 
     #[derive(Entity)]
     #[tank(schema = "my_data")]
@@ -24,19 +34,19 @@ mod tests {
         assert_matches!(
             join,
             Join {
-                join: JoinType::Inner,
-                lhs: TableRef {
+                join: JoinType::Default,
+                lhs: DeclareTableRef(TableRef {
                     name: "alpha",
                     schema: "my_data",
                     alias: Cow::Borrowed("AA"),
                     ..
-                },
-                rhs: TableRef {
+                }),
+                rhs: DeclareTableRef(TableRef {
                     name: "bravo",
                     schema: "",
                     alias: Cow::Borrowed("BB"),
                     ..
-                },
+                }),
                 on: Some(BinaryOp {
                     op: BinaryOpType::Equal,
                     lhs: Operand::LitField(["AA", "a"]),
@@ -46,6 +56,9 @@ mod tests {
                 ..
             }
         );
+        let mut out = String::new();
+        join.write_query(&WRITER, &mut out);
+        assert_eq!(out, "my_data.alpha AA JOIN bravo BB ON AA.a = BB.first");
 
         let join = join!(Alpha INNER JOIN Bravo ON Alpha::_a == Bravo::_first);
         assert_matches!(
@@ -54,6 +67,12 @@ mod tests {
                 join: JoinType::Inner,
                 ..
             }
+        );
+        let mut out = String::new();
+        join.write_query(&WRITER, &mut out);
+        assert_eq!(
+            out,
+            "my_data.alpha INNER JOIN bravo ON my_data.alpha.a = bravo.first"
         );
 
         let join = join!(Alpha FULL OUTER JOIN Bravo ON Alpha::_a == Bravo::_first);
@@ -64,6 +83,12 @@ mod tests {
                 ..
             }
         );
+        let mut out = String::new();
+        join.write_query(&WRITER, &mut out);
+        assert_eq!(
+            out,
+            "my_data.alpha OUTER JOIN bravo ON my_data.alpha.a = bravo.first"
+        );
 
         let join = join!(Alpha OUTER JOIN Bravo ON Alpha::_a == Bravo::_first);
         assert_matches!(
@@ -72,6 +97,12 @@ mod tests {
                 join: JoinType::Outer,
                 ..
             }
+        );
+        let mut out = String::new();
+        join.write_query(&WRITER, &mut out);
+        assert_eq!(
+            out,
+            "my_data.alpha OUTER JOIN bravo ON my_data.alpha.a = bravo.first"
         );
 
         let join = join!(Alpha LEFT OUTER JOIN Bravo ON Alpha::_a == Bravo::_first);
@@ -82,6 +113,12 @@ mod tests {
                 ..
             }
         );
+        let mut out = String::new();
+        join.write_query(&WRITER, &mut out);
+        assert_eq!(
+            out,
+            "my_data.alpha LEFT JOIN bravo ON my_data.alpha.a = bravo.first"
+        );
 
         let join = join!(Alpha LEFT JOIN Bravo ON Alpha::_a == Bravo::_first);
         assert_matches!(
@@ -90,6 +127,12 @@ mod tests {
                 join: JoinType::Left,
                 ..
             }
+        );
+        let mut out = String::new();
+        join.write_query(&WRITER, &mut out);
+        assert_eq!(
+            out,
+            "my_data.alpha LEFT JOIN bravo ON my_data.alpha.a = bravo.first"
         );
 
         let join = join!(Alpha RIGHT OUTER JOIN Bravo ON Alpha::_a == Bravo::_first);
@@ -100,6 +143,12 @@ mod tests {
                 ..
             }
         );
+        let mut out = String::new();
+        join.write_query(&WRITER, &mut out);
+        assert_eq!(
+            out,
+            "my_data.alpha RIGHT JOIN bravo ON my_data.alpha.a = bravo.first"
+        );
 
         let join = join!(Alpha RIGHT JOIN Bravo ON Alpha::_a == Bravo::_first);
         assert_matches!(
@@ -108,6 +157,12 @@ mod tests {
                 join: JoinType::Right,
                 ..
             }
+        );
+        let mut out = String::new();
+        join.write_query(&WRITER, &mut out);
+        assert_eq!(
+            out,
+            "my_data.alpha RIGHT JOIN bravo ON my_data.alpha.a = bravo.first"
         );
 
         let join = join!(Alpha CROSS Bravo);
@@ -119,6 +174,9 @@ mod tests {
                 ..
             },
         );
+        let mut out = String::new();
+        join.write_query(&WRITER, &mut out);
+        assert_eq!(out, "my_data.alpha CROSS bravo");
 
         let join = join!(Alpha NATURAL JOIN Bravo);
         assert_matches!(
@@ -129,6 +187,9 @@ mod tests {
                 ..
             },
         );
+        let mut out = String::new();
+        join.write_query(&WRITER, &mut out);
+        assert_eq!(out, "my_data.alpha NATURAL JOIN bravo");
     }
 
     #[test]
@@ -143,9 +204,9 @@ mod tests {
         assert_matches!(
             join,
             Join {
-                join: JoinType::Inner,
+                join: JoinType::Default,
                 lhs: Join {
-                    join: JoinType::Inner,
+                    join: JoinType::Default,
                     lhs: TableRef {
                         name: "another_table",
                         ..
@@ -176,6 +237,12 @@ mod tests {
                 }),
                 ..
             }
+        );
+        let mut out = String::new();
+        join.write_query(&WRITER, &mut out);
+        assert_eq!(
+            out,
+            "another_table JOIN my_data.alpha ON another_table.column < my_data.alpha.b JOIN bravo ON my_data.alpha.a = bravo.second"
         );
     }
 
@@ -250,6 +317,12 @@ mod tests {
                 ..
             }
         );
+        let mut out = String::new();
+        join.write_query(&WRITER, &mut out);
+        assert_eq!(
+            out,
+            "bravo OUTER JOIN delta_dataset.delta_table LEFT JOIN my_data.alpha ON delta_dataset.delta_table.the_string < my_data.alpha.b ON bravo.second = delta_dataset.delta_table.the_string"
+        );
     }
 
     #[test]
@@ -265,12 +338,12 @@ mod tests {
                 join: JoinType::Right,
                 lhs: Join {
                     join: JoinType::Outer,
-                    lhs: TableRef {
+                    lhs: DeclareTableRef(TableRef {
                         name: "alpha",
                         schema: "my_data",
                         alias: Cow::Borrowed("A"),
                         ..
-                    },
+                    }),
                     rhs: TableRef {
                         name: "bravo",
                         // alias: Cow::Borrowed(""),
@@ -310,6 +383,12 @@ mod tests {
                 }),
                 ..
             }
+        );
+        let mut out = String::new();
+        join.write_query(&WRITER, &mut out);
+        assert_eq!(
+            out,
+            "my_data.alpha A OUTER JOIN bravo ON my_data.alpha.b >= bravo.second RIGHT JOIN some ON some.col = bravo.first"
         );
     }
 
@@ -368,6 +447,12 @@ mod tests {
                 ..
             }
         );
+        let mut out = String::new();
+        join.write_query(&WRITER, &mut out);
+        assert_eq!(
+            out,
+            "my_data.alpha NATURAL JOIN ccc CROSS bravo LEFT JOIN bravo ON bravo.second = my_data.alpha.b CROSS delta"
+        );
     }
 
     #[test]
@@ -407,6 +492,12 @@ mod tests {
                 }),
                 ..
             }
+        );
+        let mut out = String::new();
+        join.write_query(&WRITER, &mut out);
+        assert_eq!(
+            out,
+            "my_data.alpha RIGHT JOIN bravo ON my_data.alpha.a <= bravo.first"
         );
     }
 }

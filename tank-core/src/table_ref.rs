@@ -31,6 +31,18 @@ impl TableRef {
     }
 }
 
+impl DataSet for TableRef {
+    fn qualified_columns() -> bool
+    where
+        Self: Sized,
+    {
+        false
+    }
+    fn write_query(&self, writer: &dyn SqlWriter, out: &mut String) {
+        writer.write_table_ref(out, self, false)
+    }
+}
+
 impl ToTokens for TableRef {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let name = &self.name;
@@ -46,14 +58,25 @@ impl ToTokens for TableRef {
     }
 }
 
-impl DataSet for TableRef {
+#[derive(Default, Clone, PartialEq, Eq, Debug)]
+pub struct DeclareTableRef(pub TableRef);
+
+impl DataSet for DeclareTableRef {
     fn qualified_columns() -> bool
     where
         Self: Sized,
     {
         false
     }
+
     fn write_query(&self, writer: &dyn SqlWriter, out: &mut String) {
-        writer.write_table_ref(out, self);
+        writer.write_table_ref(out, &self.0, true)
+    }
+}
+
+impl ToTokens for DeclareTableRef {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let table_ref = &self.0;
+        tokens.append_all(quote!(::tank::DeclareTableRef(#table_ref)));
     }
 }

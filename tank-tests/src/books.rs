@@ -18,9 +18,8 @@ pub struct Author {
 }
 
 #[derive(Entity, Debug, Clone)]
-#[tank(schema = "testing", name = "books")]
+#[tank(schema = "testing", name = "books", primary_key = (Self::title, Self::author))]
 pub struct Book {
-    #[tank(primary_key)]
     pub isbn: [u8; 13],
     pub title: String,
     /// Main author
@@ -54,14 +53,14 @@ pub async fn books<C: Connection>(connection: &mut C) {
             id: Uuid::parse_str("f938f818-0a40-4ce3-8fbc-259ac252a1b5")
                 .unwrap()
                 .into(),
-            name: "J.R.R. Tolkien".into(),
+            name: "J.K. Rowling".into(),
             country: "UK".into(),
         },
         Author {
             id: Uuid::parse_str("a73bc06a-ff89-44b9-a62f-416ebe976285")
                 .unwrap()
                 .into(),
-            name: "George R.R. Martin".into(),
+            name: "J.R.R. Tolkien".into(),
             country: "USA".into(),
         },
         Author {
@@ -79,23 +78,30 @@ pub async fn books<C: Connection>(connection: &mut C) {
             country: "Finland".into(),
         },
     ];
-    let tolkien_id = authors[0].id.clone().unwrap();
-    let martin_id = authors[1].id.clone().unwrap();
+    let rowling_id = authors[0].id.clone().unwrap();
+    let tolkien_id = authors[1].id.clone().unwrap();
     let gluchovskij_id = authors[2].id.clone().unwrap();
 
     // Book objects
     let books = vec![
         Book {
-            isbn: [9, 7, 8, 0, 0, 0, 7, 4, 4, 0, 8, 3, 2],
-            title: "The Hobbit".into(),
-            author: tolkien_id,
+            isbn: [9, 7, 8, 0, 7, 4, 7, 5, 3, 2, 6, 9, 9],
+            title: "Harry Potter and the Philosopher's Stone".into(),
+            author: rowling_id,
             co_author: None,
             year: 1937,
         },
         Book {
-            isbn: [9, 7, 8, 0, 0, 0, 2, 2, 4, 5, 8, 4, 5],
-            title: "A Game of Thrones (A Song of Ice and Fire book 1) ".into(),
-            author: martin_id,
+            isbn: [9, 7, 8, 0, 7, 4, 7, 5, 9, 1, 0, 5, 4],
+            title: "Harry Potter and the Deathly Hallows".into(),
+            author: rowling_id,
+            co_author: None,
+            year: 2007,
+        },
+        Book {
+            isbn: [9, 7, 8, 0, 6, 1, 8, 2, 6, 0, 3, 0, 0],
+            title: "The Hobbit".into(),
+            author: tolkien_id,
             co_author: None,
             year: 1996,
         },
@@ -108,10 +114,10 @@ pub async fn books<C: Connection>(connection: &mut C) {
         },
         Book {
             isbn: [9, 7, 8, 0, 0, 2, 3, 4, 5, 6, 7, 8, 9],
-            title: "Mordor 2033".into(),
-            author: tolkien_id,
+            title: "Hogwarts 2033".into(),
+            author: rowling_id,
             co_author: gluchovskij_id.into(),
-            year: 2003,
+            year: 2026,
         },
     ];
 
@@ -123,14 +129,14 @@ pub async fn books<C: Connection>(connection: &mut C) {
     let result = Book::insert_many(connection, books.iter())
         .await
         .expect("Failed to insert books");
-    assert_eq!(result.rows_affected, 4);
+    assert_eq!(result.rows_affected, 5);
 
     // Get books before 2000
-    let result = join!(Book B JOIN Author A ON B.author_id == A.author_id)
+    let result = join!(Book B JOIN Author A ON B.author == A.author_id)
         .select(
             &[expr!(B.title), expr!(A.name)],
             connection,
-            &expr!(B.publication_year < 2000),
+            &expr!(B.year < 2000),
             None,
         )
         .try_collect::<Vec<RowLabeled>>()
@@ -154,13 +160,16 @@ pub async fn books<C: Connection>(connection: &mut C) {
     assert_eq!(
         result,
         HashSet::from_iter([
-            ("A Game of Thrones".into(), "George R.R. Martin".into()),
+            (
+                "Harry Potter and the Philosopher's Stone".into(),
+                "J.K. Rowling".into()
+            ),
             ("The Hobbit".into(), "J.R.R. Tolkien".into()),
         ])
     );
 
     // Get all books with their authors
-    let result = join!(Book B LEFT JOIN Author A1 ON B.author == A1.name JOIN Author A2 ON B.co_author == A2.name)
+    let result = join!(Book B LEFT JOIN Author A1 ON B.author == A1.author_id LEFT JOIN Author A2 ON B.co_author == A2.author_id)
         .select(
             &[&expr!(B.title) as &dyn Expression, &expr!(A1.name as author), &expr!(A2.name as co_author)],
             connection,
@@ -194,17 +203,22 @@ pub async fn books<C: Connection>(connection: &mut C) {
         result,
         HashSet::from_iter([
             (
-                "A Game of Thrones".into(),
-                "George R.R. Martin".into(),
+                "Harry Potter and the Philosopher's Stone".into(),
+                "J.K. Rowling".into(),
                 None
             ),
-            ("Metro 2033".into(), "Dmitrij Gluchovskij".into(), None),
             (
-                "Mordor 2033".into(),
-                "George R.R. Martin".into(),
-                Some("Dmitrij Gluchovskij".into())
+                "Harry Potter and the Deathly Hallows".into(),
+                "J.K. Rowling".into(),
+                None
             ),
             ("The Hobbit".into(), "J.R.R. Tolkien".into(), None),
+            ("Metro 2033".into(), "Dmitrij Gluchovskij".into(), None),
+            (
+                "Hogwarts 2033".into(),
+                "J.K. Rowling".into(),
+                Some("Dmitrij Gluchovskij".into())
+            ),
         ])
     );
 }

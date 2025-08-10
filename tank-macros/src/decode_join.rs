@@ -1,11 +1,10 @@
 use proc_macro2::{TokenStream, TokenTree};
-use quote::{quote, TokenStreamExt};
+use quote::{TokenStreamExt, quote};
 use syn::{
-    custom_keyword, parenthesized,
-    parse::{discouraged::Speculative, Parse, ParseBuffer, ParseStream},
+    Expr, Ident, Path, Result, custom_keyword, parenthesized,
+    parse::{Parse, ParseBuffer, ParseStream, discouraged::Speculative},
     parse2,
     token::Paren,
-    Expr, Ident, Path, Result,
 };
 use tank_core::JoinType;
 
@@ -141,7 +140,7 @@ impl Parse for JoinMemberParsed {
         if input.peek(Ident) {
             let alias = input.parse::<Ident>()?;
             Ok(Self(
-                quote! { #table::table_ref().with_alias(stringify!(#alias).into()) },
+                quote! { ::tank::DeclareTableRef(#table::table_ref().with_alias(stringify!(#alias).into())) },
             ))
         } else {
             Ok(Self(quote! { #table::table_ref() }))

@@ -13,7 +13,7 @@ use std::{
 };
 use tank_core::{
     Connection, Context, Error, Executor, Query, QueryResult, Result, RowLabeled, RowsAffected,
-    sink::SinkExt, stream::Stream,
+    add_error_context, stream::Stream,
 };
 use tokio::{sync::RwLock, task::spawn_blocking};
 use urlencoding::decode;
@@ -52,10 +52,7 @@ impl DuckDBConnection {
                     .expect(
                         "Error message from duckdb_result_error is expected to be a valid C string",
                     );
-                let _ = tx.send(Err(Error::msg(format!(
-                    "Error while executing the unprepared query: {}",
-                    message
-                ))));
+                let _ = tx.send(Err(Error::msg(message.to_owned())));
                 return;
             }
             let statement_type = duckdb_result_statement_type(*result);
@@ -213,13 +210,14 @@ impl Executor for DuckDBConnection {
     fn run(&mut self, query: Query<DuckDBPrepared>) -> impl Stream<Item = Result<QueryResult>> {
         let (tx, rx) = flume::unbounded::<Result<QueryResult>>();
         let connection = AtomicPtr::new(*self.connection);
+        let stream = add_error_context(rx.into_stream(), &query);
         spawn_blocking(move || match query {
             Query::Raw(query) => {
                 Self::run_unprepared(connection.load(Ordering::Relaxed), &query, tx)
             }
             Query::Prepared(query) => Self::run_prepared(query, tx),
         });
-        rx.into_stream()
+        stream
     }
 }
 
