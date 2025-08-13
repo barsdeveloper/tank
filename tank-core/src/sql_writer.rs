@@ -19,7 +19,7 @@ macro_rules! write_float {
                 $out,
                 &BinaryOp {
                     op: BinaryOpType::Cast,
-                    lhs: &Operand::Variable(Value::Varchar(Some(buffer.format($value).to_owned()))),
+                    lhs: &Operand::LitStr(buffer.format($value)),
                     rhs: &Operand::Type(Value::Float64(None)),
                 },
                 false,
@@ -250,8 +250,6 @@ pub trait SqlWriter {
     fn write_value_bool(&self, out: &mut String, value: bool) {
         out.push_str(["false", "true"][value as usize])
     }
-
-    fn write_value_float(&self, out: &mut String, value: f64) {}
 
     fn write_value_string(&self, out: &mut String, value: &str) {
         out.push('\'');
