@@ -44,6 +44,10 @@ pub enum Value {
         /* key: */ Box<Value>,
         /* value: */ Box<Value>,
     ),
+    Struct(
+        Option<Vec<(String, Value)>>,
+        /* type: */ Vec<(String, Value)>,
+    ),
 }
 
 impl Value {
@@ -92,8 +96,42 @@ impl Value {
             | Value::Uuid(None, ..)
             | Value::Array(None, ..)
             | Value::List(None, ..)
-            | Value::Map(None, ..) => true,
+            | Value::Map(None, ..)
+            | Value::Struct(None, ..) => true,
             _ => false,
+        }
+    }
+
+    pub fn as_null(&self) -> Value {
+        match self {
+            Value::Null => Value::Null,
+            Value::Boolean(..) => Value::Boolean(None),
+            Value::Int8(..) => Value::Int8(None),
+            Value::Int16(..) => Value::Int16(None),
+            Value::Int32(..) => Value::Int32(None),
+            Value::Int64(..) => Value::Int64(None),
+            Value::Int128(..) => Value::Int128(None),
+            Value::UInt8(..) => Value::UInt8(None),
+            Value::UInt16(..) => Value::UInt16(None),
+            Value::UInt32(..) => Value::UInt32(None),
+            Value::UInt64(..) => Value::UInt64(None),
+            Value::UInt128(..) => Value::UInt128(None),
+            Value::Float32(..) => Value::Float32(None),
+            Value::Float64(..) => Value::Float64(None),
+            Value::Decimal(.., w, s) => Value::Decimal(None, *w, *s),
+            Value::Char(..) => Value::Char(None),
+            Value::Varchar(..) => Value::Varchar(None),
+            Value::Blob(..) => Value::Blob(None),
+            Value::Date(..) => Value::Date(None),
+            Value::Time(..) => Value::Time(None),
+            Value::Timestamp(..) => Value::Timestamp(None),
+            Value::TimestampWithTimezone(..) => Value::TimestampWithTimezone(None),
+            Value::Interval(..) => Value::Interval(None),
+            Value::Uuid(..) => Value::Uuid(None),
+            Value::Array(.., t, len) => Value::Array(None, t.clone(), *len),
+            Value::List(.., t) => Value::List(None, t.clone()),
+            Value::Map(.., k, v) => Value::Map(None, k.clone(), v.clone()),
+            Value::Struct(.., t) => Value::Struct(None, t.clone()),
         }
     }
 }
@@ -201,8 +239,8 @@ impl Hash for Value {
                 typ.hash(state);
             }
 
-            Map(opt_map, k, v) => {
-                match opt_map {
+            Map(v, key, val) => {
+                match v {
                     Some(map) => {
                         for (key, val) in map {
                             key.hash(state);
@@ -211,8 +249,15 @@ impl Hash for Value {
                     }
                     None => {}
                 }
-                k.hash(state);
-                v.hash(state);
+                key.hash(state);
+                val.hash(state);
+            }
+            Struct(v, t) => {
+                match v {
+                    Some(v) => v.hash(state),
+                    None => {}
+                }
+                t.hash(state);
             }
         }
     }
@@ -267,6 +312,10 @@ impl ToTokens for Value {
                 let key = key.as_ref().to_token_stream();
                 let value = value.as_ref().to_token_stream();
                 quote!(::tank::Value::Map(None, Box::new(#key), Box::new(#value)))
+            }
+            Value::Struct(.., t) => {
+                let values = t.into_iter().map(|(k, v)| quote!((#k.into(), #v)));
+                quote!(::tank::Value::Struct(None, vec!(#(#values),*)))
             }
         };
         tokens.extend(ts);

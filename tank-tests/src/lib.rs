@@ -8,7 +8,7 @@ mod user;
 
 use crate::{
     books::books,
-    nullability::single_null_fields,
+    nullability::{complex_null_fields, single_null_fields},
     trade::{trade_multiple, trade_simple},
     user::users,
 };
@@ -17,6 +17,7 @@ use tank::Connection;
 
 pub async fn execute_tests<C: Connection>(connection: &mut C) {
     single_null_fields(connection).await;
+    complex_null_fields(connection).await;
     trade_simple(connection).await;
     trade_multiple(connection).await;
     aggregates(connection).await;

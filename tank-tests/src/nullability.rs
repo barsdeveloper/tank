@@ -1,14 +1,10 @@
-use std::{borrow::Cow, sync::LazyLock};
+use std::{borrow::Cow, collections::BTreeMap, sync::LazyLock, time::Duration};
 use tank::{Connection, Entity};
 use time::Time;
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
-static MUTEX: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
-
 pub async fn single_null_fields<C: Connection>(connection: &mut C) {
-    let _lock = MUTEX.lock().await;
-
     #[derive(Entity)]
     struct SimpleNullFields {
         alpha: Option<u8>,
@@ -21,6 +17,9 @@ pub async fn single_null_fields<C: Connection>(connection: &mut C) {
         hotel: Option<Cow<'static, str>>,
         india: Box<Option<char>>,
     }
+
+    static MUTEX: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
+    let _lock = MUTEX.lock().await;
 
     // Setup
     SimpleNullFields::drop_table(connection, true, false)
@@ -101,4 +100,96 @@ pub async fn single_null_fields<C: Connection>(connection: &mut C) {
     assert_eq!(entity.golf, None);
     assert_eq!(entity.hotel, None);
     assert_eq!(*entity.india, None);
+}
+
+pub async fn complex_null_fields<C: Connection>(connection: &mut C) {
+    #[derive(Entity)]
+    struct ComplexNullFields {
+        first: Option<[Option<f64>; 8]>,
+        second: Option<Vec<Option<Duration>>>,
+        third: Option<Box<[u8]>>,
+        fourth: Option<Box<BTreeMap<String, Option<[Option<i128>; 3]>>>>,
+    }
+
+    static MUTEX: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
+    let _lock = MUTEX.lock().await;
+
+    // Setup
+    ComplexNullFields::drop_table(connection, true, false)
+        .await
+        .expect("Failed to drop ComplexNullFields table");
+    ComplexNullFields::create_table(connection, true, true)
+        .await
+        .expect("Failed to create ComplexNullFields table");
+
+    // Save and find one entity 1
+    ComplexNullFields::delete_many(connection, &true)
+        .await
+        .expect("Failed to clear the ComplexNullFields table");
+    let entity = ComplexNullFields {
+        first: None,
+        second: Some(vec![
+            None,
+            None,
+            Duration::from_millis(15).into(),
+            Duration::from_micros(22).into(),
+            None,
+            Duration::from_micros(99).into(),
+            Duration::from_micros(0).into(),
+            Duration::from_secs(24).into(),
+            None,
+            None,
+            None,
+        ]),
+        third: Some(Box::new([0x75, 0xAA, 0x30, 0x77])),
+        fourth: Some(Box::new(BTreeMap::from_iter([
+            ("aa".into(), Some([19314.into(), 241211.into(), None])),
+            (
+                "bb".into(),
+                Some([165536.into(), 23311090.into(), 30001.into()]),
+            ),
+            ("cc".into(), None),
+            ("dd".into(), Some([None, None, None])),
+            ("ee".into(), Some([None, 777.into(), None])),
+        ]))),
+    };
+    entity
+        .save(connection)
+        .await
+        .expect("Failed to save entity 1");
+    let entity = ComplexNullFields::find_one(connection, &true)
+        .await
+        .expect("Failed to query entity 1")
+        .expect("Failed to find entity 1");
+    assert_eq!(entity.first, None);
+    assert_eq!(
+        entity.second,
+        Some(vec![
+            None,
+            None,
+            Duration::from_millis(15).into(),
+            Duration::from_micros(22).into(),
+            None,
+            Duration::from_micros(99).into(),
+            Duration::from_micros(0).into(),
+            Duration::from_secs(24).into(),
+            None,
+            None,
+            None,
+        ])
+    );
+    assert_eq!(*entity.third.unwrap(), [0x75, 0xAA, 0x30, 0x77]);
+    assert_eq!(
+        *entity.fourth.unwrap(),
+        BTreeMap::from_iter([
+            ("aa".into(), Some([19314.into(), 241211.into(), None])),
+            (
+                "bb".into(),
+                Some([165536.into(), 23311090.into(), 30001.into()]),
+            ),
+            ("cc".into(), None),
+            ("dd".into(), Some([None, None, None])),
+            ("ee".into(), Some([None, 777.into(), None])),
+        ])
+    );
 }

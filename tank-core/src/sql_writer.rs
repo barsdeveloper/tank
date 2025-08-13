@@ -143,7 +143,8 @@ pub trait SqlWriter {
             | Value::Uuid(None, ..)
             | Value::Array(None, ..)
             | Value::List(None, ..)
-            | Value::Map(None, ..) => self.write_value_none(out),
+            | Value::Map(None, ..)
+            | Value::Struct(None, ..) => self.write_value_none(out),
             Value::Boolean(Some(v), ..) => self.write_value_bool(out, *v),
             Value::Int8(Some(v), ..) => write_integer!(out, *v),
             Value::Int16(Some(v), ..) => write_integer!(out, *v),
@@ -224,6 +225,9 @@ pub trait SqlWriter {
                 );
                 out.push('}');
             }
+            Value::Struct(Some(v), ..) => {
+                todo!()
+            }
         };
     }
 
@@ -249,6 +253,18 @@ pub trait SqlWriter {
         out.push('\'');
     }
 
+    fn value_interval_units(&self) -> &[(&str, i128)] {
+        static UNITS: &[(&str, i128)] = &[
+            ("DAY", Interval::NANOS_IN_DAY),
+            ("HOUR", Interval::NANOS_IN_SEC * 3600),
+            ("MINUTE", Interval::NANOS_IN_SEC * 60),
+            ("SECOND", Interval::NANOS_IN_SEC),
+            ("MICROSECOND", 1_000),
+            ("NANOSECOND", 1),
+        ];
+        UNITS
+    }
+
     fn write_value_interval(&self, out: &mut String, value: &Interval) {
         let _ = out.write_str("INTERVAL");
         let quote_position = out.len() + 1;
@@ -263,7 +279,6 @@ pub trait SqlWriter {
                 );
             };
         }
-
         let mut units = 0;
         if value.months != 0 {
             if value.months % 12 == 0 {
@@ -275,15 +290,7 @@ pub trait SqlWriter {
             }
         }
         let nanos = value.nanos + value.days as i128 * Interval::NANOS_IN_DAY;
-        const UNITS: &[(&str, i128)] = &[
-            ("DAY", Interval::NANOS_IN_DAY),
-            ("HOUR", Interval::NANOS_IN_SEC * 3600),
-            ("MINUTE", Interval::NANOS_IN_SEC * 60),
-            ("SECOND", Interval::NANOS_IN_SEC),
-            ("MICROSECOND", 1_000),
-            ("NANOSECOND", 1),
-        ];
-        for &(name, factor) in UNITS {
+        for &(name, factor) in self.value_interval_units() {
             if nanos % factor == 0 {
                 let value = nanos / factor;
                 if units == 0 || value != 0 {

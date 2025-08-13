@@ -2,7 +2,10 @@ use crate::cbox::CBox;
 use anyhow::{Error, anyhow};
 use libduckdb_sys::*;
 use rust_decimal::Decimal;
-use std::{ffi::c_void, ptr, slice};
+use std::{
+    ffi::{CStr, c_void},
+    ptr, slice,
+};
 use tank_core::{Interval, Result, Value};
 use uuid::Uuid;
 
@@ -263,7 +266,33 @@ pub(crate) fn extract_value(
                 };
                 Value::List(value, element_type.into())
             }
-            //  DUCKDB_TYPE_DUCKDB_TYPE_STRUCT =>
+            DUCKDB_TYPE_DUCKDB_TYPE_STRUCT => {
+                let children = duckdb_struct_type_child_count(logical_type);
+                let entries = (0..children)
+                    .map(|i| {
+                        let name = CStr::from_ptr(duckdb_struct_type_child_name(logical_type, i))
+                            .to_str()
+                            .map_err(|e| {
+                                Error::new(e).context("While extracting field struct name")
+                            })?
+                            .to_owned();
+                        let logical_type = duckdb_struct_type_child_type(logical_type, i);
+                        let type_id = duckdb_get_type_id(logical_type);
+                        let vector = duckdb_struct_vector_get_child(vector, i);
+                        let data = duckdb_vector_get_data(vector);
+                        let validity = duckdb_vector_get_validity(vector);
+                        let value =
+                            extract_value(vector, row, logical_type, type_id, data, validity)?;
+                        Ok((name, value))
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+                let value_type = entries
+                    .iter()
+                    .map(|(k, v)| (k.clone(), v.as_null()))
+                    .collect();
+                let value = if is_valid { Some(entries) } else { None };
+                Value::Struct(value, value_type)
+            }
             DUCKDB_TYPE_DUCKDB_TYPE_MAP => {
                 let k_type = CBox::new(duckdb_map_type_key_type(logical_type), |mut v| {
                     duckdb_destroy_logical_type(&mut v)
@@ -273,10 +302,11 @@ pub(crate) fn extract_value(
                     duckdb_destroy_logical_type(&mut v)
                 });
                 let v_id = duckdb_get_type_id(*v_type);
+                // A map is a list of structs with 2 fields: "key" and "value"
                 let vector = duckdb_list_vector_get_child(vector);
+                let keys = duckdb_struct_vector_get_child(vector, 0);
+                let vals = duckdb_struct_vector_get_child(vector, 1);
                 let value = if is_valid {
-                    let keys = duckdb_struct_vector_get_child(vector, 0);
-                    let vals = duckdb_struct_vector_get_child(vector, 1);
                     let keys_data = duckdb_vector_get_data(keys);
                     let vals_data = duckdb_vector_get_data(vals);
                     let keys_validity = duckdb_vector_get_validity(keys);
@@ -294,8 +324,8 @@ pub(crate) fn extract_value(
                 } else {
                     None
                 };
-                let k_type = extract_value(vector, 0, *k_type, k_id, ptr::null(), ptr::null_mut())?;
-                let v_type = extract_value(vector, 0, *v_type, v_id, ptr::null(), ptr::null_mut())?;
+                let k_type = extract_value(keys, 0, *k_type, k_id, ptr::null(), ptr::null_mut())?;
+                let v_type = extract_value(vals, 0, *v_type, v_id, ptr::null(), ptr::null_mut())?;
                 Value::Map(value, k_type.into(), v_type.into())
             }
             DUCKDB_TYPE_DUCKDB_TYPE_UUID => Value::Uuid(if is_valid {
