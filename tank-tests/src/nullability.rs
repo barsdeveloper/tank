@@ -29,7 +29,7 @@ pub async fn single_null_fields<C: Connection>(connection: &mut C) {
         .await
         .expect("Failed to create SimpleNullFields table");
 
-    // Save and find one entity 1
+    // Simple 1
     SimpleNullFields::delete_many(connection, &true)
         .await
         .expect("Failed to clear the SimpleNullFields table");
@@ -47,11 +47,11 @@ pub async fn single_null_fields<C: Connection>(connection: &mut C) {
     entity
         .save(connection)
         .await
-        .expect("Failed to save entity 1");
+        .expect("Failed to save simple 1");
     let entity = SimpleNullFields::find_one(connection, &true)
         .await
-        .expect("Failed to query entity 1")
-        .expect("Failed to find entity 1");
+        .expect("Failed to query simple 1")
+        .expect("Failed to find simple 1");
     assert_eq!(entity.alpha, None);
     assert_eq!(entity.bravo, Some(777));
     assert_eq!(entity.charlie, Some(-2));
@@ -65,7 +65,7 @@ pub async fn single_null_fields<C: Connection>(connection: &mut C) {
     assert_eq!(entity.hotel, Some("Hello world!".into()));
     assert_eq!(*entity.india, None);
 
-    // Save and find one entity 2
+    // Simple 2
     SimpleNullFields::delete_many(connection, &true)
         .await
         .expect("Failed to clear the SimpleNullFields table");
@@ -83,11 +83,11 @@ pub async fn single_null_fields<C: Connection>(connection: &mut C) {
     entity
         .save(connection)
         .await
-        .expect("Failed to save entity");
+        .expect("Failed to save simple 2");
     let entity = SimpleNullFields::find_one(connection, &true)
         .await
-        .expect("Failed to query entity")
-        .expect("Failed to find entity");
+        .expect("Failed to query simple 2")
+        .expect("Failed to find simple 2");
     assert_eq!(entity.alpha, Some(255));
     assert_eq!(entity.bravo, None);
     assert_eq!(entity.charlie, None);
@@ -122,7 +122,7 @@ pub async fn complex_null_fields<C: Connection>(connection: &mut C) {
         .await
         .expect("Failed to create ComplexNullFields table");
 
-    // Save and find one entity 1
+    // Complex 1
     ComplexNullFields::delete_many(connection, &true)
         .await
         .expect("Failed to clear the ComplexNullFields table");
@@ -156,11 +156,11 @@ pub async fn complex_null_fields<C: Connection>(connection: &mut C) {
     entity
         .save(connection)
         .await
-        .expect("Failed to save entity 1");
+        .expect("Failed to save complex 1");
     let entity = ComplexNullFields::find_one(connection, &true)
         .await
-        .expect("Failed to query entity 1")
-        .expect("Failed to find entity 1");
+        .expect("Failed to query complex 1")
+        .expect("Failed to find complex 1");
     assert_eq!(entity.first, None);
     assert_eq!(
         entity.second,
@@ -192,4 +192,48 @@ pub async fn complex_null_fields<C: Connection>(connection: &mut C) {
             ("ee".into(), Some([None, 777.into(), None])),
         ])
     );
+
+    // Complex 2
+    ComplexNullFields::delete_many(connection, &true)
+        .await
+        .expect("Failed to clear the ComplexNullFields table");
+    let entity = ComplexNullFields {
+        first: Some([
+            0.5.into(),
+            None,
+            (-99.5).into(),
+            100.0.into(),
+            0.0.into(),
+            f64::NEG_INFINITY.into(),
+            None,
+            777.777.into(),
+        ]),
+        second: None,
+        third: None,
+        fourth: None,
+    };
+    entity
+        .save(connection)
+        .await
+        .expect("Failed to save complex 2");
+    let entity = ComplexNullFields::find_one(connection, &true)
+        .await
+        .expect("Failed to query complex 2")
+        .expect("Failed to find complex 2");
+    assert_eq!(
+        entity.first,
+        Some([
+            Some(0.5),
+            None,
+            Some(-99.5),
+            Some(100.0),
+            Some(0.0),
+            Some(f64::NEG_INFINITY),
+            None,
+            Some(777.777)
+        ])
+    );
+    assert_eq!(entity.second, None);
+    assert_eq!(entity.third, None);
+    assert_eq!(entity.fourth, None);
 }

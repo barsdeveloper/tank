@@ -12,9 +12,21 @@ macro_rules! write_integer {
     }};
 }
 macro_rules! write_float {
-    ($out:ident, $value:expr) => {{
+    ($this:ident, $out:ident, $value:expr) => {{
         let mut buffer = ryu::Buffer::new();
-        $out.push_str(buffer.format($value));
+        if $value.is_infinite() {
+            $this.write_expression_binary_op(
+                $out,
+                &BinaryOp {
+                    op: BinaryOpType::Cast,
+                    lhs: &Operand::Variable(Value::Varchar(Some(buffer.format($value).to_owned()))),
+                    rhs: &Operand::Type(Value::Float64(None)),
+                },
+                false,
+            );
+        } else {
+            $out.push_str(buffer.format($value));
+        }
     }};
 }
 
@@ -156,8 +168,8 @@ pub trait SqlWriter {
             Value::UInt32(Some(v), ..) => write_integer!(out, *v),
             Value::UInt64(Some(v), ..) => write_integer!(out, *v),
             Value::UInt128(Some(v), ..) => write_integer!(out, *v),
-            Value::Float32(Some(v), ..) => write_float!(out, *v),
-            Value::Float64(Some(v), ..) => write_float!(out, *v),
+            Value::Float32(Some(v), ..) => write_float!(self, out, *v),
+            Value::Float64(Some(v), ..) => write_float!(self, out, *v),
             Value::Decimal(Some(v), ..) => drop(write!(out, "{}", v)),
             Value::Char(Some(v), ..) => {
                 out.push('\'');
@@ -238,6 +250,8 @@ pub trait SqlWriter {
     fn write_value_bool(&self, out: &mut String, value: bool) {
         out.push_str(["false", "true"][value as usize])
     }
+
+    fn write_value_float(&self, out: &mut String, value: f64) {}
 
     fn write_value_string(&self, out: &mut String, value: &str) {
         out.push('\'');
@@ -349,7 +363,7 @@ pub trait SqlWriter {
     fn write_expression_operand(&self, out: &mut String, value: &Operand, qualify_columns: bool) {
         let _ = match value {
             Operand::LitBool(v) => self.write_value_bool(out, *v),
-            Operand::LitFloat(v) => write_float!(out, *v),
+            Operand::LitFloat(v) => write_float!(self, out, *v),
             Operand::LitIdent(v) => out.push_str(v),
             Operand::LitField(v) => separated_by(out, *v, |out, v| out.push_str(v), "."),
             Operand::LitInt(v) => write_integer!(out, *v),
