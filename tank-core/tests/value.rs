@@ -238,6 +238,14 @@ mod tests {
         assert_ne!(val, Value::Char(Some('b')));
         let var: char = AsValue::try_from_value(val).unwrap();
         assert_eq!(var, 'a');
+        assert_matches!(
+            char::try_from_value(Value::Varchar(Some("t".into()))),
+            Ok('t'),
+        );
+        assert_matches!(
+            char::try_from_value(Value::Varchar(Some("long".into()))),
+            Err(..)
+        );
     }
 
     #[test]
@@ -250,7 +258,7 @@ mod tests {
         let val = var.as_value();
         let var: String = AsValue::try_from_value(val).unwrap();
         assert_eq!(var, "Hello World!");
-        assert_eq!(String::try_from_value('x'.into()).unwrap(), "x")
+        assert_eq!(String::try_from_value('x'.into()).unwrap(), "x");
     }
 
     #[test]
@@ -264,7 +272,7 @@ mod tests {
         assert_eq!(var, "Hello World!");
         assert_matches!(
             <Cow<'static, str> as AsValue>::as_empty_value(),
-            Value::Varchar(..)
+            Value::Varchar(..),
         );
         assert_matches!(
             <Cow<'static, str> as AsValue>::try_from_value(Value::Boolean(Some(false))),
@@ -380,6 +388,104 @@ mod tests {
             time::PrimitiveDateTime::new(
                 time::Date::from_calendar_date(2025, Month::July, 29).unwrap(),
                 time::Time::from_hms(14, 52, 00).unwrap()
+            )
+        );
+    }
+
+    #[test]
+    fn value_datetime_timezone() {
+        let var = time::OffsetDateTime::new_in_offset(
+            time::Date::from_calendar_date(2025, Month::August, 16).unwrap(),
+            time::Time::from_hms(00, 35, 12).unwrap(),
+            time::UtcOffset::from_hms(2, 0, 0).unwrap(),
+        );
+        let val: Value = var.into();
+        assert_eq!(val, Value::TimestampWithTimezone(Some(var)));
+        assert_ne!(val, Value::Date(Some(var.date())));
+
+        assert_ne!(
+            val,
+            Value::TimestampWithTimezone(
+                time::OffsetDateTime::new_in_offset(
+                    time::Date::from_calendar_date(2025, Month::August, 16).unwrap(),
+                    time::Time::from_hms(00, 35, 12).unwrap(),
+                    time::UtcOffset::from_hms(1, 0, 0).unwrap(),
+                )
+                .into()
+            )
+        );
+        let var: time::OffsetDateTime = AsValue::try_from_value(val).unwrap();
+        let val = var.as_value();
+        let var: time::OffsetDateTime = AsValue::try_from_value(val).unwrap();
+        assert_eq!(
+            var,
+            time::OffsetDateTime::new_in_offset(
+                time::Date::from_calendar_date(2025, Month::August, 16).unwrap(),
+                time::Time::from_hms(00, 35, 12).unwrap(),
+                time::UtcOffset::from_hms(2, 0, 0).unwrap(),
+            )
+        );
+        let val: time::OffsetDateTime =
+            AsValue::try_from_value(Value::Varchar(Some("2025-08-16T00:35:12.123+01:00".into())))
+                .unwrap();
+        assert_eq!(
+            val,
+            time::OffsetDateTime::new_in_offset(
+                time::Date::from_calendar_date(2025, Month::August, 16).unwrap(),
+                time::Time::from_hms_milli(0, 35, 12, 123).unwrap(),
+                time::UtcOffset::from_hms(1, 0, 0).unwrap(),
+            )
+        );
+        let val: time::OffsetDateTime =
+            AsValue::try_from_value(Value::Varchar(Some("2025-08-16T00:35:12.123+01".into())))
+                .unwrap();
+        assert_eq!(
+            val,
+            time::OffsetDateTime::new_in_offset(
+                time::Date::from_calendar_date(2025, Month::August, 16).unwrap(),
+                time::Time::from_hms_milli(0, 35, 12, 123).unwrap(),
+                time::UtcOffset::from_hms(1, 0, 0).unwrap(),
+            )
+        );
+        let val: time::OffsetDateTime =
+            AsValue::try_from_value(Value::Varchar(Some("2025-08-16T00:35:12+01:00".into())))
+                .unwrap();
+        assert_eq!(
+            val,
+            time::OffsetDateTime::new_in_offset(
+                time::Date::from_calendar_date(2025, Month::August, 16).unwrap(),
+                time::Time::from_hms(0, 35, 12).unwrap(),
+                time::UtcOffset::from_hms(1, 0, 0).unwrap(),
+            )
+        );
+        let val: time::OffsetDateTime =
+            AsValue::try_from_value(Value::Varchar(Some("2025-08-16T00:35:12+01".into()))).unwrap();
+        assert_eq!(
+            val,
+            time::OffsetDateTime::new_in_offset(
+                time::Date::from_calendar_date(2025, Month::August, 16).unwrap(),
+                time::Time::from_hms(0, 35, 12).unwrap(),
+                time::UtcOffset::from_hms(1, 0, 0).unwrap(),
+            )
+        );
+        let val: time::OffsetDateTime =
+            AsValue::try_from_value(Value::Varchar(Some("2025-08-16T00:35+01:00".into()))).unwrap();
+        assert_eq!(
+            val,
+            time::OffsetDateTime::new_in_offset(
+                time::Date::from_calendar_date(2025, Month::August, 16).unwrap(),
+                time::Time::from_hms(0, 35, 0).unwrap(),
+                time::UtcOffset::from_hms(1, 0, 0).unwrap(),
+            )
+        );
+        let val: time::OffsetDateTime =
+            AsValue::try_from_value(Value::Varchar(Some("2025-08-16T00:35+01".into()))).unwrap();
+        assert_eq!(
+            val,
+            time::OffsetDateTime::new_in_offset(
+                time::Date::from_calendar_date(2025, Month::August, 16).unwrap(),
+                time::Time::from_hms(0, 35, 0).unwrap(),
+                time::UtcOffset::from_hms(1, 0, 0).unwrap(),
             )
         );
     }

@@ -4,10 +4,11 @@ use rust_decimal::{Decimal, prelude::FromPrimitive};
 use std::{
     array,
     borrow::Cow,
+    cell::{Cell, RefCell},
     collections::{BTreeMap, HashMap, LinkedList, VecDeque},
     hash::Hash,
     rc::Rc,
-    sync::Arc,
+    sync::{Arc, RwLock},
 };
 use time::macros::format_description;
 
@@ -17,6 +18,18 @@ pub trait AsValue {
     fn try_from_value(value: Value) -> Result<Self>
     where
         Self: Sized;
+}
+
+impl<T: AsValue> From<T> for Value {
+    fn from(value: T) -> Self {
+        value.as_value()
+    }
+}
+
+impl From<&'static str> for Value {
+    fn from(value: &'static str) -> Self {
+        Value::Varchar(Some(value.into()))
+    }
 }
 
 macro_rules! impl_as_value {
@@ -449,6 +462,7 @@ impl<T: AsValue> AsValue for Option<T> {
     }
 }
 
+// TODO: USe the macro below once box_into_inner is stabilized
 impl<T: AsValue> AsValue for Box<T> {
     fn as_empty_value() -> Value {
         T::as_empty_value()
@@ -468,7 +482,41 @@ macro_rules! impl_as_value {
                 T::as_empty_value()
             }
             fn as_value(self) -> Value {
-                (*self).to_owned().as_value()
+                $wrapper::<T>::into_inner(self).as_value()
+            }
+            fn try_from_value(value: Value) -> Result<Self> {
+                Ok($wrapper::new(<T as AsValue>::try_from_value(value)?))
+            }
+        }
+    };
+}
+impl_as_value!(RefCell);
+impl_as_value!(Cell);
+
+impl<T: AsValue> AsValue for RwLock<T> {
+    fn as_empty_value() -> Value {
+        T::as_empty_value()
+    }
+    fn as_value(self) -> Value {
+        self.into_inner()
+            .expect("Error occurred while trying to take the content of the RwLock")
+            .as_value()
+    }
+    fn try_from_value(value: Value) -> Result<Self> {
+        Ok(RwLock::new(<T as AsValue>::try_from_value(value)?))
+    }
+}
+
+macro_rules! impl_as_value {
+    ($wrapper:ident) => {
+        impl<T: AsValue + ToOwned<Owned = impl AsValue>> AsValue for $wrapper<T> {
+            fn as_empty_value() -> Value {
+                T::as_empty_value()
+            }
+            fn as_value(self) -> Value {
+                $wrapper::try_unwrap(self)
+                    .map(|v| v.as_value())
+                    .unwrap_or_else(|v| v.as_ref().to_owned().as_value())
             }
             fn try_from_value(value: Value) -> Result<Self> {
                 Ok($wrapper::new(<T as AsValue>::try_from_value(value)?))
@@ -478,15 +526,3 @@ macro_rules! impl_as_value {
 }
 impl_as_value!(Arc);
 impl_as_value!(Rc);
-
-impl<T: AsValue> From<T> for Value {
-    fn from(value: T) -> Self {
-        value.as_value()
-    }
-}
-
-impl From<&'static str> for Value {
-    fn from(value: &'static str) -> Self {
-        Value::Varchar(Some(value.into()))
-    }
-}

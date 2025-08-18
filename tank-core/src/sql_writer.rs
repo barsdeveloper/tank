@@ -3,7 +3,7 @@ use crate::{
     Interval, Join, JoinType, Operand, PrimaryKeyType, TableRef, UnaryOp, UnaryOpType, Value,
     possibly_parenthesized, separated_by,
 };
-use std::fmt::Write;
+use std::{collections::HashMap, fmt::Write};
 
 macro_rules! write_integer {
     ($out:ident, $value:expr) => {{
@@ -177,13 +177,7 @@ pub trait SqlWriter {
                 out.push('\'');
             }
             Value::Varchar(Some(v), ..) => self.write_value_string(out, v),
-            Value::Blob(Some(v), ..) => {
-                out.push('\'');
-                for b in v.iter() {
-                    let _ = write!(out, "\\x{:X}", b);
-                }
-                out.push('\'');
-            }
+            Value::Blob(Some(v), ..) => self.write_value_blob(out, v.as_ref()),
             Value::Date(Some(v), ..) => {
                 out.push('\'');
                 let _ = write!(out, "{}", v);
@@ -223,21 +217,8 @@ pub trait SqlWriter {
                 );
                 out.push(']');
             }
-            Value::Map(Some(v), ..) => {
-                out.push('{');
-                separated_by(
-                    out,
-                    v.iter(),
-                    |out, (k, v)| {
-                        self.write_value(out, k);
-                        out.push(':');
-                        self.write_value(out, v);
-                    },
-                    ",",
-                );
-                out.push('}');
-            }
-            Value::Struct(Some(v), ..) => {
+            Value::Map(Some(v), ..) => self.write_value_map(out, v),
+            Value::Struct(Some(_v), ..) => {
                 todo!()
             }
         };
@@ -262,6 +243,14 @@ pub trait SqlWriter {
             }
         }
         out.push_str(&value[position..]);
+        out.push('\'');
+    }
+
+    fn write_value_blob(&self, out: &mut String, value: &[u8]) {
+        out.push('\'');
+        for b in value.iter() {
+            let _ = write!(out, "\\x{:X}", b);
+        }
         out.push('\'');
     }
 
@@ -316,6 +305,21 @@ pub trait SqlWriter {
             out.insert(quote_position, '\'');
             out.push('\'');
         }
+    }
+
+    fn write_value_map(&self, out: &mut String, value: &HashMap<Value, Value>) {
+        out.push('{');
+        separated_by(
+            out,
+            value.iter(),
+            |out, (k, v)| {
+                self.write_value(out, k);
+                out.push(':');
+                self.write_value(out, v);
+            },
+            ",",
+        );
+        out.push('}');
     }
 
     fn expression_unary_op_precedence<'a>(&self, value: &UnaryOpType) -> i32 {

@@ -32,7 +32,7 @@ impl<T: AsValue + PartialEq> PartialEq for Passive<T> {
     }
 }
 
-impl<T: AsValue> Clone for Passive<T>
+impl<T: AsValue + Clone> Clone for Passive<T>
 where
     T: Clone,
 {

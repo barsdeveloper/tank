@@ -1,12 +1,11 @@
-use futures::{FutureExt, StreamExt, TryFutureExt};
-
 use crate::{
     ColumnDef, Driver, Error, Executor, Expression, Result, Row, RowLabeled, RowsAffected,
     SqlWriter, TableRef, Value, stream::Stream,
 };
+use futures::{FutureExt, StreamExt, TryFutureExt};
 use std::{future::Future, pin::pin};
 
-pub trait Entity: Send {
+pub trait Entity {
     type PrimaryKey<'a>;
 
     fn table_ref() -> &'static TableRef;

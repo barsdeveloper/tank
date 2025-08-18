@@ -1,5 +1,5 @@
-use std::fmt::Write;
-use tank_core::{GenericSqlWriter, Interval, SqlWriter, Value};
+use std::{collections::HashMap, fmt::Write};
+use tank_core::{Interval, SqlWriter, Value, separated_by};
 
 #[derive(Default)]
 pub struct DuckDBSqlWriter {}
@@ -15,6 +15,14 @@ impl SqlWriter for DuckDBSqlWriter {
         self
     }
 
+    fn write_value_blob(&self, out: &mut String, value: &[u8]) {
+        out.push('\'');
+        for b in value.iter() {
+            let _ = write!(out, "\\x{:X}", b);
+        }
+        out.push('\'');
+    }
+
     fn value_interval_units(&self) -> &[(&str, i128)] {
         static UNITS: &[(&str, i128)] = &[
             ("DAY", Interval::NANOS_IN_DAY),
@@ -26,23 +34,18 @@ impl SqlWriter for DuckDBSqlWriter {
         UNITS
     }
 
-    fn write_value(&self, out: &mut String, value: &Value) {
-        let generic_writer = GenericSqlWriter::new();
-        let _ = match value {
-            Value::Blob(Some(v), ..) => {
-                out.push('\'');
-                for b in v.iter() {
-                    let _ = write!(out, "\\x{:X}", b);
-                }
-                out.push('\'');
-            }
-            Value::Map(Some(_v), ..) => {
-                out.push_str("MAP");
-                generic_writer.write_value(out, value);
-            }
-            _ => {
-                generic_writer.write_value(out, value);
-            }
-        };
+    fn write_value_map(&self, out: &mut String, value: &HashMap<Value, Value>) {
+        out.push_str("MAP{");
+        separated_by(
+            out,
+            value.iter(),
+            |out, (k, v)| {
+                self.write_value(out, k);
+                out.push(':');
+                self.write_value(out, v);
+            },
+            ",",
+        );
+        out.push('}');
     }
 }
