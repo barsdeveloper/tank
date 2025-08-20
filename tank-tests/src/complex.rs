@@ -7,6 +7,11 @@ use tank::{Connection, Entity};
 use tokio::sync::Mutex;
 
 pub async fn complex<C: Connection>(connection: &mut C) {
+    #[derive(Default)]
+    struct TankUnsupported {
+        _field: i32,
+    }
+
     #[derive(Entity)]
     struct ComplexNullFields {
         first: Option<[Option<f64>; 8]>,
@@ -14,6 +19,21 @@ pub async fn complex<C: Connection>(connection: &mut C) {
         third: Option<Box<[u8]>>,
         fourth: Option<Box<BTreeMap<String, Option<[Option<i128>; 3]>>>>,
         fifth: LinkedList<Option<VecDeque<Option<BTreeMap<i32, Option<i32>>>>>>,
+        #[tank(ignore)]
+        _sixth: TankUnsupported,
+    }
+
+    impl Default for ComplexNullFields {
+        fn default() -> Self {
+            Self {
+                first: None,
+                second: None,
+                third: None,
+                fourth: None,
+                fifth: Default::default(),
+                _sixth: TankUnsupported { _field: 777 },
+            }
+        }
     }
 
     static MUTEX: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
@@ -58,6 +78,7 @@ pub async fn complex<C: Connection>(connection: &mut C) {
             ("ee".into(), Some([None, 777.into(), None])),
         ]))),
         fifth: LinkedList::from_iter([]),
+        _sixth: Default::default(),
     };
     entity
         .save(connection)
@@ -139,6 +160,7 @@ pub async fn complex<C: Connection>(connection: &mut C) {
             ),
             None,
         ]),
+        _sixth: Default::default(),
     };
     entity
         .save(connection)
@@ -153,4 +175,5 @@ pub async fn complex<C: Connection>(connection: &mut C) {
     assert_eq!(loaded.third, None);
     assert_eq!(loaded.fourth, None);
     assert_eq!(loaded.fifth, entity.fifth);
+    assert_eq!(loaded._sixth._field, 777);
 }
