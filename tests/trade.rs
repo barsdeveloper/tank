@@ -74,7 +74,12 @@ mod tests {
             }
         );
 
-        assert_eq!(Trade::primary_key_def().len(), 2);
+        assert_eq!(
+            Trade::primary_key_def()
+                .map(|c| c.column_ref.name)
+                .collect::<Vec<_>>(),
+            ["trade_id", "execution_time"]
+        );
         let columns = Trade::columns();
         assert_eq!(columns.len(), 13);
         assert_eq!(columns[0].column_ref.name, "trade_id");

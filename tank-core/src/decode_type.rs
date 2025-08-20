@@ -63,7 +63,8 @@ pub fn decode_type(ty: &Type) -> (TypeDecoded, Option<CheckPassive>) {
                 let is_option = matches_path(path, &["std", "option", "Option"]);
                 let is_cow = matches_path(path, &["std", "borrow", "Cow"]);
                 let is_list = matches_path(path, &["std", "vec", "Vec"])
-                    || matches_path(path, &["std", "collections", "VecDeque"]);
+                    || matches_path(path, &["std", "collections", "VecDeque"])
+                    || matches_path(path, &["std", "collections", "LinkedList"]);
                 let is_map = matches_path(path, &["std", "collections", "HashMap"])
                     || matches_path(path, &["std", "collections", "BTreeMap"]);
                 let is_wrapper = is_option

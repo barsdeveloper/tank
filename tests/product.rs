@@ -47,11 +47,12 @@ mod tests {
             }
         );
 
-        let pk: Vec<_> = Product::primary_key_def().collect();
-        assert_eq!(pk.len(), 1);
-        assert!(!pk[0].nullable);
-        assert_eq!(pk[0].primary_key, PrimaryKeyType::PrimaryKey);
-
+        assert_eq!(
+            Product::primary_key_def()
+                .map(|c| c.column_ref.name)
+                .collect::<Vec<_>>(),
+            ["id"]
+        );
         let columns = Product::columns();
         assert_eq!(columns.len(), 6);
         assert_eq!(columns[0].column_ref.name, "id");

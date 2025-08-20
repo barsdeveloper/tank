@@ -1,4 +1,4 @@
-use crate::{TableMetadata, decode_column, encode_column_ref::encode_column_ref};
+use crate::{TableMetadata, encode_column_ref::encode_column_ref};
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{Ident, spanned::Spanned};
@@ -7,17 +7,12 @@ pub(crate) fn column_trait(table: &TableMetadata) -> TokenStream {
     let struct_name = &table.item.ident;
     let trait_name = Ident::new(&format!("{}ColumnTrait", struct_name), table.item.span());
     let columns: Vec<_> = table
-        .item
-        .fields
+        .columns
         .iter()
-        .map(|field| {
+        .map(|column| {
             (
-                field.ident.as_ref().expect("The field must have a name"),
-                encode_column_ref(
-                    &decode_column(field),
-                    table.name.to_string(),
-                    table.schema.to_string(),
-                ),
+                column.ident.clone(),
+                encode_column_ref(column, table.name.to_string(), table.schema.to_string()),
             )
         })
         .collect();

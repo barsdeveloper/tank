@@ -1,32 +1,29 @@
-use crate::decode_column;
+use crate::TableMetadata;
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{Ident, ItemStruct, Type, spanned::Spanned};
+use syn::{Ident, Type, spanned::Spanned};
 
-pub(crate) fn from_row_trait(item: &ItemStruct) -> (Ident, TokenStream) {
+pub(crate) fn from_row_trait(table: &TableMetadata) -> (Ident, TokenStream) {
+    let item = &table.item;
     let struct_name = &item.ident;
     let trait_name = Ident::new(&format!("{}FromRowTrait", item.ident), item.span());
     let factory_name = Ident::new(&format!("{}FromRowFactory", item.ident), item.span());
-    let fields = item.fields.iter().map(|f| {
-        (
-            f.ident.clone().expect("Field identifier is expected"),
-            f.ty.clone(),
-            decode_column(f),
-        )
-    });
-    let fields_holder_declarations = fields.clone().map(|(ident, ty, _)| {
+    let fields_holder_declarations = table.columns.iter().map(|c| {
+        let ident = &c.ident;
+        let ty = &c.ty;
         quote! {
             let mut #ident: Option<#ty> = None;
         }
     });
     type AssignmentFn = dyn Fn(&Ident, &Type) -> TokenStream;
     type ProducerFn = Box<dyn Fn(&AssignmentFn) -> TokenStream>;
-    let field_assignment = fields
-        .clone()
-        .map(|(ident, ty, col)| {
+    let field_assignment = table
+        .columns
+        .iter()
+        .map(|c| (c.ident.clone(), c.name.to_string(), c.ty.clone()))
+        .map(|(ident, name, ty)| {
             Box::new(move |assign: &AssignmentFn| {
                 let assign = assign(&ident, &ty);
-                let name = col.name.to_string();
                 quote! {
                     if __n__ == #name {
                         #assign;
@@ -42,15 +39,31 @@ pub(crate) fn from_row_trait(item: &ItemStruct) -> (Ident, TokenStream) {
             }) as ProducerFn
         })
         .unwrap_or(Box::new(|_| TokenStream::new()));
-    let create_result = fields.clone().map(|(ident, _ty, col)| {
-        let column = &col.name;
+    let create_result = table.columns.iter().map(|c| {
+        let column = &c.name;
+        let ident = &c.ident;
         quote! {
             #ident: #ident.ok_or(__make_error__(#column))?
         }
     });
+    let remaining = item
+        .fields
+        .iter()
+        .filter(|field| {
+            table
+                .columns
+                .iter()
+                .find(|c| c.ident == *field.ident.as_ref().unwrap())
+                .is_none()
+        })
+        .map(|field| {
+            let ident = field.ident.as_ref().unwrap();
+            quote!(#ident: Default::default())
+        });
     let create_result = quote! {
         #struct_name {
-            #(#create_result),*
+            #(#create_result,)*
+            #(#remaining,)*
         }
     };
     let field_assignment_default = field_assignment(

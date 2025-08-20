@@ -7,14 +7,13 @@ use proc_macro2::Span;
 use quote::ToTokens;
 use syn::spanned::Spanned;
 use syn::{Error, Expr, ExprLit, ExprPath, ItemStruct, Lit, LitStr, Result, parse::ParseBuffer};
-use tank_core::matches_path;
+use tank_core::{PrimaryKeyType, matches_path};
 
 pub(crate) struct TableMetadata {
     pub(crate) columns: Vec<ColumnMetadata>,
     pub(crate) name: String,
     pub(crate) item: ItemStruct,
     pub(crate) schema: String,
-    pub(crate) primary_key: Vec<usize>,
     pub(crate) unique: Vec<Vec<usize>>,
 }
 
@@ -71,7 +70,12 @@ fn decode_set_columns<'a, I: Iterator<Item = &'a ColumnMetadata> + Clone>(
 }
 
 pub fn decode_table(item: ItemStruct) -> TableMetadata {
-    let columns: Vec<_> = item.fields.iter().map(|f| decode_column(f)).collect();
+    let mut columns: Vec<_> = item
+        .fields
+        .iter()
+        .map(|f| decode_column(f))
+        .filter(|c| !c.ignored)
+        .collect();
     let mut name = item.ident.to_string().to_case(Case::Snake);
     let mut schema = String::new();
     let mut primary_key = vec![];
@@ -110,6 +114,12 @@ pub fn decode_table(item: ItemStruct) -> TableMetadata {
                     if !primary_key.is_empty() {
                         panic!("Primary key attribute can appear just once on a table");
                     }
+                    if let Some(column) = columns.iter().find(|c| c.primary_key != PrimaryKeyType::None) {
+                        panic!(
+                            "Column `{}` cannot be declared as a primary key while the table also specifies one",
+                            column.name
+                        )
+                    }
                     primary_key = value
                 } else if arg.path.is_ident("unique") {
                     let Ok(value) = arg
@@ -126,12 +136,21 @@ pub fn decode_table(item: ItemStruct) -> TableMetadata {
             });
         }
     }
+    if !primary_key.is_empty() {
+        let pk_type = if primary_key.len() == 1 {
+            PrimaryKeyType::PrimaryKey
+        } else {
+            PrimaryKeyType::PartOfPrimaryKey
+        };
+        for pk in primary_key.iter() {
+            columns[*pk].primary_key = pk_type;
+        }
+    }
     TableMetadata {
         columns,
         name,
         item,
         schema,
-        primary_key,
         unique,
     }
 }

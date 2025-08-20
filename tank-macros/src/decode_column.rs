@@ -10,6 +10,7 @@ use tank_core::{CheckPassive, PrimaryKeyType, TypeDecoded, Value, decode_type};
 
 pub(crate) struct ColumnMetadata {
     pub(crate) ident: Ident,
+    pub(crate) ignored: bool,
     pub(crate) ty: Type,
     pub(crate) name: String,
     pub(crate) column_type: String,
@@ -45,20 +46,6 @@ impl Debug for ColumnMetadata {
 }
 
 pub fn decode_column(field: &Field) -> ColumnMetadata {
-    let (
-        TypeDecoded {
-            value,
-            nullable,
-            passive,
-        },
-        check_passive,
-    ) = if let Type::Path(..) = &field.ty {
-        decode_type(&field.ty)
-    } else if let Type::Array(..) = &field.ty {
-        decode_type(&field.ty)
-    } else {
-        Default::default()
-    };
     let ident = field
         .ident
         .clone()
@@ -66,17 +53,18 @@ pub fn decode_column(field: &Field) -> ColumnMetadata {
     let name = ident.to_string();
     let mut metadata = ColumnMetadata {
         ident,
+        ignored: false,
         ty: field.ty.clone(),
         name,
         column_type: "".into(),
-        value,
-        nullable,
+        value: Value::Null,
+        nullable: false,
         default: None,
         primary_key: PrimaryKeyType::None,
         references: None,
         unique: false,
-        passive,
-        check_passive,
+        passive: false,
+        check_passive: None,
         comment: String::new(),
     };
     if metadata.name.starts_with('_') {
@@ -89,7 +77,9 @@ pub fn decode_column(field: &Field) -> ColumnMetadata {
                 panic!("Error while parsing `tank`, use it like: `#[tank(attribute = value, ..)]`",);
             };
             let _ = list.parse_nested_meta(|arg| {
-                if arg.path.is_ident("default") {
+                if arg.path.is_ident("ignore") {
+                    metadata.ignored = true;
+                } else if arg.path.is_ident("default") {
                     let Ok(v) = arg.value().and_then(ParseBuffer::parse::<TokenTree>)
                     else {
                         panic!("Error while parsing `default`, use it like: `#[tank(default = some_expression)]`");
@@ -184,6 +174,26 @@ pub fn decode_column(field: &Field) -> ColumnMetadata {
             }
             metadata.comment.push_str(v.value().trim());
         }
+    }
+    if !metadata.ignored {
+        let (
+            TypeDecoded {
+                value,
+                nullable,
+                passive,
+            },
+            check_passive,
+        ) = if let Type::Path(..) = &field.ty {
+            decode_type(&field.ty)
+        } else if let Type::Array(..) = &field.ty {
+            decode_type(&field.ty)
+        } else {
+            Default::default()
+        };
+        metadata.value = value;
+        metadata.nullable = nullable;
+        metadata.passive = passive;
+        metadata.check_passive = check_passive;
     }
     metadata
 }

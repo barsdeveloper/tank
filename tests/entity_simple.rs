@@ -2,7 +2,7 @@
 #[cfg(test)]
 mod tests {
     use indoc::indoc;
-    use std::{assert_matches::assert_matches, borrow::Cow};
+    use std::{assert_matches::assert_matches, borrow::Cow, sync::Mutex};
     use tank::{Entity, GenericSqlWriter, PrimaryKeyType, SqlWriter, TableRef, Value, expr};
 
     #[derive(Entity)]
@@ -12,6 +12,8 @@ mod tests {
         b: Option<String>,
         #[tank(unique)]
         c: Box<u16>,
+        #[tank(ignore)]
+        _d: Mutex<i32>,
     }
 
     impl SomeSimpleEntity {
@@ -20,6 +22,7 @@ mod tests {
                 a: 40,
                 b: Some("hello".into()),
                 c: Box::new(777),
+                _d: Mutex::new(123),
             }
         }
     }

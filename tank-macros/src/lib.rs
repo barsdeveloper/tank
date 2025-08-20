@@ -33,32 +33,12 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
     let ident = &table.item.ident;
     let name = &table.name;
     let schema = &table.schema;
-    let fields = table.item.fields.iter();
-    let metadata_and_filter  =  fields
-        .clone()
-        .enumerate()
-        .map(|(i, f)| {
-            let mut metadata = decode_column(&f);
-            if metadata.primary_key == PrimaryKeyType::PrimaryKey && !table.primary_key.is_empty() {
-                panic!(
-                    "Column `{}` cannot be declared as a primary key while the table also specifies one",
-                    metadata.name
-                )
-            }
-            if table
-                .primary_key
-                .iter()
-                .find(|pk| **pk == i)
-                .is_some()
-            {
-                metadata.primary_key = if table.primary_key.len() == 1 {
-                    PrimaryKeyType::PrimaryKey
-                } else {
-                    PrimaryKeyType::PartOfPrimaryKey
-                };
-            }
+    let metadata_and_filter = table
+        .columns
+        .iter()
+        .map(|metadata| {
             let filter_passive = if let Some(ref filter_passive) = metadata.check_passive {
-                let field = &f.ident;
+                let field = &metadata.ident;
                 filter_passive(quote!(self.#field))
             } else {
                 quote!(true)
@@ -66,7 +46,7 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
             (metadata, filter_passive)
         })
         .collect::<Vec<_>>();
-    let (from_row_factory, from_row) = from_row_trait(&table.item);
+    let (from_row_factory, from_row) = from_row_trait(&table);
     let primary_keys: Vec<_> = metadata_and_filter
         .iter()
         .enumerate()

@@ -65,7 +65,12 @@ mod tests {
             }
         );
 
-        assert_eq!(Employee::primary_key_def().len(), 1);
+        assert_eq!(
+            Employee::primary_key_def()
+                .map(|c| c.column_ref.name)
+                .collect::<Vec<_>>(),
+            ["id"]
+        );
         let columns = Employee::columns();
         assert_eq!(columns.len(), 9);
         assert_eq!(columns[0].column_ref.name, "id");

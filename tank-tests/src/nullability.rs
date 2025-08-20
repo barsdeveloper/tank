@@ -1,4 +1,9 @@
-use std::{borrow::Cow, collections::BTreeMap, sync::LazyLock, time::Duration};
+use std::{
+    borrow::Cow,
+    collections::{BTreeMap, LinkedList, VecDeque},
+    sync::LazyLock,
+    time::Duration,
+};
 use tank::{Connection, Entity};
 use time::Time;
 use tokio::sync::Mutex;
@@ -109,6 +114,7 @@ pub async fn complex_null_fields<C: Connection>(connection: &mut C) {
         second: Option<Vec<Option<Duration>>>,
         third: Option<Box<[u8]>>,
         fourth: Option<Box<BTreeMap<String, Option<[Option<i128>; 3]>>>>,
+        fifth: LinkedList<Option<VecDeque<Option<BTreeMap<i32, Option<i32>>>>>>,
     }
 
     static MUTEX: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
@@ -152,6 +158,7 @@ pub async fn complex_null_fields<C: Connection>(connection: &mut C) {
             ("dd".into(), Some([None, None, None])),
             ("ee".into(), Some([None, 777.into(), None])),
         ]))),
+        fifth: LinkedList::from_iter([]),
     };
     entity
         .save(connection)
@@ -192,6 +199,7 @@ pub async fn complex_null_fields<C: Connection>(connection: &mut C) {
             ("ee".into(), Some([None, 777.into(), None])),
         ])
     );
+    assert_eq!(entity.fifth.len(), 0);
 
     // Complex 2
     ComplexNullFields::delete_many(connection, &true)
@@ -211,29 +219,39 @@ pub async fn complex_null_fields<C: Connection>(connection: &mut C) {
         second: None,
         third: None,
         fourth: None,
+        fifth: LinkedList::from_iter([
+            None,
+            None,
+            None,
+            None,
+            None,
+            Some(
+                vec![
+                    Some(BTreeMap::from_iter([
+                        (1, Some(11)),
+                        (2, Some(22)),
+                        (3, None),
+                        (4, None),
+                        (5, Some(55)),
+                    ])),
+                    None,
+                ]
+                .into(),
+            ),
+            None,
+        ]),
     };
     entity
         .save(connection)
         .await
         .expect("Failed to save complex 2");
-    let entity = ComplexNullFields::find_one(connection, &true)
+    let loaded = ComplexNullFields::find_one(connection, &true)
         .await
         .expect("Failed to query complex 2")
         .expect("Failed to find complex 2");
-    assert_eq!(
-        entity.first,
-        Some([
-            Some(0.5),
-            None,
-            Some(-99.5),
-            Some(100.0),
-            Some(0.0),
-            Some(f64::NEG_INFINITY),
-            None,
-            Some(777.777)
-        ])
-    );
-    assert_eq!(entity.second, None);
-    assert_eq!(entity.third, None);
-    assert_eq!(entity.fourth, None);
+    assert_eq!(loaded.first, entity.first);
+    assert_eq!(loaded.second, None);
+    assert_eq!(loaded.third, None);
+    assert_eq!(loaded.fourth, None);
+    assert_eq!(loaded.fifth, entity.fifth);
 }
