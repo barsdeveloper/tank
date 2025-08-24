@@ -8,7 +8,7 @@ use std::{
 };
 
 pub trait Prepared: Default + Clone + Send + Sync {
-    // fn bind<V: AsValue>(&mut self, v: V) -> Result<Self>;
+    fn bind<V: AsValue>(&mut self, v: V) -> Result<&mut Self>;
     // fn run<'e, Exec: Executor<Driver = impl Driver<Prepared = Self>>>(
     //     &mut self,
     //     executor: &'e mut Exec,
