@@ -1,15 +1,59 @@
-use crate::Value;
+use crate::{AsValue, Driver, Executor, Result, Value, stream::Stream};
+use futures::{FutureExt, StreamExt};
 use std::{
     fmt::{self, Display},
+    mem,
+    pin::pin,
     sync::Arc,
 };
 
-pub trait Prepared: Clone + Send + Sync {}
+pub trait Prepared: Default + Clone + Send + Sync {
+    // fn bind<V: AsValue>(&mut self, v: V) -> Result<Self>;
+    // fn run<'e, Exec: Executor<Driver = impl Driver<Prepared = Self>>>(
+    //     &mut self,
+    //     executor: &'e mut Exec,
+    // ) -> impl Stream<Item = Result<QueryResult>> + Send + 'e
+    // where
+    //     Self: 'e + AsMut<Query<<Exec::Driver as Driver>::Prepared>>,
+    // {
+    //     let mut query = Query::Prepared(mem::take(self));
+    //     let stream = executor.run(query.as_mut());
+    //     let Query::Prepared(query) = query else {
+    //         unreachable!("It must be a prepared query as it was initially");
+    //     };
+    //     *self = query;
+    //     stream
+    // }
+    // fn fetch_one<Exec: Executor>(
+    //     &mut self,
+    //     executor: &mut Exec,
+    // ) -> impl Future<Output = Result<Option<RowLabeled>>> + Send {
+    //     let stream = executor.fetch(self);
+    //     async move { pin!(stream).into_future().map(|(v, _)| v).await.transpose() }
+    // }
+    // fn fetch_many<Exec: Executor>(
+    //     &mut self,
+    //     executor: &mut Exec,
+    // ) -> impl Stream<Item = Result<RowLabeled>> + Send {
+    //     executor.fetch(self)
+    // }
+}
 
-#[derive(Clone)]
 pub enum Query<P: Prepared> {
     Raw(Arc<str>),
     Prepared(P),
+}
+
+impl<P: Prepared> Default for Query<P> {
+    fn default() -> Self {
+        Query::Raw("".into())
+    }
+}
+
+impl<P: Prepared> AsMut<Query<P>> for Query<P> {
+    fn as_mut(&mut self) -> &mut Query<P> {
+        self
+    }
 }
 
 impl<P: Prepared> From<&str> for Query<P> {

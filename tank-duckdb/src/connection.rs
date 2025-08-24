@@ -1,4 +1,7 @@
-use crate::{DuckDBPrepared, cbox::CBox, driver::DuckDBDriver, extract_value::extract_value};
+use crate::{
+    DuckDBPrepared, DuckDBPreparedPtr, cbox::CBox, driver::DuckDBDriver,
+    extract_value::extract_value,
+};
 use flume::Sender;
 use libduckdb_sys::*;
 use std::{
@@ -12,8 +15,8 @@ use std::{
     },
 };
 use tank_core::{
-    Connection, Context, Error, Executor, Query, QueryResult, Result, RowLabeled, RowsAffected,
-    add_error_context, stream::Stream,
+    Connection, Context, Driver, Error, Executor, Query, QueryResult, Result, RowLabeled,
+    RowsAffected, add_error_context, stream::Stream,
 };
 use tokio::{sync::RwLock, task::spawn_blocking};
 use urlencoding::decode;
@@ -92,9 +95,9 @@ impl DuckDBConnection {
         );
     }
 
-    pub(crate) fn run_prepared(query: DuckDBPrepared, tx: Sender<Result<QueryResult>>) {
+    pub(crate) fn run_prepared(query: DuckDBPreparedPtr, tx: Sender<Result<QueryResult>>) {
         Self::run(
-            |result| unsafe { duckdb_execute_prepared_streaming(**query.prepared, result) },
+            |result| unsafe { duckdb_execute_prepared_streaming(query.0, result) },
             tx,
         );
     }
@@ -214,16 +217,25 @@ impl Executor for DuckDBConnection {
         Ok(prepared.into())
     }
 
-    fn run(&mut self, query: Query<DuckDBPrepared>) -> impl Stream<Item = Result<QueryResult>> {
+    fn run<Q>(&mut self, mut query: Q) -> impl Stream<Item = Result<QueryResult>>
+    where
+        Q: AsMut<Query<DuckDBPrepared>> + Send,
+    {
         let (tx, rx) = flume::unbounded::<Result<QueryResult>>();
         let connection = AtomicPtr::new(*self.connection);
-        let stream = add_error_context(rx.into_stream(), &query);
-        spawn_blocking(move || match query {
+        let stream = add_error_context(rx.into_stream(), query.as_mut());
+        match query.as_mut() {
             Query::Raw(query) => {
-                Self::run_unprepared(connection.load(Ordering::Relaxed), &query, tx)
+                let query = query.clone();
+                spawn_blocking(move || {
+                    Self::run_unprepared(connection.load(Ordering::Relaxed), &query, tx)
+                })
             }
-            Query::Prepared(query) => Self::run_prepared(query, tx),
-        });
+            Query::Prepared(query) => {
+                let query = (**query.prepared).into();
+                spawn_blocking(move || Self::run_prepared(query, tx))
+            }
+        };
         stream
     }
 }

@@ -1,5 +1,5 @@
 use crate::{
-    ColumnDef, Driver, Error, Executor, Expression, Result, Row, RowLabeled, RowsAffected,
+    ColumnDef, Driver, Error, Executor, Expression, Query, Result, Row, RowLabeled, RowsAffected,
     SqlWriter, TableRef, Value, stream::Stream,
 };
 use futures::{FutureExt, StreamExt, TryFutureExt};
@@ -96,7 +96,7 @@ pub trait Entity {
             .driver()
             .sql_writer()
             .write_insert(&mut query, [self].into_iter(), true);
-        executor.execute(query.into()).map_ok(|_| ())
+        executor.execute(Query::Raw(query.into())).map_ok(|_| ())
     }
     fn delete<Exec: Executor>(&self, executor: &mut Exec) -> impl Future<Output = Result<()>> + Send
     where

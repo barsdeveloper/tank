@@ -14,16 +14,15 @@ pub trait Executor: Send + Sized {
         query: String,
     ) -> impl Future<Output = Result<Query<<Self::Driver as Driver>::Prepared>>> + Send;
 
-    fn run(
-        &mut self,
-        query: Query<<Self::Driver as Driver>::Prepared>,
-    ) -> impl Stream<Item = Result<QueryResult>> + Send;
+    fn run<Q>(&mut self, query: Q) -> impl Stream<Item = Result<QueryResult>> + Send
+    where
+        Q: AsMut<Query<<Self::Driver as Driver>::Prepared>> + Send;
 
     /// Execute the query and returns the rows.
-    fn fetch(
-        &mut self,
-        query: Query<<Self::Driver as Driver>::Prepared>,
-    ) -> impl Stream<Item = Result<RowLabeled>> + Send {
+    fn fetch<Q>(&mut self, query: Q) -> impl Stream<Item = Result<RowLabeled>> + Send
+    where
+        Q: AsMut<Query<<Self::Driver as Driver>::Prepared>> + Send,
+    {
         self.run(query).filter_map(|v| async move {
             match v {
                 Ok(QueryResult::RowLabeled(v)) => Some(Ok(v)),
@@ -34,10 +33,10 @@ pub trait Executor: Send + Sized {
     }
 
     /// Execute the query and return the total number of rows affected.
-    fn execute(
-        &mut self,
-        query: Query<<Self::Driver as Driver>::Prepared>,
-    ) -> impl Future<Output = Result<RowsAffected>> + Send {
+    fn execute<Q>(&mut self, query: Q) -> impl Future<Output = Result<RowsAffected>> + Send
+    where
+        Q: AsMut<Query<<Self::Driver as Driver>::Prepared>> + Send,
+    {
         self.run(query)
             .filter_map(|v| async move {
                 match v {

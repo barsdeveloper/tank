@@ -1,4 +1,6 @@
-use crate::{Executor, PreparedCache, Query, Result, stream::StreamExt};
+use crate::{
+    Driver, Executor, PreparedCache, Query, QueryResult, Result, stream::Stream, stream::StreamExt,
+};
 use async_stream::try_stream;
 use std::{future::Future, pin::pin};
 
@@ -34,26 +36,25 @@ impl<E: Executor> Executor for CachedConnection<E> {
     fn prepare(
         &mut self,
         query: String,
-    ) -> impl Future<Output = Result<Query<<Self::Driver as crate::Driver>::Prepared>>> + Send {
+    ) -> impl Future<Output = Result<Query<<Self::Driver as Driver>::Prepared>>> + Send {
         async {
             let mut query = Query::Raw(query.into());
-            Ok(self
+            let _ = self
                 .prepared_cache
                 .as_prepared(&mut self.executor, &mut query)
-                .await?
-                .clone()
-                .into())
+                .await;
+            Ok(query)
         }
     }
 
-    fn run(
-        &mut self,
-        mut query: Query<<Self::Driver as crate::Driver>::Prepared>,
-    ) -> impl futures::Stream<Item = Result<crate::QueryResult>> + Send {
+    fn run<Q>(&mut self, mut query: Q) -> impl Stream<Item = Result<QueryResult>> + Send
+    where
+        Q: AsMut<Query<<Self::Driver as Driver>::Prepared>> + Send,
+    {
         let cache = &mut self.prepared_cache;
         let executor = &mut self.executor;
         try_stream! {
-            cache.as_prepared(executor, &mut query).await?;
+            cache.as_prepared(executor, query.as_mut()).await?;
             let mut stream = pin!(executor.run(query));
             while let Some(item) = stream.as_mut().next().await {
                 yield item?;

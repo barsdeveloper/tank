@@ -1,4 +1,4 @@
-use crate::{Driver, Executor, Expression, Result, RowLabeled, SqlWriter, stream::Stream};
+use crate::{Driver, Executor, Expression, Query, Result, RowLabeled, SqlWriter, stream::Stream};
 
 pub trait DataSet {
     /// Must qualify the column names with the table name
@@ -25,7 +25,7 @@ pub trait DataSet {
             .driver()
             .sql_writer()
             .write_select(&mut query, columns, self, condition, limit);
-        executor.fetch(query.into())
+        executor.fetch(Query::Raw(query.into()))
     }
 }
 
