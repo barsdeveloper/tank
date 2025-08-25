@@ -172,7 +172,7 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                     if_not_exists,
                 );
                 executor
-                    .execute(query.into())
+                    .execute(::tank::Query::Raw(query.into()))
                     .await
                     .map(|_| ())
             }

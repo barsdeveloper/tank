@@ -399,6 +399,7 @@ pub trait SqlWriter {
                 out.push(')');
             }
             Operand::Asterisk => out.push('*'),
+            Operand::QuestionMark => out.push('?'),
         };
     }
 

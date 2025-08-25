@@ -1,7 +1,7 @@
 #![feature(assert_matches)]
 #[cfg(test)]
 mod tests {
-    use std::assert_matches::assert_matches;
+    use std::{assert_matches::assert_matches, borrow::Cow};
     use tank::{
         BinaryOp, BinaryOpType, ColumnRef, Expression, OpPrecedence, Operand, SqlWriter, UnaryOp,
         UnaryOpType, Value,
@@ -221,6 +221,48 @@ mod tests {
         let mut out = String::new();
         expr.write_query(&WRITER, &mut out, false);
         assert_eq!(out, "SUM(my_column)");
+    }
+
+    #[test]
+    fn test_question_mark_expressions() {
+        let expr = expr!(alpha == ? && bravo > ?);
+        assert_matches!(
+            expr,
+            BinaryOp {
+                op: BinaryOpType::And,
+                lhs: BinaryOp {
+                    op: BinaryOpType::Equal,
+                    lhs: Operand::LitIdent("alpha"),
+                    rhs: Operand::QuestionMark,
+                },
+                rhs: BinaryOp {
+                    op: BinaryOpType::Greater,
+                    lhs: Operand::LitIdent("bravo"),
+                    rhs: Operand::QuestionMark,
+                },
+            }
+        );
+        let mut out = String::new();
+        expr.write_query(&WRITER, &mut out, false);
+        assert_eq!(out, "alpha = ? AND bravo > ?");
+
+        #[derive(Entity)]
+        struct SomeTable {
+            #[tank(name = "the_column")]
+            some_column: Cow<'static, str>,
+        }
+        let expr = expr!(SomeTable::some_column != ? as LIKE);
+        assert_matches!(
+            expr,
+            BinaryOp {
+                op: BinaryOpType::NotLike,
+                lhs: SomeTable::some_column,
+                rhs: Operand::QuestionMark,
+            }
+        );
+        let mut out = String::new();
+        expr.write_query(&WRITER, &mut out, false);
+        assert_eq!(out, "the_column NOT LIKE ?");
     }
 
     #[test]

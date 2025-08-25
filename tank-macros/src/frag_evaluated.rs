@@ -16,7 +16,7 @@ pub fn flag_evaluated(input: TokenStream) -> TokenStream {
                     (_, TokenTree::Punct(p), Some(tt))
                         if p.as_char() == '#' && p.spacing() == Spacing::Alone =>
                     {
-                        iter.next();
+                        iter.next(); // Consume the following token
                         let wrapped: TokenStream = quote!(::tank::evaluated!(#tt)).into();
                         return Some(TokenTree::Group(Group::new(
                             Delimiter::None,
@@ -24,7 +24,7 @@ pub fn flag_evaluated(input: TokenStream) -> TokenStream {
                         )));
                     }
 
-                    // asterisk preceeded by '.' | ','
+                    // Asterisk preceeded by '.' | ','
                     (Some(TokenTree::Punct(a)), TokenTree::Punct(b), _)
                         if matches!(a.as_char(), '.' | ',') && b.as_char() == '*' =>
                     {
@@ -34,7 +34,7 @@ pub fn flag_evaluated(input: TokenStream) -> TokenStream {
                         )));
                     }
 
-                    // asterisk as the first character
+                    // Asterisk as the first character
                     (None, TokenTree::Punct(p), None) if p.as_char() == '*' => {
                         return Some(TokenTree::Group(Group::new(
                             Delimiter::None,
@@ -48,7 +48,15 @@ pub fn flag_evaluated(input: TokenStream) -> TokenStream {
                         return Some(TokenTree::Group(Group::new(Delimiter::None, quote!(==))));
                     }
 
-                    // nested
+                    // Question mark
+                    (_, TokenTree::Punct(punct), _) if punct.as_char() == '?' => {
+                        return Some(TokenTree::Group(Group::new(
+                            Delimiter::None,
+                            quote!(::tank::question_mark!()),
+                        )));
+                    }
+
+                    // Nested
                     (_, TokenTree::Group(group), _) => {
                         let content = do_flagging(group.stream());
                         return Some(TokenTree::Group(Group::new(group.delimiter(), content)));

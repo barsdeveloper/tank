@@ -1,4 +1,4 @@
-use crate::cbox::CBox;
+use crate::{cbox::CBox, duckdb_hugeint_to_i128, duckdb_uhugeint_to_u128};
 use anyhow::{Error, anyhow};
 use libduckdb_sys::*;
 use rust_decimal::Decimal;
@@ -87,13 +87,13 @@ pub(crate) fn extract_value(
             }),
             DUCKDB_TYPE_DUCKDB_TYPE_HUGEINT => Value::Int128(if is_valid {
                 let data = *(data as *const duckdb_hugeint).add(row);
-                Some((data.upper as i128) << 64 | data.lower as i128)
+                duckdb_hugeint_to_i128(&data).into()
             } else {
                 None
             }),
             DUCKDB_TYPE_DUCKDB_TYPE_UHUGEINT => Value::UInt128(if is_valid {
-                let data = *(data as *const duckdb_hugeint).add(row);
-                Some((data.upper as u128) << 64 | data.lower as u128)
+                let data = *(data as *const duckdb_uhugeint).add(row);
+                duckdb_uhugeint_to_u128(&data).into()
             } else {
                 None
             }),
