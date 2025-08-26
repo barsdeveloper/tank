@@ -168,32 +168,32 @@ impl Prepared for DuckDBPrepared {
                 ),
                 Value::Uuid(Some(_v)) => todo!(),
                 Value::Array(Some(_v), ..) => {
-                    unreachable!("Cannot use a array as a query parameter")
+                    return Err(Error::msg("Cannot use a array as a query parameter"));
                 }
                 Value::List(Some(_v), ..) => {
-                    unreachable!("Cannot use a list as a query parameter")
+                    return Err(Error::msg("Cannot use a list as a query parameter"));
                 }
                 Value::Map(Some(_v), ..) => {
-                    unreachable!("Cannot use a map as a query parameter")
+                    return Err(Error::msg("Cannot use a map as a query parameter"));
                 }
                 Value::Struct(Some(_v), ..) => {
-                    unreachable!("Cannot use a struct as a query parameter")
+                    return Err(Error::msg("Cannot use a struct as a query parameter"));
                 }
             };
-            self.index += 1;
             if state != duckdb_state_DuckDBSuccess {
                 return Err(Error::msg({
                     let error = duckdb_prepare_error(prepared);
                     if error != ptr::null() {
                         CStr::from_ptr(error)
                             .to_str()
-                            .expect("Errore message from DuckDB was not a valid C string")
+                            .unwrap_or("Unknown error (it was not a valid C string)")
                     } else {
-                        return Err(Error::msg("Unknown error (cannot extract it from DuckDB)"));
+                        "Unknown error (cannot extract it from DuckDB)"
                     }
                 })
                 .context(format!("While trying to bind the parameter {}", self.index)));
             }
+            self.index += 1;
             Ok(self)
         }
     }

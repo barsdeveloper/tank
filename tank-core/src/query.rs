@@ -2,7 +2,7 @@ use crate::{
     AsValue, Driver, Executor, Result, Value, future::FutureExt, stream::Stream, stream::StreamExt,
 };
 use std::{
-    fmt::{self, Display, Pointer},
+    fmt::{self, Display},
     pin::pin,
     sync::Arc,
 };

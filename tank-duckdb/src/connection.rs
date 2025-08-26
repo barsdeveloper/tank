@@ -47,19 +47,15 @@ impl DuckDBConnection {
             let mut result = CBox::new(result, |mut r| duckdb_destroy_result(&mut r));
             let rc = execute(&mut *result);
             if rc != duckdb_state_DuckDBSuccess {
-                let message = CStr::from_ptr(duckdb_result_error(&mut *result))
-                    .to_str()
-                    .expect(
-                        "Error message from duckdb_result_error is expected to be a valid C string",
-                    );
-                let _ = tx.send(Err(Error::msg(message.to_owned())));
-                return;
-            }
-            let error = duckdb_result_error(&mut *result);
-            if error != ptr::null() {
-                let _  = tx.send(Err(Error::msg(CStr::from_ptr(error).to_str().expect(
-                    "Error message from duckdb_result_error is expected to be a valid C string",
-                ).to_owned())));
+                let error = duckdb_result_error(&mut *result);
+                let message = if error != ptr::null() {
+                    CStr::from_ptr(error)
+                        .to_str()
+                        .unwrap_or("Unknown error (it was not a valid C string)")
+                } else {
+                    "Unknown error (cannot extract it from DuckDB)"
+                };
+                let _ = tx.send(Err(Error::msg(message)));
                 return;
             }
             let statement_type = duckdb_result_statement_type(*result);
@@ -97,6 +93,9 @@ impl DuckDBConnection {
             |result| unsafe { duckdb_execute_prepared_streaming(**query.prepared, result) },
             tx,
         );
+        unsafe {
+            duckdb_clear_bindings(**query.prepared);
+        }
     }
 
     pub(crate) fn extract_result(mut result: CBox<duckdb_result>, tx: Sender<Result<QueryResult>>) {
