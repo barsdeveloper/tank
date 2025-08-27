@@ -22,7 +22,7 @@ mod tests {
             !Path::new(DB_PATH).exists(),
             "Database file should not exist before test"
         );
-        let mut connection =
+        let connection =
             DuckDBConnection::connect(format!("duckdb://{}?mode=rw", DB_PATH).as_str())
                 .await
                 .expect("Could not open the database");
@@ -30,6 +30,6 @@ mod tests {
             Path::new(DB_PATH).exists(),
             "Database file should be created after connection"
         );
-        execute_tests(&mut connection).await;
+        execute_tests(connection).await;
     }
 }

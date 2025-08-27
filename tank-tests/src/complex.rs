@@ -3,10 +3,10 @@ use std::{
     sync::LazyLock,
     time::Duration,
 };
-use tank::{Connection, Entity};
+use tank::{Entity, Executor};
 use tokio::sync::Mutex;
 
-pub async fn complex<C: Connection>(connection: &mut C) {
+pub async fn complex<C: Executor>(connection: &mut C) {
     #[derive(Default)]
     struct TankUnsupported {
         _field: i32,

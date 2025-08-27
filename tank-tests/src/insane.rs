@@ -6,11 +6,11 @@ use std::{
     rc::Rc,
     sync::{Arc, LazyLock},
 };
-use tank::{Connection, Entity};
+use tank::{Entity, Executor};
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
-pub async fn insane<C: Connection>(connection: &mut C) {
+pub async fn insane<C: Executor>(connection: &mut C) {
     #[derive(Entity)]
     struct InsaneNullFields {
         red: Option<

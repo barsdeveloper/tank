@@ -13,6 +13,14 @@ impl<D: Driver> PreparedCache<D> {
         }
     }
 
+    pub async fn get(&self, query: &str) -> Option<Query<D::Prepared>> {
+        self.cache
+            .read()
+            .await
+            .get(query)
+            .map(|v| Query::Prepared(v.clone()))
+    }
+
     pub async fn as_prepared<'a, E: Executor<Driver = D>>(
         &self,
         executor: &mut E,

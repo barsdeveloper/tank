@@ -1,6 +1,6 @@
 use std::{collections::HashSet, sync::LazyLock};
 use tank::{
-    Connection, DataSet, Entity, Expression, Passive, RowLabeled, Value, expr, join,
+    DataSet, Entity, Executor, Expression, Passive, RowLabeled, Value, expr, join,
     stream::TryStreamExt,
 };
 use tokio::sync::Mutex;
@@ -8,7 +8,7 @@ use uuid::Uuid;
 
 static MUTEX: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
 
-#[derive(Entity, Debug, Clone)]
+#[derive(Entity, Debug, Clone, PartialEq)]
 #[tank(schema = "testing", name = "authors")]
 pub struct Author {
     #[tank(primary_key, name = "author_id")]
@@ -30,7 +30,7 @@ pub struct Book {
     pub year: i32,
 }
 
-pub async fn books<C: Connection>(connection: &mut C) {
+pub async fn books<C: Executor>(connection: &mut C) {
     let _lock = MUTEX.lock().await;
 
     // Setup
@@ -130,6 +130,40 @@ pub async fn books<C: Connection>(connection: &mut C) {
         .await
         .expect("Failed to insert books");
     assert_eq!(result.rows_affected, 5);
+
+    // Find authords
+    let author = Author::find_pk(
+        connection,
+        &(&(&Uuid::parse_str("f938f818-0a40-4ce3-8fbc-259ac252a1b5")
+            .unwrap()
+            .into(),)),
+    )
+    .await
+    .expect("Failed to query author by pk");
+    assert_eq!(
+        author,
+        Some(Author {
+            id: Uuid::parse_str("f938f818-0a40-4ce3-8fbc-259ac252a1b5")
+                .unwrap()
+                .into(),
+            name: "J.K. Rowling".into(),
+            country: "UK".into(),
+        })
+    );
+
+    let author = Author::find_one(connection, &expr!(Author::name == "Linus Torvalds"))
+        .await
+        .expect("Failed to query author by pk");
+    assert_eq!(
+        author,
+        Some(Author {
+            id: Uuid::parse_str("d3d3d3d3-d3d3-d3d3-d3d3-d3d3d3d3d3d3")
+                .unwrap()
+                .into(),
+            name: "Linus Torvalds".into(),
+            country: "Finland".into(),
+        })
+    );
 
     // Get books before 2000
     let result = join!(Book B JOIN Author A ON B.author == A.author_id)

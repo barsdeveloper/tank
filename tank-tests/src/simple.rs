@@ -1,10 +1,10 @@
 use std::{borrow::Cow, sync::LazyLock};
-use tank::{Connection, Entity};
+use tank::{Entity, Executor};
 use time::Time;
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
-pub async fn simple<C: Connection>(connection: &mut C) {
+pub async fn simple<C: Executor>(connection: &mut C) {
     #[derive(Entity)]
     struct SimpleFields {
         alpha: Option<u8>,

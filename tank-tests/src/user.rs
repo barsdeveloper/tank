@@ -3,7 +3,7 @@ use std::{
     sync::LazyLock,
 };
 use tank::{
-    Connection, Entity, Passive, expr,
+    Entity, Executor, Passive, expr,
     stream::{StreamExt, TryStreamExt},
 };
 use time::macros::datetime;
@@ -28,7 +28,7 @@ pub struct UserProfile {
     pub preferences: Option<BTreeMap<String, String>>,
 }
 
-pub async fn users<C: Connection>(connection: &mut C) {
+pub async fn users<C: Executor>(connection: &mut C) {
     let _lock = MUTEX.lock().await;
 
     // Cleanup

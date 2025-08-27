@@ -1,6 +1,6 @@
-use crate::{Executor, PreparedCache, Query, Result, stream::StreamExt};
-use async_stream::try_stream;
-use std::{future::Future, pin::pin};
+use crate::{Executor, PreparedCache, Query, Result};
+use futures::TryFutureExt;
+use std::future::Future;
 
 pub trait Connection: Executor {
     /// Initial part of the connect url
@@ -28,7 +28,7 @@ impl<E: Executor> Executor for CachedConnection<E> {
     type Driver = E::Driver;
 
     fn driver(&self) -> &Self::Driver {
-        todo!()
+        self.executor.driver()
     }
 
     fn prepare(
@@ -48,16 +48,48 @@ impl<E: Executor> Executor for CachedConnection<E> {
 
     fn run(
         &mut self,
-        mut query: Query<<Self::Driver as crate::Driver>::Prepared>,
+        query: Query<<Self::Driver as crate::Driver>::Prepared>,
     ) -> impl futures::Stream<Item = Result<crate::QueryResult>> + Send {
-        let cache = &mut self.prepared_cache;
         let executor = &mut self.executor;
-        try_stream! {
-            cache.as_prepared(executor, &mut query).await?;
-            let mut stream = pin!(executor.run(query));
-            while let Some(item) = stream.as_mut().next().await {
-                yield item?;
-            }
+        let cache = &mut self.prepared_cache;
+        async move {
+            // For run, only try to get the prepared statement, otherwise use the original query
+            let query = if let Query::Raw(raw) = &query {
+                cache.get(raw).await.unwrap_or(query)
+            } else {
+                query
+            };
+            Ok(executor.run(query))
         }
+        .try_flatten_stream()
     }
+
+    fn fetch(
+        &mut self,
+        mut query: Query<<Self::Driver as crate::Driver>::Prepared>,
+    ) -> impl futures::Stream<Item = Result<crate::RowLabeled>> + Send {
+        let executor = &mut self.executor;
+        let cache = &mut self.prepared_cache;
+        async move {
+            cache.as_prepared(executor, &mut query).await?;
+            Ok(executor.fetch(query))
+        }
+        .try_flatten_stream()
+    }
+
+    // fn execute(
+    //     &mut self,
+    //     query: Query<<Self::Driver as crate::Driver>::Prepared>,
+    // ) -> impl Future<Output = Result<crate::RowsAffected>> + Send {
+    //     self.run(query)
+    //         .filter_map(|v| async move {
+    //             match v {
+    //                 Ok(crate::QueryResult::Affected(v)) => Some(Ok(v)),
+    //                 Err(e) => Some(Err(e)),
+    //                 _ => None,
+    //             }
+    //         })
+    //         .try_collect()
+
+    //}
 }

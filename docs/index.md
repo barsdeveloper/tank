@@ -16,7 +16,7 @@ hero:
 
 features:
   - title: Async operations - Fire and forget
-    details: Your calls run async like artillery barrages, load fast, return fire later.
+    details: Your queries run async like artillery, load fast, return fire later.
   - title: Extensible - Adapts to any battlefield
     details: Plug new backends in like swapping magazines. Designed from day one to implement any database.
   - title: Doesn’t Hide SQL — Command your data

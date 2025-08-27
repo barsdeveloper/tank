@@ -1,6 +1,9 @@
 use rust_decimal::Decimal;
 use std::{array, collections::BTreeMap, str::FromStr, sync::LazyLock};
-use tank::{Connection, Entity, Passive, stream::StreamExt, stream::TryStreamExt};
+use tank::{
+    Entity, Executor, Passive,
+    stream::{StreamExt, TryStreamExt},
+};
 use time::macros::datetime;
 use tokio::sync::Mutex;
 use uuid::Uuid;
@@ -29,7 +32,7 @@ pub struct Trade {
     pub tags: Option<BTreeMap<String, String>>,
 }
 
-pub async fn trade_simple<C: Connection>(connection: &mut C) {
+pub async fn trade_simple<C: Executor>(connection: &mut C) {
     let _lock = MUTEX.lock().await;
 
     // Setup
@@ -130,7 +133,7 @@ pub async fn trade_simple<C: Connection>(connection: &mut C) {
     assert_eq!(Trade::find_many(connection, &true, None).count().await, 1);
 }
 
-pub async fn trade_multiple<C: Connection>(connection: &mut C) {
+pub async fn trade_multiple<C: Executor>(connection: &mut C) {
     let _lock = MUTEX.lock().await;
 
     // Setup

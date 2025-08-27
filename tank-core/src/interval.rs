@@ -1,7 +1,6 @@
 use std::{
     hash::Hash,
     ops::{Add, AddAssign, Sub, SubAssign},
-    time::Duration,
 };
 
 #[derive(Default, Debug, Clone, Copy)]
@@ -26,7 +25,7 @@ impl Interval {
         }
     }
 
-    pub const fn from_duration(duration: &Duration) -> Self {
+    pub const fn from_duration(duration: &std::time::Duration) -> Self {
         Self {
             months: 0,
             days: 0,
@@ -105,13 +104,13 @@ impl Interval {
         self.months == 0 && self.days == 0 && self.nanos == 0
     }
 
-    pub const fn as_duration(&self, days_in_month: f64) -> Duration {
+    pub const fn as_duration(&self, days_in_month: f64) -> std::time::Duration {
         let nanos = (self.months as f64) * days_in_month * (Interval::NANOS_IN_DAY as f64); // months
         let nanos = nanos as i128 + self.days as i128 * Interval::NANOS_IN_DAY; // days
         let nanos = nanos + self.nanos as i128;
         let secs = (nanos / Interval::NANOS_IN_SEC) as u64;
         let nanos = (nanos % Interval::NANOS_IN_SEC) as u32;
-        Duration::new(secs, nanos)
+        std::time::Duration::new(secs, nanos)
     }
 }
 
@@ -177,8 +176,8 @@ impl SubAssign for Interval {
     }
 }
 
-impl From<Duration> for Interval {
-    fn from(value: Duration) -> Self {
+impl From<std::time::Duration> for Interval {
+    fn from(value: std::time::Duration) -> Self {
         Self {
             months: 0,
             days: value.as_secs() as i64 / Interval::SECS_IN_DAY,
@@ -189,8 +188,30 @@ impl From<Duration> for Interval {
     }
 }
 
-impl From<Interval> for Duration {
+impl From<Interval> for std::time::Duration {
     fn from(value: Interval) -> Self {
         value.as_duration(Interval::DAYS_IN_MONTH)
+    }
+}
+
+impl From<time::Duration> for Interval {
+    fn from(value: time::Duration) -> Self {
+        let seconds = value.whole_seconds();
+        Self {
+            months: 0,
+            days: seconds / Interval::SECS_IN_DAY,
+            nanos: ((seconds % Interval::SECS_IN_DAY) * Interval::NANOS_IN_SEC as i64
+                + value.subsec_nanoseconds() as i64) as i128,
+        }
+    }
+}
+
+impl From<Interval> for time::Duration {
+    fn from(value: Interval) -> Self {
+        let seconds = ((value.days + value.months * Interval::DAYS_IN_MONTH as i64)
+            * Interval::SECS_IN_DAY) as i128
+            + value.nanos * Interval::NANOS_IN_SEC;
+        let nanos = (value.nanos % Interval::NANOS_IN_SEC) as i32;
+        time::Duration::new(seconds as i64, nanos)
     }
 }

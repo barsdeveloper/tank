@@ -279,6 +279,7 @@ impl_as_value!(
 );
 impl_as_value!(Interval, Value::Interval => |v| Ok(v));
 impl_as_value!(std::time::Duration, Value::Interval => |v: Interval| Ok(v.into()));
+impl_as_value!(time::Duration, Value::Interval => |v: Interval| Ok(v.into()));
 impl_as_value!(
     uuid::Uuid,
     Value::Uuid => |v| Ok(v),

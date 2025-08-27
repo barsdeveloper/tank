@@ -1,10 +1,9 @@
 use std::collections::BTreeSet;
 use std::{pin::pin, sync::LazyLock};
 use tank::{
-    AsValue, Connection, DataSet, Entity, Passive, RowLabeled, expr, stream::StreamExt,
-    stream::TryStreamExt,
+    AsValue, DataSet, Entity, Passive, RowLabeled, expr, stream::StreamExt, stream::TryStreamExt,
 };
-use tank::{Prepared, Query};
+use tank::{Executor, Prepared, Query};
 use tokio::sync::Mutex;
 
 static MUTEX: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
@@ -19,7 +18,7 @@ const EXPECTED_SUM: u32 = 68978385;
 const EXPECTED_AVG: u32 = 5873;
 const COUNT: u32 = 11745;
 
-pub async fn aggregates<C: Connection>(connection: &mut C) {
+pub async fn aggregates<C: Executor>(connection: &mut C) {
     let _lock = MUTEX.lock();
 
     // Setup
@@ -118,6 +117,7 @@ pub async fn aggregates<C: Connection>(connection: &mut C) {
         let _cols = cols; // Can still use it afterwards because it was borrowed to select
     }
 
+    // SELECT value WHERE value > ?
     {
         let mut query = Values::table_ref()
             .prepare([Values::value], connection, &expr!(Values::value > ?), None)

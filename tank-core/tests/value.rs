@@ -2,10 +2,14 @@
 
 #[cfg(test)]
 mod tests {
-    use rust_decimal::{Decimal, prelude::FromPrimitive};
+    use rust_decimal::{
+        Decimal,
+        prelude::{FromPrimitive, Zero},
+    };
     use std::{assert_matches::assert_matches, borrow::Cow};
-    use tank_core::{AsValue, Value};
+    use tank_core::{AsValue, Interval, Value};
     use time::Month;
+    use uuid::Uuid;
 
     #[test]
     fn value_none() {
@@ -259,6 +263,7 @@ mod tests {
         let var: String = AsValue::try_from_value(val).unwrap();
         assert_eq!(var, "Hello World!");
         assert_eq!(String::try_from_value('x'.into()).unwrap(), "x");
+        assert_eq!(String::try_from_value("hello".into()).unwrap(), "hello");
     }
 
     #[test]
@@ -299,6 +304,8 @@ mod tests {
             val,
             time::Date::from_calendar_date(2025, Month::January, 22).unwrap()
         );
+        time::Date::try_from_value("1999-12-12error".into())
+            .expect_err("Should not be able to convert wrong string");
     }
 
     #[test]
@@ -488,5 +495,174 @@ mod tests {
                 time::UtcOffset::from_hms(1, 0, 0).unwrap(),
             )
         );
+    }
+
+    #[test]
+    fn value_interval() {
+        let var = Interval::from_months(4);
+        let val: Value = var.into();
+        assert_eq!(val, Interval::from_months(4).as_value());
+        assert_ne!(val, Interval::from_months(3).as_value());
+        assert_ne!(val, Interval::from_days(28).as_value());
+
+        let var: Interval = AsValue::try_from_value(val).unwrap();
+        let val = var.as_value();
+        let var: Interval = AsValue::try_from_value(val).unwrap();
+        assert_eq!(var, Interval::from_months(4));
+    }
+
+    #[test]
+    fn value_time_duration() {
+        let var = time::Duration::days(14);
+        let val: Value = var.into();
+        assert_eq!(val, Interval::from_days(14).as_value());
+        assert_ne!(val, Interval::from_days(15).as_value());
+        assert_ne!(val, Interval::from_secs(1).as_value());
+
+        let var: time::Duration = AsValue::try_from_value(val).unwrap();
+        let val = var.as_value();
+        let var: time::Duration = AsValue::try_from_value(val).unwrap();
+        assert_eq!(var, time::Duration::days(14));
+    }
+
+    #[test]
+    fn value_std_duration() {
+        let days_5 = std::time::Duration::new((5 * Interval::SECS_IN_DAY) as u64, 0);
+        let days_1 = std::time::Duration::new((1 * Interval::SECS_IN_DAY) as u64, 0);
+        let var = days_5.clone();
+        let val: Value = var.into();
+        assert_eq!(val, days_5.clone().as_value());
+        assert_ne!(val, days_1.as_value());
+
+        let var: std::time::Duration = AsValue::try_from_value(val).unwrap();
+        let val = var.as_value();
+        let var: std::time::Duration = AsValue::try_from_value(val).unwrap();
+        assert_eq!(var, days_5.clone());
+    }
+
+    #[test]
+    fn value_uuid() {
+        let var = Uuid::nil();
+        let val: Value = var.into();
+        assert_eq!(
+            val,
+            Uuid::parse_str("00000000-0000-0000-0000-000000000000")
+                .unwrap()
+                .as_value()
+        );
+        assert_ne!(
+            val,
+            Uuid::parse_str("10000000-0000-0000-0000-000000000000")
+                .unwrap()
+                .as_value()
+        );
+        assert_ne!(val, 5.as_value());
+
+        let var: Uuid = AsValue::try_from_value(val).unwrap();
+        let val = var.as_value();
+        let var: Uuid = AsValue::try_from_value(val).unwrap();
+        assert_eq!(
+            var,
+            Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap()
+        );
+
+        let var = Uuid::parse_str("c959fd7d-d3a6-4453-a2ed-83116f2b1b84")
+            .unwrap()
+            .as_value();
+        let val: Value = var.into();
+        assert_eq!(
+            val,
+            Uuid::parse_str("c959fd7d-d3a6-4453-a2ed-83116f2b1b84")
+                .unwrap()
+                .as_value()
+        );
+        assert_ne!(
+            val,
+            Uuid::parse_str("80ae6ccb-2504-4d2e-b496-5d9759199625")
+                .unwrap()
+                .as_value()
+        );
+        assert_ne!(val, 5.as_value());
+
+        let var: Uuid = AsValue::try_from_value(val).unwrap();
+        let val = var.as_value();
+        let var: Uuid = AsValue::try_from_value(val).unwrap();
+        assert_eq!(
+            var,
+            Uuid::parse_str("c959fd7d-d3a6-4453-a2ed-83116f2b1b84").unwrap()
+        );
+        assert_eq!(
+            Uuid::parse_str("6ed80631-c3ec-41a5-9f66-d9c1e5532798").unwrap(),
+            Uuid::try_from_value("6ed80631-c3ec-41a5-9f66-d9c1e5532798".into()).unwrap()
+        );
+    }
+
+    #[test]
+    fn value_decimal() {
+        let var = Decimal::from_i128_with_scale(12345, 2);
+        let val: Value = var.into();
+        assert_eq!(val, Decimal::from_f64(123.45).unwrap().as_value());
+        assert_ne!(val, Decimal::from_f64(123.10).unwrap().as_value());
+        let var: Decimal = AsValue::try_from_value(val).unwrap();
+        let val = var.as_value();
+        let var: Decimal = AsValue::try_from_value(val).unwrap();
+        assert_eq!(var, Decimal::from_f64(123.45).unwrap());
+        assert_eq!(
+            Decimal::try_from_value((127 as i8).as_value()).unwrap(),
+            Decimal::from_f64(127.0).unwrap()
+        );
+        assert_ne!(
+            Decimal::try_from_value((126 as i8).as_value()).unwrap(),
+            Decimal::from_f64(127.0).unwrap()
+        );
+        assert_eq!(
+            Decimal::try_from_value((0 as i16).as_value()).unwrap(),
+            Decimal::from_f64(0.0).unwrap()
+        );
+        assert_eq!(
+            Decimal::try_from_value((-2147483648 as i32).as_value()).unwrap(),
+            Decimal::from_f64(-2147483648.0).unwrap()
+        );
+        assert_eq!(
+            Decimal::try_from_value((82664 as i64).as_value()).unwrap(),
+            Decimal::from_f64(82664.0).unwrap()
+        );
+        assert_eq!(
+            Decimal::try_from_value((255 as u8).as_value()).unwrap(),
+            Decimal::from_f64(255.0).unwrap()
+        );
+        assert_eq!(
+            Decimal::try_from_value((10000 as u16).as_value()).unwrap(),
+            Decimal::from_f64(10000.0).unwrap()
+        );
+        assert_eq!(
+            Decimal::try_from_value((777 as u32).as_value()).unwrap(),
+            Decimal::from_f64(777.0).unwrap()
+        );
+        assert_eq!(
+            Decimal::try_from_value((2 as u32).as_value()).unwrap(),
+            Decimal::from_f64(2.0).unwrap()
+        );
+        assert_eq!(
+            Decimal::try_from_value((0 as u64).as_value()).unwrap(),
+            Decimal::ZERO
+        );
+        assert_eq!(
+            Decimal::try_from_value((4.25 as f32).as_value()).unwrap(),
+            Decimal::from_f64(4.25).unwrap()
+        );
+        assert_eq!(
+            Decimal::try_from_value((-11.29 as f64).as_value()).unwrap(),
+            Decimal::from_f64(-11.29).unwrap()
+        );
+        Decimal::try_from_value("hello".into())
+            .expect_err("Should not convert a string to a decimal");
+        assert_eq!(Decimal::as_empty_value(), Value::Decimal(None, 0, 0));
+        assert_ne!(
+            Decimal::as_empty_value(),
+            Value::Decimal(Some(Decimal::zero()), 0, 0)
+        );
+        assert_ne!(Decimal::as_empty_value(), Value::Decimal(None, 1, 0));
+        assert_ne!(Decimal::as_empty_value(), Value::Decimal(None, 0, 1));
     }
 }

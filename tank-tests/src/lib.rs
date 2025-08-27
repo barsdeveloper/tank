@@ -19,13 +19,13 @@ use crate::{
 use aggregates::aggregates;
 use tank::Connection;
 
-pub async fn execute_tests<C: Connection>(connection: &mut C) {
-    simple(connection).await;
-    trade_simple(connection).await;
-    trade_multiple(connection).await;
-    aggregates(connection).await;
-    users(connection).await;
-    books(connection).await;
-    complex(connection).await;
-    insane(connection).await;
+pub async fn execute_tests<C: Connection>(mut connection: C) {
+    simple(&mut connection).await;
+    trade_simple(&mut connection).await;
+    trade_multiple(&mut connection).await;
+    aggregates(&mut connection).await;
+    users(&mut connection).await;
+    books(&mut connection).await;
+    complex(&mut connection).await;
+    insane(&mut connection).await;
 }
