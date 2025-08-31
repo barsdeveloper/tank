@@ -6,7 +6,7 @@ use std::{
 use tank::{Entity, Executor};
 use tokio::sync::Mutex;
 
-pub async fn complex<C: Executor>(connection: &mut C) {
+pub async fn complex<E: Executor>(executor: &mut E) {
     #[derive(Default)]
     struct TankUnsupported {
         _field: i32,
@@ -40,15 +40,15 @@ pub async fn complex<C: Executor>(connection: &mut C) {
     let _lock = MUTEX.lock().await;
 
     // Setup
-    ComplexNullFields::drop_table(connection, true, false)
+    ComplexNullFields::drop_table(executor, true, false)
         .await
         .expect("Failed to drop ComplexNullFields table");
-    ComplexNullFields::create_table(connection, true, true)
+    ComplexNullFields::create_table(executor, true, true)
         .await
         .expect("Failed to create ComplexNullFields table");
 
     // Complex 1
-    ComplexNullFields::delete_many(connection, &true)
+    ComplexNullFields::delete_many(executor, &true)
         .await
         .expect("Failed to clear the ComplexNullFields table");
     let entity = ComplexNullFields {
@@ -81,10 +81,10 @@ pub async fn complex<C: Executor>(connection: &mut C) {
         _sixth: Default::default(),
     };
     entity
-        .save(connection)
+        .save(executor)
         .await
         .expect("Failed to save complex 1");
-    let entity = ComplexNullFields::find_one(connection, &true)
+    let entity = ComplexNullFields::find_one(executor, &true)
         .await
         .expect("Failed to query complex 1")
         .expect("Failed to find complex 1");
@@ -122,7 +122,7 @@ pub async fn complex<C: Executor>(connection: &mut C) {
     assert_eq!(entity.fifth.len(), 0);
 
     // Complex 2
-    ComplexNullFields::delete_many(connection, &true)
+    ComplexNullFields::delete_many(executor, &true)
         .await
         .expect("Failed to clear the ComplexNullFields table");
     let entity = ComplexNullFields {
@@ -163,10 +163,10 @@ pub async fn complex<C: Executor>(connection: &mut C) {
         _sixth: Default::default(),
     };
     entity
-        .save(connection)
+        .save(executor)
         .await
         .expect("Failed to save complex 2");
-    let loaded = ComplexNullFields::find_one(connection, &true)
+    let loaded = ComplexNullFields::find_one(executor, &true)
         .await
         .expect("Failed to query complex 2")
         .expect("Failed to find complex 2");

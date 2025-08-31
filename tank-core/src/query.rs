@@ -1,5 +1,8 @@
 use crate::{
-    AsValue, Driver, Executor, Result, Value, future::FutureExt, stream::Stream, stream::StreamExt,
+    AsValue, Driver, Executor, Result, Value,
+    future::FutureExt,
+    printable_query,
+    stream::{Stream, StreamExt},
 };
 use std::{
     fmt::{self, Display},
@@ -66,7 +69,7 @@ impl<P: Prepared> From<P> for Query<P> {
 impl<P: Prepared> Display for Query<P> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Query::Raw(query) => f.write_str(query),
+            Query::Raw(query) => write!(f, "{}", printable_query!(query)),
             Query::Prepared(query) => query.fmt(f),
         }
     }

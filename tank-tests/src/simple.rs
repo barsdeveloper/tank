@@ -4,7 +4,7 @@ use time::Time;
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
-pub async fn simple<C: Executor>(connection: &mut C) {
+pub async fn simple<E: Executor>(executor: &mut E) {
     #[derive(Entity)]
     struct SimpleFields {
         alpha: Option<u8>,
@@ -22,15 +22,15 @@ pub async fn simple<C: Executor>(connection: &mut C) {
     let _lock = MUTEX.lock().await;
 
     // Setup
-    SimpleFields::drop_table(connection, true, false)
+    SimpleFields::drop_table(executor, true, false)
         .await
         .expect("Failed to drop SimpleNullFields table");
-    SimpleFields::create_table(connection, true, true)
+    SimpleFields::create_table(executor, true, true)
         .await
         .expect("Failed to create SimpleNullFields table");
 
     // Simple 1
-    SimpleFields::delete_many(connection, &true)
+    SimpleFields::delete_many(executor, &true)
         .await
         .expect("Failed to clear the SimpleNullFields table");
     let entity = SimpleFields {
@@ -45,10 +45,10 @@ pub async fn simple<C: Executor>(connection: &mut C) {
         india: Box::new(None),
     };
     entity
-        .save(connection)
+        .save(executor)
         .await
         .expect("Failed to save simple 1");
-    let entity = SimpleFields::find_one(connection, &true)
+    let entity = SimpleFields::find_one(executor, &true)
         .await
         .expect("Failed to query simple 1")
         .expect("Failed to find simple 1");
@@ -66,7 +66,7 @@ pub async fn simple<C: Executor>(connection: &mut C) {
     assert_eq!(*entity.india, None);
 
     // Simple 2
-    SimpleFields::delete_many(connection, &true)
+    SimpleFields::delete_many(executor, &true)
         .await
         .expect("Failed to clear the SimpleNullFields table");
     let entity = SimpleFields {
@@ -81,10 +81,10 @@ pub async fn simple<C: Executor>(connection: &mut C) {
         india: Box::new(None),
     };
     entity
-        .save(connection)
+        .save(executor)
         .await
         .expect("Failed to save simple 2");
-    let entity = SimpleFields::find_one(connection, &true)
+    let entity = SimpleFields::find_one(executor, &true)
         .await
         .expect("Failed to query simple 2")
         .expect("Failed to find simple 2");

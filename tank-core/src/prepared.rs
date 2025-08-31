@@ -27,17 +27,17 @@ impl<D: Driver> PreparedCache<D> {
         query: &'a mut Query<D::Prepared>,
     ) -> Result<&'a mut Query<D::Prepared>> {
         if let Query::Raw(value) = query {
-            let cache = self.cache.read().await;
-            *query = if let Some(prepared) = cache.get(value) {
+            *query = if let Some(prepared) = self.cache.read().await.get(value) {
                 let prepared = prepared.clone();
-                drop(cache);
                 prepared.into()
             } else {
                 let prepared = executor.prepare(value.to_string()).await?;
                 let Query::Prepared(prepared) = prepared else {
-                    return Err(Error::msg(
-                        "Prepared method is expected to return the Query::Prepared variatn",
-                    ));
+                    let error = Error::msg(
+                        "Prepared method is expected to return the Query::Prepared variant",
+                    );
+                    log::error!("{}", error);
+                    return Err(error);
                 };
                 let mut cache = self.cache.write().await;
                 cache.insert(value.clone(), prepared.clone());

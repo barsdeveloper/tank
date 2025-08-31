@@ -18,14 +18,14 @@ const EXPECTED_SUM: u32 = 68978385;
 const EXPECTED_AVG: u32 = 5873;
 const COUNT: u32 = 11745;
 
-pub async fn aggregates<C: Executor>(connection: &mut C) {
+pub async fn aggregates<E: Executor>(executor: &mut E) {
     let _lock = MUTEX.lock();
 
     // Setup
-    Values::drop_table(connection, true, false)
+    Values::drop_table(executor, true, false)
         .await
         .expect("Failed to drop Values table");
-    Values::create_table(connection, false, false)
+    Values::create_table(executor, false, false)
         .await
         .expect("Failed to create Values table");
 
@@ -41,7 +41,7 @@ pub async fn aggregates<C: Executor>(connection: &mut C) {
         if rows.is_empty() {
             break;
         }
-        let result = Values::insert_many(connection, rows.iter()).await;
+        let result = Values::insert_many(executor, rows.iter()).await;
         assert!(
             result.is_ok(),
             "Failed to Values::insert_many: {:?}",
@@ -60,7 +60,7 @@ pub async fn aggregates<C: Executor>(connection: &mut C) {
     {
         let mut stream = pin!(Values::table_ref().select(
             [expr!(COUNT(*)), expr!(SUM(Values::value))],
-            connection,
+            executor,
             &true,
             None
         ));
@@ -94,7 +94,7 @@ pub async fn aggregates<C: Executor>(connection: &mut C) {
     {
         let cols = [expr!(*)];
         {
-            let stream = pin!(Values::table_ref().select(&cols, connection, &true, None));
+            let stream = pin!(Values::table_ref().select(&cols, executor, &true, None));
             let values = stream
                 .map(|row| {
                     let row = row.expect("Error while fetching the row");
@@ -120,7 +120,7 @@ pub async fn aggregates<C: Executor>(connection: &mut C) {
     // SELECT value WHERE value > ?
     {
         let mut query = Values::table_ref()
-            .prepare([Values::value], connection, &expr!(Values::value > ?), None)
+            .prepare([Values::value], executor, &expr!(Values::value > ?), None)
             .await
             .expect("Failed to prepare the query");
         let Query::Prepared(prepared) = &mut query else {
@@ -130,7 +130,7 @@ pub async fn aggregates<C: Executor>(connection: &mut C) {
             .bind(EXPECTED_AVG)
             .expect("Could not bind the parameter");
         let values = query
-            .fetch_many(connection)
+            .fetch_many(executor)
             .map_ok(|v| u32::try_from_value(v.values[0].clone()).expect("Expected a u32 as value"))
             .collect::<Vec<_>>()
             .await;

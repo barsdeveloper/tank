@@ -1,10 +1,6 @@
-use crate::{
-    Result,
-    stream::{Stream, TryStreamExt},
-};
 use proc_macro2::TokenStream;
 use quote::{ToTokens, quote};
-use std::{borrow::Cow, cmp::min, fmt::Display};
+use std::{borrow::Cow, cmp::min};
 use syn::Path;
 
 #[derive(Clone)]
@@ -68,14 +64,6 @@ pub fn separated_by<T, F>(
     }
 }
 
-pub fn add_error_context<T, S: Stream<Item = Result<T>>, Q: Display>(
-    stream: S,
-    query: &Q,
-) -> impl Stream<Item = Result<T>> + use<T, S, Q> {
-    let query = format!("{}", query).chars().take(500).collect::<String>();
-    stream.map_err(move |e| e.context(format!("While executing the query:\n{}", query)))
-}
-
 #[macro_export]
 macro_rules! possibly_parenthesized {
     ($out:ident, $cond:expr, $v:expr) => {
@@ -87,4 +75,26 @@ macro_rules! possibly_parenthesized {
             $v;
         }
     };
+}
+
+#[macro_export]
+macro_rules! printable_query {
+    ($query:expr) => {
+        format_args!(
+            "{}{}",
+            &$query[..::std::cmp::min($query.len(), 247)].trim_end(),
+            if $query.len() > 247 { "..." } else { "" },
+        )
+    };
+}
+
+#[macro_export]
+macro_rules! send_error {
+    ($tx:ident, $error:expr) => {{
+        let error = $error;
+        ::log::error!("{}", error);
+        if let Err(send_error) = $tx.send(Err(error)) {
+            ::log::error!("{}", send_error)
+        }
+    }};
 }

@@ -10,7 +10,7 @@ use tank::{Entity, Executor};
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
-pub async fn insane<C: Executor>(connection: &mut C) {
+pub async fn insane<E: Executor>(executor: &mut E) {
     #[derive(Entity)]
     struct InsaneNullFields {
         red: Option<
@@ -43,15 +43,15 @@ pub async fn insane<C: Executor>(connection: &mut C) {
     let _lock = MUTEX.lock().await;
 
     // Setup
-    InsaneNullFields::drop_table(connection, true, false)
+    InsaneNullFields::drop_table(executor, true, false)
         .await
         .expect("Failed to drop ComplexNullFields table");
-    InsaneNullFields::create_table(connection, true, true)
+    InsaneNullFields::create_table(executor, true, true)
         .await
         .expect("Failed to create ComplexNullFields table");
 
     // Insane 1
-    InsaneNullFields::delete_many(connection, &true)
+    InsaneNullFields::delete_many(executor, &true)
         .await
         .expect("Failed to clear the ComplexNullFields table");
     let entity = InsaneNullFields {
@@ -92,10 +92,10 @@ pub async fn insane<C: Executor>(connection: &mut C) {
         ],
     };
     entity
-        .save(connection)
+        .save(executor)
         .await
         .expect("Failed to save insane 1");
-    let loaded = InsaneNullFields::find_one(connection, &true)
+    let loaded = InsaneNullFields::find_one(executor, &true)
         .await
         .expect("Failed to query insane 1")
         .expect("Failed to find insane 1");
@@ -104,7 +104,7 @@ pub async fn insane<C: Executor>(connection: &mut C) {
     assert_eq!(loaded.blue, entity.blue);
 
     // Insane 2
-    InsaneNullFields::delete_many(connection, &true)
+    InsaneNullFields::delete_many(executor, &true)
         .await
         .expect("Failed to clear the ComplexNullFields table");
     let entity = InsaneNullFields {
@@ -142,10 +142,10 @@ pub async fn insane<C: Executor>(connection: &mut C) {
         blue: vec![],
     };
     entity
-        .save(connection)
+        .save(executor)
         .await
         .expect("Failed to save insane 2");
-    let loaded = InsaneNullFields::find_one(connection, &true)
+    let loaded = InsaneNullFields::find_one(executor, &true)
         .await
         .expect("Failed to query insane 2")
         .expect("Failed to find insane 2");

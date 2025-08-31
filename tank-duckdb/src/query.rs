@@ -1,9 +1,8 @@
-use crate::{cbox::CBox, i128_to_duckdb_hugeint};
+use crate::{cbox::CBox, extract_duckdb_error_from_ptr, i128_to_duckdb_hugeint};
 use libduckdb_sys::*;
 use std::{
-    ffi::{CStr, c_void},
+    ffi::c_void,
     fmt::{self, Display},
-    ptr,
     sync::Arc,
 };
 use tank_core::{AsValue, Error, Prepared, Result, Value};
@@ -28,7 +27,7 @@ impl DuckDBPrepared {
 
 impl Display for DuckDBPrepared {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("Prepared statement")
+        write!(f, "{:p}", self.prepared)
     }
 }
 
@@ -168,30 +167,33 @@ impl Prepared for DuckDBPrepared {
                 ),
                 Value::Uuid(Some(_v)) => todo!(),
                 Value::Array(Some(_v), ..) => {
-                    return Err(Error::msg("Cannot use a array as a query parameter"));
+                    let error = Error::msg("Cannot use a array as a query parameter");
+                    log::error!("{}", error);
+                    return Err(error);
                 }
                 Value::List(Some(_v), ..) => {
-                    return Err(Error::msg("Cannot use a list as a query parameter"));
+                    let error = Error::msg("Cannot use a list as a query parameter");
+                    log::error!("{}", error);
+                    return Err(error);
                 }
                 Value::Map(Some(_v), ..) => {
-                    return Err(Error::msg("Cannot use a map as a query parameter"));
+                    let error = Error::msg("Cannot use a map as a query parameter");
+                    log::error!("{}", error);
+                    return Err(error);
                 }
                 Value::Struct(Some(_v), ..) => {
-                    return Err(Error::msg("Cannot use a struct as a query parameter"));
+                    let error = Error::msg("Cannot use a struct as a query parameter");
+                    log::error!("{}", error);
+                    return Err(error);
                 }
             };
             if state != duckdb_state_DuckDBSuccess {
-                return Err(Error::msg({
-                    let error = duckdb_prepare_error(prepared);
-                    if error != ptr::null() {
-                        CStr::from_ptr(error)
-                            .to_str()
-                            .unwrap_or("Unknown error (it was not a valid C string)")
-                    } else {
-                        "Unknown error (cannot extract it from DuckDB)"
-                    }
-                })
-                .context(format!("While trying to bind the parameter {}", self.index)));
+                let error = Error::msg(
+                    extract_duckdb_error_from_ptr(&duckdb_prepare_error(prepared)).to_string(),
+                )
+                .context(format!("While trying to bind the parameter {}", self.index));
+                log::error!("{}", error);
+                return Err(error);
             }
             self.index += 1;
             Ok(self)

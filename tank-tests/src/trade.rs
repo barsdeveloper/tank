@@ -32,14 +32,14 @@ pub struct Trade {
     pub tags: Option<BTreeMap<String, String>>,
 }
 
-pub async fn trade_simple<C: Executor>(connection: &mut C) {
+pub async fn trade_simple<E: Executor>(executor: &mut E) {
     let _lock = MUTEX.lock().await;
 
     // Setup
-    Trade::drop_table(connection, true, false)
+    Trade::drop_table(executor, true, false)
         .await
         .expect("Failed to drop Trade table");
-    Trade::create_table(connection, false, true)
+    Trade::create_table(executor, false, true)
         .await
         .expect("Failed to create Trade table");
 
@@ -65,23 +65,23 @@ pub async fn trade_simple<C: Executor>(connection: &mut C) {
     };
 
     // Expect to find no trades
-    let result = Trade::find_pk(connection, &trade.primary_key())
+    let result = Trade::find_pk(executor, &trade.primary_key())
         .await
         .expect("Failed to find trade by primary key");
     assert!(result.is_none(), "Expected no trades at this time");
-    assert_eq!(Trade::find_many(connection, &true, None).count().await, 0);
+    assert_eq!(Trade::find_many(executor, &true, None).count().await, 0);
 
     // Delete unexisting trade
     trade
-        .delete(connection)
+        .delete(executor)
         .await
         .expect_err("Expected to fail delete");
 
     // Save a trade
-    trade.save(connection).await.expect("Failed to save trade");
+    trade.save(executor).await.expect("Failed to save trade");
 
     // Expect to find the only trade
-    let result = Trade::find_pk(connection, &trade.primary_key())
+    let result = Trade::find_pk(executor, &trade.primary_key())
         .await
         .expect("Failed to find trade");
     assert!(
@@ -130,17 +130,17 @@ pub async fn trade_simple<C: Executor>(connection: &mut C) {
         ])
     );
 
-    assert_eq!(Trade::find_many(connection, &true, None).count().await, 1);
+    assert_eq!(Trade::find_many(executor, &true, None).count().await, 1);
 }
 
-pub async fn trade_multiple<C: Executor>(connection: &mut C) {
+pub async fn trade_multiple<E: Executor>(executor: &mut E) {
     let _lock = MUTEX.lock().await;
 
     // Setup
-    Trade::drop_table(connection, false, false)
+    Trade::drop_table(executor, false, false)
         .await
         .expect("Failed to drop Trade table");
-    Trade::create_table(connection, false, true)
+    Trade::create_table(executor, false, true)
         .await
         .expect("Failed to create Trade table");
 
@@ -241,13 +241,13 @@ pub async fn trade_multiple<C: Executor>(connection: &mut C) {
     // Insert 5 trades
     for trade in &trades {
         trade
-            .save(connection)
+            .save(executor)
             .await
             .expect(&format!("Failed to save save {} trade", trade.symbol));
     }
 
     // Find 5 trades
-    let data = Trade::find_many(connection, &true, None)
+    let data = Trade::find_many(executor, &true, None)
         .try_collect::<Vec<_>>()
         .await
         .expect("Failed to query threads");
@@ -256,7 +256,7 @@ pub async fn trade_multiple<C: Executor>(connection: &mut C) {
     // Verify data integrity
     for (i, expected) in trades.iter().enumerate() {
         let actual_a = &data[i];
-        let actual_b = Trade::find_pk(connection, &expected.primary_key())
+        let actual_b = Trade::find_pk(executor, &expected.primary_key())
             .await
             .expect(&format!("Failed to find trade {} by pk", data[i].symbol));
         let Some(actual_b) = actual_b else {

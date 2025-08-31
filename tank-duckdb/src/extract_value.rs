@@ -1,12 +1,11 @@
 use crate::{cbox::CBox, duckdb_hugeint_to_i128, duckdb_uhugeint_to_u128};
-use anyhow::{Error, anyhow};
 use libduckdb_sys::*;
 use rust_decimal::Decimal;
 use std::{
     ffi::{CStr, c_void},
     ptr, slice,
 };
-use tank_core::{Interval, Result, Value};
+use tank_core::{Error, Interval, Result, Value};
 use uuid::Uuid;
 
 pub(crate) fn convert_date(date: duckdb_date_struct) -> Result<time::Date> {
@@ -184,7 +183,9 @@ pub(crate) fn extract_value(
                                 *(data as *const i128).add(row) as i128
                             }
                             _ => {
-                                return Err(anyhow!("Invalid internal decimal storage type"));
+                                let error = Error::msg("Invalid internal decimal storage type");
+                                log::error!("{}", error);
+                                return Err(error);
                             }
                         };
                         Some(Decimal::from_i128_with_scale(num, scale as u32))
@@ -352,10 +353,12 @@ pub(crate) fn extract_value(
             //  DUCKDB_TYPE_DUCKDB_TYPE_VARINT =>
             DUCKDB_TYPE_DUCKDB_TYPE_SQLNULL => Value::Null,
             _ => {
-                return Err(anyhow!(
+                let error = Error::msg(format!(
                     "Invalid type value: {}, must be one of the expected DUCKDB_TYPE_DUCKDB_TYPE_* variant",
                     type_id
                 ));
+                log::error!("{}", error);
+                return Err(error);
             }
         };
         Ok(result)

@@ -8,27 +8,31 @@ pub trait Connection: Executor {
 
     /// Create a connection pool with at least one connection established to the given URL
     fn connect(url: &str) -> impl Future<Output = Result<impl Connection>>;
+
+    fn as_cached_connection(self) -> impl Connection {
+        CachedConnection::<Self>::new(self)
+    }
 }
 
-pub struct CachedConnection<E: Executor> {
-    pub executor: E,
-    pub prepared_cache: PreparedCache<E::Driver>,
+pub struct CachedConnection<C: Connection> {
+    pub connection: C,
+    pub cache: PreparedCache<C::Driver>,
 }
 
-impl<E: Executor> CachedConnection<E> {
-    pub fn new(executor: E) -> Self {
+impl<C: Connection> CachedConnection<C> {
+    pub fn new(connection: C) -> Self {
         Self {
-            executor,
-            prepared_cache: PreparedCache::new(),
+            connection,
+            cache: PreparedCache::new(),
         }
     }
 }
 
-impl<E: Executor> Executor for CachedConnection<E> {
-    type Driver = E::Driver;
+impl<C: Connection> Executor for CachedConnection<C> {
+    type Driver = C::Driver;
 
     fn driver(&self) -> &Self::Driver {
-        self.executor.driver()
+        self.connection.driver()
     }
 
     fn prepare(
@@ -38,8 +42,8 @@ impl<E: Executor> Executor for CachedConnection<E> {
         async {
             let mut query = Query::Raw(query.into());
             Ok(self
-                .prepared_cache
-                .as_prepared(&mut self.executor, &mut query)
+                .cache
+                .as_prepared(&mut self.connection, &mut query)
                 .await?
                 .clone()
                 .into())
@@ -50,8 +54,8 @@ impl<E: Executor> Executor for CachedConnection<E> {
         &mut self,
         query: Query<<Self::Driver as crate::Driver>::Prepared>,
     ) -> impl futures::Stream<Item = Result<crate::QueryResult>> + Send {
-        let executor = &mut self.executor;
-        let cache = &mut self.prepared_cache;
+        let executor = &mut self.connection;
+        let cache = &mut self.cache;
         async move {
             // For run, only try to get the prepared statement, otherwise use the original query
             let query = if let Query::Raw(raw) = &query {
@@ -68,8 +72,8 @@ impl<E: Executor> Executor for CachedConnection<E> {
         &mut self,
         mut query: Query<<Self::Driver as crate::Driver>::Prepared>,
     ) -> impl futures::Stream<Item = Result<crate::RowLabeled>> + Send {
-        let executor = &mut self.executor;
-        let cache = &mut self.prepared_cache;
+        let executor = &mut self.connection;
+        let cache = &mut self.cache;
         async move {
             cache.as_prepared(executor, &mut query).await?;
             Ok(executor.fetch(query))
@@ -92,4 +96,16 @@ impl<E: Executor> Executor for CachedConnection<E> {
     //         .try_collect()
 
     //}
+}
+
+impl<C: Connection> Connection for CachedConnection<C> {
+    const PREFIX: &'static str = C::PREFIX;
+
+    fn connect(url: &str) -> impl Future<Output = Result<impl Connection>> {
+        C::connect(url)
+    }
+
+    fn as_cached_connection(self) -> impl Connection {
+        self
+    }
 }

@@ -30,20 +30,20 @@ pub struct Book {
     pub year: i32,
 }
 
-pub async fn books<C: Executor>(connection: &mut C) {
+pub async fn books<E: Executor>(executor: &mut E) {
     let _lock = MUTEX.lock().await;
 
     // Setup
-    Book::drop_table(connection, true, false)
+    Book::drop_table(executor, true, false)
         .await
         .expect("Failed to drop Book table");
-    Author::drop_table(connection, true, false)
+    Author::drop_table(executor, true, false)
         .await
         .expect("Failed to drop Author table");
-    Author::create_table(connection, false, true)
+    Author::create_table(executor, false, true)
         .await
         .expect("Failed to create Author table");
-    Book::create_table(connection, false, true)
+    Book::create_table(executor, false, true)
         .await
         .expect("Failed to create Book table");
 
@@ -122,18 +122,18 @@ pub async fn books<C: Executor>(connection: &mut C) {
     ];
 
     // Insert
-    let result = Author::insert_many(connection, authors.iter())
+    let result = Author::insert_many(executor, authors.iter())
         .await
         .expect("Failed to insert authors");
     assert_eq!(result.rows_affected, 4);
-    let result = Book::insert_many(connection, books.iter())
+    let result = Book::insert_many(executor, books.iter())
         .await
         .expect("Failed to insert books");
     assert_eq!(result.rows_affected, 5);
 
     // Find authords
     let author = Author::find_pk(
-        connection,
+        executor,
         &(&(&Uuid::parse_str("f938f818-0a40-4ce3-8fbc-259ac252a1b5")
             .unwrap()
             .into(),)),
@@ -151,7 +151,7 @@ pub async fn books<C: Executor>(connection: &mut C) {
         })
     );
 
-    let author = Author::find_one(connection, &expr!(Author::name == "Linus Torvalds"))
+    let author = Author::find_one(executor, &expr!(Author::name == "Linus Torvalds"))
         .await
         .expect("Failed to query author by pk");
     assert_eq!(
@@ -169,7 +169,7 @@ pub async fn books<C: Executor>(connection: &mut C) {
     let result = join!(Book B JOIN Author A ON B.author == A.author_id)
         .select(
             &[expr!(B.title), expr!(A.name)],
-            connection,
+            executor,
             &expr!(B.year < 2000),
             None,
         )
@@ -206,7 +206,7 @@ pub async fn books<C: Executor>(connection: &mut C) {
     let result = join!(Book B LEFT JOIN Author A1 ON B.author == A1.author_id LEFT JOIN Author A2 ON B.co_author == A2.author_id)
         .select(
             &[&expr!(B.title) as &dyn Expression, &expr!(A1.name as author), &expr!(A2.name as co_author)],
-            connection,
+            executor,
             &true,
             None,
         )

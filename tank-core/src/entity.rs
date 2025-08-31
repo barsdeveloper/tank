@@ -3,6 +3,7 @@ use crate::{
     SqlWriter, TableRef, Value, stream::Stream,
 };
 use futures::{FutureExt, StreamExt, TryFutureExt};
+use log::Level;
 use std::{future::Future, pin::pin};
 
 pub trait Entity {
@@ -107,9 +108,20 @@ pub trait Entity {
                 if v.rows_affected == 1 {
                     Ok(())
                 } else {
-                    Err(Error::msg(
+                    let error = Error::msg(format!(
                         "The query deleted {} rows instead of the expected 1",
-                    ))
+                        v.rows_affected
+                    ));
+                    log::log!(
+                        if v.rows_affected == 0 {
+                            Level::Info
+                        } else {
+                            Level::Error
+                        },
+                        "{}",
+                        error
+                    );
+                    Err(error)
                 }
             })
         })

@@ -28,11 +28,11 @@ pub struct UserProfile {
     pub preferences: Option<BTreeMap<String, String>>,
 }
 
-pub async fn users<C: Executor>(connection: &mut C) {
+pub async fn users<E: Executor>(executor: &mut E) {
     let _lock = MUTEX.lock().await;
 
     // Cleanup
-    let result = UserProfile::drop_table(connection, true, false).await;
+    let result = UserProfile::drop_table(executor, true, false).await;
     assert!(
         result.is_ok(),
         "Failed to UserProfile::drop_table: {:?}",
@@ -40,7 +40,7 @@ pub async fn users<C: Executor>(connection: &mut C) {
     );
 
     // Setup
-    let result = UserProfile::create_table(connection, false, true).await;
+    let result = UserProfile::create_table(executor, false, true).await;
     assert!(
         result.is_ok(),
         "Failed to UserProfile::create_table: {:?}",
@@ -114,7 +114,7 @@ pub async fn users<C: Executor>(connection: &mut C) {
         },
     ];
 
-    let result = UserProfile::insert_many(connection, users_to_create.iter()).await;
+    let result = UserProfile::insert_many(executor, users_to_create.iter()).await;
     assert!(
         result.is_ok(),
         "Failed to insert users: {:?}",
@@ -123,7 +123,7 @@ pub async fn users<C: Executor>(connection: &mut C) {
     assert_eq!(result.unwrap().rows_affected, 5);
 
     // Find active users (should be 3: alice, charlie, dean)
-    let active_users = UserProfile::find_many(connection, &expr!(is_active), None)
+    let active_users = UserProfile::find_many(executor, &expr!(is_active), None)
         .try_collect::<Vec<_>>()
         .await
         .unwrap();
@@ -138,14 +138,14 @@ pub async fn users<C: Executor>(connection: &mut C) {
     );
 
     // Find users with more than 1000 followers (should be 2: charlie, dean)
-    let popular_users = UserProfile::find_many(connection, &expr!(follower_count > 1000), None)
+    let popular_users = UserProfile::find_many(executor, &expr!(follower_count > 1000), None)
         .try_collect::<Vec<_>>()
         .await
         .unwrap();
     assert_eq!(popular_users.len(), 2);
 
     // 4. Update a Bob
-    let mut bob = UserProfile::find_one(connection, &expr!(username == "bob"))
+    let mut bob = UserProfile::find_one(executor, &expr!(username == "bob"))
         .await
         .expect("Expected query to succeed")
         .expect("Could not find bob ");
@@ -153,13 +153,13 @@ pub async fn users<C: Executor>(connection: &mut C) {
     bob.is_active = true;
     bob.full_name = Some("Robert Builder".into());
     bob.last_login = Some(datetime!(2025-07-17 20:00:00));
-    let result = bob.save(connection).await;
+    let result = bob.save(executor).await;
     assert!(
         result.is_ok(),
         "Failed to save Bob: {:?}",
         result.unwrap_err()
     );
-    let updated_bob = UserProfile::find_pk(connection, &bob.primary_key())
+    let updated_bob = UserProfile::find_pk(executor, &bob.primary_key())
         .await
         .expect("Expected query to succeed")
         .expect("Could not find bob ");
@@ -168,42 +168,40 @@ pub async fn users<C: Executor>(connection: &mut C) {
     assert!(updated_bob.last_login.is_some());
 
     // There must be 4 active users
-    let active_users_after_update = UserProfile::find_many(connection, &expr!(is_active), None)
+    let active_users_after_update = UserProfile::find_many(executor, &expr!(is_active), None)
         .try_collect::<Vec<_>>()
         .await
         .unwrap();
     assert_eq!(active_users_after_update.len(), 4);
 
     // Find eve user and delete it.
-    let eve = UserProfile::find_one(connection, &expr!(username == "eve"))
+    let eve = UserProfile::find_one(executor, &expr!(username == "eve"))
         .await
         .expect("Expected query to succeed")
         .expect("Could not find eve ");
-    let result = eve.delete(connection).await;
+    let result = eve.delete(executor).await;
     assert!(
         result.is_ok(),
         "Failed to delete Eve: {:?}",
         result.unwrap_err()
     );
-    let maybe_eve = UserProfile::find_pk(connection, &eve.primary_key())
+    let maybe_eve = UserProfile::find_pk(executor, &eve.primary_key())
         .await
         .expect("Expected query to succeed");
     assert!(maybe_eve.is_none(), "Eve should have been deleted");
 
     // There must be 5 total users
-    let total_users = UserProfile::find_many(connection, &true, None)
-        .count()
-        .await;
+    let total_users = UserProfile::find_many(executor, &true, None).count().await;
     assert_eq!(total_users, 4, "There should be 4 users remaining");
 
     // Delete all users who never logged in (only Dean)
-    let result = UserProfile::delete_many(connection, &expr!(last_login IS NULL))
+    let result = UserProfile::delete_many(executor, &expr!(last_login IS NULL))
         .await
         .expect("Expected query to succeed");
     assert_eq!(result.rows_affected, 1, "Should have removed 1 rows");
 
     // There must be 3 users left (alice, bob, charlie)
-    let final_users = UserProfile::find_many(connection, &true, None)
+    let final_users = UserProfile::find_many(executor, &true, None)
         .try_collect::<Vec<_>>()
         .await
         .expect("Expected query to succeed");
