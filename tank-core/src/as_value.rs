@@ -2,13 +2,14 @@ use crate::{Error, Interval, Passive, Result, Value};
 use quote::ToTokens;
 use rust_decimal::{Decimal, prelude::FromPrimitive};
 use std::{
-    array,
+    any, array,
     borrow::Cow,
     cell::{Cell, RefCell},
     collections::{BTreeMap, HashMap, LinkedList, VecDeque},
     hash::Hash,
     rc::Rc,
     sync::{Arc, RwLock},
+    vec,
 };
 use time::macros::format_description;
 
@@ -328,26 +329,27 @@ impl<T: AsValue, const N: usize> AsValue for [T; N] {
         )
     }
     fn try_from_value(value: Value) -> Result<Self> {
-        let err = Error::msg(format!(
-            "Cannot convert `{:?}` into array `[T; {}]`",
-            value, N
-        ));
-        if let Value::List(Some(v), ..) = value {
-            if v.len() == N {
-                let mut it = v.into_iter();
-                let result = array::try_from_fn(|i| {
-                    T::try_from_value(it.next().ok_or(
-                            Error::msg(format!(
-                                "Expected to receive a list of {} elements but there is no element with undex {}",
-                                N,
-                                i,
-                            ))
-                        )?)
-                })?;
-                return Ok(result);
-            }
+        let from_iter = |mut it: vec::IntoIter<Value>| {
+            let len = it.len();
+            array::try_from_fn(|_| {
+                T::try_from_value(it.next().ok_or_else(|| {
+                    Error::msg(format!(
+                        "Cannot convert a container of {} elements to array {}",
+                        len,
+                        any::type_name::<Self>()
+                    ))
+                })?)
+            })
+        };
+        match value {
+            Value::List(Some(v), ..) if v.len() == N => from_iter(v.into_iter()),
+            Value::Array(Some(v), ..) => from_iter(v.into_iter()),
+            _ => Err(Error::msg(format!(
+                "Cannot convert `{:?}` into array `{}`",
+                value,
+                any::type_name::<Self>()
+            ))),
         }
-        Err(err)
     }
 }
 

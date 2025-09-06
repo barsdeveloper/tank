@@ -6,7 +6,12 @@ mod tests {
         Decimal,
         prelude::{FromPrimitive, Zero},
     };
-    use std::{assert_matches::assert_matches, borrow::Cow};
+    use std::{
+        assert_matches::assert_matches,
+        borrow::Cow,
+        collections::{LinkedList, VecDeque},
+        str::FromStr,
+    };
     use tank_core::{AsValue, Interval, Value};
     use time::Month;
     use uuid::Uuid;
@@ -655,8 +660,7 @@ mod tests {
             Decimal::try_from_value((-11.29 as f64).as_value()).unwrap(),
             Decimal::from_f64(-11.29).unwrap()
         );
-        Decimal::try_from_value("hello".into())
-            .expect_err("Should not convert a string to a decimal");
+        Decimal::try_from_value("hello".into()).expect_err("Cannot convert a string to a decimal");
         assert_eq!(Decimal::as_empty_value(), Value::Decimal(None, 0, 0));
         assert_ne!(
             Decimal::as_empty_value(),
@@ -664,5 +668,103 @@ mod tests {
         );
         assert_ne!(Decimal::as_empty_value(), Value::Decimal(None, 1, 0));
         assert_ne!(Decimal::as_empty_value(), Value::Decimal(None, 0, 1));
+    }
+
+    #[test]
+    fn value_array() {
+        let var = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] as [i8; 10];
+        let val: Value = var.into();
+        let var = <[i8; 10]>::try_from_value(val).unwrap();
+        assert_eq!(var, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+        assert_ne!(var, [0, 1, 2, 3, 4, 5, 6, 7, 7, 9]);
+        assert_eq!(
+            <[String; 2]>::try_from_value(["Hello".to_string(), "world".to_string()].as_value())
+                .expect("Cannot convert the Value to array of 2 String"),
+            ["Hello", "world"]
+        );
+        assert_eq!(
+            <[Decimal; 5]>::try_from_value([12.50, 13.3, -6.1, 0.0, -3.34].as_value())
+                .expect("Cannot convert the Value to array of 5 Decimal"),
+            [
+                Decimal::from_f32(12.50).unwrap(),
+                Decimal::from_f32(13.3).unwrap(),
+                Decimal::from_f32(-6.1).unwrap(),
+                Decimal::from_f32(0.0).unwrap(),
+                Decimal::from_f32(-3.34).unwrap(),
+            ]
+        );
+        assert_ne!(
+            <[Decimal; 5]>::try_from_value([12.50, 13.3, -6.1, 0.0, -3.34].as_value())
+                .expect("Cannot convert the Value to array of 5 Decimal"),
+            [
+                Decimal::from_f32(12.50).unwrap(),
+                Decimal::from_f32(13.3).unwrap(),
+                Decimal::from_f32(-6.11).unwrap(), // Difference here
+                Decimal::from_f32(0.0).unwrap(),
+                Decimal::from_f32(-3.34).unwrap(),
+            ]
+        );
+        assert!(<[i32; 2]>::try_from_value(vec![1, 2, 3].as_value()).is_err()); // More elements than expected
+        assert!(<[i32; 2]>::try_from_value(vec![1].as_value()).is_err()); // Less elements than expected
+        assert!(<[char; 3]>::try_from_value(['x', 'y'].as_value()).is_err()); // Less elements than expected
+        assert_ne!(
+            <[char; 3]>::try_from_value(['x', 'y', 'z'].as_value())
+                .expect("Cannot convert the Value to array of 3 chars"),
+            ['x', 'y', 'a']
+        );
+    }
+
+    #[test]
+    fn value_list() {
+        let var: VecDeque<_> = vec![
+            Uuid::from_str("ae020ca8-c530-4f7c-8ce0-58d31914f2dc").unwrap(),
+            Uuid::from_str("e3554ad6-e5c5-425b-9d0c-8c181d344932").unwrap(),
+            Uuid::from_str("ebde0bdc-92c1-415d-b955-88e13bcd2726").unwrap(),
+            Uuid::from_str("ed31d4ef-82ea-442e-b273-5f5006e55ab1").unwrap(),
+        ]
+        .into();
+        let val: Value = var.into();
+        let var = VecDeque::<Uuid>::try_from_value(val).unwrap();
+        assert_eq!(
+            var,
+            vec![
+                Uuid::from_str("ae020ca8-c530-4f7c-8ce0-58d31914f2dc").unwrap(),
+                Uuid::from_str("e3554ad6-e5c5-425b-9d0c-8c181d344932").unwrap(),
+                Uuid::from_str("ebde0bdc-92c1-415d-b955-88e13bcd2726").unwrap(),
+                Uuid::from_str("ed31d4ef-82ea-442e-b273-5f5006e55ab1").unwrap(),
+            ]
+        );
+        let val: Value = var.into();
+        let var = LinkedList::<Uuid>::try_from_value(val).unwrap();
+        assert_eq!(
+            var,
+            LinkedList::from_iter([
+                Uuid::from_str("ae020ca8-c530-4f7c-8ce0-58d31914f2dc").unwrap(),
+                Uuid::from_str("e3554ad6-e5c5-425b-9d0c-8c181d344932").unwrap(),
+                Uuid::from_str("ebde0bdc-92c1-415d-b955-88e13bcd2726").unwrap(),
+                Uuid::from_str("ed31d4ef-82ea-442e-b273-5f5006e55ab1").unwrap(),
+            ])
+        );
+        assert!(Vec::<String>::try_from_value("hello".into()).is_err());
+        assert_eq!(
+            Vec::<char>::try_from_value(['a', 'b', 'c'].as_value())
+                .expect("Cannot convert array to Vec"),
+            vec!['a', 'b', 'c']
+        );
+        assert_eq!(
+            LinkedList::try_from_value(Vec::<bool>::new().as_value())
+                .expect("Cannot convert Value to LinkedList"),
+            LinkedList::<bool>::new()
+        );
+        assert_eq!(
+            VecDeque::<bool>::try_from_value(Value::List(None, Value::Boolean(None).into()))
+                .expect("Cannot convert Value to LinkedList"),
+            VecDeque::<bool>::new()
+        );
+        assert_eq!(
+            Vec::<bool>::try_from_value(Value::List(None, Value::Boolean(None).into()))
+                .expect("Cannot convert null list to Vector"),
+            Vec::new()
+        );
     }
 }
