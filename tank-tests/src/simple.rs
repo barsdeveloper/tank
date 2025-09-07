@@ -1,6 +1,9 @@
-use std::{borrow::Cow, sync::LazyLock};
+use std::{
+    borrow::Cow,
+    sync::{Arc, LazyLock},
+};
 use tank::{Entity, Executor};
-use time::Time;
+use time::{Date, Time, macros::date};
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
@@ -16,6 +19,10 @@ pub async fn simple<E: Executor>(executor: &mut E) {
         golf: Option<Time>,
         hotel: Option<Cow<'static, str>>,
         india: Box<Option<char>>,
+        juliet: Option<bool>,
+        kilo: Option<u32>,
+        lima: Arc<Option<f32>>,
+        mike: Option<Date>,
     }
 
     static MUTEX: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
@@ -43,6 +50,10 @@ pub async fn simple<E: Executor>(executor: &mut E) {
         golf: Time::from_hms(12, 0, 10).unwrap().into(),
         hotel: Some("Hello world!".into()),
         india: Box::new(None),
+        juliet: true.into(),
+        kilo: None,
+        lima: Arc::new(Some(3.14)),
+        mike: None,
     };
     entity
         .save(executor)
@@ -64,6 +75,10 @@ pub async fn simple<E: Executor>(executor: &mut E) {
     assert_eq!(entity.golf, Some(Time::from_hms(12, 0, 10).unwrap()));
     assert_eq!(entity.hotel, Some("Hello world!".into()));
     assert_eq!(*entity.india, None);
+    assert_eq!(entity.juliet, Some(true));
+    assert_eq!(entity.kilo, None);
+    assert_eq!(*entity.lima, Some(3.14));
+    assert_eq!(entity.mike, None);
 
     // Simple 2
     SimpleFields::delete_many(executor, &true)
@@ -79,6 +94,10 @@ pub async fn simple<E: Executor>(executor: &mut E) {
         golf: None,
         hotel: None,
         india: Box::new(None),
+        juliet: None,
+        kilo: 4294967295.into(),
+        lima: Arc::new(None),
+        mike: date!(2025 - 09 - 07).into(),
     };
     entity
         .save(executor)
@@ -100,4 +119,8 @@ pub async fn simple<E: Executor>(executor: &mut E) {
     assert_eq!(entity.golf, None);
     assert_eq!(entity.hotel, None);
     assert_eq!(*entity.india, None);
+    assert_eq!(entity.juliet, None);
+    assert_eq!(entity.kilo, Some(4294967295));
+    assert_eq!(*entity.lima, None);
+    assert_eq!(entity.mike, Some(date!(2025 - 09 - 07)));
 }

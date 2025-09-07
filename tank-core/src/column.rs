@@ -98,3 +98,10 @@ impl Expression for ColumnDef {
         writer.write_column_ref(out, &self.column_ref, qualify_columns);
     }
 }
+
+#[macro_export]
+macro_rules! cols {
+    ($($col:expr),*) => {
+        &[$(&expr!($col) as &dyn Expression),*]
+    };
+}

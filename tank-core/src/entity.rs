@@ -127,10 +127,3 @@ pub trait Entity {
         })
     }
 }
-
-// impl<E: Entity> From<E> for RowLabeled {
-//     fn from(value: E) -> Self {
-//         let cols = E::columns();
-//         RowLabeled { labels: cols.iter().map(|c| c.name()), values: () }
-//     }
-// }

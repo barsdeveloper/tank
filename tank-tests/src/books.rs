@@ -1,6 +1,6 @@
 use std::{collections::HashSet, sync::LazyLock};
 use tank::{
-    DataSet, Entity, Executor, Expression, Passive, RowLabeled, Value, expr, join,
+    DataSet, Entity, Executor, Expression, Passive, RowLabeled, Value, cols, expr, join,
     stream::TryStreamExt,
 };
 use tokio::sync::Mutex;
@@ -15,6 +15,7 @@ pub struct Author {
     pub id: Passive<Uuid>,
     pub name: String,
     pub country: String,
+    pub books_published: Option<u16>,
 }
 
 #[derive(Entity, Debug, Clone)]
@@ -55,6 +56,7 @@ pub async fn books<E: Executor>(executor: &mut E) {
                 .into(),
             name: "J.K. Rowling".into(),
             country: "UK".into(),
+            books_published: 24.into(),
         },
         Author {
             id: Uuid::parse_str("a73bc06a-ff89-44b9-a62f-416ebe976285")
@@ -62,6 +64,7 @@ pub async fn books<E: Executor>(executor: &mut E) {
                 .into(),
             name: "J.R.R. Tolkien".into(),
             country: "USA".into(),
+            books_published: 6.into(),
         },
         Author {
             id: Uuid::parse_str("6b2f56a1-316d-42b9-a8ba-baca42c5416c")
@@ -69,6 +72,7 @@ pub async fn books<E: Executor>(executor: &mut E) {
                 .into(),
             name: "Dmitrij Gluchovskij".into(),
             country: "Russia".into(),
+            books_published: 7.into(),
         },
         Author {
             id: Uuid::parse_str("d3d3d3d3-d3d3-d3d3-d3d3-d3d3d3d3d3d3")
@@ -76,6 +80,7 @@ pub async fn books<E: Executor>(executor: &mut E) {
                 .into(),
             name: "Linus Torvalds".into(),
             country: "Finland".into(),
+            books_published: None,
         },
     ];
     let rowling_id = authors[0].id.clone().unwrap();
@@ -148,6 +153,7 @@ pub async fn books<E: Executor>(executor: &mut E) {
                 .into(),
             name: "J.K. Rowling".into(),
             country: "UK".into(),
+            books_published: 24.into(),
         })
     );
 
@@ -162,6 +168,7 @@ pub async fn books<E: Executor>(executor: &mut E) {
                 .into(),
             name: "Linus Torvalds".into(),
             country: "Finland".into(),
+            books_published: None,
         })
     );
 
@@ -253,6 +260,49 @@ pub async fn books<E: Executor>(executor: &mut E) {
                 "J.K. Rowling".into(),
                 Some("Dmitrij Gluchovskij".into())
             ),
+        ])
+    );
+
+    // Get book and author pairs
+    #[derive(Debug, Entity, PartialEq, Eq, Hash)]
+    struct Books {
+        pub title: Option<String>,
+        pub author: Option<String>,
+    }
+    let books = join!(Book JOIN Author ON Book::author == Author::id)
+        .select(
+            cols!(Book::title, Author::name as author, Book::year),
+            executor,
+            &true,
+            None,
+        )
+        .and_then(|row| async { Books::from_row(row) })
+        .try_collect::<HashSet<_>>()
+        .await
+        .expect("Could not return the books");
+    assert_eq!(
+        books,
+        HashSet::from_iter([
+            Books {
+                title: Some("Harry Potter and the Philosopher's Stone".into()),
+                author: Some("J.K. Rowling".into())
+            },
+            Books {
+                title: Some("Harry Potter and the Deathly Hallows".into()),
+                author: Some("J.K. Rowling".into())
+            },
+            Books {
+                title: Some("The Hobbit".into()),
+                author: Some("J.R.R. Tolkien".into())
+            },
+            Books {
+                title: Some("Metro 2033".into()),
+                author: Some("Dmitrij Gluchovskij".into())
+            },
+            Books {
+                title: Some("Hogwarts 2033".into()),
+                author: Some("J.K. Rowling".into())
+            },
         ])
     );
 }
