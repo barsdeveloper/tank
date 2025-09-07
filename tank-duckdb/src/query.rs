@@ -1,4 +1,8 @@
-use crate::{cbox::CBox, extract_duckdb_error_from_ptr, i128_to_duckdb_hugeint};
+use crate::{
+    cbox::CBox, date_to_duckdb_date, decimal_to_duckdb_decimal, error_message_from_ptr,
+    i128_to_duckdb_hugeint, interval_to_duckdb_interval, offsetdatetime_to_duckdb_timestamp,
+    primitive_date_time_to_duckdb_timestamp, time_to_duckdb_time, u128_to_duckdb_uhugeint,
+};
 use libduckdb_sys::*;
 use std::{
     ffi::c_void,
@@ -6,7 +10,6 @@ use std::{
     sync::Arc,
 };
 use tank_core::{AsValue, Error, Prepared, Result, Value};
-use time::{Time, macros::date};
 
 #[derive(Clone)]
 pub struct DuckDBPrepared {
@@ -69,37 +72,21 @@ impl Prepared for DuckDBPrepared {
                 Value::Int16(Some(v)) => duckdb_bind_int16(prepared, self.index, v),
                 Value::Int32(Some(v)) => duckdb_bind_int32(prepared, self.index, v),
                 Value::Int64(Some(v)) => duckdb_bind_int64(prepared, self.index, v),
-                Value::Int128(Some(v)) => duckdb_bind_hugeint(
-                    prepared,
-                    self.index,
-                    duckdb_hugeint {
-                        lower: v as u64,
-                        upper: (v >> 64) as i64,
-                    },
-                ),
+                Value::Int128(Some(v)) => {
+                    duckdb_bind_hugeint(prepared, self.index, i128_to_duckdb_hugeint(v))
+                }
                 Value::UInt8(Some(v)) => duckdb_bind_uint8(prepared, self.index, v),
                 Value::UInt16(Some(v)) => duckdb_bind_uint16(prepared, self.index, v),
                 Value::UInt32(Some(v)) => duckdb_bind_uint32(prepared, self.index, v),
                 Value::UInt64(Some(v)) => duckdb_bind_uint64(prepared, self.index, v),
-                Value::UInt128(Some(v)) => duckdb_bind_uhugeint(
-                    prepared,
-                    self.index,
-                    duckdb_uhugeint {
-                        lower: v as u64,
-                        upper: (v >> 64) as u64,
-                    },
-                ),
+                Value::UInt128(Some(v)) => {
+                    duckdb_bind_uhugeint(prepared, self.index, u128_to_duckdb_uhugeint(v))
+                }
                 Value::Float32(Some(v)) => duckdb_bind_float(prepared, self.index, v),
                 Value::Float64(Some(v)) => duckdb_bind_double(prepared, self.index, v),
-                Value::Decimal(Some(v), w, s) => duckdb_bind_decimal(
-                    prepared,
-                    self.index,
-                    duckdb_decimal {
-                        width: w,
-                        scale: s,
-                        value: i128_to_duckdb_hugeint(v.mantissa()),
-                    },
-                ),
+                Value::Decimal(Some(v), w, s) => {
+                    duckdb_bind_decimal(prepared, self.index, decimal_to_duckdb_decimal(&v, w, s))
+                }
                 Value::Char(Some(v)) => {
                     let v = v.to_string();
                     let status = duckdb_bind_varchar_length(
@@ -128,43 +115,25 @@ impl Prepared for DuckDBPrepared {
                     );
                     status
                 }
-                Value::Date(Some(v)) => duckdb_bind_date(
-                    prepared,
-                    self.index,
-                    duckdb_date {
-                        days: (v - date!(1970 - 01 - 01)).whole_days() as i32,
-                    },
-                ),
-                Value::Time(Some(v)) => duckdb_bind_time(
-                    prepared,
-                    self.index,
-                    duckdb_time {
-                        micros: (v - Time::MIDNIGHT).whole_microseconds() as i64,
-                    },
-                ),
+                Value::Date(Some(v)) => {
+                    duckdb_bind_date(prepared, self.index, date_to_duckdb_date(&v))
+                }
+                Value::Time(Some(v)) => {
+                    duckdb_bind_time(prepared, self.index, time_to_duckdb_time(&v))
+                }
                 Value::Timestamp(Some(v)) => duckdb_bind_timestamp(
                     prepared,
                     self.index,
-                    duckdb_timestamp {
-                        micros: (v.assume_utc().unix_timestamp_nanos() / 1000) as i64,
-                    },
+                    primitive_date_time_to_duckdb_timestamp(&v),
                 ),
                 Value::TimestampWithTimezone(Some(v)) => duckdb_bind_timestamp_tz(
                     prepared,
                     self.index,
-                    duckdb_timestamp {
-                        micros: (v.to_utc().unix_timestamp_nanos() / 1000) as i64,
-                    },
+                    offsetdatetime_to_duckdb_timestamp(&v),
                 ),
-                Value::Interval(Some(v)) => duckdb_bind_interval(
-                    prepared,
-                    self.index,
-                    duckdb_interval {
-                        months: v.months as i32,
-                        days: v.days as i32,
-                        micros: (v.nanos / 1000) as i64,
-                    },
-                ),
+                Value::Interval(Some(v)) => {
+                    duckdb_bind_interval(prepared, self.index, interval_to_duckdb_interval(&v))
+                }
                 Value::Uuid(Some(_v)) => todo!(),
                 Value::Array(Some(_v), ..) => {
                     let error = Error::msg("Cannot use a array as a query parameter");
@@ -189,7 +158,7 @@ impl Prepared for DuckDBPrepared {
             };
             if state != duckdb_state_DuckDBSuccess {
                 let error = Error::msg(
-                    extract_duckdb_error_from_ptr(&duckdb_prepare_error(prepared)).to_string(),
+                    error_message_from_ptr(&duckdb_prepare_error(prepared)).to_string(),
                 )
                 .context(format!("While trying to bind the parameter {}", self.index));
                 log::error!("{}", error);

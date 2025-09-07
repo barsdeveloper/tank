@@ -1,6 +1,9 @@
 use crate::{
-    DuckDBPrepared, cbox::CBox, driver::DuckDBDriver, extract_duckdb_error_from_ptr,
-    extract_value::extract_value,
+    DuckDBPrepared, as_c_string, cbox::CBox, date_to_duckdb_date, decimal_to_duckdb_decimal,
+    driver::DuckDBDriver, error_message_from_ptr, extract_value::extract_value,
+    i128_to_duckdb_hugeint, interval_to_duckdb_interval, offsetdatetime_to_duckdb_timestamp,
+    primitive_date_time_to_duckdb_timestamp, tank_value_to_duckdb_logical_type,
+    tank_value_to_duckdb_value, time_to_duckdb_time, u128_to_duckdb_uhugeint,
 };
 use flume::Sender;
 use libduckdb_sys::*;
@@ -15,8 +18,8 @@ use std::{
     },
 };
 use tank_core::{
-    Connection, Context, Error, Executor, Query, QueryResult, Result, RowLabeled, RowsAffected,
-    printable_query, send_error, stream::Stream, stream::TryStreamExt,
+    Connection, Context, Entity, Error, Executor, Query, QueryResult, Result, RowLabeled,
+    RowsAffected, Value, printable_query, send_error, stream::Stream, stream::TryStreamExt,
 };
 use tokio::{sync::RwLock, task::spawn_blocking};
 use urlencoding::decode;
@@ -53,8 +56,7 @@ impl DuckDBConnection {
                 send_error!(
                     tx,
                     Error::msg(
-                        extract_duckdb_error_from_ptr(&duckdb_result_error(&mut *result))
-                            .to_string(),
+                        error_message_from_ptr(&duckdb_result_error(&mut *result)).to_string(),
                     )
                 );
                 return;
@@ -96,8 +98,7 @@ impl DuckDBConnection {
                 let rc = duckdb_execute_prepared_streaming(**query.prepared, result);
                 if rc != duckdb_state_DuckDBSuccess {
                     let error = Error::msg(
-                        extract_duckdb_error_from_ptr(&duckdb_prepare_error(**query.prepared))
-                            .to_string(),
+                        error_message_from_ptr(&duckdb_prepare_error(**query.prepared)).to_string(),
                     )
                     .context("While preparing a query");
                     send_error!(tx2, error);
@@ -216,7 +217,7 @@ impl Executor for DuckDBConnection {
             );
             if rc != duckdb_state_DuckDBSuccess {
                 let error = Error::msg(
-                    extract_duckdb_error_from_ptr(&duckdb_prepare_error(*prepared)).to_string(),
+                    error_message_from_ptr(&duckdb_prepare_error(*prepared)).to_string(),
                 )
                 .context(context);
                 log::error!("{}", error);
@@ -251,10 +252,205 @@ impl Executor for DuckDBConnection {
         });
         stream
     }
-}
 
-fn as_c_string<S: Into<Vec<u8>>>(str: S) -> CString {
-    CString::new(str.into()).expect("Expected a valid C string")
+    async fn append<'a, E, It>(&mut self, rows: It) -> Result<()>
+    where
+        E: Entity + 'a,
+        It: IntoIterator<Item = &'a E>,
+    {
+        let connection = AtomicPtr::new(*self.connection);
+        let rows = rows.into_iter().map(Entity::row_full).collect::<Vec<_>>();
+        if rows.is_empty() {
+            return Ok(());
+        }
+        spawn_blocking(move || unsafe {
+            let table_ref = E::table_ref();
+            let mut appender = CBox::new(ptr::null_mut(), |mut p| {
+                duckdb_appender_destroy(&mut p);
+            });
+            let connection = connection.load(Ordering::Relaxed);
+            let rc = if let Some((catalog, schema)) = table_ref.schema.rsplit_once('.') {
+                duckdb_appender_create_ext(
+                    connection,
+                    as_c_string(catalog).as_ptr(),
+                    as_c_string(schema).as_ptr(),
+                    as_c_string(table_ref.name).as_ptr(),
+                    &mut *appender,
+                )
+            } else {
+                duckdb_appender_create(
+                    connection,
+                    as_c_string(table_ref.schema).as_ptr(),
+                    as_c_string(table_ref.name).as_ptr(),
+                    &mut *appender,
+                )
+            };
+            if rc != duckdb_state_DuckDBSuccess {
+                return Err(Error::msg(
+                    error_message_from_ptr(&duckdb_appender_error(*appender)).to_string(),
+                )
+                .context("While creating the `duckdb_appender` object"));
+            }
+            for column in E::columns() {
+                duckdb_appender_add_column(*appender, as_c_string(column.name()).as_ptr());
+            }
+            for row in rows {
+                for value in row {
+                    match value {
+                        Value::Null
+                        | Value::Boolean(None, ..)
+                        | Value::Int8(None, ..)
+                        | Value::Int16(None, ..)
+                        | Value::Int32(None, ..)
+                        | Value::Int64(None, ..)
+                        | Value::Int128(None, ..)
+                        | Value::UInt8(None, ..)
+                        | Value::UInt16(None, ..)
+                        | Value::UInt32(None, ..)
+                        | Value::UInt64(None, ..)
+                        | Value::UInt128(None, ..)
+                        | Value::Float32(None, ..)
+                        | Value::Float64(None, ..)
+                        | Value::Decimal(None, ..)
+                        | Value::Char(None, ..)
+                        | Value::Varchar(None, ..)
+                        | Value::Blob(None, ..)
+                        | Value::Date(None, ..)
+                        | Value::Time(None, ..)
+                        | Value::Timestamp(None, ..)
+                        | Value::TimestampWithTimezone(None, ..)
+                        | Value::Interval(None, ..)
+                        | Value::Uuid(None, ..)
+                        | Value::Array(None, ..)
+                        | Value::List(None, ..)
+                        | Value::Map(None, ..)
+                        | Value::Struct(None, ..) => duckdb_append_null(*appender),
+                        Value::Boolean(Some(v), ..) => duckdb_append_bool(*appender, v),
+                        Value::Int8(Some(v), ..) => duckdb_append_int8(*appender, v),
+                        Value::Int16(Some(v), ..) => duckdb_append_int16(*appender, v),
+                        Value::Int32(Some(v), ..) => duckdb_append_int32(*appender, v),
+                        Value::Int64(Some(v), ..) => duckdb_append_int64(*appender, v),
+                        Value::Int128(Some(v), ..) => {
+                            duckdb_append_hugeint(*appender, i128_to_duckdb_hugeint(v))
+                        }
+                        Value::UInt8(Some(v), ..) => duckdb_append_uint8(*appender, v),
+                        Value::UInt16(Some(v), ..) => duckdb_append_uint16(*appender, v),
+                        Value::UInt32(Some(v), ..) => duckdb_append_uint32(*appender, v),
+                        Value::UInt64(Some(v), ..) => duckdb_append_uint64(*appender, v),
+                        Value::UInt128(Some(v), ..) => {
+                            duckdb_append_uhugeint(*appender, u128_to_duckdb_uhugeint(v))
+                        }
+                        Value::Float32(Some(v), ..) => duckdb_append_float(*appender, v),
+                        Value::Float64(Some(v), ..) => duckdb_append_double(*appender, v),
+                        Value::Decimal(Some(v), width, scale) => {
+                            let value = CBox::new(
+                                duckdb_create_decimal(decimal_to_duckdb_decimal(&v, width, scale)),
+                                |mut p| duckdb_destroy_value(&mut p),
+                            );
+                            duckdb_append_value(*appender, *value)
+                        }
+                        Value::Char(Some(v), ..) => {
+                            duckdb_append_varchar(*appender, as_c_string(v.to_string()).as_ptr())
+                        }
+                        Value::Varchar(Some(v), ..) => {
+                            duckdb_append_varchar(*appender, as_c_string(v).as_ptr())
+                        }
+                        Value::Blob(Some(v), ..) => duckdb_append_blob(
+                            *appender,
+                            v.as_ptr() as *const c_void,
+                            v.len() as u64,
+                        ),
+                        Value::Date(Some(v), ..) => {
+                            duckdb_append_date(*appender, date_to_duckdb_date(&v))
+                        }
+                        Value::Time(Some(v), ..) => {
+                            duckdb_append_time(*appender, time_to_duckdb_time(&v))
+                        }
+                        Value::Timestamp(Some(v), ..) => duckdb_append_timestamp(
+                            *appender,
+                            primitive_date_time_to_duckdb_timestamp(&v),
+                        ),
+                        Value::TimestampWithTimezone(Some(v), ..) => duckdb_append_timestamp(
+                            *appender,
+                            offsetdatetime_to_duckdb_timestamp(&v),
+                        ),
+                        Value::Interval(Some(ref v), ..) => {
+                            duckdb_append_interval(*appender, interval_to_duckdb_interval(&v))
+                        }
+                        Value::Uuid(Some(ref v), ..) => {
+                            duckdb_append_uhugeint(*appender, u128_to_duckdb_uhugeint(v.as_u128()))
+                        }
+                        Value::List(Some(ref v), ty) => {
+                            let logical_type = tank_value_to_duckdb_logical_type(&ty);
+                            let values = v.iter().map(|v| tank_value_to_duckdb_value(v));
+                            let value = CBox::new(
+                                duckdb_create_list_value(
+                                    *logical_type,
+                                    values.map(|v| *v).collect::<Vec<_>>().as_mut_ptr(),
+                                    v.len() as u64,
+                                ),
+                                |mut p| duckdb_destroy_value(&mut p),
+                            );
+                            duckdb_append_value(*appender, *value)
+                        }
+                        Value::Array(Some(ref v), ty, len) => {
+                            let logical_type = tank_value_to_duckdb_logical_type(&*ty);
+                            let values = v
+                                .iter()
+                                .map(|v| tank_value_to_duckdb_value(v))
+                                .collect::<Vec<_>>();
+                            let value = CBox::new(
+                                duckdb_create_array_value(
+                                    *logical_type,
+                                    values.iter().map(|v| **v).collect::<Vec<_>>().as_mut_ptr(),
+                                    len as u64,
+                                ),
+                                |mut p| duckdb_destroy_value(&mut p),
+                            );
+                            duckdb_append_value(*appender, *value)
+                        }
+                        Value::Map(Some(ref v), ..) => {
+                            let logical_type = tank_value_to_duckdb_logical_type(&value);
+                            let keys = v
+                                .keys()
+                                .map(|v| tank_value_to_duckdb_value(v))
+                                .collect::<Vec<_>>();
+                            let values = v
+                                .values()
+                                .map(|v| tank_value_to_duckdb_value(v))
+                                .collect::<Vec<_>>();
+                            let value = CBox::new(
+                                duckdb_create_map_value(
+                                    *logical_type,
+                                    keys.iter().map(|v| **v).collect::<Vec<_>>().as_mut_ptr(),
+                                    values.iter().map(|v| **v).collect::<Vec<_>>().as_mut_ptr(),
+                                    v.len() as u64,
+                                ),
+                                |mut p| duckdb_destroy_value(&mut p),
+                            );
+                            duckdb_append_value(*appender, *value)
+                        }
+                        Value::Struct(Some(ref v), ..) => {
+                            let values = v
+                                .iter()
+                                .map(|v| tank_value_to_duckdb_value(&v.1))
+                                .collect::<Vec<_>>();
+                            let value = CBox::new(
+                                duckdb_create_struct_value(
+                                    *tank_value_to_duckdb_logical_type(&value),
+                                    values.iter().map(|v| **v).collect::<Vec<_>>().as_mut_ptr(),
+                                ),
+                                |mut p| duckdb_destroy_value(&mut p),
+                            );
+                            duckdb_append_value(*appender, *value)
+                        }
+                    };
+                }
+            }
+            Ok(())
+        })
+        .await?
+    }
 }
 
 impl Connection for DuckDBConnection {

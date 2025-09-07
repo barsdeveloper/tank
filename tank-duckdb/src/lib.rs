@@ -1,5 +1,6 @@
 mod cbox;
 mod connection;
+mod conversions;
 mod driver;
 mod extract_value;
 mod query;
@@ -7,6 +8,7 @@ mod sql_writer;
 mod utility;
 
 pub use connection::*;
+pub(crate) use conversions::*;
 pub use driver::*;
 pub use query::*;
 pub use sql_writer::*;
