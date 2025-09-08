@@ -1,8 +1,10 @@
+use rust_decimal::{Decimal, prelude::FromPrimitive};
 use std::{
     borrow::Cow,
+    cell::{Cell, RefCell},
     sync::{Arc, LazyLock},
 };
-use tank::{Entity, Executor};
+use tank::{Entity, Executor, FixedDecimal};
 use time::{Date, Time, macros::date};
 use tokio::sync::Mutex;
 use uuid::Uuid;
@@ -23,6 +25,9 @@ pub async fn simple<E: Executor>(executor: &mut E) {
         kilo: Option<u32>,
         lima: Arc<Option<f32>>,
         mike: Option<Date>,
+        november: Option<Cell<FixedDecimal<4, 2>>>,
+        oscar: Option<RefCell<FixedDecimal<8, 3>>>,
+        papa: Option<FixedDecimal<20, 1>>,
     }
 
     static MUTEX: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
@@ -54,6 +59,9 @@ pub async fn simple<E: Executor>(executor: &mut E) {
         kilo: None,
         lima: Arc::new(Some(3.14)),
         mike: None,
+        november: None,
+        oscar: None,
+        papa: Some(Decimal::from_f32(45.2).unwrap().into()),
     };
     entity
         .save(executor)
@@ -79,6 +87,9 @@ pub async fn simple<E: Executor>(executor: &mut E) {
     assert_eq!(entity.kilo, None);
     assert_eq!(*entity.lima, Some(3.14));
     assert_eq!(entity.mike, None);
+    assert_eq!(entity.november, None);
+    assert_eq!(entity.oscar, None);
+    assert_eq!(entity.papa, Some(Decimal::from_f32(45.2).unwrap().into()));
 
     // Simple 2
     SimpleFields::delete_many(executor, &true)
@@ -98,6 +109,9 @@ pub async fn simple<E: Executor>(executor: &mut E) {
         kilo: 4294967295.into(),
         lima: Arc::new(None),
         mike: date!(2025 - 09 - 07).into(),
+        november: Cell::new(Decimal::from_f32(1.5).unwrap().into()).into(),
+        oscar: RefCell::new(Decimal::from_f32(5080.6244).unwrap().into()).into(),
+        papa: None,
     };
     entity
         .save(executor)
@@ -123,4 +137,13 @@ pub async fn simple<E: Executor>(executor: &mut E) {
     assert_eq!(entity.kilo, Some(4294967295));
     assert_eq!(*entity.lima, None);
     assert_eq!(entity.mike, Some(date!(2025 - 09 - 07)));
+    assert_eq!(
+        entity.november,
+        Some(Cell::new(Decimal::from_f32(1.5).unwrap().into()))
+    );
+    assert_eq!(
+        entity.oscar,
+        Some(RefCell::new(Decimal::from_f32(5080.6244).unwrap().into()))
+    );
+    assert_eq!(entity.papa, None);
 }

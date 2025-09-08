@@ -1,7 +1,7 @@
 use rust_decimal::Decimal;
 use std::{array, collections::BTreeMap, str::FromStr, sync::LazyLock};
 use tank::{
-    Entity, Executor, Passive,
+    Entity, Executor, FixedDecimal, Passive,
     stream::{StreamExt, TryStreamExt},
 };
 use time::macros::datetime;
@@ -20,7 +20,7 @@ pub struct Trade {
     /// Ticker symbol
     pub symbol: String,
     pub isin: [char; 12],
-    pub price: rust_decimal::Decimal,
+    pub price: FixedDecimal<18, 4>,
     pub quantity: u32,
     pub execution_time: Passive<time::PrimitiveDateTime>,
     pub currency: Option<String>,
@@ -49,7 +49,7 @@ pub async fn trade_simple<E: Executor>(executor: &mut E) {
         order: Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap(),
         symbol: "RIVN".to_string(),
         isin: array::from_fn(|i| "US76954A1034".chars().nth(i).unwrap()),
-        price: Decimal::new(1226, 2), // 12.26
+        price: Decimal::new(1226, 2).into(), // 12.26
         quantity: 500,
         execution_time: datetime!(2025-06-07 14:32:00).into(),
         currency: Some("USD".into()),
@@ -104,7 +104,7 @@ pub async fn trade_simple<E: Executor>(executor: &mut E) {
             .join(""),
         "US76954A1034"
     );
-    assert_eq!(result.price, Decimal::new(1226, 2));
+    assert_eq!(result.price, Decimal::new(1226, 2).into());
     assert_eq!(result.quantity, 500);
     assert_eq!(
         result.execution_time,
@@ -151,7 +151,7 @@ pub async fn trade_multiple<E: Executor>(executor: &mut E) {
             order: Uuid::parse_str("11111111-1111-1111-1111-111111111111").unwrap(),
             symbol: "AAPL".to_string(),
             isin: array::from_fn(|i| "US0378331005".chars().nth(i).unwrap()),
-            price: Decimal::new(15000, 2),
+            price: Decimal::new(15000, 2).into(),
             quantity: 10,
             execution_time: datetime!(2025-06-01 09:00:00).into(),
             currency: Some("USD".into()),
@@ -169,7 +169,7 @@ pub async fn trade_multiple<E: Executor>(executor: &mut E) {
             order: Uuid::parse_str("22222222-2222-2222-2222-222222222222").unwrap(),
             symbol: "GOOG".to_string(),
             isin: array::from_fn(|i| "US02079K3059".chars().nth(i).unwrap()),
-            price: Decimal::new(280000, 3), // 280.000
+            price: Decimal::new(280000, 3).into(), // 280.000
             quantity: 5,
             execution_time: datetime!(2025-06-02 10:15:30).into(),
             currency: Some("USD".into()),
@@ -187,7 +187,7 @@ pub async fn trade_multiple<E: Executor>(executor: &mut E) {
             order: Uuid::parse_str("33333333-3333-3333-3333-333333333333").unwrap(),
             symbol: "MSFT".to_string(),
             isin: array::from_fn(|i| "US5949181045".chars().nth(i).unwrap()),
-            price: Decimal::new(32567, 2), // 325.67
+            price: Decimal::new(32567, 2).into(), // 325.67
             quantity: 20,
             execution_time: datetime!(2025-06-03 11:45:00).into(),
             currency: Some("USD".into()),
@@ -205,7 +205,7 @@ pub async fn trade_multiple<E: Executor>(executor: &mut E) {
             order: Uuid::parse_str("44444444-4444-4444-4444-444444444444").unwrap(),
             symbol: "TSLA".to_string(),
             isin: array::from_fn(|i| "US88160R1014".chars().nth(i).unwrap()),
-            price: Decimal::new(62000, 2), // 620.00
+            price: Decimal::new(62000, 2).into(), // 620.00
             quantity: 15,
             execution_time: datetime!(2025-06-04 14:00:00).into(),
             currency: Some("USD".into()),
@@ -223,7 +223,7 @@ pub async fn trade_multiple<E: Executor>(executor: &mut E) {
             order: Uuid::parse_str("55555555-5555-5555-5555-555555555555").unwrap(),
             symbol: "AMZN".to_string(),
             isin: array::from_fn(|i| "US0231351067".chars().nth(i).unwrap()),
-            price: Decimal::new(134899, 3), // 1348.99
+            price: Decimal::new(134899, 3).into(), // 1348.99
             quantity: 8,
             execution_time: datetime!(2025-06-05 16:30:00).into(),
             currency: Some("USD".into()),

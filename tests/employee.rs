@@ -172,7 +172,7 @@ mod tests {
                 working_hours TIME[2],
                 salary DOUBLE NOT NULL,
                 skills VARCHAR[] NOT NULL,
-                documents MAP(VARCHAR, BLOB),
+                documents MAP(VARCHAR,BLOB),
                 access UUID NOT NULL UNIQUE,
                 deleted BOOLEAN NOT NULL DEFAULT false
                 );

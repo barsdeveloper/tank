@@ -18,7 +18,7 @@ use std::{
     },
 };
 use tank_core::{
-    Connection, Context, Entity, Error, Executor, Query, QueryResult, Result, RowLabeled,
+    Connection, Context, Driver, Entity, Error, Executor, Query, QueryResult, Result, RowLabeled,
     RowsAffected, Value, printable_query, send_error, stream::Stream, stream::TryStreamExt,
 };
 use tokio::{sync::RwLock, task::spawn_blocking};
@@ -454,11 +454,9 @@ impl Executor for DuckDBConnection {
 }
 
 impl Connection for DuckDBConnection {
-    const PREFIX: &'static str = "duckdb";
-
     #[allow(refining_impl_trait)]
     async fn connect(url: &str) -> Result<DuckDBConnection> {
-        let prefix = format!("{}://", Self::PREFIX);
+        let prefix = format!("{}://", <Self::Driver as Driver>::NAME);
         if !url.starts_with(&prefix) {
             return Err(Error::msg(format!(
                 "Expected duckdb connection url to start with `{}`",

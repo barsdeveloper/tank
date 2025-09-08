@@ -48,6 +48,31 @@ pub fn decode_type(ty: &Type) -> (TypeDecoded, Option<CheckPassive>) {
                 break 'data_type Value::Varchar(None);
             } else if matches_path(path, &["rust_decimal", "Decimal"]) {
                 break 'data_type Value::Decimal(None, 0, 0);
+            } else if matches_path(path, &["tank", "FixedDecimal"]) {
+                let PathArguments::AngleBracketed(arguments) = &path
+                    .segments
+                    .last()
+                    .expect("FixedDecimal must have two generic values")
+                    .arguments
+                else {
+                    panic!("`{}` must have 2 generic arguments", path.to_token_stream());
+                };
+                let ws = arguments
+                    .args
+                    .iter()
+                    .take(2)
+                    .map(|arg| match arg {
+                        GenericArgument::Const(Expr::Lit(ExprLit {
+                            lit: Lit::Int(v), ..
+                        })) => v.base10_digits().parse::<u8>().expect("Must be a integer"),
+                        _ => panic!(),
+                    })
+                    .collect::<Vec<_>>();
+                break 'data_type Value::Decimal(
+                    None,
+                    *ws.first().expect("Doesn't have width param"),
+                    *ws.last().expect("Doesn't have size param"),
+                );
             } else if matches_path(path, &["time", "Time"]) {
                 break 'data_type Value::Time(None);
             } else if matches_path(path, &["time", "Date"]) {
@@ -146,7 +171,7 @@ pub fn decode_type(ty: &Type) -> (TypeDecoded, Option<CheckPassive>) {
                                 )
                             }
                         }
-                        _ => panic!("{} must have a generic argument", path.to_token_stream()),
+                        _ => panic!("`{}` must have a generic argument", path.to_token_stream()),
                     }
                 }
             }

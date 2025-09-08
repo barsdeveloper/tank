@@ -27,7 +27,7 @@ mod tests {
         /// Ticker symbol
         pub symbol: String,
         pub isin: [char; 12],
-        pub price: rust_decimal::Decimal,
+        pub price: tank::FixedDecimal<18, 4>,
         pub quantity: u32,
         pub execution_time: Passive<time::PrimitiveDateTime>,
         pub currency: Option<String>,
@@ -45,7 +45,7 @@ mod tests {
                 order: Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap(),
                 symbol: "RIVN".to_string(),
                 isin: array::from_fn(|i| "US76954A1034".chars().nth(i).unwrap()),
-                price: Decimal::new(1226, 2), // 12.26
+                price: Decimal::new(1226, 2).into(), // 12.26
                 quantity: 500,
                 execution_time: datetime!(2025-06-07 14:32:00).into(),
                 currency: Some("USD".into()),
@@ -241,7 +241,7 @@ mod tests {
                 order_id UUID NOT NULL DEFAULT '241d362d-797e-4769-b3f6-412440c8cf68' REFERENCES order(id),
                 symbol VARCHAR NOT NULL,
                 isin CHAR(1)[12] NOT NULL,
-                price DECIMAL NOT NULL,
+                price DECIMAL(18,4) NOT NULL,
                 quantity UINTEGER NOT NULL,
                 execution_time TIMESTAMP,
                 currency VARCHAR,
@@ -249,7 +249,7 @@ mod tests {
                 venue VARCHAR,
                 child_trade_ids BIGINT[],
                 metadata BLOB,
-                tags MAP(VARCHAR, VARCHAR),
+                tags MAP(VARCHAR,VARCHAR),
                 PRIMARY KEY (trade_id, execution_time)
                 );
                 COMMENT ON COLUMN trading.company.trade_execution.symbol IS 'Ticker symbol';

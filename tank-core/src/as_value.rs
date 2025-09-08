@@ -1,4 +1,4 @@
-use crate::{Error, Interval, Passive, Result, Value};
+use crate::{Error, FixedDecimal, Interval, Passive, Result, Value};
 use quote::ToTokens;
 use rust_decimal::{Decimal, prelude::FromPrimitive};
 use std::{
@@ -314,6 +314,21 @@ impl AsValue for Decimal {
                 value,
             ))),
         }
+    }
+}
+
+impl<const W: u8, const S: u8> AsValue for FixedDecimal<W, S> {
+    fn as_empty_value() -> Value {
+        Decimal::as_empty_value()
+    }
+    fn as_value(self) -> Value {
+        Value::Decimal(Some(self.0), W, S)
+    }
+    fn try_from_value(value: Value) -> Result<Self>
+    where
+        Self: Sized,
+    {
+        Ok(Self(Decimal::try_from_value(value)?))
     }
 }
 

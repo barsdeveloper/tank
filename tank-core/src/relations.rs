@@ -1,5 +1,21 @@
 use crate::{AsValue, ColumnDef, Entity, TableRef};
+use rust_decimal::Decimal;
 use std::{marker::PhantomData, mem};
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct FixedDecimal<const WIDTH: u8, const SCALE: u8>(pub Decimal);
+
+impl<const W: u8, const S: u8> From<Decimal> for FixedDecimal<W, S> {
+    fn from(value: Decimal) -> Self {
+        Self(value)
+    }
+}
+
+impl<const W: u8, const S: u8> From<FixedDecimal<W, S>> for Decimal {
+    fn from(value: FixedDecimal<W, S>) -> Self {
+        value.0
+    }
+}
 
 #[derive(Debug, Default)]
 pub enum Passive<T: AsValue> {

@@ -93,7 +93,7 @@ pub trait SqlWriter {
             Value::Decimal(.., precision, scale) => {
                 out.push_str("DECIMAL");
                 if (precision, scale) != (&0, &0) {
-                    let _ = write!(out, "({}, {})", precision, scale);
+                    let _ = write!(out, "({},{})", precision, scale);
                 }
             }
             Value::Char(..) => out.push_str("CHAR(1)"),
@@ -116,7 +116,7 @@ pub trait SqlWriter {
             Value::Map(.., key, value) => {
                 out.push_str("MAP(");
                 self.write_column_type(out, key);
-                out.push_str(", ");
+                out.push(',');
                 self.write_column_type(out, value);
                 out.push(')');
             }
