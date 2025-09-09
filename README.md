@@ -3,13 +3,18 @@ Tank (Table Abstraction & Navigation Kit): the Rust data layer.
 
 It's a simple and flexible ORM that allows to manage in a unified way data from different sources.
 
-## Design goals
-- Async API
-- Simple workflow, no complex hidden queries
-- Extensible design to implement additional drivers
-- Not just SQL
-- Many data types and automatic conversions
-- Appender API, if supporter, for fast insertion
+## Design Goals
+- Async-first API
+- Simple workflow — no hidden or complex queries
+- Extensible driver system
+- Works with SQL and non-SQL data sources
+- Rich type support with automatic conversions
+- Optional appender API for high-performance bulk inserts
+
+## Non goals
+- No schema migrations
+- No implicit joins (no entities as fields, foreign keys are explicit)
+- No complex query builder (use raw sql instead, type conversion is still supported)
 
 ## Getting started
 1) Add tank to your project
@@ -143,8 +148,3 @@ async fn data() -> Result<()> {
     Ok(())
 }
 ```
-
-## Non goals
-- Migrations
-- Implicit joins (can still do joins, explicitly)
-- Complex query builder (can do simple queries, for any advanced query use raw sql, will still do conversions like sqlx)
