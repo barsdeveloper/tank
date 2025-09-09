@@ -248,7 +248,7 @@ pub trait SqlWriter {
 
     fn write_value_blob(&self, out: &mut String, value: &[u8]) {
         out.push('\'');
-        for b in value.iter() {
+        for b in value {
             let _ = write!(out, "\\x{:X}", b);
         }
         out.push('\'');
@@ -311,7 +311,7 @@ pub trait SqlWriter {
         out.push('{');
         separated_by(
             out,
-            value.iter(),
+            value,
             |out, (k, v)| {
                 self.write_value(out, k);
                 out.push(':');
@@ -374,7 +374,7 @@ pub trait SqlWriter {
                 out.push('[');
                 separated_by(
                     out,
-                    v.iter(),
+                    *v,
                     |out, v| {
                         v.write_query(self.as_dyn(), out, qualify_columns);
                     },
@@ -390,7 +390,7 @@ pub trait SqlWriter {
                 out.push('(');
                 separated_by(
                     out,
-                    args.iter(),
+                    *args,
                     |out, v| {
                         v.write_query(self.as_dyn(), out, qualify_columns);
                     },

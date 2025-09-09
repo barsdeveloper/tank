@@ -11,7 +11,7 @@ impl SqlWriter for DuckDBSqlWriter {
 
     fn write_value_blob(&self, out: &mut String, value: &[u8]) {
         out.push('\'');
-        for b in value.iter() {
+        for b in value {
             let _ = write!(out, "\\x{:X}", b);
         }
         out.push('\'');
@@ -32,7 +32,7 @@ impl SqlWriter for DuckDBSqlWriter {
         out.push_str("MAP{");
         separated_by(
             out,
-            value.iter(),
+            value,
             |out, (k, v)| {
                 self.write_value(out, k);
                 out.push(':');

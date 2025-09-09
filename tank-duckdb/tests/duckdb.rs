@@ -2,8 +2,8 @@
 mod tests {
     use std::path::Path;
     use std::sync::Mutex;
-    use tank::Connection;
-    use tank_duckdb::DuckDBConnection;
+    use tank::Driver;
+    use tank_duckdb::DuckDBDriver;
     use tank_tests::execute_tests;
     use tokio::fs;
 
@@ -22,10 +22,11 @@ mod tests {
             !Path::new(DB_PATH).exists(),
             "Database file should not exist before test"
         );
-        let connection =
-            DuckDBConnection::connect(format!("duckdb://{}?mode=rw", DB_PATH).as_str())
-                .await
-                .expect("Could not open the database");
+        let driver = DuckDBDriver::new();
+        let connection = driver
+            .connect(format!("duckdb://{}?mode=rw", DB_PATH).into())
+            .await
+            .expect("Could not open the database");
         assert!(
             Path::new(DB_PATH).exists(),
             "Database file should be created after connection"

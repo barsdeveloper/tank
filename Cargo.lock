@@ -1291,7 +1291,6 @@ dependencies = [
 name = "tank-duckdb"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "flume",
  "libduckdb-sys",
  "log",

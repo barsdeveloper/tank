@@ -17,11 +17,6 @@ impl Driver for DuckDBDriver {
 
     const NAME: &'static str = "duckdb";
 
-    fn get_instance() -> Self {
-        static INSTANCE: DuckDBDriver = DuckDBDriver {};
-        INSTANCE
-    }
-
     fn sql_writer(&self) -> Self::SqlWriter {
         DuckDBSqlWriter::default()
     }

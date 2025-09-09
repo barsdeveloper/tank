@@ -1,10 +1,10 @@
 use crate::{Executor, PreparedCache, Query, Result};
 use futures::TryFutureExt;
-use std::future::Future;
+use std::{borrow::Cow, future::Future};
 
 pub trait Connection: Executor {
     /// Create a connection pool with at least one connection established to the given URL
-    fn connect(url: &str) -> impl Future<Output = Result<impl Connection>>;
+    fn connect(url: Cow<'static, str>) -> impl Future<Output = Result<impl Connection>>;
 
     fn as_cached_connection(self) -> impl Connection {
         CachedConnection::<Self>::new(self)
@@ -96,7 +96,7 @@ impl<C: Connection> Executor for CachedConnection<C> {
 }
 
 impl<C: Connection> Connection for CachedConnection<C> {
-    fn connect(url: &str) -> impl Future<Output = Result<impl Connection>> {
+    fn connect(url: Cow<'static, str>) -> impl Future<Output = Result<impl Connection>> {
         C::connect(url)
     }
 

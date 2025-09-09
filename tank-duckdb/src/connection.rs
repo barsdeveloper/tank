@@ -8,6 +8,7 @@ use crate::{
 use flume::Sender;
 use libduckdb_sys::*;
 use std::{
+    borrow::Cow,
     collections::BTreeMap,
     ffi::{CStr, CString, c_char, c_void},
     fmt::{self, Debug, Formatter},
@@ -455,7 +456,7 @@ impl Executor for DuckDBConnection {
 
 impl Connection for DuckDBConnection {
     #[allow(refining_impl_trait)]
-    async fn connect(url: &str) -> Result<DuckDBConnection> {
+    async fn connect(url: Cow<'static, str>) -> Result<DuckDBConnection> {
         let prefix = format!("{}://", <Self::Driver as Driver>::NAME);
         if !url.starts_with(&prefix) {
             return Err(Error::msg(format!(

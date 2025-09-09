@@ -1,32 +1,8 @@
-# Tank
-Tank (Table Abstraction & Navigation Kit): the Rust data layer.
+use std::{borrow::Cow, collections::HashSet, sync::LazyLock};
+use tank::{Entity, Executor, Result, expr, stream::TryStreamExt};
+use tokio::sync::Mutex;
 
-It's a simple and flexible ORM that allows to manage in a unified way data from different sources.
-
-## Design goals
-- Async API
-- Simple workflow, no complex hidden queries
-- Extensible design to implement additional drivers
-- Not just SQL
-- Many data types and automatic conversions
-- Appender API, if supporter, for fast insertion
-
-## Getting started
-1) Add tank to your project
-```sh
-cargo add tank
-```
-
-2) Add a driver crate
-```sh
-cargo add tank-duckdb
-```
-
-3) Declare a entity
-```rust
-use std::borrow::Cow;
-use tank::{Entity, Executor, Result};
-
+static MUTEX: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
 #[derive(Entity)]
 #[tank(schema = "army")]
 pub struct Tank {
@@ -40,20 +16,9 @@ pub struct Tank {
     pub is_operational: bool,
     pub units_produced: Option<u32>,
 }
-```
 
-4) Connect and query
-```rust
-use tank::Driver;
-use tank_duckdb::DuckDBDriver;
-
-async fn data() -> Result<()> {
-
-    let driver = DuckDBDriver::new();
-    let connection = driver
-        .connect("duckdb://../target/debug/tests.duckdb?mode=rw".into())
-        .await
-        .expect("Could not open the database");
+pub async fn readme<E: Executor>(connection: &mut E) -> Result<()> {
+    let _lock = MUTEX.lock();
 
     let my_tank = Tank {
         name: "Tiger I".into(),
@@ -63,6 +28,9 @@ async fn data() -> Result<()> {
         is_operational: false,
         units_produced: Some(1_347),
     };
+    Tank::drop_table(connection, true, false)
+        .await
+        .expect("Failed to drop Tank table");
 
     /*
      * CREATE SCHEMA IF NOT EXISTS army;
@@ -142,9 +110,3 @@ async fn data() -> Result<()> {
     );
     Ok(())
 }
-```
-
-## Non goals
-- Migrations
-- Implicit joins (can still do joins, explicitly)
-- Complex query builder (can do simple queries, for any advanced query use raw sql, will still do conversions like sqlx)

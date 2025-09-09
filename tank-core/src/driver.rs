@@ -1,5 +1,5 @@
 use crate::{Connection, Prepared, Result, SqlWriter};
-use std::future::Future;
+use std::{borrow::Cow, future::Future};
 
 pub trait Driver {
     type Connection: Connection;
@@ -8,9 +8,7 @@ pub trait Driver {
 
     const NAME: &'static str;
 
-    fn get_instance() -> Self;
-
-    fn connect(&self, url: &str) -> impl Future<Output = Result<impl Connection>> {
+    fn connect(&self, url: Cow<'static, str>) -> impl Future<Output = Result<impl Connection>> {
         Self::Connection::connect(url)
     }
 

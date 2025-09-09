@@ -43,7 +43,7 @@ pub trait Entity {
     where
         Self: 'a,
         Exec: Executor,
-        It: Iterator<Item = &'a Self>;
+        It: IntoIterator<Item = &'a Self>;
 
     fn find_pk<Exec: Executor>(
         executor: &mut Exec,
@@ -96,7 +96,7 @@ pub trait Entity {
         executor
             .driver()
             .sql_writer()
-            .write_insert(&mut query, [self].into_iter(), true);
+            .write_insert(&mut query, [self], true);
         executor.execute(query.into()).map_ok(|_| ())
     }
     fn delete<Exec: Executor>(&self, executor: &mut Exec) -> impl Future<Output = Result<()>> + Send

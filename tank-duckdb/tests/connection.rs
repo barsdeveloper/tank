@@ -20,7 +20,7 @@ mod tests {
             !Path::new(DB_PATH).exists(),
             "Database file should not exist before test"
         );
-        DuckDBConnection::connect(format!("duckdb://{}?mode=rw", DB_PATH).as_str())
+        DuckDBConnection::connect(format!("duckdb://{}?mode=rw", DB_PATH).into())
             .await
             .expect("Could not open the database");
         assert!(
