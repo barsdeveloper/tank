@@ -1,3 +1,7 @@
+<div align="center">
+  ![Tank logo](https://github.com/barsdeveloper/tank/blob/master/docs/logo.png?raw=true)
+</div>
+
 # Tank
 Tank (Table Abstraction & Navigation Kit): the Rust data layer.
 
