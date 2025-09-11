@@ -1,13 +1,21 @@
 # Tank
 Tank (Table Abstraction & Navigation Kit): the Rust data layer.
 
-It's a simple and flexible ORM that allows to manage in a unified way data from different sources.
+Simple and flexible ORM that allows to manage in a unified way data from different sources.
+
+Supported databases:
+- DuckDB
+- SQLite (WIP)
+- PostgreSQL (Coming soon)
+- MySQL (Coming soon)
+- Cassandra/ScyllaDB (Coming soon)
+- More to be decided...
 
 ## Design Goals
 - Async-first API
-- Simple workflow — no hidden or complex queries
+- Simple workflow - no hidden or complex queries
 - Extensible driver system
-- Works with SQL and non-SQL data sources
+- Works with both SQL and NoSQL
 - Rich type support with automatic conversions
 - Optional appender API for high-performance bulk inserts
 
@@ -22,7 +30,7 @@ It's a simple and flexible ORM that allows to manage in a unified way data from 
 cargo add tank
 ```
 
-2) Add a driver crate
+2) Add a database driver crate
 ```sh
 cargo add tank-duckdb
 ```
@@ -99,7 +107,7 @@ async fn data() -> Result<()> {
     /*
      * INSERT INTO army.tank (name, country, caliber, speed, is_operational, units_produced) VALUES
      *    ('T-34/85', 'Soviet Union', 85, 53.0, false, 49200),
-     *    ('M1 Abrams', 'USA', 120, 67.7, true, NULL);
+     *    ('M1 Abrams', 'USA', 120, 72, true, NULL);
      */
     Tank::insert_many(
         connection,
@@ -116,7 +124,7 @@ async fn data() -> Result<()> {
                 name: "M1 Abrams".into(),
                 country: "USA".into(),
                 caliber_mm: 120,
-                speed_kmh: 67.7,
+                speed_kmh: 72,
                 is_operational: true,
                 units_produced: None,
             },
