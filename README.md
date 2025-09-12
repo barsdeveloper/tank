@@ -1,5 +1,5 @@
 <div align="center">
-    <img width="250" height="250" src="https://github.com/barsdeveloper/tank/blob/master/docs/logo.png?raw=true" />
+    <img width="300" height="300" src="https://github.com/barsdeveloper/tank/blob/master/docs/logo.png?raw=true" alt="Tank logo: a round patch " />
 </div>
 
 # Tank
@@ -7,7 +7,7 @@ Tank (Table Abstraction & Navigation Kit): the Rust data layer.
 
 Simple and flexible ORM that allows to manage in a unified way data from different sources.
 
-Supported databases:
+Known battlefields:
 - DuckDB
 - SQLite (WIP)
 - PostgreSQL (Coming soon)
@@ -15,31 +15,31 @@ Supported databases:
 - Cassandra/ScyllaDB (Coming soon)
 - More to be decided...
 
-## Design Goals
-- Async-first API
-- Simple workflow - no hidden or complex queries
-- Extensible driver system
-- Works with both SQL and NoSQL
-- Rich type support with automatic conversions
-- Optional appender API for high-performance bulk inserts
+## Mission Objectives
+- Async-first API - fire and forget.
+- Simple workflow - every query is visible on your tactical map.
+- Extensible driver system - swap databases like changing magazines mid-battle.
+- SQL and NoSQL support: one tank, all terrains.
+- Rich type arsenal with automatic conversions.
+- Optional appender API for high caliber bulk inserts.
 
-## Non goals
+## No-fly zone
 - No schema migrations
-- No implicit joins (no entities as fields, foreign keys are explicit)
-- No complex query builder (use raw sql instead, type conversion is still supported)
+- No implicit joins (no entities as fields, every alliance is signed)
+- No complex query builder (write raw SQL and take full credit)
 
 ## Getting started
-1) Add tank to your project
+1) Arm your cargo
 ```sh
 cargo add tank
 ```
 
-2) Add a database driver crate
+2) Choose your ammunition
 ```sh
 cargo add tank-duckdb
 ```
 
-3) Declare a entity
+3) Define unit schematics
 ```rust
 use std::borrow::Cow;
 use tank::{Entity, Executor, Result};
@@ -59,7 +59,7 @@ pub struct Tank {
 }
 ```
 
-4) Connect and query
+4) Fire for effect
 ```rust
 use tank::Driver;
 use tank_duckdb::DuckDBDriver;
@@ -160,3 +160,5 @@ async fn data() -> Result<()> {
     Ok(())
 }
 ```
+
+Rustaceans don't hide behind ORMs, they drive Tanks.
