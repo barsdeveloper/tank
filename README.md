@@ -5,7 +5,7 @@
 # Tank
 Tank (Table Abstraction & Navigation Kit): the Rust data layer.
 
-Simple and flexible ORM that allows to manage in a unified way data from different sources.
+Simple and flexible ORM that manages in a unified way data from different sources.
 
 Known battlefields:
 - DuckDB
