@@ -15,7 +15,7 @@ Known battlefields:
 - Cassandra/ScyllaDB (Coming soon)
 - More to be decided...
 
-## Mission Objectives
+## Mission objectives
 - Async-first API - fire and forget.
 - Simple workflow - every query is visible on your tactical map.
 - Extensible driver system - swap databases like changing magazines mid-battle.
