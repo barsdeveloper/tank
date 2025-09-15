@@ -1,5 +1,5 @@
 use crate::{
-    AsValue, Driver, Executor, Result, Value,
+    Driver, Executor, Prepared, Result, Value,
     future::FutureExt,
     printable_query,
     stream::{Stream, StreamExt},
@@ -9,10 +9,6 @@ use std::{
     pin::pin,
     sync::Arc,
 };
-
-pub trait Prepared: Clone + Send + Sync + Display {
-    fn bind<V: AsValue>(&mut self, v: V) -> Result<&mut Self>;
-}
 
 #[derive(Clone)]
 pub enum Query<P: Prepared> {

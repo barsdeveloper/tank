@@ -1,5 +1,5 @@
 use crate::{
-    DuckDBPrepared, as_c_string, cbox::CBox, date_to_duckdb_date, decimal_to_duckdb_decimal,
+    DuckDBPrepared, cbox::CBox, date_to_duckdb_date, decimal_to_duckdb_decimal,
     driver::DuckDBDriver, error_message_from_ptr, extract_value::extract_value,
     i128_to_duckdb_hugeint, interval_to_duckdb_interval, offsetdatetime_to_duckdb_timestamp,
     primitive_date_time_to_duckdb_timestamp, tank_value_to_duckdb_logical_type,
@@ -9,7 +9,6 @@ use flume::Sender;
 use libduckdb_sys::*;
 use std::{
     borrow::Cow,
-    collections::BTreeMap,
     ffi::{CStr, CString, c_char, c_void},
     fmt::{self, Debug, Formatter},
     mem, ptr,
@@ -20,15 +19,16 @@ use std::{
 };
 use tank_core::{
     Connection, Context, Driver, Entity, Error, Executor, Query, QueryResult, Result, RowLabeled,
-    RowsAffected, Value, printable_query, send_error, stream::Stream, stream::TryStreamExt,
+    RowsAffected, Value, as_c_string, printable_query, send_error,
+    stream::{Stream, TryStreamExt},
 };
-use tokio::{sync::RwLock, task::spawn_blocking};
+use tokio::task::spawn_blocking;
+use url::form_urlencoded;
 use urlencoding::decode;
 
 pub struct DuckDBConnection {
     pub(crate) connection: CBox<duckdb_connection>,
     pub(crate) transaction: bool,
-    prepared_cache: RwLock<BTreeMap<String, DuckDBPrepared>>,
 }
 
 impl DuckDBConnection {
@@ -191,9 +191,6 @@ impl Executor for DuckDBConnection {
     }
 
     async fn prepare(&mut self, query: String) -> Result<Query<DuckDBPrepared>> {
-        if let Some(prepared) = self.prepared_cache.read().await.get(&query) {
-            return Ok(prepared.clone().into());
-        }
         let connection = AtomicPtr::new(*self.connection);
         let source = query.clone();
         let context = format!(
@@ -228,23 +225,16 @@ impl Executor for DuckDBConnection {
         })
         .await?;
         let prepared = DuckDBPrepared::new(prepared?);
-        self.prepared_cache
-            .write()
-            .await
-            .insert(query, prepared.clone());
         Ok(prepared.into())
     }
 
     fn run(&mut self, query: Query<DuckDBPrepared>) -> impl Stream<Item = Result<QueryResult>> {
         let (tx, rx) = flume::unbounded::<Result<QueryResult>>();
         let connection = AtomicPtr::new(*self.connection);
-        let stream = {
-            {
-                let query = query.clone();
-                rx.into_stream()
-                    .map_err(move |e| e.context(format!("While executing the query:\n{}", query)))
-            }
-        };
+        let context = Arc::new(format!("While executing the query:\n{}", query));
+        let stream = rx
+            .into_stream()
+            .map_err(move |e| e.context(context.clone()));
         spawn_blocking(move || match query {
             Query::Raw(query) => {
                 Self::run_unprepared(connection.load(Ordering::Relaxed), &query, tx)
@@ -486,7 +476,7 @@ impl Connection for DuckDBConnection {
                 return Err(error);
             }
         };
-        for (key, value) in url::form_urlencoded::parse(params.as_bytes()) {
+        for (key, value) in form_urlencoded::parse(params.as_bytes()) {
             let rc = unsafe {
                 match &*key {
                     "mode" => duckdb_set_config(
@@ -546,7 +536,6 @@ impl Connection for DuckDBConnection {
         Ok(DuckDBConnection {
             connection,
             transaction: false,
-            prepared_cache: Default::default(),
         })
     }
 }

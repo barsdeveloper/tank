@@ -723,6 +723,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "libsqlite3-sys"
+version = "0.35.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "133c182a6a2c87864fe97778797e46c7e999672690dc9fa3ee8e241aa4a9c13f"
+dependencies = [
+ "cc",
+ "pkg-config",
+ "vcpkg",
+]
+
+[[package]]
 name = "linux-raw-sys"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1295,7 +1306,6 @@ dependencies = [
  "libduckdb-sys",
  "log",
  "rust_decimal",
- "tank",
  "tank-core",
  "tank-tests",
  "time",
@@ -1314,6 +1324,22 @@ dependencies = [
  "quote",
  "syn 2.0.101",
  "tank-core",
+]
+
+[[package]]
+name = "tank-sqlite"
+version = "0.1.0"
+dependencies = [
+ "async-stream",
+ "libsqlite3-sys",
+ "log",
+ "rust_decimal",
+ "tank-core",
+ "tank-tests",
+ "tokio",
+ "url",
+ "urlencoding",
+ "uuid",
 ]
 
 [[package]]

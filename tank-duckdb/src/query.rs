@@ -11,7 +11,6 @@ use std::{
 };
 use tank_core::{AsValue, Error, Prepared, Result, Value};
 
-#[derive(Clone)]
 pub struct DuckDBPrepared {
     pub(crate) prepared: Arc<CBox<duckdb_prepared_statement>>,
     pub(crate) index: u64,
@@ -38,9 +37,10 @@ impl Prepared for DuckDBPrepared {
     fn bind<V: AsValue>(&mut self, v: V) -> Result<&mut Self> {
         unsafe {
             let prepared = **self.prepared;
-            let state = match v.as_value() {
+            let value = v.as_value();
+            let state = match value {
                 Value::Null
-                | Value::Boolean(None)
+                | Value::Boolean(None, ..)
                 | Value::Int8(None, ..)
                 | Value::Int16(None, ..)
                 | Value::Int32(None, ..)
@@ -135,32 +135,17 @@ impl Prepared for DuckDBPrepared {
                     duckdb_bind_interval(prepared, self.index, interval_to_duckdb_interval(&v))
                 }
                 Value::Uuid(Some(_v)) => todo!(),
-                Value::Array(Some(_v), ..) => {
-                    let error = Error::msg("Cannot use a array as a query parameter");
-                    log::error!("{}", error);
-                    return Err(error);
-                }
-                Value::List(Some(_v), ..) => {
-                    let error = Error::msg("Cannot use a list as a query parameter");
-                    log::error!("{}", error);
-                    return Err(error);
-                }
-                Value::Map(Some(_v), ..) => {
-                    let error = Error::msg("Cannot use a map as a query parameter");
-                    log::error!("{}", error);
-                    return Err(error);
-                }
-                Value::Struct(Some(_v), ..) => {
-                    let error = Error::msg("Cannot use a struct as a query parameter");
+                _ => {
+                    let error =
+                        Error::msg(format!("Cannot use a {:?} as a query parameter", value));
                     log::error!("{}", error);
                     return Err(error);
                 }
             };
             if state != duckdb_state_DuckDBSuccess {
-                let error = Error::msg(
-                    error_message_from_ptr(&duckdb_prepare_error(prepared)).to_string(),
-                )
-                .context(format!("While trying to bind the parameter {}", self.index));
+                let error =
+                    Error::msg(error_message_from_ptr(&duckdb_prepare_error(prepared)).to_string())
+                        .context(format!("While trying to bind the parameter {}", self.index));
                 log::error!("{}", error);
                 return Err(error);
             }

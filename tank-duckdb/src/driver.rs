@@ -6,7 +6,7 @@ pub struct DuckDBDriver {}
 
 impl DuckDBDriver {
     pub const fn new() -> Self {
-        DuckDBDriver {}
+        Self {}
     }
 }
 

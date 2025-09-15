@@ -1,0 +1,25 @@
+mod cbox;
+mod connection;
+mod driver;
+mod extract;
+mod prepared;
+mod sql_writer;
+
+use std::{ffi::CStr, ptr};
+
+pub(crate) use cbox::*;
+pub use connection::*;
+pub use driver::*;
+pub use prepared::*;
+
+pub(crate) fn error_message_from_ptr(ptr: &'_ *const i8) -> &'_ str {
+    unsafe {
+        if *ptr != ptr::null() {
+            CStr::from_ptr(*ptr)
+                .to_str()
+                .unwrap_or("Unknown error (the error message was not a valid C string)")
+        } else {
+            "Unknown error (could not extract the error message)"
+        }
+    }
+}

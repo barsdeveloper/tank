@@ -2,7 +2,7 @@
 mod tests {
     use std::path::Path;
     use std::sync::Mutex;
-    use tank::Driver;
+    use tank_core::Driver;
     use tank_duckdb::DuckDBDriver;
     use tank_tests::execute_tests;
     use tokio::fs;

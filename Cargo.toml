@@ -4,6 +4,7 @@ members = [
     "tank-core",
     "tank-duckdb",
     "tank-macros",
+    "tank-sqlite",
     "tank-tests",
 ]
 
@@ -26,11 +27,14 @@ quote = "1.0.38"
 rust_decimal = "1.37.1"
 syn = { version = "2.0.96", features = ["full"] }
 time = { version = "0.3.41", features = ["macros", "parsing"] }
+tokio = { version = "1.44.2", features = ["fs", "macros", "rt-multi-thread", "sync"] }
+url = "2.5.4"
+urlencoding = "2.1.3"
 uuid = "1.16.0"
 
 [package]
 name = "tank"
-description = "Tank (Table Abstraction and Navigation Kit): the Rust data layer. A simple and extensible ORM for Rust"
+description = "Tank (Table Abstraction and Navigation Kit): the Rust data layer. Simple and flexible ORM that allows to manage in a unified way data from different sources."
 version.workspace = true
 authors.workspace = true
 license.workspace = true

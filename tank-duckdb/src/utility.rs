@@ -4,15 +4,8 @@ use crate::{
     primitive_date_time_to_duckdb_timestamp, time_to_duckdb_time, u128_to_duckdb_uhugeint,
 };
 use libduckdb_sys::*;
-use std::{
-    ffi::{CStr, CString},
-    ptr,
-};
-use tank_core::Value;
-
-pub(crate) fn as_c_string<S: Into<Vec<u8>>>(str: S) -> CString {
-    CString::new(str.into()).expect("Expected a valid C string")
-}
+use std::{ffi::CStr, ptr};
+use tank_core::{Value, as_c_string};
 
 pub(crate) fn error_message_from_ptr(ptr: &'_ *const i8) -> &'_ str {
     unsafe {

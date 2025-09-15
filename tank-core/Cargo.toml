@@ -1,11 +1,12 @@
 [package]
 name = "tank-core"
-description = "Core of Tank: the Rust data layer. This is intended to be used by drivers to implement a backend, not directly"
+description = "Core of Tank: the Rust data layer. This is intended to be used by drivers to implement a backend."
 version = "0.1.0"
 authors.workspace = true
 license.workspace = true
 edition.workspace = true
 repository.workspace = true
+categories.workspace = true
 
 [dependencies]
 anyhow = { workspace = true }

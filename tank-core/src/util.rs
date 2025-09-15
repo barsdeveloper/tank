@@ -1,6 +1,6 @@
 use proc_macro2::TokenStream;
 use quote::{ToTokens, quote};
-use std::{borrow::Cow, cmp::min};
+use std::{borrow::Cow, cmp::min, ffi::CString};
 use syn::Path;
 
 #[derive(Clone)]
@@ -62,6 +62,10 @@ pub fn separated_by<T, F>(
         len = out.len();
         f(out, v);
     }
+}
+
+pub fn as_c_string<S: Into<Vec<u8>>>(str: S) -> CString {
+    CString::new(str.into()).expect("Expected a valid C string")
 }
 
 #[macro_export]
