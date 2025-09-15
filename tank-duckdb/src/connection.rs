@@ -96,10 +96,11 @@ impl DuckDBConnection {
         let tx2 = tx.clone();
         Self::run(
             |result| unsafe {
-                let rc = duckdb_execute_prepared_streaming(**query.prepared, result);
+                let rc = duckdb_execute_prepared_streaming(**query.statement, result);
                 if rc != duckdb_state_DuckDBSuccess {
                     let error = Error::msg(
-                        error_message_from_ptr(&duckdb_prepare_error(**query.prepared)).to_string(),
+                        error_message_from_ptr(&duckdb_prepare_error(**query.statement))
+                            .to_string(),
                     )
                     .context("While preparing a query");
                     send_error!(tx2, error);
@@ -109,7 +110,7 @@ impl DuckDBConnection {
             tx,
         );
         unsafe {
-            duckdb_clear_bindings(**query.prepared);
+            duckdb_clear_bindings(**query.statement);
         }
     }
 

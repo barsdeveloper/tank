@@ -45,6 +45,17 @@ macro_rules! impl_as_value {
             fn try_from_value(value: Value) -> Result<Self> {
                 match value {
                     $value(Some(v), ..) => $expr(v),
+                    #[allow(unreachable_patterns)]
+                    Value::Int64(Some(v), ..) => if v as $source as i64 == v {
+                        Ok(v as $source)
+                    } else {
+                        Err(Error::msg(format!(
+                            "Cannot convert `{:?}` into {}, the value is out of bounds",
+                            v,
+                            stringify!($source),
+                        )))
+                    }
+                    #[allow(unreachable_patterns)]
                     $($pat_rest(Some(v), ..) => $expr_rest(v),)*
                     _ => Err(Error::msg(format!(
                         "Cannot convert `{:?}` into `{}`",
@@ -56,20 +67,6 @@ macro_rules! impl_as_value {
         }
     };
 }
-impl_as_value!(
-    bool,
-    Value::Boolean => |v| Ok(v),
-    Value::Int8 => |v| Ok(v != 0),
-    Value::Int16 => |v| Ok(v != 0),
-    Value::Int32 => |v| Ok(v != 0),
-    Value::Int64 => |v| Ok(v != 0),
-    Value::Int128 => |v| Ok(v != 0),
-    Value::UInt8 => |v| Ok(v != 0),
-    Value::UInt16 => |v| Ok(v != 0),
-    Value::UInt32 => |v| Ok(v != 0),
-    Value::UInt64 => |v| Ok(v != 0),
-    Value::UInt128 => |v| Ok(v != 0),
-);
 impl_as_value!(
     i8,
     Value::Int8 => |v| Ok(v),
@@ -142,9 +139,48 @@ impl_as_value!(
     Value::UInt16 => |v| Ok(v as u128),
     Value::UInt8 => |v| Ok(v as u128),
 );
+
+macro_rules! impl_as_value {
+    ($source:ty, $value:path => $expr:expr $(, $pat_rest:path => $expr_rest:expr)* $(,)?) => {
+        impl AsValue for $source {
+            fn as_empty_value() -> Value {
+                $value(None)
+            }
+            fn as_value(self) -> Value {
+                $value(Some(self.into()))
+            }
+            fn try_from_value(value: Value) -> Result<Self> {
+                match value {
+                    $value(Some(v), ..) => $expr(v),
+                    $($pat_rest(Some(v), ..) => $expr_rest(v),)*
+                    _ => Err(Error::msg(format!(
+                        "Cannot convert `{:?}` into `{}`",
+                        value,
+                        stringify!($source),
+                    ))),
+                }
+            }
+        }
+    };
+}
+impl_as_value!(
+    bool,
+    Value::Boolean => |v| Ok(v),
+    Value::Int8 => |v| Ok(v != 0),
+    Value::Int16 => |v| Ok(v != 0),
+    Value::Int32 => |v| Ok(v != 0),
+    Value::Int64 => |v| Ok(v != 0),
+    Value::Int128 => |v| Ok(v != 0),
+    Value::UInt8 => |v| Ok(v != 0),
+    Value::UInt16 => |v| Ok(v != 0),
+    Value::UInt32 => |v| Ok(v != 0),
+    Value::UInt64 => |v| Ok(v != 0),
+    Value::UInt128 => |v| Ok(v != 0),
+);
 impl_as_value!(
     f32,
     Value::Float32 => |v| Ok(v),
+    Value::Float64 => |v| Ok(v as f32),
     Value::Decimal => |v: Decimal| Ok(v.try_into()?),
 );
 impl_as_value!(

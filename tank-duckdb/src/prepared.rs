@@ -12,7 +12,7 @@ use std::{
 use tank_core::{AsValue, Error, Prepared, Result, Value};
 
 pub struct DuckDBPrepared {
-    pub(crate) prepared: Arc<CBox<duckdb_prepared_statement>>,
+    pub(crate) statement: Arc<CBox<duckdb_prepared_statement>>,
     pub(crate) index: u64,
 }
 impl DuckDBPrepared {
@@ -21,7 +21,7 @@ impl DuckDBPrepared {
             duckdb_clear_bindings(*prepared);
         }
         Self {
-            prepared: Arc::new(prepared),
+            statement: Arc::new(prepared),
             index: 1,
         }
     }
@@ -29,14 +29,14 @@ impl DuckDBPrepared {
 
 impl Display for DuckDBPrepared {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:p}", self.prepared)
+        write!(f, "{:p}", self.statement)
     }
 }
 
 impl Prepared for DuckDBPrepared {
     fn bind<V: AsValue>(&mut self, v: V) -> Result<&mut Self> {
         unsafe {
-            let prepared = **self.prepared;
+            let prepared = **self.statement;
             let value = v.as_value();
             let state = match value {
                 Value::Null

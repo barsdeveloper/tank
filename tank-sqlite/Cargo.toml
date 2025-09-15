@@ -20,4 +20,4 @@ urlencoding = { workspace = true }
 uuid = { workspace = true }
 
 [dev-dependencies]
-tank-tests = { path = "../tank-tests" }
+tank-tests = { path = "../tank-tests", features = ["disable-large-integers"] }

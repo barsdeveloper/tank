@@ -16,3 +16,8 @@ tank = { path = ".." }
 time = { workspace = true }
 tokio = { version = "1.45.1", features = ["macros", "rt-multi-thread", "sync"] }
 uuid = { workspace = true }
+
+[features]
+default = ["disable-large-integers"]
+disable-large-integers = []
+disable-time = []
