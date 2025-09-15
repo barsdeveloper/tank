@@ -4,9 +4,10 @@ use crate::{
 };
 use async_stream::{stream, try_stream};
 use libsqlite3_sys::{
-    SQLITE_BUSY, SQLITE_DONE, SQLITE_OK, SQLITE_OPEN_URI, SQLITE_ROW, sqlite3, sqlite3_close,
-    sqlite3_column_count, sqlite3_db_handle, sqlite3_errmsg, sqlite3_finalize, sqlite3_open_v2,
-    sqlite3_prepare_v2, sqlite3_step, sqlite3_stmt,
+    SQLITE_BUSY, SQLITE_DONE, SQLITE_OK, SQLITE_OPEN_CREATE, SQLITE_OPEN_READWRITE,
+    SQLITE_OPEN_URI, SQLITE_ROW, sqlite3, sqlite3_close, sqlite3_column_count, sqlite3_db_handle,
+    sqlite3_errmsg, sqlite3_finalize, sqlite3_open_v2, sqlite3_prepare_v2, sqlite3_step,
+    sqlite3_stmt,
 };
 use std::{
     borrow::Cow,
@@ -28,7 +29,7 @@ use tokio::task::spawn_blocking;
 
 pub struct SqliteConnection {
     pub(crate) connection: CBox<*mut sqlite3>,
-    pub(crate) transaction: bool,
+    pub(crate) _transaction: bool,
 }
 
 impl SqliteConnection {
@@ -61,7 +62,7 @@ impl SqliteConnection {
                                 error_message_from_ptr(&sqlite3_errmsg(sqlite3_db_handle(*statement)))
                                     .to_string(),
                             );
-                            log::error!("{}", error);
+                            log::error!("{:#}", error);
                             yield Err(error);
                         }
                     }
@@ -131,7 +132,7 @@ impl Executor for SqliteConnection {
                 Err(e) => {
                     let error =
                         Error::new(e).context("Could not create a CString from the query String");
-                    log::error!("{}", error);
+                    log::error!("{:#}", error);
                     return Err(error);
                 }
             };
@@ -150,13 +151,13 @@ impl Executor for SqliteConnection {
                 let error =
                     Error::msg(error_message_from_ptr(&sqlite3_errmsg(connection)).to_string())
                         .context(context);
-                log::error!("{}", error);
+                log::error!("{:#}", error);
                 return Err(error);
             }
             if tail != ptr::null() {
                 let error =
                     Error::msg("Cannot prepare more than one statement at a time").context(context);
-                log::error!("{}", error);
+                log::error!("{:#}", error);
                 return Err(error);
             }
             Ok(statement)
@@ -181,23 +182,43 @@ impl Connection for SqliteConnection {
     async fn connect(url: Cow<'static, str>) -> Result<SqliteConnection> {
         let prefix = format!("{}://", <Self::Driver as Driver>::NAME);
         if !url.starts_with(&prefix) {
-            return Err(Error::msg(format!(
+            let error = Error::msg(format!(
                 "Expected sqlite connection url to start with `{}`",
                 &prefix
-            )));
+            ));
+            log::error!("{:#}", error);
+            return Err(error);
         }
         let context = || format!("Error while decoding connection URL: `{}`", url);
-        let url = CString::new(url.trim_start_matches(&prefix)).with_context(context)?;
-        let mut connection: CBox<*mut sqlite3>;
+        let url = CString::new(format!("file:{}", url.trim_start_matches(&prefix)))
+            .with_context(context)?;
+        let mut connection;
         unsafe {
             connection = CBox::new(ptr::null_mut(), |p| {
-                sqlite3_close(p);
+                if sqlite3_close(p) != SQLITE_OK {
+                    log::error!("Could not close sqlite database")
+                }
             });
-            sqlite3_open_v2(url.as_ptr(), &mut *connection, SQLITE_OPEN_URI, ptr::null());
+            let rc = sqlite3_open_v2(
+                url.as_ptr(),
+                &mut *connection,
+                SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_URI,
+                ptr::null(),
+            );
+            if rc != SQLITE_OK {
+                let error =
+                    Error::msg(error_message_from_ptr(&sqlite3_errmsg(*connection)).to_string())
+                        .context(format!(
+                            "While trying to open URI `{}`",
+                            url.to_str().unwrap_or("unprintable value")
+                        ));
+                log::error!("{:#}", error);
+                return Err(error);
+            }
         }
         Ok(Self {
             connection,
-            transaction: false,
+            _transaction: false,
         })
     }
 }

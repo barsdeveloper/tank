@@ -10,8 +10,9 @@ categories.workspace = true
 
 [dependencies]
 env_logger = { workspace = true }
+log = { workspace = true }
+rust_decimal = { workspace = true }
 tank = { path = ".." }
+time = { workspace = true }
 tokio = { version = "1.45.1", features = ["macros", "rt-multi-thread", "sync"] }
 uuid = { workspace = true }
-rust_decimal = { workspace = true }
-time = { workspace = true }

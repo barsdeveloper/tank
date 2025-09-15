@@ -4,13 +4,14 @@ mod tests {
     use std::sync::Mutex;
     use tank_core::Driver;
     use tank_duckdb::DuckDBDriver;
-    use tank_tests::execute_tests;
+    use tank_tests::{execute_tests, init_logs};
     use tokio::fs;
 
     static MUTEX: Mutex<()> = Mutex::new(());
 
     #[tokio::test]
     async fn duckdb() {
+        init_logs();
         const DB_PATH: &'static str = "../target/debug/tests.duckdb";
         let _guard = MUTEX.lock().unwrap();
         if Path::new(DB_PATH).exists() {

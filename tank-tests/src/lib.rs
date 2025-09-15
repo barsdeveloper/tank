@@ -18,12 +18,18 @@ use crate::{
     user::users,
 };
 use aggregates::aggregates;
+use log::LevelFilter;
 use readme::readme;
 use tank::Connection;
 
-pub async fn execute_tests<C: Connection>(mut connection: C) {
-    let _ = env_logger::builder().is_test(true).try_init();
+pub fn init_logs() {
+    let _ = env_logger::builder()
+        .is_test(true)
+        .filter_level(LevelFilter::Warn)
+        .try_init();
+}
 
+pub async fn execute_tests<C: Connection>(mut connection: C) {
     simple(&mut connection).await;
     trade_simple(&mut connection).await;
     trade_multiple(&mut connection).await;

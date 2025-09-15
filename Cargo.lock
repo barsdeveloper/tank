@@ -1347,6 +1347,7 @@ name = "tank-tests"
 version = "0.1.0"
 dependencies = [
  "env_logger",
+ "log",
  "rust_decimal",
  "tank",
  "time",

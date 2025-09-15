@@ -138,7 +138,7 @@ impl Prepared for DuckDBPrepared {
                 _ => {
                     let error =
                         Error::msg(format!("Cannot use a {:?} as a query parameter", value));
-                    log::error!("{}", error);
+                    log::error!("{:#}", error);
                     return Err(error);
                 }
             };
@@ -146,7 +146,7 @@ impl Prepared for DuckDBPrepared {
                 let error =
                     Error::msg(error_message_from_ptr(&duckdb_prepare_error(prepared)).to_string())
                         .context(format!("While trying to bind the parameter {}", self.index));
-                log::error!("{}", error);
+                log::error!("{:#}", error);
                 return Err(error);
             }
             self.index += 1;

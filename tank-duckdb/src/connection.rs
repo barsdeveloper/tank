@@ -166,7 +166,7 @@ impl DuckDBConnection {
                     let row =
                         RowLabeled::new(names.clone(), columns.collect::<Result<_>>().unwrap());
                     if let Err(e) = tx.send(Ok(QueryResult::RowLabeled(row))) {
-                        log::error!("{}", e);
+                        log::error!("{:#}", e);
                     }
                 }
             }
@@ -204,7 +204,7 @@ impl Executor for DuckDBConnection {
                 Err(e) => {
                     let error =
                         Error::new(e).context("Could not create a CString from the query String");
-                    log::error!("{}", error);
+                    log::error!("{:#}", error);
                     return Err(error);
                 }
             };
@@ -218,7 +218,7 @@ impl Executor for DuckDBConnection {
                     error_message_from_ptr(&duckdb_prepare_error(*prepared)).to_string(),
                 )
                 .context(context);
-                log::error!("{}", error);
+                log::error!("{:#}", error);
                 return Err(error);
             }
             Ok(prepared)
@@ -449,10 +449,12 @@ impl Connection for DuckDBConnection {
     async fn connect(url: Cow<'static, str>) -> Result<DuckDBConnection> {
         let prefix = format!("{}://", <Self::Driver as Driver>::NAME);
         if !url.starts_with(&prefix) {
-            return Err(Error::msg(format!(
+            let error = Error::msg(format!(
                 "Expected duckdb connection url to start with `{}`",
                 &prefix,
-            )));
+            ));
+            log::error!("{:#}", error);
+            return Err(error);
         }
         let mut parts = url.trim_start_matches(&prefix).splitn(2, '?');
         let path = parts.next().ok_or(Error::msg(format!(
@@ -472,7 +474,7 @@ impl Connection for DuckDBConnection {
             if rc != duckdb_state_DuckDBSuccess {
                 let error = Error::msg("Could not create the duckdb_config object")
                     .context(format!("While trying to connect to `{}`", url));
-                log::error!("{}", error);
+                log::error!("{:#}", error);
                 return Err(error);
             }
         };
@@ -487,7 +489,7 @@ impl Connection for DuckDBConnection {
                             "rw" => c"READ_WRITE",
                             _ => {
                                 let error = Error::msg("Unknown value {value:?} for `mode`, expected one of: `ro`, `rw`");
-                                log::warn!("{}", error);
+                                log::warn!("{:#}", error);
                                 return Err(error);
                             }
                         }
@@ -502,12 +504,12 @@ impl Connection for DuckDBConnection {
             };
             if rc != duckdb_state_DuckDBSuccess {
                 let error = Error::msg(format!("Error while setting config `{}={}`", key, value));
-                log::warn!("{}", error);
+                log::warn!("{:#}", error);
                 return Err(error);
             }
         }
         let mut database: duckdb_database = ptr::null_mut();
-        let mut connection: CBox<duckdb_connection>;
+        let mut connection;
         let mut error: CBox<*mut c_char> = CBox::new(ptr::null_mut(), |p| unsafe {
             duckdb_free(p as *mut c_void)
         });

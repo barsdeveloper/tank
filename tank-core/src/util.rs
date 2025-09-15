@@ -96,9 +96,9 @@ macro_rules! printable_query {
 macro_rules! send_error {
     ($tx:ident, $error:expr) => {{
         let error = $error;
-        ::log::error!("{}", error);
+        ::log::error!("{:#}", error);
         if let Err(send_error) = $tx.send(Err(error)) {
-            ::log::error!("{}", send_error)
+            ::log::error!("{:#}", send_error)
         }
     }};
 }

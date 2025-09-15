@@ -196,14 +196,14 @@ impl Prepared for SqlitePrepared {
                 _ => {
                     let error =
                         Error::msg(format!("Cannot use a {:?} as a query parameter", value));
-                    log::error!("{}", error);
+                    log::error!("{:#}", error);
                     return Err(error);
                 }
             };
             if rc != SQLITE_OK {
                 let db = sqlite3_db_handle(*self.statement);
                 let error = Error::msg(error_message_from_ptr(&sqlite3_errmsg(db)).to_string());
-                log::error!("{}", error);
+                log::error!("{:#}", error);
                 return Err(error);
             }
             Ok(self)
