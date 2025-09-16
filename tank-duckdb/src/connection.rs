@@ -1,7 +1,7 @@
 use crate::{
     DuckDBPrepared, cbox::CBox, date_to_duckdb_date, decimal_to_duckdb_decimal,
-    driver::DuckDBDriver, error_message_from_ptr, extract_value::extract_value,
-    i128_to_duckdb_hugeint, interval_to_duckdb_interval, offsetdatetime_to_duckdb_timestamp,
+    driver::DuckDBDriver, error_message_from_ptr, extract::extract_value, i128_to_duckdb_hugeint,
+    interval_to_duckdb_interval, offsetdatetime_to_duckdb_timestamp,
     primitive_date_time_to_duckdb_timestamp, tank_value_to_duckdb_logical_type,
     tank_value_to_duckdb_value, time_to_duckdb_time, u128_to_duckdb_uhugeint,
 };
@@ -451,7 +451,7 @@ impl Connection for DuckDBConnection {
         let prefix = format!("{}://", <Self::Driver as Driver>::NAME);
         if !url.starts_with(&prefix) {
             let error = Error::msg(format!(
-                "Expected duckdb connection url to start with `{}`",
+                "DuckDB connection url must start with `{}`",
                 &prefix,
             ));
             log::error!("{:#}", error);
@@ -463,7 +463,7 @@ impl Connection for DuckDBConnection {
             url,
         )))?;
         let params = parts.next().unwrap_or_default();
-        let context = || format!("Error while decoding connection URL: `{}`", url);
+        let context = || format!("Invalid database url: `{}`", url);
         let path = decode(path)
             .with_context(context)
             .and_then(|v| CString::new(&*v).with_context(context))?;
@@ -473,8 +473,8 @@ impl Connection for DuckDBConnection {
         unsafe {
             let rc = duckdb_create_config(&mut *config);
             if rc != duckdb_state_DuckDBSuccess {
-                let error = Error::msg("Could not create the duckdb_config object")
-                    .context(format!("While trying to connect to `{}`", url));
+                let error = Error::msg("Cannot allocate the duckdb_config object")
+                    .context(format!("Failed to connect to database url `{}`", url));
                 log::error!("{:#}", error);
                 return Err(error);
             }
@@ -533,7 +533,9 @@ impl Connection for DuckDBConnection {
             connection = CBox::new(ptr::null_mut(), |mut p| duckdb_disconnect(&mut p));
             let rc = duckdb_connect(database, &mut *connection);
             if rc != duckdb_state_DuckDBSuccess {
-                return Err(Error::msg("Could not connect to the database"));
+                let error = Error::msg(format!("Failed to connect to database url `{}`", url));
+                log::error!("{:#}", error);
+                return Err(error);
             };
         };
         Ok(DuckDBConnection {

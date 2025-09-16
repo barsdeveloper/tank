@@ -2,7 +2,7 @@ mod cbox;
 mod connection;
 mod conversions;
 mod driver;
-mod extract_value;
+mod extract;
 mod prepared;
 mod sql_writer;
 mod utility;

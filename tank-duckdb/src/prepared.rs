@@ -67,27 +67,27 @@ impl Prepared for DuckDBPrepared {
                 | Value::List(None, ..)
                 | Value::Map(None, ..)
                 | Value::Struct(None, ..) => duckdb_bind_null(prepared, self.index),
-                Value::Boolean(Some(v)) => duckdb_bind_boolean(prepared, self.index, v),
-                Value::Int8(Some(v)) => duckdb_bind_int8(prepared, self.index, v),
-                Value::Int16(Some(v)) => duckdb_bind_int16(prepared, self.index, v),
-                Value::Int32(Some(v)) => duckdb_bind_int32(prepared, self.index, v),
-                Value::Int64(Some(v)) => duckdb_bind_int64(prepared, self.index, v),
-                Value::Int128(Some(v)) => {
+                Value::Boolean(Some(v), ..) => duckdb_bind_boolean(prepared, self.index, v),
+                Value::Int8(Some(v), ..) => duckdb_bind_int8(prepared, self.index, v),
+                Value::Int16(Some(v), ..) => duckdb_bind_int16(prepared, self.index, v),
+                Value::Int32(Some(v), ..) => duckdb_bind_int32(prepared, self.index, v),
+                Value::Int64(Some(v), ..) => duckdb_bind_int64(prepared, self.index, v),
+                Value::Int128(Some(v), ..) => {
                     duckdb_bind_hugeint(prepared, self.index, i128_to_duckdb_hugeint(v))
                 }
-                Value::UInt8(Some(v)) => duckdb_bind_uint8(prepared, self.index, v),
-                Value::UInt16(Some(v)) => duckdb_bind_uint16(prepared, self.index, v),
-                Value::UInt32(Some(v)) => duckdb_bind_uint32(prepared, self.index, v),
-                Value::UInt64(Some(v)) => duckdb_bind_uint64(prepared, self.index, v),
-                Value::UInt128(Some(v)) => {
+                Value::UInt8(Some(v), ..) => duckdb_bind_uint8(prepared, self.index, v),
+                Value::UInt16(Some(v), ..) => duckdb_bind_uint16(prepared, self.index, v),
+                Value::UInt32(Some(v), ..) => duckdb_bind_uint32(prepared, self.index, v),
+                Value::UInt64(Some(v), ..) => duckdb_bind_uint64(prepared, self.index, v),
+                Value::UInt128(Some(v), ..) => {
                     duckdb_bind_uhugeint(prepared, self.index, u128_to_duckdb_uhugeint(v))
                 }
-                Value::Float32(Some(v)) => duckdb_bind_float(prepared, self.index, v),
-                Value::Float64(Some(v)) => duckdb_bind_double(prepared, self.index, v),
+                Value::Float32(Some(v), ..) => duckdb_bind_float(prepared, self.index, v),
+                Value::Float64(Some(v), ..) => duckdb_bind_double(prepared, self.index, v),
                 Value::Decimal(Some(v), w, s) => {
                     duckdb_bind_decimal(prepared, self.index, decimal_to_duckdb_decimal(&v, w, s))
                 }
-                Value::Char(Some(v)) => {
+                Value::Char(Some(v), ..) => {
                     let v = v.to_string();
                     let status = duckdb_bind_varchar_length(
                         prepared,
@@ -97,7 +97,7 @@ impl Prepared for DuckDBPrepared {
                     );
                     status
                 }
-                Value::Varchar(Some(v)) => {
+                Value::Varchar(Some(v), ..) => {
                     let status = duckdb_bind_varchar_length(
                         prepared,
                         self.index,
@@ -106,7 +106,7 @@ impl Prepared for DuckDBPrepared {
                     );
                     status
                 }
-                Value::Blob(Some(v)) => {
+                Value::Blob(Some(v), ..) => {
                     let status = duckdb_bind_blob(
                         prepared,
                         self.index,
@@ -115,26 +115,26 @@ impl Prepared for DuckDBPrepared {
                     );
                     status
                 }
-                Value::Date(Some(v)) => {
+                Value::Date(Some(v), ..) => {
                     duckdb_bind_date(prepared, self.index, date_to_duckdb_date(&v))
                 }
-                Value::Time(Some(v)) => {
+                Value::Time(Some(v), ..) => {
                     duckdb_bind_time(prepared, self.index, time_to_duckdb_time(&v))
                 }
-                Value::Timestamp(Some(v)) => duckdb_bind_timestamp(
+                Value::Timestamp(Some(v), ..) => duckdb_bind_timestamp(
                     prepared,
                     self.index,
                     primitive_date_time_to_duckdb_timestamp(&v),
                 ),
-                Value::TimestampWithTimezone(Some(v)) => duckdb_bind_timestamp_tz(
+                Value::TimestampWithTimezone(Some(v), ..) => duckdb_bind_timestamp_tz(
                     prepared,
                     self.index,
                     offsetdatetime_to_duckdb_timestamp(&v),
                 ),
-                Value::Interval(Some(v)) => {
+                Value::Interval(Some(v), ..) => {
                     duckdb_bind_interval(prepared, self.index, interval_to_duckdb_interval(&v))
                 }
-                Value::Uuid(Some(_v)) => todo!(),
+                Value::Uuid(Some(_v), ..) => todo!(),
                 _ => {
                     let error =
                         Error::msg(format!("Cannot use a {:?} as a query parameter", value));

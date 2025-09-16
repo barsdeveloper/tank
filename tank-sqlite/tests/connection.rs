@@ -22,7 +22,7 @@ mod tests {
             !Path::new(DB_PATH).exists(),
             "Database file should not exist before test"
         );
-        SqliteConnection::connect(format!("sqlite://{}?mode=rw", DB_PATH).into())
+        SqliteConnection::connect(format!("sqlite://{}?mode=rwc", DB_PATH).into())
             .await
             .expect("Could not open the database");
         assert!(

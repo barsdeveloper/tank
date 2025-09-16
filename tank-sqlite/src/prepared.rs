@@ -62,20 +62,22 @@ impl Prepared for SqlitePrepared {
                 | Value::List(None, ..)
                 | Value::Map(None, ..)
                 | Value::Struct(None, ..) => sqlite3_bind_null(*self.statement, self.bind_index),
-                Value::Boolean(Some(v)) => {
+                Value::Boolean(Some(v), ..) => {
                     sqlite3_bind_int(*self.statement, self.bind_index, v as c_int)
                 }
-                Value::Int8(Some(v)) => {
+                Value::Int8(Some(v), ..) => {
                     sqlite3_bind_int(*self.statement, self.bind_index, v as c_int)
                 }
-                Value::Int16(Some(v)) => {
+                Value::Int16(Some(v), ..) => {
                     sqlite3_bind_int(*self.statement, self.bind_index, v as c_int)
                 }
-                Value::Int32(Some(v)) => {
+                Value::Int32(Some(v), ..) => {
                     sqlite3_bind_int(*self.statement, self.bind_index, v as c_int)
                 }
-                Value::Int64(Some(v)) => sqlite3_bind_int64(*self.statement, self.bind_index, v),
-                Value::Int128(Some(v)) => {
+                Value::Int64(Some(v), ..) => {
+                    sqlite3_bind_int64(*self.statement, self.bind_index, v)
+                }
+                Value::Int128(Some(v), ..) => {
                     if v as sqlite3_int64 as i128 != v {
                         return Err(Error::msg(
                             "Cannot bind i128 value `{}` into sqlite integer because it's out of bounds",
@@ -83,16 +85,16 @@ impl Prepared for SqlitePrepared {
                     }
                     sqlite3_bind_int64(*self.statement, self.bind_index, v as sqlite3_int64)
                 }
-                Value::UInt8(Some(v)) => {
+                Value::UInt8(Some(v), ..) => {
                     sqlite3_bind_int(*self.statement, self.bind_index, v as c_int)
                 }
-                Value::UInt16(Some(v)) => {
+                Value::UInt16(Some(v), ..) => {
                     sqlite3_bind_int(*self.statement, self.bind_index, v as c_int)
                 }
-                Value::UInt32(Some(v)) => {
+                Value::UInt32(Some(v), ..) => {
                     sqlite3_bind_int(*self.statement, self.bind_index, v as c_int)
                 }
-                Value::UInt64(Some(v)) => {
+                Value::UInt64(Some(v), ..) => {
                     if v as sqlite3_int64 as u64 != v {
                         return Err(Error::msg(
                             "Cannot bind i128 value `{}` into sqlite integer because it's out of bounds",
@@ -100,7 +102,7 @@ impl Prepared for SqlitePrepared {
                     }
                     sqlite3_bind_int64(*self.statement, self.bind_index, v as sqlite3_int64)
                 }
-                Value::UInt128(Some(v)) => {
+                Value::UInt128(Some(v), ..) => {
                     if v as sqlite3_int64 as u128 != v {
                         return Err(Error::msg(
                             "Cannot bind i128 value `{}` into sqlite integer because it's out of bounds",
@@ -108,10 +110,12 @@ impl Prepared for SqlitePrepared {
                     }
                     sqlite3_bind_int64(*self.statement, self.bind_index, v as sqlite3_int64)
                 }
-                Value::Float32(Some(v)) => {
+                Value::Float32(Some(v), ..) => {
                     sqlite3_bind_double(*self.statement, self.bind_index, v as f64)
                 }
-                Value::Float64(Some(v)) => sqlite3_bind_double(*self.statement, self.bind_index, v),
+                Value::Float64(Some(v), ..) => {
+                    sqlite3_bind_double(*self.statement, self.bind_index, v)
+                }
                 Value::Decimal(Some(v), ..) => sqlite3_bind_double(
                     *self.statement,
                     self.bind_index,
@@ -119,7 +123,7 @@ impl Prepared for SqlitePrepared {
                         Error::msg(format!("Cannot convert the Decimal value `{}` to f64", v))
                     })?,
                 ),
-                Value::Char(Some(v)) => {
+                Value::Char(Some(v), ..) => {
                     let v = v.to_string();
                     sqlite3_bind_text(
                         *self.statement,
@@ -129,21 +133,21 @@ impl Prepared for SqlitePrepared {
                         SQLITE_TRANSIENT(),
                     )
                 }
-                Value::Varchar(Some(v)) => sqlite3_bind_text(
+                Value::Varchar(Some(v), ..) => sqlite3_bind_text(
                     *self.statement,
                     self.bind_index,
                     v.as_ptr() as *const c_char,
                     v.len() as c_int,
                     SQLITE_TRANSIENT(),
                 ),
-                Value::Blob(Some(v)) => sqlite3_bind_blob(
+                Value::Blob(Some(v), ..) => sqlite3_bind_blob(
                     *self.statement,
                     self.bind_index,
                     v.as_ptr() as *const c_void,
                     v.len() as c_int,
                     SQLITE_TRANSIENT(),
                 ),
-                Value::Date(Some(v)) => {
+                Value::Date(Some(v), ..) => {
                     let v = v.to_string();
                     sqlite3_bind_text(
                         *self.statement,
@@ -153,7 +157,7 @@ impl Prepared for SqlitePrepared {
                         SQLITE_TRANSIENT(),
                     )
                 }
-                Value::Time(Some(v)) => {
+                Value::Time(Some(v), ..) => {
                     let v = v.to_string();
                     sqlite3_bind_text(
                         *self.statement,
@@ -163,7 +167,7 @@ impl Prepared for SqlitePrepared {
                         SQLITE_TRANSIENT(),
                     )
                 }
-                Value::Timestamp(Some(v)) => {
+                Value::Timestamp(Some(v), ..) => {
                     let v = v.to_string();
                     sqlite3_bind_text(
                         *self.statement,
@@ -173,7 +177,7 @@ impl Prepared for SqlitePrepared {
                         SQLITE_TRANSIENT(),
                     )
                 }
-                Value::TimestampWithTimezone(Some(v)) => {
+                Value::TimestampWithTimezone(Some(v), ..) => {
                     let v = v.to_string();
                     sqlite3_bind_text(
                         *self.statement,
@@ -183,7 +187,7 @@ impl Prepared for SqlitePrepared {
                         SQLITE_TRANSIENT(),
                     )
                 }
-                Value::Uuid(Some(v)) => {
+                Value::Uuid(Some(v), ..) => {
                     let v = v.to_string();
                     sqlite3_bind_text(
                         *self.statement,

@@ -116,16 +116,16 @@ mod tests {
         WRITER.write_create_table::<MyEntity>(&mut query, true);
         assert_eq!(
             query,
-            indoc! {"
-                CREATE TABLE IF NOT EXISTS a_table (
-                alpha DOUBLE NOT NULL,
-                bravo SMALLINT,
-                charlie DECIMAL,
-                delta INTERVAL,
-                echo DECIMAL,
-                PRIMARY KEY (bravo, delta)
+            indoc! {r#"
+                CREATE TABLE IF NOT EXISTS "a_table" (
+                "alpha" DOUBLE NOT NULL,
+                "bravo" SMALLINT,
+                "charlie" DECIMAL,
+                "delta" INTERVAL,
+                "echo" DECIMAL,
+                PRIMARY KEY ("bravo", "delta")
                 );
-            "}
+            "#}
             .trim()
         );
     }
@@ -134,7 +134,7 @@ mod tests {
     fn test_odd_entity_drop_table() {
         let mut query = String::new();
         WRITER.write_drop_table::<MyEntity>(&mut query, false);
-        assert_eq!(query, "DROP TABLE a_table;");
+        assert_eq!(query, r#"DROP TABLE "a_table";"#);
     }
 
     #[test]
@@ -149,12 +149,12 @@ mod tests {
         );
         assert_eq!(
             query,
-            indoc! {"
-                SELECT alpha, bravo, charlie, delta, echo
-                FROM a_table
-                WHERE bravo < 0
+            indoc! {r#"
+                SELECT "alpha", "bravo", "charlie", "delta", "echo"
+                FROM "a_table"
+                WHERE "bravo" < 0
                 LIMIT 300;
-            "}
+            "#}
             .trim()
         );
     }
@@ -165,14 +165,14 @@ mod tests {
         WRITER.write_insert(&mut query, [&MyEntity::sample()], true);
         assert_eq!(
             query,
-            indoc! {"
-                INSERT INTO a_table (alpha, bravo, charlie, delta, echo) VALUES
+            indoc! {r#"
+                INSERT INTO "a_table" ("alpha", "bravo", "charlie", "delta", "echo") VALUES
                 (0.0, 2, 10.2, INTERVAL 1 SECOND, 23.44)
-                ON CONFLICT (bravo, delta) DO UPDATE SET
-                alpha = EXCLUDED.alpha,
-                charlie = EXCLUDED.charlie,
-                echo = EXCLUDED.echo;
-            "}
+                ON CONFLICT ("bravo", "delta") DO UPDATE SET
+                "alpha" = EXCLUDED."alpha",
+                "charlie" = EXCLUDED."charlie",
+                "echo" = EXCLUDED."echo";
+            "#}
             .trim()
         );
     }
@@ -183,10 +183,10 @@ mod tests {
         WRITER.write_delete::<MyEntity, _>(&mut query, &expr!(MyEntity::_echo == 5));
         assert_eq!(
             query,
-            indoc! {"
-                DELETE FROM a_table
-                WHERE echo = 5;
-            "}
+            indoc! {r#"
+                DELETE FROM "a_table"
+                WHERE "echo" = 5;
+            "#}
             .trim()
         );
     }

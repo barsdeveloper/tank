@@ -235,26 +235,26 @@ mod tests {
         WRITER.write_create_table::<Trade>(&mut query, false);
         assert_eq!(
             query,
-            indoc! {"
-                CREATE TABLE trading.company.trade_execution (
-                trade_id UBIGINT,
-                order_id UUID NOT NULL DEFAULT '241d362d-797e-4769-b3f6-412440c8cf68' REFERENCES order(id),
-                symbol VARCHAR NOT NULL,
-                isin CHAR(1)[12] NOT NULL,
-                price DECIMAL(18,4) NOT NULL,
-                quantity UINTEGER NOT NULL,
-                execution_time TIMESTAMP,
-                currency VARCHAR,
-                is_internalized BOOLEAN NOT NULL,
-                venue VARCHAR,
-                child_trade_ids BIGINT[],
-                metadata BLOB,
-                tags MAP(VARCHAR,VARCHAR),
-                PRIMARY KEY (trade_id, execution_time)
+            indoc! {r#"
+                CREATE TABLE "trading.company"."trade_execution" (
+                "trade_id" UBIGINT,
+                "order_id" UUID NOT NULL DEFAULT '241d362d-797e-4769-b3f6-412440c8cf68' REFERENCES "order"("id"),
+                "symbol" VARCHAR NOT NULL,
+                "isin" CHAR(1)[12] NOT NULL,
+                "price" DECIMAL(18,4) NOT NULL,
+                "quantity" UINTEGER NOT NULL,
+                "execution_time" TIMESTAMP,
+                "currency" VARCHAR,
+                "is_internalized" BOOLEAN NOT NULL,
+                "venue" VARCHAR,
+                "child_trade_ids" BIGINT[],
+                "metadata" BLOB,
+                "tags" MAP(VARCHAR,VARCHAR),
+                PRIMARY KEY ("trade_id", "execution_time")
                 );
-                COMMENT ON COLUMN trading.company.trade_execution.symbol IS 'Ticker symbol';
-                COMMENT ON COLUMN trading.company.trade_execution.venue IS 'Exchange';
-            "}
+                COMMENT ON COLUMN "trading.company"."trade_execution"."symbol" IS 'Ticker symbol';
+                COMMENT ON COLUMN "trading.company"."trade_execution"."venue" IS 'Exchange';
+            "#}
             .trim()
         );
     }
@@ -265,7 +265,7 @@ mod tests {
         WRITER.write_drop_table::<Trade>(&mut query, true);
         assert_eq!(
             query,
-            "DROP TABLE IF EXISTS trading.company.trade_execution;"
+            r#"DROP TABLE IF EXISTS "trading.company"."trade_execution";"#
         );
     }
 
@@ -281,11 +281,11 @@ mod tests {
         );
         assert_eq!(
             query,
-            indoc! {"
-                SELECT trade_id, order_id, symbol, isin, price, quantity, execution_time, currency, is_internalized, venue, child_trade_ids, metadata, tags
-                FROM trading.company.trade_execution
-                WHERE quantity >= 100 AND price > 1000;
-            "}
+            indoc! {r#"
+                SELECT "trade_id", "order_id", "symbol", "isin", "price", "quantity", "execution_time", "currency", "is_internalized", "venue", "child_trade_ids", "metadata", "tags"
+                FROM "trading.company"."trade_execution"
+                WHERE "quantity" >= 100 AND "price" > 1000;
+            "#}
             .trim()
         );
     }
@@ -299,10 +299,10 @@ mod tests {
         WRITER.write_insert(&mut query, [&employee], false);
         assert!(
             // Last part of the query (the map) is removed becaus order of keys is not defined. Value stores a HashMap
-            query.starts_with(indoc! {"
-                INSERT INTO trading.company.trade_execution (trade_id, order_id, symbol, isin, price, quantity, execution_time, currency, is_internalized, venue, child_trade_ids, metadata, tags) VALUES
-                (46923, '550e8400-e29b-41d4-a716-446655440000', 'RIVN', ['U','S','7','6','9','5','4','A','1','0','3','4'], 12.26, 500, '2025-06-07 14:32:00.0', 'USD', true, 'NASDAQ', [36209,85320], '\\x4D\\x65\\x74\\x61\\x64\\x61\\x74\\x61\\x20\\x42\\x79\\x74\\x65\\x73',
-            "}.trim())
+            query.starts_with(indoc! {r#"
+                INSERT INTO "trading.company"."trade_execution" ("trade_id", "order_id", "symbol", "isin", "price", "quantity", "execution_time", "currency", "is_internalized", "venue", "child_trade_ids", "metadata", "tags") VALUES
+                (46923, '550e8400-e29b-41d4-a716-446655440000', 'RIVN', ['U','S','7','6','9','5','4','A','1','0','3','4'], 12.26, 500, '2025-06-07 14:32:00.0', 'USD', true, 'NASDAQ', [36209,85320], '\x4D\x65\x74\x61\x64\x61\x74\x61\x20\x42\x79\x74\x65\x73',
+            "#}.trim())
     );
     }
 
@@ -312,10 +312,10 @@ mod tests {
         WRITER.write_delete::<Trade, _>(&mut query, &expr!(Trade::trade == 68391));
         assert_eq!(
             query,
-            indoc! {"
-                DELETE FROM trading.company.trade_execution
-                WHERE trade_id = 68391;
-            "}
+            indoc! {r#"
+                DELETE FROM "trading.company"."trade_execution"
+                WHERE "trade_id" = 68391;
+            "#}
             .trim()
         );
     }

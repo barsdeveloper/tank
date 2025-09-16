@@ -183,20 +183,19 @@ impl Connection for SqliteConnection {
         let prefix = format!("{}://", <Self::Driver as Driver>::NAME);
         if !url.starts_with(&prefix) {
             let error = Error::msg(format!(
-                "Expected sqlite connection url to start with `{}`",
+                "Sqlite connection url must start with `{}`",
                 &prefix
             ));
             log::error!("{:#}", error);
             return Err(error);
         }
-        let context = || format!("Error while decoding connection URL: `{}`", url);
         let url = CString::new(format!("file:{}", url.trim_start_matches(&prefix)))
-            .with_context(context)?;
+            .with_context(|| format!("Invalid database url: `{}`", url))?;
         let mut connection;
         unsafe {
             connection = CBox::new(ptr::null_mut(), |p| {
                 if sqlite3_close(p) != SQLITE_OK {
-                    log::error!("Could not close sqlite database")
+                    log::error!("Could not close sqlite connection")
                 }
             });
             let rc = sqlite3_open_v2(
@@ -209,7 +208,7 @@ impl Connection for SqliteConnection {
                 let error =
                     Error::msg(error_message_from_ptr(&sqlite3_errmsg(*connection)).to_string())
                         .context(format!(
-                            "While trying to open URI `{}`",
+                            "Failed to connect to database url `{}`",
                             url.to_str().unwrap_or("unprintable value")
                         ));
                 log::error!("{:#}", error);

@@ -32,20 +32,20 @@ mod tests {
             WRITER.write_create_table::<Table>(&mut out, false);
             assert_eq!(
                 out,
-                indoc! {"
-                    CREATE TABLE my_table (
-                    special_column VARCHAR,
-                    second_column DOUBLE NOT NULL,
-                    third_column INTEGER PRIMARY KEY
+                indoc! {r#"
+                    CREATE TABLE "my_table" (
+                    "special_column" VARCHAR,
+                    "second_column" DOUBLE NOT NULL,
+                    "third_column" INTEGER PRIMARY KEY
                     );
-                "}
+                "#}
                 .trim()
             )
         }
         {
             let mut out = String::new();
             WRITER.write_drop_table::<Table>(&mut out, true);
-            assert_eq!(out, "DROP TABLE IF EXISTS my_table;")
+            assert_eq!(out, r#"DROP TABLE IF EXISTS "my_table";"#)
         }
         {
             let mut out = String::new();
@@ -58,11 +58,11 @@ mod tests {
             );
             assert_eq!(
                 out,
-                indoc! {"
-                    SELECT special_column, second_column, third_column
-                    FROM my_table
-                    WHERE second_column < 100 AND special_column = 'OK';
-                "}
+                indoc! {r#"
+                    SELECT "special_column", "second_column", "third_column"
+                    FROM "my_table"
+                    WHERE "second_column" < 100 AND "special_column" = 'OK';
+                "#}
                 .trim()
             )
         }
@@ -72,10 +72,10 @@ mod tests {
             WRITER.write_insert(&mut out, [&table], false);
             assert_eq!(
                 out,
-                indoc! {"
-                    INSERT INTO my_table (special_column, second_column, third_column) VALUES
+                indoc! {r#"
+                    INSERT INTO "my_table" ("special_column", "second_column", "third_column") VALUES
                     (NULL, 0.0, 0);
-                "}
+                "#}
                 .trim()
             )
         }
@@ -89,13 +89,13 @@ mod tests {
             WRITER.write_insert(&mut out, [&table], true);
             assert_eq!(
                 out,
-                indoc! {"
-                    INSERT INTO my_table (special_column, second_column, third_column) VALUES
+                indoc! {r#"
+                    INSERT INTO "my_table" ("special_column", "second_column", "third_column") VALUES
                     ('hello', 512.5, 478)
-                    ON CONFLICT (third_column) DO UPDATE SET
-                    special_column = EXCLUDED.special_column,
-                    second_column = EXCLUDED.second_column;
-                "}
+                    ON CONFLICT ("third_column") DO UPDATE SET
+                    "special_column" = EXCLUDED."special_column",
+                    "second_column" = EXCLUDED."second_column";
+                "#}
                 .trim()
             )
         }
@@ -120,23 +120,23 @@ mod tests {
             WRITER.write_create_table::<Cart>(&mut out, true);
             assert_eq!(
                 out,
-                indoc! {"
-                    CREATE TABLE IF NOT EXISTS cart (
-                    id UINTEGER PRIMARY KEY,
-                    user_id UUID NOT NULL,
-                    created_at TIMESTAMP NOT NULL,
-                    items UUID[] NOT NULL,
-                    is_active BOOLEAN NOT NULL,
-                    total_price DECIMAL NOT NULL
+                indoc! {r#"
+                    CREATE TABLE IF NOT EXISTS "cart" (
+                    "id" UINTEGER PRIMARY KEY,
+                    "user_id" UUID NOT NULL,
+                    "created_at" TIMESTAMP NOT NULL,
+                    "items" UUID[] NOT NULL,
+                    "is_active" BOOLEAN NOT NULL,
+                    "total_price" DECIMAL NOT NULL
                     );
-                "}
+                "#}
                 .trim()
             )
         }
         {
             let mut out = String::new();
             WRITER.write_drop_table::<Cart>(&mut out, false);
-            assert_eq!(out, "DROP TABLE cart;")
+            assert_eq!(out, r#"DROP TABLE "cart";"#)
         }
         {
             let mut out = String::new();
@@ -149,12 +149,12 @@ mod tests {
             );
             assert_eq!(
                 out,
-                indoc! {"
-                    SELECT id, user_id, created_at, items, is_active, total_price
-                    FROM cart
-                    WHERE is_active = true AND total_price > 100
+                indoc! {r#"
+                    SELECT "id", "user_id", "created_at", "items", "is_active", "total_price"
+                    FROM "cart"
+                    WHERE "is_active" = true AND "total_price" > 100
                     LIMIT 1000;
-                "}
+                "#}
                 .trim()
             )
         }
@@ -174,10 +174,10 @@ mod tests {
             WRITER.write_insert(&mut out, [&cart], false);
             assert_eq!(
                 out,
-                indoc! {"
-                    INSERT INTO cart (user_id, created_at, items, is_active, total_price) VALUES
+                indoc! {r#"
+                    INSERT INTO "cart" ("user_id", "created_at", "items", "is_active", "total_price") VALUES
                     ('b0fa843f-6ae4-4a16-a13c-ddf5512f3bb2', '2025-05-31 12:30:11.0', [], false, 0);
-                "}
+                "#}
                 .trim()
             )
         }
@@ -201,16 +201,16 @@ mod tests {
             WRITER.write_insert(&mut out, [&cart], true);
             assert_eq!(
                 out,
-                indoc! {"
-                    INSERT INTO cart (user_id, created_at, items, is_active, total_price) VALUES
+                indoc! {r#"
+                    INSERT INTO "cart" ("user_id", "created_at", "items", "is_active", "total_price") VALUES
                     ('22222222-2222-2222-2222-222222222222', '2020-01-19 19:26:54.0', ['30c68157-5c43-452d-8caa-300776260b3f','772ba17d-b3bd-4771-a34e-2926d4731b44','3d4e9cb1-021f-48ab-848e-6c97d0ad670d'], true, 25.99)
-                    ON CONFLICT (id) DO UPDATE SET
-                    user_id = EXCLUDED.user_id,
-                    created_at = EXCLUDED.created_at,
-                    items = EXCLUDED.items,
-                    is_active = EXCLUDED.is_active,
-                    total_price = EXCLUDED.total_price;
-                "}
+                    ON CONFLICT ("id") DO UPDATE SET
+                    "user_id" = EXCLUDED."user_id",
+                    "created_at" = EXCLUDED."created_at",
+                    "items" = EXCLUDED."items",
+                    "is_active" = EXCLUDED."is_active",
+                    "total_price" = EXCLUDED."total_price";
+                "#}
                 .trim()
             )
         }

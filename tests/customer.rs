@@ -120,16 +120,16 @@ mod tests {
         WRITER.write_create_table::<Customer>(&mut query, false);
         assert_eq!(
             query,
-            indoc! {"
-                CREATE TABLE customers (
-                transaction_ids UBIGINT[] NOT NULL,
-                settings VARCHAR[] DEFAULT ['discount', 'newsletter'],
-                values FLOAT[],
-                signup_duration INTERVAL NOT NULL,
-                recent_purchases BIGINT[][]
+            indoc! {r#"
+                CREATE TABLE "customers" (
+                "transaction_ids" UBIGINT[] NOT NULL,
+                "settings" VARCHAR[] DEFAULT ['discount', 'newsletter'],
+                "values" FLOAT[],
+                "signup_duration" INTERVAL NOT NULL,
+                "recent_purchases" BIGINT[][]
                 );
-                COMMENT ON COLUMN customers.recent_purchases IS 'List of all the full cart products\nIt''s a list of lists of ids\n\nCan also be empty';
-            "}
+                COMMENT ON COLUMN "customers"."recent_purchases" IS 'List of all the full cart products\nIt''s a list of lists of ids\n\nCan also be empty';
+            "#}
             .trim()
         );
     }
@@ -138,7 +138,7 @@ mod tests {
     fn test_customer_drop_table() {
         let mut query = String::new();
         WRITER.write_drop_table::<Customer>(&mut query, false);
-        assert_eq!(query, "DROP TABLE customers;");
+        assert_eq!(query, r#"DROP TABLE "customers";"#);
     }
 
     #[test]
@@ -153,12 +153,12 @@ mod tests {
         );
         assert_eq!(
             query,
-            indoc! {"
-                SELECT transaction_ids, settings, values, signup_duration, recent_purchases
-                FROM customers
-                WHERE len(values) > 10
+            indoc! {r#"
+                SELECT "transaction_ids", "settings", "values", "signup_duration", "recent_purchases"
+                FROM "customers"
+                WHERE len("values") > 10
                 LIMIT 10;
-            "}
+            "#}
             .trim()
         );
     }
@@ -169,10 +169,10 @@ mod tests {
         WRITER.write_delete::<Customer, _>(&mut query, &expr!(true));
         assert_eq!(
             query,
-            indoc! {"
-                DELETE FROM customers
+            indoc! {r#"
+                DELETE FROM "customers"
                 WHERE true;
-            "}
+            "#}
             .trim()
         );
     }

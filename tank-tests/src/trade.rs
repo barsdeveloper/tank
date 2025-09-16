@@ -1,5 +1,5 @@
 use rust_decimal::Decimal;
-use std::{array, collections::BTreeMap, str::FromStr, sync::LazyLock};
+use std::{str::FromStr, sync::LazyLock};
 use tank::{
     Entity, Executor, FixedDecimal, Passive,
     stream::{StreamExt, TryStreamExt},
@@ -19,6 +19,7 @@ pub struct Trade {
     pub order: Uuid,
     /// Ticker symbol
     pub symbol: String,
+    #[cfg(not(feature = "disable-arrays"))]
     pub isin: [char; 12],
     pub price: FixedDecimal<18, 4>,
     pub quantity: u32,
@@ -27,8 +28,10 @@ pub struct Trade {
     pub is_internalized: bool,
     /// Exchange
     pub venue: Option<String>,
+    #[cfg(not(feature = "disable-lists"))]
     pub child_trade_ids: Option<Vec<i64>>,
     pub metadata: Option<Box<[u8]>>,
+    #[cfg(not(feature = "disable-maps"))]
     pub tags: Option<BTreeMap<String, String>>,
 }
 
@@ -48,6 +51,7 @@ pub async fn trade_simple<E: Executor>(executor: &mut E) {
         trade: 46923,
         order: Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap(),
         symbol: "RIVN".to_string(),
+        #[cfg(not(feature = "disable-arrays"))]
         isin: array::from_fn(|i| "US76954A1034".chars().nth(i).unwrap()),
         price: Decimal::new(1226, 2).into(), // 12.26
         quantity: 500,
@@ -55,8 +59,10 @@ pub async fn trade_simple<E: Executor>(executor: &mut E) {
         currency: Some("USD".into()),
         is_internalized: true,
         venue: Some("NASDAQ".into()),
+        #[cfg(not(feature = "disable-lists"))]
         child_trade_ids: vec![36209, 85320].into(),
         metadata: b"Metadata Bytes".to_vec().into_boxed_slice().into(),
+        #[cfg(not(feature = "disable-maps"))]
         tags: BTreeMap::from_iter([
             ("source".into(), "internal".into()),
             ("strategy".into(), "scalping".into()),
@@ -95,6 +101,7 @@ pub async fn trade_simple<E: Executor>(executor: &mut E) {
         Uuid::from_str("550e8400-e29b-41d4-a716-446655440000").unwrap()
     );
     assert_eq!(result.symbol, "RIVN");
+    #[cfg(not(feature = "disable-arrays"))]
     assert_eq!(
         result
             .isin
@@ -113,15 +120,19 @@ pub async fn trade_simple<E: Executor>(executor: &mut E) {
     assert_eq!(result.currency, Some("USD".into()));
     assert_eq!(result.is_internalized, true);
     assert_eq!(result.venue, Some("NASDAQ".into()));
+    #[cfg(not(feature = "disable-lists"))]
     assert_eq!(result.child_trade_ids, Some(vec![36209, 85320]));
     assert_eq!(
         result.metadata,
         Some(b"Metadata Bytes".to_vec().into_boxed_slice())
     );
+    #[cfg(not(feature = "disable-maps"))]
     let Some(tags) = result.tags else {
         unreachable!("Tag is expected");
     };
+    #[cfg(not(feature = "disable-maps"))]
     assert_eq!(tags.len(), 2);
+    #[cfg(not(feature = "disable-maps"))]
     assert_eq!(
         tags,
         BTreeMap::from_iter([
@@ -150,6 +161,7 @@ pub async fn trade_multiple<E: Executor>(executor: &mut E) {
             trade: 10001,
             order: Uuid::parse_str("11111111-1111-1111-1111-111111111111").unwrap(),
             symbol: "AAPL".to_string(),
+            #[cfg(not(feature = "disable-arrays"))]
             isin: array::from_fn(|i| "US0378331005".chars().nth(i).unwrap()),
             price: Decimal::new(15000, 2).into(),
             quantity: 10,
@@ -157,8 +169,10 @@ pub async fn trade_multiple<E: Executor>(executor: &mut E) {
             currency: Some("USD".into()),
             is_internalized: false,
             venue: Some("NASDAQ".into()),
+            #[cfg(not(feature = "disable-lists"))]
             child_trade_ids: Some(vec![101, 102]),
             metadata: Some(b"First execution".to_vec().into_boxed_slice()),
+            #[cfg(not(feature = "disable-maps"))]
             tags: Some(BTreeMap::from_iter([
                 ("source".into(), "algo".into()),
                 ("strategy".into(), "momentum".into()),
@@ -168,6 +182,7 @@ pub async fn trade_multiple<E: Executor>(executor: &mut E) {
             trade: 10002,
             order: Uuid::parse_str("22222222-2222-2222-2222-222222222222").unwrap(),
             symbol: "GOOG".to_string(),
+            #[cfg(not(feature = "disable-arrays"))]
             isin: array::from_fn(|i| "US02079K3059".chars().nth(i).unwrap()),
             price: Decimal::new(280000, 3).into(), // 280.000
             quantity: 5,
@@ -175,8 +190,10 @@ pub async fn trade_multiple<E: Executor>(executor: &mut E) {
             currency: Some("USD".into()),
             is_internalized: true,
             venue: Some("NYSE".into()),
+            #[cfg(not(feature = "disable-lists"))]
             child_trade_ids: Some(vec![]),
             metadata: Some(b"Second execution".to_vec().into_boxed_slice()),
+            #[cfg(not(feature = "disable-maps"))]
             tags: Some(BTreeMap::from_iter([
                 ("source".into(), "internal".into()),
                 ("strategy".into(), "mean_reversion".into()),
@@ -186,6 +203,7 @@ pub async fn trade_multiple<E: Executor>(executor: &mut E) {
             trade: 10003,
             order: Uuid::parse_str("33333333-3333-3333-3333-333333333333").unwrap(),
             symbol: "MSFT".to_string(),
+            #[cfg(not(feature = "disable-arrays"))]
             isin: array::from_fn(|i| "US5949181045".chars().nth(i).unwrap()),
             price: Decimal::new(32567, 2).into(), // 325.67
             quantity: 20,
@@ -193,8 +211,10 @@ pub async fn trade_multiple<E: Executor>(executor: &mut E) {
             currency: Some("USD".into()),
             is_internalized: false,
             venue: Some("BATS".into()),
+            #[cfg(not(feature = "disable-lists"))]
             child_trade_ids: Some(vec![301]),
             metadata: Some(b"Third execution".to_vec().into_boxed_slice()),
+            #[cfg(not(feature = "disable-maps"))]
             tags: Some(BTreeMap::from_iter([
                 ("source".into(), "external".into()),
                 ("strategy".into(), "arbitrage".into()),
@@ -204,6 +224,7 @@ pub async fn trade_multiple<E: Executor>(executor: &mut E) {
             trade: 10004,
             order: Uuid::parse_str("44444444-4444-4444-4444-444444444444").unwrap(),
             symbol: "TSLA".to_string(),
+            #[cfg(not(feature = "disable-arrays"))]
             isin: array::from_fn(|i| "US88160R1014".chars().nth(i).unwrap()),
             price: Decimal::new(62000, 2).into(), // 620.00
             quantity: 15,
@@ -211,8 +232,10 @@ pub async fn trade_multiple<E: Executor>(executor: &mut E) {
             currency: Some("USD".into()),
             is_internalized: true,
             venue: Some("CBOE".into()),
+            #[cfg(not(feature = "disable-lists"))]
             child_trade_ids: None,
             metadata: None,
+            #[cfg(not(feature = "disable-maps"))]
             tags: Some(BTreeMap::from_iter([
                 ("source".into(), "manual".into()),
                 ("strategy".into(), "news_event".into()),
@@ -222,6 +245,7 @@ pub async fn trade_multiple<E: Executor>(executor: &mut E) {
             trade: 10005,
             order: Uuid::parse_str("55555555-5555-5555-5555-555555555555").unwrap(),
             symbol: "AMZN".to_string(),
+            #[cfg(not(feature = "disable-arrays"))]
             isin: array::from_fn(|i| "US0231351067".chars().nth(i).unwrap()),
             price: Decimal::new(134899, 3).into(), // 1348.99
             quantity: 8,
@@ -229,8 +253,10 @@ pub async fn trade_multiple<E: Executor>(executor: &mut E) {
             currency: Some("USD".into()),
             is_internalized: false,
             venue: Some("NASDAQ".into()),
+            #[cfg(not(feature = "disable-lists"))]
             child_trade_ids: Some(vec![501, 502, 503]),
             metadata: Some(b"Fifth execution".to_vec().into_boxed_slice()),
+            #[cfg(not(feature = "disable-maps"))]
             tags: Some(BTreeMap::from_iter([
                 ("source".into(), "internal".into()),
                 ("strategy".into(), "scalping".into()),
@@ -290,13 +316,17 @@ pub async fn trade_multiple<E: Executor>(executor: &mut E) {
         assert_eq!(actual_a.venue, expected.venue);
         assert_eq!(actual_b.venue, expected.venue);
 
+        #[cfg(not(feature = "disable-lists"))]
         assert_eq!(actual_a.child_trade_ids, expected.child_trade_ids);
+        #[cfg(not(feature = "disable-lists"))]
         assert_eq!(actual_b.child_trade_ids, expected.child_trade_ids);
 
         assert_eq!(actual_a.metadata, expected.metadata);
         assert_eq!(actual_b.metadata, expected.metadata);
 
+        #[cfg(not(feature = "disable-maps"))]
         assert_eq!(actual_a.tags, expected.tags);
+        #[cfg(not(feature = "disable-maps"))]
         assert_eq!(actual_b.tags, expected.tags);
     }
 }

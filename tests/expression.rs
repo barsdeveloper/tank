@@ -220,7 +220,7 @@ mod tests {
         assert_matches!(expr, Operand::Call("SUM", _));
         let mut out = String::new();
         expr.write_query(&WRITER, &mut out, false);
-        assert_eq!(out, "SUM(my_column)");
+        assert_eq!(out, r#"SUM("my_column")"#);
     }
 
     #[test]
@@ -262,7 +262,7 @@ mod tests {
         );
         let mut out = String::new();
         expr.write_query(&WRITER, &mut out, false);
-        assert_eq!(out, "the_column NOT LIKE ?");
+        assert_eq!(out, r#""the_column" NOT LIKE ?"#);
     }
 
     #[test]
@@ -440,12 +440,12 @@ mod tests {
         {
             let mut out = String::new();
             expr.write_query(&WRITER, &mut out, false);
-            assert_eq!(out, "first + 2");
+            assert_eq!(out, r#""first" + 2"#);
         }
         {
             let mut out = String::new();
             expr.write_query(&WRITER, &mut out, true);
-            assert_eq!(out, "the_table.first + 2");
+            assert_eq!(out, r#""the_table"."first" + 2"#);
         }
         assert_matches!(
             expr,
@@ -512,7 +512,7 @@ mod tests {
         expr.write_query(&WRITER, &mut out, true);
         assert_eq!(
             out,
-            "CAST(the_table.first AS VARCHAR) = the_table.second AND the_table.first > 0"
+            r#"CAST("the_table"."first" AS VARCHAR) = "the_table"."second" AND "the_table"."first" > 0"#
         );
     }
 }

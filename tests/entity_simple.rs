@@ -81,15 +81,15 @@ mod tests {
         WRITER.write_create_table::<SomeSimpleEntity>(&mut query, false);
         assert_eq!(
             query,
-            indoc! {"
-                CREATE TABLE simple_entity (
-                a TINYINT NOT NULL,
-                b VARCHAR,
-                c USMALLINT NOT NULL UNIQUE,
-                UNIQUE (a, c),
-                UNIQUE (b, c)
+            indoc! {r#"
+                CREATE TABLE "simple_entity" (
+                "a" TINYINT NOT NULL,
+                "b" VARCHAR,
+                "c" USMALLINT NOT NULL UNIQUE,
+                UNIQUE ("a", "c"),
+                UNIQUE ("b", "c")
                 );
-            "}
+            "#}
             .trim()
         );
     }
@@ -98,7 +98,7 @@ mod tests {
     fn test_simple_entity_drop_table() {
         let mut query = String::new();
         WRITER.write_drop_table::<SomeSimpleEntity>(&mut query, true);
-        assert_eq!(query, "DROP TABLE IF EXISTS simple_entity;");
+        assert_eq!(query, r#"DROP TABLE IF EXISTS "simple_entity";"#);
     }
 
     #[test]
@@ -113,12 +113,12 @@ mod tests {
         );
         assert_eq!(
             query,
-            indoc! {"
-                SELECT a, b, c
-                FROM simple_entity
-                WHERE a > 100
+            indoc! {r#"
+                SELECT "a", "b", "c"
+                FROM "simple_entity"
+                WHERE "a" > 100
                 LIMIT 1000;
-            "}
+            "#}
             .trim()
         );
     }
@@ -129,10 +129,10 @@ mod tests {
         WRITER.write_insert(&mut query, [&SomeSimpleEntity::make_some()], true);
         assert_eq!(
             query,
-            indoc! {"
-                INSERT INTO simple_entity (a, b, c) VALUES
+            indoc! {r#"
+                INSERT INTO "simple_entity" ("a", "b", "c") VALUES
                 (40, 'hello', 777);
-            "}
+            "#}
             .trim()
         );
     }
@@ -146,10 +146,10 @@ mod tests {
         );
         assert_eq!(
             query,
-            indoc! {"
-                DELETE FROM simple_entity
-                WHERE b != 'hello';
-            "}
+            indoc! {r#"
+                DELETE FROM "simple_entity"
+                WHERE "b" != 'hello';
+            "#}
             .trim()
         );
     }

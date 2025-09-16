@@ -33,17 +33,21 @@ macro_rules! write_float {
 pub trait SqlWriter {
     fn as_dyn(&self) -> &dyn SqlWriter;
 
-    fn write_identifier_quoted(&self, out: &mut String, value: &str) {
-        out.push('"');
+    fn write_escaped(&self, out: &mut String, value: &str, search: char, replace: &str) {
         let mut position = 0;
         for (i, c) in value.char_indices() {
-            if c == '"' {
+            if c == search {
                 out.push_str(&value[position..i]);
-                out.push_str("\"\"");
+                out.push_str(replace);
                 position = i + 1;
             }
         }
         out.push_str(&value[position..]);
+    }
+
+    fn write_identifier_quoted(&self, out: &mut String, value: &str) {
+        out.push('"');
+        self.write_escaped(out, value, '"', r#""""#);
         out.push('"');
     }
 
@@ -52,10 +56,10 @@ pub trait SqlWriter {
             out.push_str(&value.alias);
         } else {
             if !value.schema.is_empty() {
-                out.push_str(&value.schema);
+                self.write_identifier_quoted(out, &value.schema);
                 out.push('.');
             }
-            out.push_str(&value.name);
+            self.write_identifier_quoted(out, &value.name);
         }
         if is_declaration {
             out.push(' ');
@@ -66,13 +70,13 @@ pub trait SqlWriter {
     fn write_column_ref(&self, out: &mut String, value: &ColumnRef, qualify: bool) {
         if qualify && !value.table.is_empty() {
             if !value.schema.is_empty() {
-                out.push_str(&value.schema);
+                self.write_identifier_quoted(out, &value.schema);
                 out.push('.');
             }
-            out.push_str(&value.table);
+            self.write_identifier_quoted(out, &value.table);
             out.push('.');
         }
-        out.push_str(&value.name);
+        self.write_identifier_quoted(out, &value.name);
     }
 
     fn write_column_type(&self, out: &mut String, value: &Value) {
@@ -239,6 +243,10 @@ pub trait SqlWriter {
             if c == '\'' {
                 out.push_str(&value[position..i]);
                 out.push_str("''");
+                position = i + 1;
+            } else if c == '\n' {
+                out.push_str(&value[position..i]);
+                out.push_str("\\n");
                 position = i + 1;
             }
         }
@@ -548,13 +556,23 @@ pub trait SqlWriter {
         let primary_key = E::primary_key_def();
         if primary_key.len() > 1 {
             out.push_str(",\nPRIMARY KEY (");
-            separated_by(out, primary_key, |out, v| out.push_str(v.name()), ", ");
+            separated_by(
+                out,
+                primary_key,
+                |out, v| self.write_identifier_quoted(out, v.name()),
+                ", ",
+            );
             out.push(')');
         }
         for unique in E::unique_defs() {
             if unique.len() > 1 {
                 out.push_str(",\nUNIQUE (");
-                separated_by(out, unique, |out, v| out.push_str(v.name()), ", ");
+                separated_by(
+                    out,
+                    unique,
+                    |out, v| self.write_identifier_quoted(out, v.name()),
+                    ", ",
+                );
                 out.push(')');
             }
         }
@@ -578,7 +596,7 @@ pub trait SqlWriter {
     }
 
     fn write_create_table_column_fragment(&self, out: &mut String, column: &ColumnDef) {
-        out.push_str(&column.name());
+        self.write_identifier_quoted(out, &column.name());
         out.push(' ');
         if !column.column_type.is_empty() {
             out.push_str(&column.column_type);
@@ -670,10 +688,20 @@ pub trait SqlWriter {
         let single = rows.peek().is_none();
         if single {
             // Inserting a single row uses row_labeled to filter out Passive::NotSet columns
-            separated_by(out, row.iter(), |out, v| out.push_str(v.0), ", ");
+            separated_by(
+                out,
+                row.iter(),
+                |out, v| self.write_identifier_quoted(out, v.0),
+                ", ",
+            );
         } else {
             // Inserting more rows will list all columns, Passive::NotSet columns will result in DEFAULT value
-            separated_by(out, columns.clone(), |out, v| out.push_str(v.name()), ", ");
+            separated_by(
+                out,
+                columns.clone(),
+                |out, v| self.write_identifier_quoted(out, v.name()),
+                ", ",
+            );
         };
         out.push_str(") VALUES\n");
         let mut first_row = None;
@@ -690,7 +718,12 @@ pub trait SqlWriter {
                 E::columns(),
                 |out, col| {
                     if Some(col.name()) == field.map(|v| v.0) {
-                        self.write_value(out, field.map(|v| &v.1).expect("Exists"));
+                        self.write_value(
+                            out,
+                            field
+                                .map(|v| &v.1)
+                                .expect("Column does not to have a value"),
+                        );
                         field = fields.next();
                     } else if !single {
                         out.push_str("DEFAULT");
@@ -742,7 +775,12 @@ pub trait SqlWriter {
         out.push_str("\nON CONFLICT");
         if pk.len() > 0 {
             out.push_str(" (");
-            separated_by(out, pk, |out, v| out.push_str(v.name()), ", ");
+            separated_by(
+                out,
+                pk,
+                |out, v| self.write_identifier_quoted(out, v.name()),
+                ", ",
+            );
             out.push(')');
         }
         out.push_str(" DO UPDATE SET\n");
@@ -750,9 +788,9 @@ pub trait SqlWriter {
             out,
             columns.filter(|c| c.primary_key == PrimaryKeyType::None),
             |out, v| {
-                out.push_str(v.name());
+                self.write_identifier_quoted(out, v.name());
                 out.push_str(" = EXCLUDED.");
-                out.push_str(v.name());
+                self.write_identifier_quoted(out, v.name());
             },
             ",\n",
         );

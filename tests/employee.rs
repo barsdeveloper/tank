@@ -164,19 +164,19 @@ mod tests {
         WRITER.write_create_table::<Employee>(&mut query, false);
         assert_eq!(
             query,
-            indoc! {"
-                CREATE TABLE company.employee (
-                id UINTEGER PRIMARY KEY,
-                name VARCHAR NOT NULL UNIQUE,
-                hire_date DATE NOT NULL,
-                working_hours TIME[2],
-                salary DOUBLE NOT NULL,
-                skills VARCHAR[] NOT NULL,
-                documents MAP(VARCHAR,BLOB),
-                access UUID NOT NULL UNIQUE,
-                deleted BOOLEAN NOT NULL DEFAULT false
+            indoc! {r#"
+                CREATE TABLE "company"."employee" (
+                "id" UINTEGER PRIMARY KEY,
+                "name" VARCHAR NOT NULL UNIQUE,
+                "hire_date" DATE NOT NULL,
+                "working_hours" TIME[2],
+                "salary" DOUBLE NOT NULL,
+                "skills" VARCHAR[] NOT NULL,
+                "documents" MAP(VARCHAR,BLOB),
+                "access" UUID NOT NULL UNIQUE,
+                "deleted" BOOLEAN NOT NULL DEFAULT false
                 );
-            "}
+            "#}
             .trim()
         );
     }
@@ -185,7 +185,7 @@ mod tests {
     fn test_employee_drop_table() {
         let mut query = String::new();
         WRITER.write_drop_table::<Employee>(&mut query, true);
-        assert_eq!(query, "DROP TABLE IF EXISTS company.employee;");
+        assert_eq!(query, r#"DROP TABLE IF EXISTS "company"."employee";"#);
     }
 
     #[test]
@@ -200,12 +200,12 @@ mod tests {
         );
         assert_eq!(
             query,
-            indoc! {"
-                SELECT id, name, hire_date, working_hours, salary, skills, documents, access, deleted
-                FROM company.employee
-                WHERE salary > 50000
+            indoc! {r#"
+                SELECT "id", "name", "hire_date", "working_hours", "salary", "skills", "documents", "access", "deleted"
+                FROM "company"."employee"
+                WHERE "salary" > 50000
                 LIMIT 10;
-            "}
+            "#}
             .trim()
         );
     }
@@ -219,10 +219,10 @@ mod tests {
         WRITER.write_insert(&mut query, [&employee], false);
         assert_eq!(
             query,
-            indoc! {"
-                INSERT INTO company.employee (id, name, hire_date, working_hours, salary, skills, documents, deleted) VALUES
-                (501, 'Bob Smith', '2022-01-20', ['9:00:00.0','18:00:00.0'], 75000.0, ['Rust','SQL'], {'contract.pdf':'\\x25\\x50\\x44\\x46'}, true);
-            "}
+            indoc! {r#"
+                INSERT INTO "company"."employee" ("id", "name", "hire_date", "working_hours", "salary", "skills", "documents", "deleted") VALUES
+                (501, 'Bob Smith', '2022-01-20', ['9:00:00.0','18:00:00.0'], 75000.0, ['Rust','SQL'], {'contract.pdf':'\x25\x50\x44\x46'}, true);
+            "#}
             .trim()
         );
         let employee = Employee {
@@ -235,10 +235,10 @@ mod tests {
         WRITER.write_insert(&mut query, [&employee], false);
         assert_eq!(
             query,
-            indoc! {"
-                INSERT INTO company.employee (id, name, hire_date, working_hours, salary, skills, documents, access, deleted) VALUES
-                (501, 'Bob Smith', '2022-01-20', ['9:00:00.0','18:00:00.0'], 75000.0, ['Rust','SQL'], {'contract.pdf':'\\x25\\x50\\x44\\x46'}, '8f8fcc51-2fa9-4118-b14f-af2d8301a89a', true);
-            "}
+            indoc! {r#"
+                INSERT INTO "company"."employee" ("id", "name", "hire_date", "working_hours", "salary", "skills", "documents", "access", "deleted") VALUES
+                (501, 'Bob Smith', '2022-01-20', ['9:00:00.0','18:00:00.0'], 75000.0, ['Rust','SQL'], {'contract.pdf':'\x25\x50\x44\x46'}, '8f8fcc51-2fa9-4118-b14f-af2d8301a89a', true);
+            "#}
             .trim()
         );
     }
@@ -249,10 +249,10 @@ mod tests {
         WRITER.write_delete::<Employee, _>(&mut query, &expr!(Employee::name == "Bob"));
         assert_eq!(
             query,
-            indoc! {"
-                DELETE FROM company.employee
-                WHERE name = 'Bob';
-            "}
+            indoc! {r#"
+                DELETE FROM "company"."employee"
+                WHERE "name" = 'Bob';
+            "#}
             .trim()
         );
     }
