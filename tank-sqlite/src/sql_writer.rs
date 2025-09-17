@@ -60,6 +60,14 @@ impl SqlWriter for SqliteSqlWriter {
         };
     }
 
+    fn write_value_blob(&self, out: &mut String, value: &[u8]) {
+        out.push_str("X'");
+        for b in value {
+            let _ = write!(out, "{:X}", b);
+        }
+        out.push('\'');
+    }
+
     fn write_create_schema<E>(&self, _out: &mut String, _if_not_exists: bool)
     where
         Self: Sized,

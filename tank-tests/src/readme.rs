@@ -28,19 +28,23 @@ pub async fn readme<E: Executor>(connection: &mut E) -> Result<()> {
         is_operational: false,
         units_produced: Some(1_347),
     };
+
+    /*
+     * DROP TABLE IF EXISTS "army"."tank";
+     */
     Tank::drop_table(connection, true, false)
         .await
         .expect("Failed to drop Tank table");
 
     /*
      * CREATE SCHEMA IF NOT EXISTS army;
-     * CREATE TABLE IF NOT EXISTS army.tank (
-     *     name VARCHAR PRIMARY KEY,
-     *     country VARCHAR NOT NULL,
-     *     caliber USMALLINT NOT NULL,
-     *     speed FLOAT NOT NULL,
-     *     is_operational BOOLEAN NOT NULL,
-     *     units_produced UINTEGER
+     * CREATE TABLE IF NOT EXISTS "army"."tank" (
+     *     "name" VARCHAR PRIMARY KEY,
+     *     "country" VARCHAR NOT NULL,
+     *     "caliber" USMALLINT NOT NULL,
+     *     "speed" FLOAT NOT NULL,
+     *     "is_operational" BOOLEAN NOT NULL,
+     *     "units_produced" UINTEGER
      * );
      */
     Tank::create_table(connection, true, true)
@@ -48,21 +52,21 @@ pub async fn readme<E: Executor>(connection: &mut E) -> Result<()> {
         .expect("Failed to create Tank table");
 
     /*
-     * INSERT INTO army.tank (name, country, caliber, speed, is_operational, units_produced) VALUES
+     * INSERT INTO "army"."tank" ("name", "country", "caliber", "speed", "is_operational", "units_produced") VALUES
      *     ('Tiger I', 'Germany', 88, 45.4, false, 1347)
-     * ON CONFLICT (name) DO UPDATE SET
-     *     country = EXCLUDED.country,
-     *     caliber = EXCLUDED.caliber,
-     *     speed = EXCLUDED.speed,
-     *     is_operational = EXCLUDED.is_operational,
-     *     units_produced = EXCLUDED.units_produced;
+     * ON CONFLICT ("name") DO UPDATE SET
+     *     "country" = EXCLUDED."country",
+     *     "caliber" = EXCLUDED."caliber",
+     *     "speed" = EXCLUDED."speed",
+     *     "is_operational" = EXCLUDED."is_operational",
+     *     "units_produced" = EXCLUDED."units_produced";
      */
     my_tank.save(connection).await?;
 
     /*
-     * INSERT INTO army.tank (name, country, caliber, speed, is_operational, units_produced) VALUES
-     *    ('T-34/85', 'Soviet Union', 85, 53.0, false, 49200),
-     *    ('M1 Abrams', 'USA', 120, 67.7, true, NULL);
+     * INSERT INTO "army"."tank" ("name", "country", "caliber", "speed", "is_operational", "units_produced") VALUES
+     *     ('T-34/85', 'Soviet Union', 85, 53.0, false, 49200),
+     *     ('M1 Abrams', 'USA', 120, 72.0, true, NULL);
      */
     Tank::insert_many(
         connection,
@@ -79,7 +83,7 @@ pub async fn readme<E: Executor>(connection: &mut E) -> Result<()> {
                 name: "M1 Abrams".into(),
                 country: "USA".into(),
                 caliber_mm: 120,
-                speed_kmh: 67.7,
+                speed_kmh: 72.0,
                 is_operational: true,
                 units_produced: None,
             },
@@ -88,9 +92,9 @@ pub async fn readme<E: Executor>(connection: &mut E) -> Result<()> {
     .await?;
 
     /*
-     * SELECT name, country, caliber, speed, is_operational, units_produced
-     * FROM army.tank
-     * WHERE is_operational = false
+     * SELECT "name", "country", "caliber", "speed", "is_operational", "units_produced"
+     * FROM "army"."tank"
+     * WHERE "is_operational" = false
      * LIMIT 1000;
      */
     let tanks = Tank::find_many(

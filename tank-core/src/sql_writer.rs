@@ -4,6 +4,7 @@ use crate::{
     possibly_parenthesized, separated_by,
 };
 use std::{collections::HashMap, fmt::Write};
+use time::{Date, Time};
 
 macro_rules! write_integer {
     ($out:ident, $value:expr) => {{
@@ -184,22 +185,32 @@ pub trait SqlWriter {
             Value::Blob(Some(v), ..) => self.write_value_blob(out, v.as_ref()),
             Value::Date(Some(v), ..) => {
                 out.push('\'');
-                let _ = write!(out, "{}", v);
+                self.write_value_date(out, v);
                 out.push('\'');
             }
             Value::Time(Some(v), ..) => {
                 out.push('\'');
-                let _ = write!(out, "{}", v);
+                self.write_value_time(out, v);
                 out.push('\'');
             }
             Value::Timestamp(Some(v), ..) => {
                 out.push('\'');
-                let _ = write!(out, "{}", v);
+                self.write_value_date(out, &v.date());
+                out.push('T');
+                self.write_value_time(out, &v.time());
                 out.push('\'');
             }
             Value::TimestampWithTimezone(Some(v), ..) => {
                 out.push('\'');
-                let _ = write!(out, "{}", v);
+                self.write_value_date(out, &v.date());
+                out.push('T');
+                self.write_value_time(out, &v.time());
+                let _ = write!(
+                    out,
+                    "{:+02}:{:02}",
+                    v.offset().whole_hours(),
+                    v.offset().whole_minutes()
+                );
                 out.push('\'');
             }
             Value::Interval(Some(v), ..) => self.write_value_interval(out, v),
@@ -260,6 +271,33 @@ pub trait SqlWriter {
             let _ = write!(out, "\\x{:X}", b);
         }
         out.push('\'');
+    }
+
+    fn write_value_date(&self, out: &mut String, value: &Date) {
+        let _ = write!(
+            out,
+            "{:04}-{:02}-{:02}",
+            value.year(),
+            value.month() as u8,
+            value.day()
+        );
+    }
+
+    fn write_value_time(&self, out: &mut String, value: &Time) {
+        let mut subsecond = value.nanosecond();
+        let mut width = 9;
+        while width > 1 && subsecond % 10 == 0 {
+            subsecond /= 10;
+            width -= 1;
+        }
+        let _ = write!(
+            out,
+            "{:02}:{:02}:{:02}.{:0width$}",
+            value.hour(),
+            value.minute(),
+            value.second(),
+            subsecond
+        );
     }
 
     fn value_interval_units(&self) -> &[(&str, i128)] {

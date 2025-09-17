@@ -32,7 +32,7 @@ pub struct Trade {
     pub child_trade_ids: Option<Vec<i64>>,
     pub metadata: Option<Box<[u8]>>,
     #[cfg(not(feature = "disable-maps"))]
-    pub tags: Option<BTreeMap<String, String>>,
+    pub tags: Option<std::collections::BTreeMap<String, String>>,
 }
 
 pub async fn trade_simple<E: Executor>(executor: &mut E) {
@@ -52,7 +52,7 @@ pub async fn trade_simple<E: Executor>(executor: &mut E) {
         order: Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap(),
         symbol: "RIVN".to_string(),
         #[cfg(not(feature = "disable-arrays"))]
-        isin: array::from_fn(|i| "US76954A1034".chars().nth(i).unwrap()),
+        isin: std::array::from_fn(|i| "US76954A1034".chars().nth(i).unwrap()),
         price: Decimal::new(1226, 2).into(), // 12.26
         quantity: 500,
         execution_time: datetime!(2025-06-07 14:32:00).into(),
@@ -63,7 +63,7 @@ pub async fn trade_simple<E: Executor>(executor: &mut E) {
         child_trade_ids: vec![36209, 85320].into(),
         metadata: b"Metadata Bytes".to_vec().into_boxed_slice().into(),
         #[cfg(not(feature = "disable-maps"))]
-        tags: BTreeMap::from_iter([
+        tags: std::collections::BTreeMap::from_iter([
             ("source".into(), "internal".into()),
             ("strategy".into(), "scalping".into()),
         ])
@@ -135,7 +135,7 @@ pub async fn trade_simple<E: Executor>(executor: &mut E) {
     #[cfg(not(feature = "disable-maps"))]
     assert_eq!(
         tags,
-        BTreeMap::from_iter([
+        std::collections::BTreeMap::from_iter([
             ("source".into(), "internal".into()),
             ("strategy".into(), "scalping".into())
         ])
@@ -162,7 +162,7 @@ pub async fn trade_multiple<E: Executor>(executor: &mut E) {
             order: Uuid::parse_str("11111111-1111-1111-1111-111111111111").unwrap(),
             symbol: "AAPL".to_string(),
             #[cfg(not(feature = "disable-arrays"))]
-            isin: array::from_fn(|i| "US0378331005".chars().nth(i).unwrap()),
+            isin: std::array::from_fn(|i| "US0378331005".chars().nth(i).unwrap()),
             price: Decimal::new(15000, 2).into(),
             quantity: 10,
             execution_time: datetime!(2025-06-01 09:00:00).into(),
@@ -173,7 +173,7 @@ pub async fn trade_multiple<E: Executor>(executor: &mut E) {
             child_trade_ids: Some(vec![101, 102]),
             metadata: Some(b"First execution".to_vec().into_boxed_slice()),
             #[cfg(not(feature = "disable-maps"))]
-            tags: Some(BTreeMap::from_iter([
+            tags: Some(std::collections::BTreeMap::from_iter([
                 ("source".into(), "algo".into()),
                 ("strategy".into(), "momentum".into()),
             ])),
@@ -183,7 +183,7 @@ pub async fn trade_multiple<E: Executor>(executor: &mut E) {
             order: Uuid::parse_str("22222222-2222-2222-2222-222222222222").unwrap(),
             symbol: "GOOG".to_string(),
             #[cfg(not(feature = "disable-arrays"))]
-            isin: array::from_fn(|i| "US02079K3059".chars().nth(i).unwrap()),
+            isin: std::array::from_fn(|i| "US02079K3059".chars().nth(i).unwrap()),
             price: Decimal::new(280000, 3).into(), // 280.000
             quantity: 5,
             execution_time: datetime!(2025-06-02 10:15:30).into(),
@@ -194,7 +194,7 @@ pub async fn trade_multiple<E: Executor>(executor: &mut E) {
             child_trade_ids: Some(vec![]),
             metadata: Some(b"Second execution".to_vec().into_boxed_slice()),
             #[cfg(not(feature = "disable-maps"))]
-            tags: Some(BTreeMap::from_iter([
+            tags: Some(std::collections::BTreeMap::from_iter([
                 ("source".into(), "internal".into()),
                 ("strategy".into(), "mean_reversion".into()),
             ])),
@@ -204,7 +204,7 @@ pub async fn trade_multiple<E: Executor>(executor: &mut E) {
             order: Uuid::parse_str("33333333-3333-3333-3333-333333333333").unwrap(),
             symbol: "MSFT".to_string(),
             #[cfg(not(feature = "disable-arrays"))]
-            isin: array::from_fn(|i| "US5949181045".chars().nth(i).unwrap()),
+            isin: std::array::from_fn(|i| "US5949181045".chars().nth(i).unwrap()),
             price: Decimal::new(32567, 2).into(), // 325.67
             quantity: 20,
             execution_time: datetime!(2025-06-03 11:45:00).into(),
@@ -215,8 +215,8 @@ pub async fn trade_multiple<E: Executor>(executor: &mut E) {
             child_trade_ids: Some(vec![301]),
             metadata: Some(b"Third execution".to_vec().into_boxed_slice()),
             #[cfg(not(feature = "disable-maps"))]
-            tags: Some(BTreeMap::from_iter([
-                ("source".into(), "external".into()),
+            tags: Some(std::collections::BTreeMap::from_iter([
+                ("sourcev".into(), "external".into()),
                 ("strategy".into(), "arbitrage".into()),
             ])),
         },
@@ -225,7 +225,7 @@ pub async fn trade_multiple<E: Executor>(executor: &mut E) {
             order: Uuid::parse_str("44444444-4444-4444-4444-444444444444").unwrap(),
             symbol: "TSLA".to_string(),
             #[cfg(not(feature = "disable-arrays"))]
-            isin: array::from_fn(|i| "US88160R1014".chars().nth(i).unwrap()),
+            isin: std::array::from_fn(|i| "US88160R1014".chars().nth(i).unwrap()),
             price: Decimal::new(62000, 2).into(), // 620.00
             quantity: 15,
             execution_time: datetime!(2025-06-04 14:00:00).into(),
@@ -236,7 +236,7 @@ pub async fn trade_multiple<E: Executor>(executor: &mut E) {
             child_trade_ids: None,
             metadata: None,
             #[cfg(not(feature = "disable-maps"))]
-            tags: Some(BTreeMap::from_iter([
+            tags: Some(std::collections::BTreeMap::from_iter([
                 ("source".into(), "manual".into()),
                 ("strategy".into(), "news_event".into()),
             ])),
@@ -246,7 +246,7 @@ pub async fn trade_multiple<E: Executor>(executor: &mut E) {
             order: Uuid::parse_str("55555555-5555-5555-5555-555555555555").unwrap(),
             symbol: "AMZN".to_string(),
             #[cfg(not(feature = "disable-arrays"))]
-            isin: array::from_fn(|i| "US0231351067".chars().nth(i).unwrap()),
+            isin: std::array::from_fn(|i| "US0231351067".chars().nth(i).unwrap()),
             price: Decimal::new(134899, 3).into(), // 1348.99
             quantity: 8,
             execution_time: datetime!(2025-06-05 16:30:00).into(),
@@ -257,7 +257,7 @@ pub async fn trade_multiple<E: Executor>(executor: &mut E) {
             child_trade_ids: Some(vec![501, 502, 503]),
             metadata: Some(b"Fifth execution".to_vec().into_boxed_slice()),
             #[cfg(not(feature = "disable-maps"))]
-            tags: Some(BTreeMap::from_iter([
+            tags: Some(std::collections::BTreeMap::from_iter([
                 ("source".into(), "internal".into()),
                 ("strategy".into(), "scalping".into()),
             ])),

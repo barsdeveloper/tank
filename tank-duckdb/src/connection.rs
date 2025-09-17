@@ -458,10 +458,9 @@ impl Connection for DuckDBConnection {
             return Err(error);
         }
         let mut parts = url.trim_start_matches(&prefix).splitn(2, '?');
-        let path = parts.next().ok_or(Error::msg(format!(
-            "Expected database file path or `:memory:` in the connection URL: `{}`",
-            url,
-        )))?;
+        let path = parts
+            .next()
+            .ok_or(Error::msg(format!("Invalid database url `{}`", url,)))?;
         let params = parts.next().unwrap_or_default();
         let context = || format!("Invalid database url: `{}`", url);
         let path = decode(path)

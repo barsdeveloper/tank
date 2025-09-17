@@ -5,9 +5,9 @@ use crate::{
 use async_stream::{stream, try_stream};
 use libsqlite3_sys::{
     SQLITE_BUSY, SQLITE_DONE, SQLITE_OK, SQLITE_OPEN_CREATE, SQLITE_OPEN_READWRITE,
-    SQLITE_OPEN_URI, SQLITE_ROW, sqlite3, sqlite3_close, sqlite3_column_count, sqlite3_db_handle,
-    sqlite3_errmsg, sqlite3_finalize, sqlite3_open_v2, sqlite3_prepare_v2, sqlite3_step,
-    sqlite3_stmt,
+    SQLITE_OPEN_URI, SQLITE_ROW, sqlite3, sqlite3_changes64, sqlite3_close, sqlite3_column_count,
+    sqlite3_db_handle, sqlite3_errmsg, sqlite3_finalize, sqlite3_last_insert_rowid,
+    sqlite3_open_v2, sqlite3_prepare_v2, sqlite3_step, sqlite3_stmt, sqlite3_stmt_readonly,
 };
 use std::{
     borrow::Cow,
@@ -21,6 +21,7 @@ use std::{
 };
 use tank_core::{
     Connection, Context, Driver, Error, Executor, Query, QueryResult, Result, RowLabeled,
+    RowsAffected,
     future::Either,
     printable_query,
     stream::{Stream, StreamExt},
@@ -49,6 +50,12 @@ impl SqliteConnection {
                             continue;
                         }
                         SQLITE_DONE => {
+                            if sqlite3_stmt_readonly(*statement) == 0 {
+                                yield Ok(QueryResult::Affected(RowsAffected {
+                                    rows_affected: sqlite3_changes64(*self.connection) as u64,
+                                    last_affected_id: Some(sqlite3_last_insert_rowid(*self.connection)),
+                                }))
+                            }
                             break;
                         }
                         SQLITE_ROW => {
@@ -121,17 +128,18 @@ impl Executor for SqliteConnection {
     ) -> Result<Query<<Self::Driver as Driver>::Prepared>> {
         let connection = AtomicPtr::new(*self.connection);
         let context = format!(
-            "While preparing the query:\n{}",
+            "Failed to prepare the query:\n{}",
             printable_query!(query.as_str())
         );
         let prepared = spawn_blocking(move || unsafe {
+            let query = query.trim();
             let connection = connection.load(Ordering::Relaxed);
             let len = query.len();
             let sql = match CString::new(query.as_bytes()) {
                 Ok(query) => query,
                 Err(e) => {
                     let error =
-                        Error::new(e).context("Could not create a CString from the query String");
+                        Error::new(e).context("Could not create a CString from the sql String");
                     log::error!("{:#}", error);
                     return Err(error);
                 }
@@ -154,9 +162,12 @@ impl Executor for SqliteConnection {
                 log::error!("{:#}", error);
                 return Err(error);
             }
-            if tail != ptr::null() {
-                let error =
-                    Error::msg("Cannot prepare more than one statement at a time").context(context);
+            if tail != ptr::null() && *tail != '\0' as i8 {
+                let error = Error::msg(format!(
+                    "Cannot prepare more than one statement at a time (remaining: {})",
+                    CStr::from_ptr(tail).to_str().unwrap_or("unprintable")
+                ))
+                .context(context);
                 log::error!("{:#}", error);
                 return Err(error);
             }
@@ -190,7 +201,7 @@ impl Connection for SqliteConnection {
             return Err(error);
         }
         let url = CString::new(format!("file:{}", url.trim_start_matches(&prefix)))
-            .with_context(|| format!("Invalid database url: `{}`", url))?;
+            .with_context(|| format!("Invalid database url `{}`", url))?;
         let mut connection;
         unsafe {
             connection = CBox::new(ptr::null_mut(), |p| {

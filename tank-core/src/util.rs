@@ -85,7 +85,7 @@ macro_rules! possibly_parenthesized {
 macro_rules! printable_query {
     ($query:expr) => {
         format_args!(
-            "{}{}",
+            "{}{}\n",
             &$query[..::std::cmp::min($query.len(), 247)].trim_end(),
             if $query.len() > 247 { "..." } else { "" },
         )

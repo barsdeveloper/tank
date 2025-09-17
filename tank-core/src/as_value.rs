@@ -1,4 +1,5 @@
 use crate::{Error, FixedDecimal, Interval, Passive, Result, Value};
+use anyhow::Context;
 use quote::ToTokens;
 use rust_decimal::{Decimal, prelude::FromPrimitive};
 use std::{
@@ -228,10 +229,13 @@ impl_as_value!(Box<[u8]>, Value::Blob => |v| Ok(v));
 impl_as_value!(
     time::Date,
     Value::Date => |v| Ok(v),
-    Value::Varchar => |v: String| Ok(time::Date::parse(
-        &v,
-        format_description!("[year]-[month]-[day]")
-    )?),
+    Value::Varchar => |v: String| Ok(
+        time::Date::parse(
+            &v,
+            format_description!("[year]-[month]-[day]")
+        )
+        .with_context(|| format!("Cannot convert '{}' to time::Time", v))
+    ?),
 );
 impl_as_value!(
     time::Time,
@@ -249,6 +253,7 @@ impl_as_value!(
             &v,
             format_description!("[hour]:[minute]"),
         ))
+        .with_context(|| format!("Cannot convert '{}' to time::Time", v))
         .map_err(Into::into)
     },
 );
@@ -280,6 +285,7 @@ impl_as_value!(
             &v,
             format_description!("[year]-[month]-[day] [hour]:[minute]")
         ))
+        .with_context(|| format!("Cannot convert '{}' to time::PrimitiveDateTime", v))
         .map_err(Into::into)
     },
 );
@@ -311,6 +317,7 @@ impl_as_value!(
             &v,
             format_description!("[year]-[month]-[day]T[hour]:[minute][offset_hour sign:mandatory]")
         ))
+        .with_context(|| format!("Cannot convert '{}' to time::OffsetDateTime", v))
         .map_err(Into::into)
     }
 );

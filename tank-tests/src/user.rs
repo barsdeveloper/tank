@@ -1,7 +1,4 @@
-use std::{
-    collections::{BTreeMap, HashSet},
-    sync::LazyLock,
-};
+use std::{collections::HashSet, sync::LazyLock};
 use tank::{
     Entity, Executor, Passive, expr,
     stream::{StreamExt, TryStreamExt},
@@ -25,7 +22,8 @@ pub struct UserProfile {
     pub follower_count: u32,
     pub is_active: bool,
     pub last_login: Option<time::PrimitiveDateTime>,
-    pub preferences: Option<BTreeMap<String, String>>,
+    #[cfg(not(feature = "disable-maps"))]
+    pub preferences: Option<std::collections::BTreeMap<String, String>>,
 }
 
 pub async fn users<E: Executor>(executor: &mut E) {
@@ -59,7 +57,11 @@ pub async fn users<E: Executor>(executor: &mut E) {
             follower_count: 56,
             is_active: true,
             last_login: Some(datetime!(2025-07-15 10:00:00)),
-            preferences: Some(BTreeMap::from_iter([("theme".into(), "dark".into())])),
+            #[cfg(not(feature = "disable-maps"))]
+            preferences: Some(std::collections::BTreeMap::from_iter([(
+                "theme".into(),
+                "dark".into(),
+            )])),
         },
         UserProfile {
             id: Uuid::parse_str("b2b2b2b2-b2b2-b2b2-b2b2-b2b2b2b2b2b2")
@@ -71,7 +73,11 @@ pub async fn users<E: Executor>(executor: &mut E) {
             follower_count: 99,
             is_active: false,
             last_login: None,
-            preferences: Some(BTreeMap::from_iter([("theme".into(), "light".into())])),
+            #[cfg(not(feature = "disable-maps"))]
+            preferences: Some(std::collections::BTreeMap::from_iter([(
+                "theme".into(),
+                "light".into(),
+            )])),
         },
         UserProfile {
             id: Uuid::parse_str("c3c3c3c3-c3c3-c3c3-c3c3-c3c3c3c3c3c3")
@@ -83,6 +89,7 @@ pub async fn users<E: Executor>(executor: &mut E) {
             follower_count: 5000,
             is_active: true,
             last_login: Some(datetime!(2025-07-16 11:30:00)),
+            #[cfg(not(feature = "disable-maps"))]
             preferences: None,
         },
         UserProfile {
@@ -95,7 +102,8 @@ pub async fn users<E: Executor>(executor: &mut E) {
             follower_count: 15000,
             is_active: true,
             last_login: None,
-            preferences: Some(BTreeMap::from_iter([(
+            #[cfg(not(feature = "disable-maps"))]
+            preferences: Some(std::collections::BTreeMap::from_iter([(
                 "notifications".into(),
                 "off".into(),
             )])),
@@ -110,6 +118,7 @@ pub async fn users<E: Executor>(executor: &mut E) {
             follower_count: 1,
             is_active: false,
             last_login: Some(datetime!(2024-01-01 00:00:00)),
+            #[cfg(not(feature = "disable-maps"))]
             preferences: None,
         },
     ];

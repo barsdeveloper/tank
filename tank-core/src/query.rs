@@ -74,7 +74,7 @@ impl<P: Prepared> Display for Query<P> {
 #[derive(Default, Debug)]
 pub struct RowsAffected {
     pub rows_affected: u64,
-    pub last_insert_id: Option<u64>,
+    pub last_affected_id: Option<i64>,
 }
 
 pub type RowNames = Arc<[String]>;
@@ -113,8 +113,8 @@ impl Extend<RowsAffected> for RowsAffected {
     fn extend<T: IntoIterator<Item = RowsAffected>>(&mut self, iter: T) {
         for elem in iter {
             self.rows_affected += elem.rows_affected;
-            if elem.last_insert_id.is_some() {
-                self.last_insert_id = elem.last_insert_id;
+            if elem.last_affected_id.is_some() {
+                self.last_affected_id = elem.last_affected_id;
             }
         }
     }
