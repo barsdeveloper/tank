@@ -5,6 +5,12 @@
             "driver": "DuckDB",
             "name": "Tests",
             "database": "${workspaceFolder:tank}/target/debug/tests.duckdb"
+        },
+        {
+            "previewLimit": 50,
+            "driver": "SQLite",
+            "name": "Tests",
+            "database": "${workspaceFolder:tank}/target/debug/tests.sqlite"
         }
     ]
 }
