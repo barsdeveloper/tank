@@ -73,6 +73,13 @@ impl SqlWriter for SqliteSqlWriter {
         };
     }
 
+    fn write_value_infinity(&self, out: &mut String, negative: bool) {
+        if negative {
+            out.push('-');
+        }
+        out.push_str("1.0e+10000");
+    }
+
     fn write_value_blob(&self, out: &mut String, value: &[u8]) {
         out.push_str("X'");
         for b in value {

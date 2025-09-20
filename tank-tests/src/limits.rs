@@ -1,3 +1,4 @@
+use core::f64;
 use std::sync::LazyLock;
 use tank::{Entity, Executor};
 use tokio::sync::Mutex;
@@ -19,6 +20,8 @@ pub async fn limits<E: Executor>(executor: &mut E) {
         int128: i128,
         #[cfg(not(feature = "disable-large-integers"))]
         uint128: u128,
+        float32: f32,
+        float64: f64,
     }
 
     static MUTEX: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
@@ -51,11 +54,13 @@ pub async fn limits<E: Executor>(executor: &mut E) {
         int128: -170_141_183_460_469_231_731_687_303_715_884_105_728,
         #[cfg(not(feature = "disable-large-integers"))]
         uint128: 0,
+        float32: f32::MIN_POSITIVE,
+        float64: f64::NEG_INFINITY,
     };
     entity
         .save(executor)
         .await
-        .expect("Filder to save minimals entity");
+        .expect("Failed to save minimals entity");
     let loaded = Limits::find_one(executor, &true)
         .await
         .expect("Failed to query simple 2")
@@ -77,6 +82,8 @@ pub async fn limits<E: Executor>(executor: &mut E) {
     );
     #[cfg(not(feature = "disable-large-integers"))]
     assert_eq!(loaded.uint128, 0);
+    assert_eq!(loaded.float32, f32::MIN_POSITIVE);
+    assert_eq!(loaded.float64, f64::NEG_INFINITY);
 
     // Maximals
     Limits::delete_many(executor, &true)
@@ -97,6 +104,8 @@ pub async fn limits<E: Executor>(executor: &mut E) {
         int128: 170_141_183_460_469_231_731_687_303_715_884_105_727,
         #[cfg(not(feature = "disable-large-integers"))]
         uint128: 340_282_366_920_938_463_463_374_607_431_768_211_455,
+        float32: f32::MAX,
+        float64: f64::INFINITY,
     };
     entity
         .save(executor)
@@ -126,4 +135,6 @@ pub async fn limits<E: Executor>(executor: &mut E) {
         loaded.uint128,
         340_282_366_920_938_463_463_374_607_431_768_211_455
     );
+    assert_eq!(loaded.float32, f32::MAX);
+    assert_eq!(loaded.float64, f64::INFINITY);
 }

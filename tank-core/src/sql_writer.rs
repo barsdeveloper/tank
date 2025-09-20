@@ -14,18 +14,10 @@ macro_rules! write_integer {
 }
 macro_rules! write_float {
     ($this:ident, $out:ident, $value:expr) => {{
-        let mut buffer = ryu::Buffer::new();
         if $value.is_infinite() {
-            $this.write_expression_binary_op(
-                $out,
-                &BinaryOp {
-                    op: BinaryOpType::Cast,
-                    lhs: &Operand::LitStr(buffer.format($value)),
-                    rhs: &Operand::Type(Value::Float64(None)),
-                },
-                false,
-            );
+            $this.write_value_infinity($out, $value.is_sign_negative());
         } else {
+            let mut buffer = ryu::Buffer::new();
             $out.push_str(buffer.format($value));
         }
     }};
@@ -245,6 +237,23 @@ pub trait SqlWriter {
 
     fn write_value_bool(&self, out: &mut String, value: bool) {
         out.push_str(["false", "true"][value as usize])
+    }
+
+    fn write_value_infinity(&self, out: &mut String, negative: bool) {
+        let mut buffer = ryu::Buffer::new();
+        self.write_expression_binary_op(
+            out,
+            &BinaryOp {
+                op: BinaryOpType::Cast,
+                lhs: &Operand::LitStr(buffer.format(if negative {
+                    f64::NEG_INFINITY
+                } else {
+                    f64::INFINITY
+                })),
+                rhs: &Operand::Type(Value::Float64(None)),
+            },
+            false,
+        );
     }
 
     fn write_value_string(&self, out: &mut String, value: &str) {
