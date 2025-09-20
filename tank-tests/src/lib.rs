@@ -4,6 +4,7 @@ mod aggregates;
 mod books;
 mod complex;
 mod insane;
+mod limits;
 mod readme;
 mod simple;
 mod trade;
@@ -13,6 +14,7 @@ use crate::{
     books::books,
     complex::complex,
     insane::insane,
+    limits::limits,
     simple::simple,
     trade::{trade_multiple, trade_simple},
     user::users,
@@ -38,15 +40,6 @@ pub async fn execute_tests<C: Connection>(mut connection: C) {
     books(&mut connection).await;
     complex(&mut connection).await;
     insane(&mut connection).await;
+    limits(&mut connection).await;
     let _ = readme(&mut connection).await;
-
-    // let mut connection = connection.as_cached_connection();
-    // simple(&mut connection).await;
-    // trade_simple(&mut connection).await;
-    // trade_multiple(&mut connection).await;
-    // users(&mut connection).await;
-    // aggregates(&mut connection).await;
-    // books(&mut connection).await;
-    // complex(&mut connection).await;
-    // insane(&mut connection).await;
 }
