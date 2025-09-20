@@ -19,7 +19,6 @@ pub async fn simple<E: Executor>(executor: &mut E) {
         echo: Option<Uuid>,
         #[cfg(not(feature = "disable-large-integers"))]
         foxtrot: Option<i128>,
-        #[cfg(not(feature = "disable-time"))]
         golf: Option<Time>,
         hotel: Option<Cow<'static, str>>,
         india: Box<Option<char>>,
@@ -55,7 +54,6 @@ pub async fn simple<E: Executor>(executor: &mut E) {
         echo: None,
         #[cfg(not(feature = "disable-large-integers"))]
         foxtrot: i128::MAX.into(),
-        #[cfg(not(feature = "disable-time"))]
         golf: Time::from_hms(12, 0, 10).unwrap().into(),
         hotel: Some("Hello world!".into()),
         india: Box::new(None),
@@ -85,7 +83,6 @@ pub async fn simple<E: Executor>(executor: &mut E) {
         entity.foxtrot,
         Some(170_141_183_460_469_231_731_687_303_715_884_105_727)
     );
-    #[cfg(not(feature = "disable-time"))]
     assert_eq!(entity.golf, Some(Time::from_hms(12, 0, 10).unwrap()));
     assert_eq!(entity.hotel, Some("Hello world!".into()));
     assert_eq!(*entity.india, None);
@@ -109,7 +106,6 @@ pub async fn simple<E: Executor>(executor: &mut E) {
         echo: Some(Uuid::parse_str("5e915574-bb30-4430-98cf-c5854f61fbbd").unwrap()),
         #[cfg(not(feature = "disable-large-integers"))]
         foxtrot: None,
-        #[cfg(not(feature = "disable-time"))]
         golf: None,
         hotel: None,
         india: Box::new(None),
@@ -139,7 +135,6 @@ pub async fn simple<E: Executor>(executor: &mut E) {
     );
     #[cfg(not(feature = "disable-large-integers"))]
     assert_eq!(entity.foxtrot, None);
-    #[cfg(not(feature = "disable-time"))]
     assert_eq!(entity.golf, None);
     assert_eq!(entity.hotel, None);
     assert_eq!(*entity.india, None);

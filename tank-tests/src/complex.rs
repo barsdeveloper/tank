@@ -1,3 +1,4 @@
+#[allow(unused_imports)]
 use std::{
     collections::{BTreeMap, LinkedList, VecDeque},
     sync::LazyLock,
@@ -9,29 +10,37 @@ use tokio::sync::Mutex;
 pub async fn complex<E: Executor>(executor: &mut E) {
     #[derive(Default)]
     struct TankUnsupported {
-        _field: i32,
+        field: i32,
     }
 
     #[derive(Entity)]
     struct ComplexNullFields {
+        #[cfg(not(feature = "disable-arrays"))]
         first: Option<[Option<f64>; 8]>,
+        #[cfg(all(not(feature = "disable-lists"), not(feature = "disable-duration")))]
         second: Option<Vec<Option<Duration>>>,
         third: Option<Box<[u8]>>,
+        #[cfg(all(not(feature = "disable-maps"), not(feature = "disable-arrays")))]
         fourth: Option<Box<BTreeMap<String, Option<[Option<i128>; 3]>>>>,
+        #[cfg(all(not(feature = "disable-lists"), not(feature = "disable-maps")))]
         fifth: LinkedList<Option<VecDeque<Option<BTreeMap<i32, Option<i32>>>>>>,
         #[tank(ignore)]
-        _sixth: TankUnsupported,
+        sixth: TankUnsupported,
     }
 
     impl Default for ComplexNullFields {
         fn default() -> Self {
             Self {
+                #[cfg(not(feature = "disable-arrays"))]
                 first: None,
+                #[cfg(all(not(feature = "disable-lists"), not(feature = "disable-duration")))]
                 second: None,
                 third: None,
+                #[cfg(all(not(feature = "disable-maps"), not(feature = "disable-arrays")))]
                 fourth: None,
+                #[cfg(all(not(feature = "disable-lists"), not(feature = "disable-maps")))]
                 fifth: Default::default(),
-                _sixth: TankUnsupported { _field: 777 },
+                sixth: TankUnsupported { field: 777 },
             }
         }
     }
@@ -52,7 +61,9 @@ pub async fn complex<E: Executor>(executor: &mut E) {
         .await
         .expect("Failed to clear the ComplexNullFields table");
     let entity = ComplexNullFields {
+        #[cfg(not(feature = "disable-arrays"))]
         first: None,
+        #[cfg(all(not(feature = "disable-lists"), not(feature = "disable-duration")))]
         second: Some(vec![
             None,
             None,
@@ -67,6 +78,7 @@ pub async fn complex<E: Executor>(executor: &mut E) {
             None,
         ]),
         third: Some(Box::new([0x75, 0xAA, 0x30, 0x77])),
+        #[cfg(all(not(feature = "disable-maps"), not(feature = "disable-arrays")))]
         fourth: Some(Box::new(BTreeMap::from_iter([
             ("aa".into(), Some([19314.into(), 241211.into(), None])),
             (
@@ -77,8 +89,9 @@ pub async fn complex<E: Executor>(executor: &mut E) {
             ("dd".into(), Some([None, None, None])),
             ("ee".into(), Some([None, 777.into(), None])),
         ]))),
+        #[cfg(all(not(feature = "disable-lists"), not(feature = "disable-maps")))]
         fifth: LinkedList::from_iter([]),
-        _sixth: Default::default(),
+        sixth: Default::default(),
     };
     entity
         .save(executor)
@@ -88,7 +101,9 @@ pub async fn complex<E: Executor>(executor: &mut E) {
         .await
         .expect("Failed to query complex 1")
         .expect("Failed to find complex 1");
+    #[cfg(not(feature = "disable-arrays"))]
     assert_eq!(entity.first, None);
+    #[cfg(all(not(feature = "disable-lists"), not(feature = "disable-duration")))]
     assert_eq!(
         entity.second,
         Some(vec![
@@ -106,6 +121,7 @@ pub async fn complex<E: Executor>(executor: &mut E) {
         ])
     );
     assert_eq!(*entity.third.unwrap(), [0x75, 0xAA, 0x30, 0x77]);
+    #[cfg(all(not(feature = "disable-maps"), not(feature = "disable-arrays")))]
     assert_eq!(
         *entity.fourth.unwrap(),
         BTreeMap::from_iter([
@@ -119,6 +135,7 @@ pub async fn complex<E: Executor>(executor: &mut E) {
             ("ee".into(), Some([None, 777.into(), None])),
         ])
     );
+    #[cfg(all(not(feature = "disable-lists"), not(feature = "disable-maps")))]
     assert_eq!(entity.fifth.len(), 0);
 
     // Complex 2
@@ -126,6 +143,7 @@ pub async fn complex<E: Executor>(executor: &mut E) {
         .await
         .expect("Failed to clear the ComplexNullFields table");
     let entity = ComplexNullFields {
+        #[cfg(not(feature = "disable-arrays"))]
         first: Some([
             0.5.into(),
             None,
@@ -136,9 +154,12 @@ pub async fn complex<E: Executor>(executor: &mut E) {
             None,
             777.777.into(),
         ]),
+        #[cfg(all(not(feature = "disable-lists"), not(feature = "disable-duration")))]
         second: None,
         third: None,
+        #[cfg(all(not(feature = "disable-maps"), not(feature = "disable-arrays")))]
         fourth: None,
+        #[cfg(all(not(feature = "disable-lists"), not(feature = "disable-maps")))]
         fifth: LinkedList::from_iter([
             None,
             None,
@@ -160,7 +181,7 @@ pub async fn complex<E: Executor>(executor: &mut E) {
             ),
             None,
         ]),
-        _sixth: Default::default(),
+        sixth: Default::default(),
     };
     entity
         .save(executor)
@@ -170,10 +191,14 @@ pub async fn complex<E: Executor>(executor: &mut E) {
         .await
         .expect("Failed to query complex 2")
         .expect("Failed to find complex 2");
+    #[cfg(not(feature = "disable-arrays"))]
     assert_eq!(loaded.first, entity.first);
+    #[cfg(all(not(feature = "disable-lists"), not(feature = "disable-duration")))]
     assert_eq!(loaded.second, None);
     assert_eq!(loaded.third, None);
+    #[cfg(all(not(feature = "disable-maps"), not(feature = "disable-arrays")))]
     assert_eq!(loaded.fourth, None);
+    #[cfg(all(not(feature = "disable-lists"), not(feature = "disable-maps")))]
     assert_eq!(loaded.fifth, entity.fifth);
-    assert_eq!(loaded._sixth._field, 777);
+    assert_eq!(loaded.sixth.field, 777);
 }

@@ -1,4 +1,8 @@
-use std::{collections::HashSet, sync::LazyLock};
+#[allow(unused_imports)]
+use std::{
+    collections::{BTreeMap, HashSet},
+    sync::LazyLock,
+};
 use tank::{
     Entity, Executor, Passive, expr,
     stream::{StreamExt, TryStreamExt},
@@ -23,7 +27,7 @@ pub struct UserProfile {
     pub is_active: bool,
     pub last_login: Option<time::PrimitiveDateTime>,
     #[cfg(not(feature = "disable-maps"))]
-    pub preferences: Option<std::collections::BTreeMap<String, String>>,
+    pub preferences: Option<BTreeMap<String, String>>,
 }
 
 pub async fn users<E: Executor>(executor: &mut E) {
@@ -58,10 +62,7 @@ pub async fn users<E: Executor>(executor: &mut E) {
             is_active: true,
             last_login: Some(datetime!(2025-07-15 10:00:00)),
             #[cfg(not(feature = "disable-maps"))]
-            preferences: Some(std::collections::BTreeMap::from_iter([(
-                "theme".into(),
-                "dark".into(),
-            )])),
+            preferences: Some(BTreeMap::from_iter([("theme".into(), "dark".into())])),
         },
         UserProfile {
             id: Uuid::parse_str("b2b2b2b2-b2b2-b2b2-b2b2-b2b2b2b2b2b2")
@@ -74,10 +75,7 @@ pub async fn users<E: Executor>(executor: &mut E) {
             is_active: false,
             last_login: None,
             #[cfg(not(feature = "disable-maps"))]
-            preferences: Some(std::collections::BTreeMap::from_iter([(
-                "theme".into(),
-                "light".into(),
-            )])),
+            preferences: Some(BTreeMap::from_iter([("theme".into(), "light".into())])),
         },
         UserProfile {
             id: Uuid::parse_str("c3c3c3c3-c3c3-c3c3-c3c3-c3c3c3c3c3c3")
@@ -103,7 +101,7 @@ pub async fn users<E: Executor>(executor: &mut E) {
             is_active: true,
             last_login: None,
             #[cfg(not(feature = "disable-maps"))]
-            preferences: Some(std::collections::BTreeMap::from_iter([(
+            preferences: Some(BTreeMap::from_iter([(
                 "notifications".into(),
                 "off".into(),
             )])),

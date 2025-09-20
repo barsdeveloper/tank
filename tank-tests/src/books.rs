@@ -21,6 +21,7 @@ pub struct Author {
 #[derive(Entity, Debug, Clone)]
 #[tank(schema = "testing", name = "books", primary_key = (Self::title, Self::author))]
 pub struct Book {
+    #[cfg(not(feature = "disable-arrays"))]
     pub isbn: [u8; 13],
     pub title: String,
     /// Main author
@@ -90,6 +91,7 @@ pub async fn books<E: Executor>(executor: &mut E) {
     // Book objects
     let books = vec![
         Book {
+            #[cfg(not(feature = "disable-arrays"))]
             isbn: [9, 7, 8, 0, 7, 4, 7, 5, 3, 2, 6, 9, 9],
             title: "Harry Potter and the Philosopher's Stone".into(),
             author: rowling_id,
@@ -97,6 +99,7 @@ pub async fn books<E: Executor>(executor: &mut E) {
             year: 1937,
         },
         Book {
+            #[cfg(not(feature = "disable-arrays"))]
             isbn: [9, 7, 8, 0, 7, 4, 7, 5, 9, 1, 0, 5, 4],
             title: "Harry Potter and the Deathly Hallows".into(),
             author: rowling_id,
@@ -104,6 +107,7 @@ pub async fn books<E: Executor>(executor: &mut E) {
             year: 2007,
         },
         Book {
+            #[cfg(not(feature = "disable-arrays"))]
             isbn: [9, 7, 8, 0, 6, 1, 8, 2, 6, 0, 3, 0, 0],
             title: "The Hobbit".into(),
             author: tolkien_id,
@@ -111,6 +115,7 @@ pub async fn books<E: Executor>(executor: &mut E) {
             year: 1996,
         },
         Book {
+            #[cfg(not(feature = "disable-arrays"))]
             isbn: [9, 7, 8, 5, 1, 7, 0, 5, 9, 6, 7, 8, 2],
             title: "Metro 2033".into(),
             author: gluchovskij_id,
@@ -118,6 +123,7 @@ pub async fn books<E: Executor>(executor: &mut E) {
             year: 2002,
         },
         Book {
+            #[cfg(not(feature = "disable-arrays"))]
             isbn: [9, 7, 8, 0, 0, 2, 3, 4, 5, 6, 7, 8, 9],
             title: "Hogwarts 2033".into(),
             author: rowling_id,
@@ -210,9 +216,13 @@ pub async fn books<E: Executor>(executor: &mut E) {
     );
 
     // Get all books with their authors
-    let result = join!(Book B LEFT JOIN Author A1 ON B.author == A1.author_id LEFT JOIN Author A2 ON B.co_author == A2.author_id)
+    let dataset = join!(
+        Book B LEFT JOIN Author A1 ON B.author == A1.author_id
+            LEFT JOIN Author A2 ON B.co_author == A2.author_id
+    );
+    let result = dataset
         .select(
-            &[&expr!(B.title) as &dyn Expression, &expr!(A1.name as author), &expr!(A2.name as co_author)],
+            cols!(B.title, A1.name as author, A2.name as co_author),
             executor,
             &true,
             None,
@@ -224,18 +234,21 @@ pub async fn books<E: Executor>(executor: &mut E) {
         .map(|row| {
             let mut iter = row.values.into_iter();
             (
-                match iter.next().unwrap()  {
+                match iter.next().unwrap() {
                     Value::Varchar(Some(v)) => v,
-                    _ => panic!("Expected first value to be non null varchar"),
+                    _ => panic!("Expected 1st value to be non null varchar"),
                 },
-                match iter.next().unwrap()  {
+                match iter.next().unwrap() {
                     Value::Varchar(Some(v)) => v,
-                    _ => panic!("Expected second value to be non null varchar"),
+                    _ => panic!("Expected 2nd value to be non null varchar"),
                 },
-                match iter.next().unwrap()  {
+                match iter.next().unwrap() {
                     Value::Varchar(Some(v)) => Some(v),
-                    Value::Varchar(None) => None,
-                    _ => panic!("Expected third value to be non null varchar"),
+                    Value::Varchar(None) | Value::Null => None,
+                    _ => panic!(
+                        "Expected 3rd value to be a Some(Value::Varchar(..)) | Some(Value::Null)), found {:?}",
+                        iter.peekable().peek()
+                    ),
                 },
             )
         })

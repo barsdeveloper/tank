@@ -1,5 +1,5 @@
 use std::fmt::Write;
-use tank_core::{Entity, SqlWriter, TableRef, Value};
+use tank_core::{ColumnRef, Entity, SqlWriter, TableRef, Value};
 
 pub struct SqliteSqlWriter {}
 
@@ -14,16 +14,29 @@ impl SqlWriter for SqliteSqlWriter {
         } else {
             out.push('"');
             if !value.schema.is_empty() {
-                self.write_escaped(out, &value.schema, '"', r#""""#);
+                self.write_escaped(out, &value.schema, '"', "\"\"");
                 out.push('.');
             }
-            self.write_escaped(out, &value.name, '"', r#""""#);
+            self.write_escaped(out, &value.name, '"', "\"\"");
             out.push('"');
         }
         if is_declaration {
             out.push(' ');
             out.push_str(&value.alias);
         }
+    }
+
+    fn write_column_ref(&self, out: &mut String, value: &ColumnRef, qualify: bool) {
+        if qualify && !value.table.is_empty() {
+            out.push('"');
+            if !value.schema.is_empty() {
+                self.write_escaped(out, &value.schema, '"', "\"\"");
+                out.push('.');
+            }
+            self.write_escaped(out, &value.table, '"', "\"\"");
+            out.push_str("\".");
+        }
+        self.write_identifier_quoted(out, &value.name);
     }
 
     fn write_column_type(&self, out: &mut String, value: &Value) {

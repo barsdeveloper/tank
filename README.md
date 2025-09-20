@@ -13,7 +13,7 @@ https://crates.io/crates/tank
 
 **Known battlefields**:
 - DuckDB
-- SQLite (WIP)
+- SQLite
 - PostgreSQL (Coming soon)
 - MySQL (Coming soon)
 - Cassandra/ScyllaDB (Coming soon)
@@ -93,7 +93,7 @@ async fn data() -> Result<()> {
         .expect("Failed to drop Tank table");
 
     /*
-     * CREATE SCHEMA IF NOT EXISTS army;
+     * CREATE SCHEMA IF NOT EXISTS "army";
      * CREATE TABLE IF NOT EXISTS "army"."tank" (
      *     "name" VARCHAR PRIMARY KEY,
      *     "country" VARCHAR NOT NULL,

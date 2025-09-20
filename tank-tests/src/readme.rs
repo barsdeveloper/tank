@@ -37,7 +37,7 @@ pub async fn readme<E: Executor>(connection: &mut E) -> Result<()> {
         .expect("Failed to drop Tank table");
 
     /*
-     * CREATE SCHEMA IF NOT EXISTS army;
+     * CREATE SCHEMA IF NOT EXISTS "army";
      * CREATE TABLE IF NOT EXISTS "army"."tank" (
      *     "name" VARCHAR PRIMARY KEY,
      *     "country" VARCHAR NOT NULL,

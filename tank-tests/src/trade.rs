@@ -1,5 +1,6 @@
 use rust_decimal::Decimal;
-use std::{str::FromStr, sync::LazyLock};
+#[allow(unused_imports)]
+use std::{collections::BTreeMap, str::FromStr, sync::LazyLock};
 use tank::{
     Entity, Executor, FixedDecimal, Passive,
     stream::{StreamExt, TryStreamExt},
@@ -32,7 +33,7 @@ pub struct Trade {
     pub child_trade_ids: Option<Vec<i64>>,
     pub metadata: Option<Box<[u8]>>,
     #[cfg(not(feature = "disable-maps"))]
-    pub tags: Option<std::collections::BTreeMap<String, String>>,
+    pub tags: Option<BTreeMap<String, String>>,
 }
 
 pub async fn trade_simple<E: Executor>(executor: &mut E) {
@@ -63,7 +64,7 @@ pub async fn trade_simple<E: Executor>(executor: &mut E) {
         child_trade_ids: vec![36209, 85320].into(),
         metadata: b"Metadata Bytes".to_vec().into_boxed_slice().into(),
         #[cfg(not(feature = "disable-maps"))]
-        tags: std::collections::BTreeMap::from_iter([
+        tags: BTreeMap::from_iter([
             ("source".into(), "internal".into()),
             ("strategy".into(), "scalping".into()),
         ])
@@ -135,7 +136,7 @@ pub async fn trade_simple<E: Executor>(executor: &mut E) {
     #[cfg(not(feature = "disable-maps"))]
     assert_eq!(
         tags,
-        std::collections::BTreeMap::from_iter([
+        BTreeMap::from_iter([
             ("source".into(), "internal".into()),
             ("strategy".into(), "scalping".into())
         ])
@@ -173,7 +174,7 @@ pub async fn trade_multiple<E: Executor>(executor: &mut E) {
             child_trade_ids: Some(vec![101, 102]),
             metadata: Some(b"First execution".to_vec().into_boxed_slice()),
             #[cfg(not(feature = "disable-maps"))]
-            tags: Some(std::collections::BTreeMap::from_iter([
+            tags: Some(BTreeMap::from_iter([
                 ("source".into(), "algo".into()),
                 ("strategy".into(), "momentum".into()),
             ])),
@@ -194,7 +195,7 @@ pub async fn trade_multiple<E: Executor>(executor: &mut E) {
             child_trade_ids: Some(vec![]),
             metadata: Some(b"Second execution".to_vec().into_boxed_slice()),
             #[cfg(not(feature = "disable-maps"))]
-            tags: Some(std::collections::BTreeMap::from_iter([
+            tags: Some(BTreeMap::from_iter([
                 ("source".into(), "internal".into()),
                 ("strategy".into(), "mean_reversion".into()),
             ])),
@@ -215,7 +216,7 @@ pub async fn trade_multiple<E: Executor>(executor: &mut E) {
             child_trade_ids: Some(vec![301]),
             metadata: Some(b"Third execution".to_vec().into_boxed_slice()),
             #[cfg(not(feature = "disable-maps"))]
-            tags: Some(std::collections::BTreeMap::from_iter([
+            tags: Some(BTreeMap::from_iter([
                 ("sourcev".into(), "external".into()),
                 ("strategy".into(), "arbitrage".into()),
             ])),
@@ -236,7 +237,7 @@ pub async fn trade_multiple<E: Executor>(executor: &mut E) {
             child_trade_ids: None,
             metadata: None,
             #[cfg(not(feature = "disable-maps"))]
-            tags: Some(std::collections::BTreeMap::from_iter([
+            tags: Some(BTreeMap::from_iter([
                 ("source".into(), "manual".into()),
                 ("strategy".into(), "news_event".into()),
             ])),
@@ -257,7 +258,7 @@ pub async fn trade_multiple<E: Executor>(executor: &mut E) {
             child_trade_ids: Some(vec![501, 502, 503]),
             metadata: Some(b"Fifth execution".to_vec().into_boxed_slice()),
             #[cfg(not(feature = "disable-maps"))]
-            tags: Some(std::collections::BTreeMap::from_iter([
+            tags: Some(BTreeMap::from_iter([
                 ("source".into(), "internal".into()),
                 ("strategy".into(), "scalping".into()),
             ])),

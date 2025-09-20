@@ -555,7 +555,7 @@ pub trait SqlWriter {
         if if_not_exists {
             out.push_str("IF NOT EXISTS ");
         }
-        out.push_str(E::table_ref().schema);
+        self.write_identifier_quoted(out, E::table_ref().schema);
         out.push(';');
     }
 
@@ -568,7 +568,7 @@ pub trait SqlWriter {
         if if_exists {
             out.push_str("IF EXISTS ");
         }
-        out.push_str(E::table_ref().schema);
+        self.write_identifier_quoted(out, E::table_ref().schema);
         out.push(';');
     }
 

@@ -2,15 +2,15 @@ use crate::{CBox, error_message_from_ptr};
 use libsqlite3_sys::{
     SQLITE_OK, SQLITE_TRANSIENT, sqlite3_bind_blob, sqlite3_bind_double, sqlite3_bind_int,
     sqlite3_bind_int64, sqlite3_bind_null, sqlite3_bind_text, sqlite3_clear_bindings,
-    sqlite3_db_handle, sqlite3_errmsg, sqlite3_int64, sqlite3_stmt,
+    sqlite3_db_handle, sqlite3_errmsg, sqlite3_int64, sqlite3_sql, sqlite3_stmt,
 };
 use rust_decimal::prelude::ToPrimitive;
 use std::{
-    ffi::c_int,
+    ffi::{CStr, c_int},
     fmt::{self, Display},
     os::raw::{c_char, c_void},
 };
-use tank_core::{AsValue, Error, Prepared, Result, Value};
+use tank_core::{AsValue, Error, Prepared, Result, Value, printable_query};
 
 pub struct SqlitePrepared {
     pub(crate) statement: CBox<*mut sqlite3_stmt>,
@@ -24,7 +24,7 @@ impl SqlitePrepared {
         }
         Self {
             statement: prepared,
-            bind_index: 0,
+            bind_index: 1,
         }
     }
 }
@@ -206,10 +206,17 @@ impl Prepared for SqlitePrepared {
             };
             if rc != SQLITE_OK {
                 let db = sqlite3_db_handle(*self.statement);
-                let error = Error::msg(error_message_from_ptr(&sqlite3_errmsg(db)).to_string());
+                let query = sqlite3_sql(*self.statement);
+                let error = Error::msg(error_message_from_ptr(&sqlite3_errmsg(db)).to_string())
+                    .context(format!(
+                        "Cannot bind parameter {} to query:\n{}",
+                        self.bind_index,
+                        printable_query!(CStr::from_ptr(query).to_string_lossy())
+                    ));
                 log::error!("{:#}", error);
                 return Err(error);
             }
+            self.bind_index += 1;
             Ok(self)
         }
     }
