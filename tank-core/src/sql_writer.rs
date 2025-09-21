@@ -331,7 +331,7 @@ pub trait SqlWriter {
                     " {} {}{}",
                     $val,
                     $unit,
-                    if $val > 1 { "S" } else { "" }
+                    if $val != 1 { "S" } else { "" }
                 );
             };
         }

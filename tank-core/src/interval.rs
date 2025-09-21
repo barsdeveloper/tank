@@ -100,6 +100,14 @@ impl Interval {
         }
     }
 
+    pub const fn from_years(value: i64) -> Self {
+        Self {
+            months: value * 12,
+            days: 0,
+            nanos: 0,
+        }
+    }
+
     pub const fn is_zero(&self) -> bool {
         self.months == 0 && self.days == 0 && self.nanos == 0
     }

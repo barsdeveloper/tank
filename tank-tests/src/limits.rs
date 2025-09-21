@@ -1,6 +1,8 @@
 use core::f64;
 use std::sync::LazyLock;
-use tank::{Entity, Executor};
+#[allow(unused_imports)]
+use tank::{Entity, Executor, Interval};
+use time::{Date, Month, Time};
 use tokio::sync::Mutex;
 
 pub async fn limits<E: Executor>(executor: &mut E) {
@@ -22,6 +24,10 @@ pub async fn limits<E: Executor>(executor: &mut E) {
         uint128: u128,
         float32: f32,
         float64: f64,
+        time: Time,
+        date: Date,
+        #[cfg(not(feature = "disable-duration"))]
+        interval: Interval,
     }
 
     static MUTEX: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
@@ -56,6 +62,11 @@ pub async fn limits<E: Executor>(executor: &mut E) {
         uint128: 0,
         float32: f32::MIN_POSITIVE,
         float64: f64::NEG_INFINITY,
+        time: Time::from_hms(0, 0, 0).expect("All zero must be correct time"),
+        date: Date::from_calendar_date(-9999, Month::January, 01)
+            .expect("Very old date must be correct"),
+        #[cfg(not(feature = "disable-duration"))]
+        interval: Interval::from_micros(1),
     };
     entity
         .save(executor)
@@ -84,6 +95,13 @@ pub async fn limits<E: Executor>(executor: &mut E) {
     assert_eq!(loaded.uint128, 0);
     assert_eq!(loaded.float32, f32::MIN_POSITIVE);
     assert_eq!(loaded.float64, f64::NEG_INFINITY);
+    assert_eq!(loaded.time, Time::from_hms(0, 0, 0).unwrap());
+    assert_eq!(
+        loaded.date,
+        Date::from_calendar_date(-9999, Month::January, 01).unwrap()
+    );
+    #[cfg(not(feature = "disable-duration"))]
+    assert_eq!(loaded.interval, Interval::from_micros(1));
 
     // Maximals
     Limits::delete_many(executor, &true)
@@ -106,6 +124,12 @@ pub async fn limits<E: Executor>(executor: &mut E) {
         uint128: 340_282_366_920_938_463_463_374_607_431_768_211_455,
         float32: f32::MAX,
         float64: f64::INFINITY,
+        time: Time::from_hms_micro(23, 59, 59, 999_999)
+            .expect("Close to midnight time must be correct"),
+        date: Date::from_calendar_date(9999, Month::December, 31)
+            .expect("Very old date must be correct"),
+        #[cfg(not(feature = "disable-duration"))]
+        interval: Interval::from_years(1_000_000),
     };
     entity
         .save(executor)
@@ -137,4 +161,14 @@ pub async fn limits<E: Executor>(executor: &mut E) {
     );
     assert_eq!(loaded.float32, f32::MAX);
     assert_eq!(loaded.float64, f64::INFINITY);
+    assert_eq!(
+        loaded.time,
+        Time::from_hms_micro(23, 59, 59, 999_999).unwrap()
+    );
+    assert_eq!(
+        loaded.date,
+        Date::from_calendar_date(9999, Month::December, 31).unwrap()
+    );
+    #[cfg(not(feature = "disable-duration"))]
+    assert_eq!(loaded.interval, Interval::from_years(1_000_000));
 }
