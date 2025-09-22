@@ -470,8 +470,8 @@ pub trait SqlWriter {
         };
         possibly_parenthesized!(
             out,
-            value.v.precedence(self.as_dyn()) <= self.expression_unary_op_precedence(&value.op),
-            value.v.write_query(self.as_dyn(), out, qualify_columns)
+            value.arg.precedence(self.as_dyn()) <= self.expression_unary_op_precedence(&value.op),
+            value.arg.write_query(self.as_dyn(), out, qualify_columns)
         );
     }
 

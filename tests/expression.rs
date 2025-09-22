@@ -73,7 +73,7 @@ mod tests {
                 lhs: Operand::LitInt(45),
                 rhs: UnaryOp {
                     op: UnaryOpType::Negative,
-                    v: Operand::LitInt(90),
+                    arg: Operand::LitInt(90),
                 },
             }
         );
@@ -279,7 +279,7 @@ mod tests {
                         op: BinaryOpType::Multiplication,
                         lhs: UnaryOp {
                             op: UnaryOpType::Negative,
-                            v: Operand::LitFloat(0.54),
+                            arg: Operand::LitFloat(0.54),
                         },
                         rhs: Operand::LitInt(2),
                     },
@@ -339,9 +339,9 @@ mod tests {
                         op: BinaryOpType::Addition,
                         lhs: UnaryOp {
                             op: UnaryOpType::Negative,
-                            v: UnaryOp {
+                            arg: UnaryOp {
                                 op: UnaryOpType::Negative,
-                                v: Operand::LitIdent("PI"),
+                                arg: Operand::LitIdent("PI"),
                             },
                         },
                         rhs: BinaryOp {
@@ -362,7 +362,7 @@ mod tests {
                 },
                 rhs: UnaryOp {
                     op: UnaryOpType::Not,
-                    v: BinaryOp {
+                    arg: BinaryOp {
                         op: BinaryOpType::Less,
                         lhs: Operand::LitInt(4),
                         rhs: Operand::LitInt(2),

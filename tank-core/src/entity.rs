@@ -1,6 +1,6 @@
 use crate::{
     ColumnDef, Driver, Error, Executor, Expression, Result, Row, RowLabeled, RowsAffected,
-    SqlWriter, TableRef, Value, stream::Stream,
+    TableRef, Value, stream::Stream, writer::SqlWriter,
 };
 use futures::{FutureExt, StreamExt, TryFutureExt};
 use log::Level;

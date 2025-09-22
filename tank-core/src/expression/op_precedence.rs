@@ -1,4 +1,4 @@
-use crate::{Expression, SqlWriter, Value};
+use crate::{Expression, Value, writer::SqlWriter};
 
 pub trait OpPrecedence {
     fn precedence(&self, writer: &dyn SqlWriter) -> i32;

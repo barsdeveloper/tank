@@ -1,4 +1,4 @@
-use crate::{Connection, Prepared, Result, SqlWriter};
+use crate::{Connection, Prepared, Result, writer::SqlWriter};
 use std::{borrow::Cow, future::Future};
 
 pub trait Driver {

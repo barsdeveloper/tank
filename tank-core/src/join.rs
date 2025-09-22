@@ -1,4 +1,4 @@
-use crate::{DataSet, Expression, SqlWriter};
+use crate::{DataSet, Expression, writer::SqlWriter};
 use proc_macro2::{TokenStream, TokenTree};
 use quote::{ToTokens, TokenStreamExt, quote};
 use syn::{

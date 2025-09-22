@@ -1,8 +1,9 @@
 use futures::FutureExt;
 
 use crate::{
-    Driver, Entity, Query, QueryResult, Result, RowLabeled, RowsAffected, SqlWriter,
+    Driver, Entity, Query, QueryResult, Result, RowLabeled, RowsAffected,
     stream::{Stream, StreamExt, TryStreamExt},
+    writer::SqlWriter,
 };
 use std::future::Future;
 

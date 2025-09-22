@@ -1,4 +1,6 @@
-use crate::{Driver, Executor, Expression, Query, Result, RowLabeled, SqlWriter, stream::Stream};
+use crate::{
+    Driver, Executor, Expression, Query, Result, RowLabeled, stream::Stream, writer::SqlWriter,
+};
 
 pub trait DataSet {
     /// Must qualify the column names with the table name

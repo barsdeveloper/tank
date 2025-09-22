@@ -1,4 +1,4 @@
-use crate::{Expression, OpPrecedence, SqlWriter};
+use crate::{Expression, OpPrecedence, writer::SqlWriter};
 use proc_macro2::TokenStream;
 use quote::{ToTokens, TokenStreamExt, quote};
 use std::fmt::{self, Display, Formatter};

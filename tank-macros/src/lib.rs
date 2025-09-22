@@ -1,3 +1,4 @@
+mod cols;
 mod column_trait;
 mod decode_column;
 mod decode_expression;
@@ -9,6 +10,7 @@ mod frag_evaluated;
 mod from_row_trait;
 
 use crate::{
+    cols::ColList,
     decode_column::ColumnMetadata,
     decode_table::{TableMetadata, decode_table},
     encode_column_def::encode_column_def,
@@ -332,6 +334,12 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro]
+pub fn join(input: TokenStream) -> TokenStream {
+    let result = parse_macro_input!(input as JoinParsed);
+    result.0.into()
+}
+
+#[proc_macro]
 pub fn expr(input: TokenStream) -> TokenStream {
     let mut input: TokenStream = flag_evaluated(input.into()).into();
     if input.is_empty() {
@@ -343,7 +351,21 @@ pub fn expr(input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro]
-pub fn join(input: TokenStream) -> TokenStream {
-    let result = parse_macro_input!(input as JoinParsed);
-    result.0.into()
+pub fn cols(input: TokenStream) -> TokenStream {
+    let ColList { cols: items } = parse_macro_input!(input as ColList);
+    let generated = items.iter().map(|item| {
+        let expr = &item.expr;
+        match &item.order {
+            Some(dir) => {
+                quote! { expr!(#expr) }
+            }
+            None => {
+                quote! { expr!(#expr) }
+            }
+        }
+    });
+
+    TokenStream::from(quote! {
+        &[ #( &#generated as &dyn ::tank::Expression ),* ]
+    })
 }

@@ -1,4 +1,4 @@
-use crate::{Expression, OpPrecedence, SqlWriter};
+use crate::{Expression, OpPrecedence, writer::SqlWriter};
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum UnaryOpType {
@@ -14,7 +14,7 @@ impl OpPrecedence for UnaryOpType {
 #[derive(Debug)]
 pub struct UnaryOp<V: Expression> {
     pub op: UnaryOpType,
-    pub v: V,
+    pub arg: V,
 }
 
 impl<E: Expression> OpPrecedence for UnaryOp<E> {
@@ -29,7 +29,7 @@ impl<E: Expression> Expression for UnaryOp<E> {
             out,
             &UnaryOp {
                 op: self.op,
-                v: &self.v,
+                arg: &self.arg,
             },
             qualify_columns,
         )

@@ -1,4 +1,4 @@
-use crate::{Expression, OpPrecedence, SqlWriter, Value};
+use crate::{Expression, OpPrecedence, Value, writer::SqlWriter};
 
 #[derive(Debug)]
 pub enum Operand<'a> {

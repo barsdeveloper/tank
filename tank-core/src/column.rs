@@ -7,7 +7,7 @@ pub trait ColumnTrait {
     fn column_ref(&self) -> &ColumnRef;
 }
 
-#[derive(Default, Debug, Clone, Copy, PartialEq)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ColumnRef {
     pub name: &'static str,
     pub table: &'static str,
@@ -97,11 +97,4 @@ impl Expression for ColumnDef {
     fn write_query(&self, writer: &dyn crate::SqlWriter, out: &mut String, qualify_columns: bool) {
         writer.write_column_ref(out, &self.column_ref, qualify_columns);
     }
-}
-
-#[macro_export]
-macro_rules! cols {
-    ($($col:expr),*) => {
-        &[$(&expr!($col) as &dyn Expression),*]
-    };
 }

@@ -1,4 +1,4 @@
-use crate::{DataSet, SqlWriter, quote_cow};
+use crate::{DataSet, quote_cow, writer::SqlWriter};
 use proc_macro2::TokenStream;
 use quote::{ToTokens, TokenStreamExt, quote};
 use std::borrow::Cow;

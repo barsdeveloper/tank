@@ -135,11 +135,11 @@ pub fn decode_expression(expr: &Expr) -> TokenStream {
                 syn::UnOp::Neg(..) => quote! { ::tank::UnaryOpType::Negative },
                 _ => panic!("Unsupported operator `{}`", v.op.to_token_stream()),
             };
-            let v = decode_expression(v.expr.as_ref());
+            let arg = decode_expression(v.expr.as_ref());
             quote! {
                 ::tank::UnaryOp {
                     op: #op,
-                    v: #v,
+                    arg: #arg,
                 }
             }
         }

@@ -34,7 +34,10 @@ impl Display for DuckDBPrepared {
 }
 
 impl Prepared for DuckDBPrepared {
-    fn bind<V: AsValue>(&mut self, v: V) -> Result<&mut Self> {
+    fn bind<V: AsValue>(&mut self, value: V) -> Result<&mut Self> {
+        self.bind_index(value, self.index)
+    }
+    fn bind_index<V: AsValue>(&mut self, v: V, index: u64) -> Result<&mut Self> {
         unsafe {
             let prepared = **self.statement;
             let value = v.as_value();
@@ -66,41 +69,37 @@ impl Prepared for DuckDBPrepared {
                 | Value::Array(None, ..)
                 | Value::List(None, ..)
                 | Value::Map(None, ..)
-                | Value::Struct(None, ..) => duckdb_bind_null(prepared, self.index),
-                Value::Boolean(Some(v), ..) => duckdb_bind_boolean(prepared, self.index, v),
-                Value::Int8(Some(v), ..) => duckdb_bind_int8(prepared, self.index, v),
-                Value::Int16(Some(v), ..) => duckdb_bind_int16(prepared, self.index, v),
-                Value::Int32(Some(v), ..) => duckdb_bind_int32(prepared, self.index, v),
-                Value::Int64(Some(v), ..) => duckdb_bind_int64(prepared, self.index, v),
+                | Value::Struct(None, ..) => duckdb_bind_null(prepared, index),
+                Value::Boolean(Some(v), ..) => duckdb_bind_boolean(prepared, index, v),
+                Value::Int8(Some(v), ..) => duckdb_bind_int8(prepared, index, v),
+                Value::Int16(Some(v), ..) => duckdb_bind_int16(prepared, index, v),
+                Value::Int32(Some(v), ..) => duckdb_bind_int32(prepared, index, v),
+                Value::Int64(Some(v), ..) => duckdb_bind_int64(prepared, index, v),
                 Value::Int128(Some(v), ..) => {
-                    duckdb_bind_hugeint(prepared, self.index, i128_to_duckdb_hugeint(v))
+                    duckdb_bind_hugeint(prepared, index, i128_to_duckdb_hugeint(v))
                 }
-                Value::UInt8(Some(v), ..) => duckdb_bind_uint8(prepared, self.index, v),
-                Value::UInt16(Some(v), ..) => duckdb_bind_uint16(prepared, self.index, v),
-                Value::UInt32(Some(v), ..) => duckdb_bind_uint32(prepared, self.index, v),
-                Value::UInt64(Some(v), ..) => duckdb_bind_uint64(prepared, self.index, v),
+                Value::UInt8(Some(v), ..) => duckdb_bind_uint8(prepared, index, v),
+                Value::UInt16(Some(v), ..) => duckdb_bind_uint16(prepared, index, v),
+                Value::UInt32(Some(v), ..) => duckdb_bind_uint32(prepared, index, v),
+                Value::UInt64(Some(v), ..) => duckdb_bind_uint64(prepared, index, v),
                 Value::UInt128(Some(v), ..) => {
-                    duckdb_bind_uhugeint(prepared, self.index, u128_to_duckdb_uhugeint(v))
+                    duckdb_bind_uhugeint(prepared, index, u128_to_duckdb_uhugeint(v))
                 }
-                Value::Float32(Some(v), ..) => duckdb_bind_float(prepared, self.index, v),
-                Value::Float64(Some(v), ..) => duckdb_bind_double(prepared, self.index, v),
+                Value::Float32(Some(v), ..) => duckdb_bind_float(prepared, index, v),
+                Value::Float64(Some(v), ..) => duckdb_bind_double(prepared, index, v),
                 Value::Decimal(Some(v), w, s) => {
-                    duckdb_bind_decimal(prepared, self.index, decimal_to_duckdb_decimal(&v, w, s))
+                    duckdb_bind_decimal(prepared, index, decimal_to_duckdb_decimal(&v, w, s))
                 }
                 Value::Char(Some(v), ..) => {
                     let v = v.to_string();
-                    let status = duckdb_bind_varchar_length(
-                        prepared,
-                        self.index,
-                        v.as_ptr() as *const i8,
-                        1,
-                    );
+                    let status =
+                        duckdb_bind_varchar_length(prepared, index, v.as_ptr() as *const i8, 1);
                     status
                 }
                 Value::Varchar(Some(v), ..) => {
                     let status = duckdb_bind_varchar_length(
                         prepared,
-                        self.index,
+                        index,
                         v.as_ptr() as *const i8,
                         v.len() as u64,
                     );
@@ -109,30 +108,30 @@ impl Prepared for DuckDBPrepared {
                 Value::Blob(Some(v), ..) => {
                     let status = duckdb_bind_blob(
                         prepared,
-                        self.index,
+                        index,
                         v.as_ptr() as *const c_void,
                         v.len() as u64,
                     );
                     status
                 }
                 Value::Date(Some(v), ..) => {
-                    duckdb_bind_date(prepared, self.index, date_to_duckdb_date(&v))
+                    duckdb_bind_date(prepared, index, date_to_duckdb_date(&v))
                 }
                 Value::Time(Some(v), ..) => {
-                    duckdb_bind_time(prepared, self.index, time_to_duckdb_time(&v))
+                    duckdb_bind_time(prepared, index, time_to_duckdb_time(&v))
                 }
                 Value::Timestamp(Some(v), ..) => duckdb_bind_timestamp(
                     prepared,
-                    self.index,
+                    index,
                     primitive_date_time_to_duckdb_timestamp(&v),
                 ),
                 Value::TimestampWithTimezone(Some(v), ..) => duckdb_bind_timestamp_tz(
                     prepared,
-                    self.index,
+                    index,
                     offsetdatetime_to_duckdb_timestamp(&v),
                 ),
                 Value::Interval(Some(v), ..) => {
-                    duckdb_bind_interval(prepared, self.index, interval_to_duckdb_interval(&v))
+                    duckdb_bind_interval(prepared, index, interval_to_duckdb_interval(&v))
                 }
                 Value::Uuid(Some(_v), ..) => todo!(),
                 _ => {
@@ -145,11 +144,11 @@ impl Prepared for DuckDBPrepared {
             if state != duckdb_state_DuckDBSuccess {
                 let error =
                     Error::msg(error_message_from_ptr(&duckdb_prepare_error(prepared)).to_string())
-                        .context(format!("While trying to bind the parameter {}", self.index));
+                        .context(format!("While trying to bind the parameter {}", index));
                 log::error!("{:#}", error);
                 return Err(error);
             }
-            self.index += 1;
+            self.index = index + 1;
             Ok(self)
         }
     }

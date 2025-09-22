@@ -1,4 +1,4 @@
-use crate::{OpPrecedence, SqlWriter};
+use crate::{OpPrecedence, writer::SqlWriter};
 use std::fmt::Debug;
 
 pub trait Expression: OpPrecedence + Send + Sync + Debug {
