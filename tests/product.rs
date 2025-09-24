@@ -120,7 +120,7 @@ mod tests {
     #[tokio::test]
     async fn test_product_create_table() {
         let mut query = String::new();
-        WRITER.write_create_table::<Product>(&mut query, false);
+        WRITER.write_create_table::<Product, _>(&mut query, false);
         assert_eq!(
             query,
             indoc! {r#"

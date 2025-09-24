@@ -162,14 +162,14 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
             ) -> ::tank::Result<()> {
                 let mut query = String::with_capacity(2048);
                 if create_schema && !#schema.is_empty() {
-                    ::tank::SqlWriter::write_create_schema::<#ident>(
+                    ::tank::SqlWriter::write_create_schema::<#ident, _>(
                         &::tank::Driver::sql_writer(executor.driver()),
                         &mut query,
                         true,
                     );
                     query.push('\n');
                 }
-                ::tank::SqlWriter::write_create_table::<#ident>(
+                ::tank::SqlWriter::write_create_table::<#ident, _>(
                     &::tank::Driver::sql_writer(executor.driver()),
                     &mut query,
                     if_not_exists,
@@ -187,14 +187,14 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
             ) -> ::tank::Result<()> {
                 let mut query = String::with_capacity(256);
                 if drop_schema && !#schema.is_empty() {
-                    ::tank::SqlWriter::write_drop_schema::<#ident>(
+                    ::tank::SqlWriter::write_drop_schema::<#ident, _>(
                         &::tank::Driver::sql_writer(executor.driver()),
                         &mut query,
                         true,
                     );
                     query.push('\n');
                 }
-                ::tank::SqlWriter::write_drop_table::<#ident>(
+                ::tank::SqlWriter::write_drop_table::<#ident, _>(
                     &::tank::Driver::sql_writer(executor.driver()),
                     &mut query,
                     if_exists,
@@ -291,7 +291,7 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                 #primary_key_condition_declaration
                 let condition = ::tank::expr!(#primary_key_condition_expression);
                 let mut query = String::with_capacity(128);
-                ::tank::SqlWriter::write_delete::<Self, _>(
+                ::tank::SqlWriter::write_delete::<Self, _, _>(
                     &::tank::Driver::sql_writer(executor.driver()),
                     &mut query,
                     &condition,
@@ -307,7 +307,7 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                 Self: Sized
             {
                 let mut query = String::with_capacity(128);
-                ::tank::SqlWriter::write_delete::<Self, _>(
+                ::tank::SqlWriter::write_delete::<Self, _, _>(
                     &::tank::Driver::sql_writer(executor.driver()),
                     &mut query,
                     condition,

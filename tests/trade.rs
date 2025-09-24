@@ -232,7 +232,7 @@ mod tests {
     #[test]
     fn test_trade_create_table() {
         let mut query = String::new();
-        WRITER.write_create_table::<Trade>(&mut query, false);
+        WRITER.write_create_table::<Trade, _>(&mut query, false);
         assert_eq!(
             query,
             indoc! {r#"
@@ -262,7 +262,7 @@ mod tests {
     #[test]
     fn test_trade_drop_table() {
         let mut query = String::new();
-        WRITER.write_drop_table::<Trade>(&mut query, true);
+        WRITER.write_drop_table::<Trade, _>(&mut query, true);
         assert_eq!(
             query,
             r#"DROP TABLE IF EXISTS "trading.company"."trade_execution";"#
@@ -309,7 +309,7 @@ mod tests {
     #[test]
     fn test_trade_delete() {
         let mut query = String::new();
-        WRITER.write_delete::<Trade, _>(&mut query, &expr!(Trade::trade == 68391));
+        WRITER.write_delete::<Trade, _, _>(&mut query, &expr!(Trade::trade == 68391));
         assert_eq!(
             query,
             indoc! {r#"

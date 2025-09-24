@@ -139,8 +139,8 @@ impl<E: Entity> DataSet for E {
         &self,
         writer: &dyn SqlWriter,
         context: crate::Context,
-        out: &mut dyn std::fmt::Write,
+        buff: &mut dyn std::fmt::Write,
     ) {
-        Self::table_ref().write_query(writer, context, out);
+        Self::table_ref().write_query(writer, context, buff);
     }
 }

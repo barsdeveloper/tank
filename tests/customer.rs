@@ -117,7 +117,7 @@ mod tests {
     #[test]
     fn test_customer_create_table() {
         let mut query = String::new();
-        WRITER.write_create_table::<Customer>(&mut query, false);
+        WRITER.write_create_table::<Customer, _>(&mut query, false);
         assert_eq!(
             query,
             indoc! {r#"
@@ -137,7 +137,7 @@ mod tests {
     #[test]
     fn test_customer_drop_table() {
         let mut query = String::new();
-        WRITER.write_drop_table::<Customer>(&mut query, false);
+        WRITER.write_drop_table::<Customer, _>(&mut query, false);
         assert_eq!(query, r#"DROP TABLE "customers";"#);
     }
 
@@ -166,7 +166,7 @@ mod tests {
     #[test]
     fn test_customer_delete() {
         let mut query = String::new();
-        WRITER.write_delete::<Customer, _>(&mut query, &expr!(true));
+        WRITER.write_delete::<Customer, _, _>(&mut query, &expr!(true));
         assert_eq!(
             query,
             indoc! {r#"

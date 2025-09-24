@@ -10,7 +10,7 @@ pub trait DataSet {
     fn qualified_columns() -> bool
     where
         Self: Sized;
-    fn write_query(&self, writer: &dyn SqlWriter, context: Context, out: &mut dyn Write);
+    fn write_query(&self, writer: &dyn SqlWriter, context: Context, buff: &mut dyn Write);
     fn select<'s, Item, Cols, Exec, Expr>(
         &'s self,
         columns: Cols,

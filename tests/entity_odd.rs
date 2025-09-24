@@ -113,7 +113,7 @@ mod tests {
     #[test]
     fn test_odd_entity_create_table() {
         let mut query = String::new();
-        WRITER.write_create_table::<MyEntity>(&mut query, true);
+        WRITER.write_create_table::<MyEntity, _>(&mut query, true);
         assert_eq!(
             query,
             indoc! {r#"
@@ -133,7 +133,7 @@ mod tests {
     #[test]
     fn test_odd_entity_drop_table() {
         let mut query = String::new();
-        WRITER.write_drop_table::<MyEntity>(&mut query, false);
+        WRITER.write_drop_table::<MyEntity, _>(&mut query, false);
         assert_eq!(query, r#"DROP TABLE "a_table";"#);
     }
 
@@ -180,7 +180,7 @@ mod tests {
     #[test]
     fn test_odd_entity_delete() {
         let mut query = String::new();
-        WRITER.write_delete::<MyEntity, _>(&mut query, &expr!(MyEntity::_echo == 5));
+        WRITER.write_delete::<MyEntity, _, _>(&mut query, &expr!(MyEntity::_echo == 5));
         assert_eq!(
             query,
             indoc! {r#"

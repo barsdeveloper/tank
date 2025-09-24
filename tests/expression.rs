@@ -22,9 +22,9 @@ mod tests {
     fn test_simple_expressions() {
         let expr = expr!();
         assert_matches!(expr, Operand::LitBool(false));
-        let mut out = String::new();
-        expr.write_query(&WRITER, Context::new(false), &mut out);
-        assert_eq!(out, "false");
+        let mut buff = String::new();
+        expr.write_query(&WRITER, Context::new(false), &mut buff);
+        assert_eq!(buff, "false");
 
         let expr = expr!(1 + 2);
         assert_matches!(
@@ -35,9 +35,9 @@ mod tests {
                 rhs: Operand::LitInt(2),
             }
         );
-        let mut out = String::new();
-        expr.write_query(&WRITER, Context::new(false), &mut out);
-        assert_eq!(out, "1 + 2");
+        let mut buff = String::new();
+        expr.write_query(&WRITER, Context::new(false), &mut buff);
+        assert_eq!(buff, "1 + 2");
 
         let expr = expr!(5 * 1.2);
         assert_matches!(
@@ -48,9 +48,9 @@ mod tests {
                 rhs: Operand::LitFloat(1.2),
             }
         );
-        let mut out = String::new();
-        expr.write_query(&WRITER, Context::new(false), &mut out);
-        assert_eq!(out, "5 * 1.2");
+        let mut buff = String::new();
+        expr.write_query(&WRITER, Context::new(false), &mut buff);
+        assert_eq!(buff, "5 * 1.2");
 
         let expr = expr!(true && false);
         assert_matches!(
@@ -61,9 +61,9 @@ mod tests {
                 rhs: Operand::LitBool(false),
             }
         );
-        let mut out = String::new();
-        expr.write_query(&WRITER, Context::new(false), &mut out);
-        assert_eq!(out, "true AND false");
+        let mut buff = String::new();
+        expr.write_query(&WRITER, Context::new(false), &mut buff);
+        assert_eq!(buff, "true AND false");
 
         let expr = expr!(45 | -90);
         assert_matches!(
@@ -77,9 +77,9 @@ mod tests {
                 },
             }
         );
-        let mut out = String::new();
-        expr.write_query(&WRITER, Context::new(false), &mut out);
-        assert_eq!(out, "45 | -90");
+        let mut buff = String::new();
+        expr.write_query(&WRITER, Context::new(false), &mut buff);
+        assert_eq!(buff, "45 | -90");
 
         let expr = expr!(CAST(true as i32));
         assert_matches!(
@@ -90,9 +90,9 @@ mod tests {
                 rhs: Operand::Type(Value::Int32(..)),
             }
         );
-        let mut out = String::new();
-        expr.write_query(&WRITER, Context::new(false), &mut out);
-        assert_eq!(out, "CAST(true AS INTEGER)");
+        let mut buff = String::new();
+        expr.write_query(&WRITER, Context::new(false), &mut buff);
+        assert_eq!(buff, "CAST(true AS INTEGER)");
 
         let expr = expr!(CAST("1.5" as f64));
         assert_matches!(
@@ -103,9 +103,9 @@ mod tests {
                 rhs: Operand::Type(Value::Float64(..)),
             }
         );
-        let mut out = String::new();
-        expr.write_query(&WRITER, Context::new(false), &mut out);
-        assert_eq!(out, "CAST('1.5' AS DOUBLE)");
+        let mut buff = String::new();
+        expr.write_query(&WRITER, Context::new(false), &mut buff);
+        assert_eq!(buff, "CAST('1.5' AS DOUBLE)");
 
         let expr = expr!(["a", "b", "c"]);
         assert_matches!(
@@ -116,9 +116,9 @@ mod tests {
                 Operand::LitStr("c"),
             ])
         );
-        let mut out = String::new();
-        expr.write_query(&WRITER, Context::new(false), &mut out);
-        assert_eq!(out, "['a', 'b', 'c']");
+        let mut buff = String::new();
+        expr.write_query(&WRITER, Context::new(false), &mut buff);
+        assert_eq!(buff, "['a', 'b', 'c']");
 
         let expr = expr!([11, 22, 33][1]);
         assert_matches!(
@@ -133,9 +133,9 @@ mod tests {
                 rhs: Operand::LitInt(1),
             }
         );
-        let mut out = String::new();
-        expr.write_query(&WRITER, Context::new(false), &mut out);
-        assert_eq!(out, "[11, 22, 33][1]");
+        let mut buff = String::new();
+        expr.write_query(&WRITER, Context::new(false), &mut buff);
+        assert_eq!(buff, "[11, 22, 33][1]");
 
         let expr = expr!("hello" == "hell_" as LIKE);
         assert_matches!(
@@ -146,9 +146,9 @@ mod tests {
                 rhs: Operand::LitStr("hell_"),
             }
         );
-        let mut out = String::new();
-        expr.write_query(&WRITER, Context::new(false), &mut out);
-        assert_eq!(out, "'hello' LIKE 'hell_'");
+        let mut buff = String::new();
+        expr.write_query(&WRITER, Context::new(false), &mut buff);
+        assert_eq!(buff, "'hello' LIKE 'hell_'");
 
         let expr = expr!("abc" != "A%" as LIKE);
         assert_matches!(
@@ -159,9 +159,9 @@ mod tests {
                 rhs: Operand::LitStr("A%"),
             }
         );
-        let mut out = String::new();
-        expr.write_query(&WRITER, Context::new(false), &mut out);
-        assert_eq!(out, "'abc' NOT LIKE 'A%'");
+        let mut buff = String::new();
+        expr.write_query(&WRITER, Context::new(false), &mut buff);
+        assert_eq!(buff, "'abc' NOT LIKE 'A%'");
 
         let expr = expr!("log.txt" != "src/**/log.{txt,csv}" as GLOB);
         assert_matches!(
@@ -172,9 +172,9 @@ mod tests {
                 rhs: Operand::LitStr("src/**/log.{txt,csv}"),
             }
         );
-        let mut out = String::new();
-        expr.write_query(&WRITER, Context::new(false), &mut out);
-        assert_eq!(out, "'log.txt' NOT GLOB 'src/**/log.{txt,csv}'");
+        let mut buff = String::new();
+        expr.write_query(&WRITER, Context::new(false), &mut buff);
+        assert_eq!(buff, "'log.txt' NOT GLOB 'src/**/log.{txt,csv}'");
 
         let expr = expr!(CAST(true as i32));
         assert_matches!(
@@ -185,9 +185,9 @@ mod tests {
                 rhs: Operand::Type(Value::Int32(..))
             }
         );
-        let mut out = String::new();
-        expr.write_query(&WRITER, Context::new(false), &mut out);
-        assert_eq!(out, "CAST(true AS INTEGER)");
+        let mut buff = String::new();
+        expr.write_query(&WRITER, Context::new(false), &mut buff);
+        assert_eq!(buff, "CAST(true AS INTEGER)");
 
         let expr = expr!("value" != NULL);
         assert_matches!(
@@ -198,18 +198,18 @@ mod tests {
                 rhs: Operand::Null,
             }
         );
-        let mut out = String::new();
-        expr.write_query(&WRITER, Context::new(false), &mut out);
-        assert_eq!(out, "'value' IS NOT NULL");
+        let mut buff = String::new();
+        expr.write_query(&WRITER, Context::new(false), &mut buff);
+        assert_eq!(buff, "'value' IS NOT NULL");
     }
 
     #[test]
     fn test_asterisk_expressions() {
         let expr = expr!(COUNT(*));
         assert_matches!(expr, Operand::Call("COUNT", _));
-        let mut out = String::new();
-        expr.write_query(&WRITER, Context::new(false), &mut out);
-        assert_eq!(out, "COUNT(*)");
+        let mut buff = String::new();
+        expr.write_query(&WRITER, Context::new(false), &mut buff);
+        assert_eq!(buff, "COUNT(*)");
 
         #[derive(Entity)]
         struct ATable {
@@ -218,9 +218,9 @@ mod tests {
         }
         let expr = expr!(SUM(ATable::a_column));
         assert_matches!(expr, Operand::Call("SUM", _));
-        let mut out = String::new();
-        expr.write_query(&WRITER, Context::new(false), &mut out);
-        assert_eq!(out, r#"SUM("my_column")"#);
+        let mut buff = String::new();
+        expr.write_query(&WRITER, Context::new(false), &mut buff);
+        assert_eq!(buff, r#"SUM("my_column")"#);
     }
 
     #[test]
@@ -242,9 +242,9 @@ mod tests {
                 },
             }
         );
-        let mut out = String::new();
-        expr.write_query(&WRITER, Context::new(true), &mut out);
-        assert_eq!(out, "alpha = ? AND bravo > ?");
+        let mut buff = String::new();
+        expr.write_query(&WRITER, Context::new(true), &mut buff);
+        assert_eq!(buff, "alpha = ? AND bravo > ?");
 
         #[derive(Entity)]
         struct SomeTable {
@@ -260,9 +260,9 @@ mod tests {
                 rhs: Operand::QuestionMark,
             }
         );
-        let mut out = String::new();
-        expr.write_query(&WRITER, Context::new(true), &mut out);
-        assert_eq!(out, r#""some_table"."the_column" NOT LIKE ?"#);
+        let mut buff = String::new();
+        expr.write_query(&WRITER, Context::new(true), &mut buff);
+        assert_eq!(buff, r#""some_table"."the_column" NOT LIKE ?"#);
     }
 
     #[test]
@@ -291,9 +291,9 @@ mod tests {
                 },
             }
         );
-        let mut out = String::new();
-        expr.write_query(&WRITER, Context::new(false), &mut out);
-        assert_eq!(out, "90.5 - -0.54 * 2 < 7 / 2");
+        let mut buff = String::new();
+        expr.write_query(&WRITER, Context::new(false), &mut buff);
+        assert_eq!(buff, "90.5 - -0.54 * 2 < 7 / 2");
 
         let expr = expr!((2 + 3) * (4 - 1) >> 1 & (8 | 3));
         assert_matches!(
@@ -324,9 +324,9 @@ mod tests {
                 },
             }
         );
-        let mut out = String::new();
-        expr.write_query(&WRITER, Context::new(false), &mut out);
-        assert_eq!(out, "(2 + 3) * (4 - 1) >> 1 & (8 | 3)");
+        let mut buff = String::new();
+        expr.write_query(&WRITER, Context::new(false), &mut buff);
+        assert_eq!(buff, "(2 + 3) * (4 - 1) >> 1 & (8 | 3)");
 
         let expr = expr!(-(-PI) + 2 * (5 % (2 + 1)) == 7 && !(4 < 2));
         assert_matches!(
@@ -370,9 +370,9 @@ mod tests {
                 },
             }
         );
-        let mut out = String::new();
-        expr.write_query(&WRITER, Context::new(false), &mut out);
-        assert_eq!(out, "-(-PI) + 2 * (5 % (2 + 1)) = 7 AND NOT 4 < 2");
+        let mut buff = String::new();
+        expr.write_query(&WRITER, Context::new(false), &mut buff);
+        assert_eq!(buff, "-(-PI) + 2 * (5 % (2 + 1)) = 7 AND NOT 4 < 2");
     }
 
     #[test]
@@ -392,9 +392,9 @@ mod tests {
                 rhs: Operand::Variable(Value::Int32(Some(3))),
             }
         );
-        let mut out = String::new();
-        expr.write_query(&WRITER, Context::new(false), &mut out);
-        assert_eq!(out, "1 + 2 = 3");
+        let mut buff = String::new();
+        expr.write_query(&WRITER, Context::new(false), &mut buff);
+        assert_eq!(buff, "1 + 2 = 3");
 
         let vec = vec![-1, -2, -3, -4];
         let index = 2;
@@ -420,9 +420,9 @@ mod tests {
                 Value::Int32(Some(-4)),
             ]
         );
-        let mut out = String::new();
-        expr.write_query(&WRITER, Context::new(false), &mut out);
-        assert_eq!(out, "[-1,-2,-3,-4][2 + 1] + 60");
+        let mut buff = String::new();
+        expr.write_query(&WRITER, Context::new(false), &mut buff);
+        assert_eq!(buff, "[-1,-2,-3,-4][2 + 1] + 60");
     }
 
     #[test]
@@ -438,14 +438,14 @@ mod tests {
 
         let expr = expr!(MyEntity::_first + 2);
         {
-            let mut out = String::new();
-            expr.write_query(&WRITER, Context::new(false), &mut out);
-            assert_eq!(out, r#""first" + 2"#);
+            let mut buff = String::new();
+            expr.write_query(&WRITER, Context::new(false), &mut buff);
+            assert_eq!(buff, r#""first" + 2"#);
         }
         {
-            let mut out = String::new();
-            expr.write_query(&WRITER, Context::new(true), &mut out);
-            assert_eq!(out, r#""the_table"."first" + 2"#);
+            let mut buff = String::new();
+            expr.write_query(&WRITER, Context::new(true), &mut buff);
+            assert_eq!(buff, r#""the_table"."first" + 2"#);
         }
         assert_matches!(
             expr,
@@ -508,10 +508,10 @@ mod tests {
                 },
             }
         );
-        let mut out = String::new();
-        expr.write_query(&WRITER, Context::new(true), &mut out);
+        let mut buff = String::new();
+        expr.write_query(&WRITER, Context::new(true), &mut buff);
         assert_eq!(
-            out,
+            buff,
             r#"CAST("the_table"."first" AS VARCHAR) = "the_table"."second" AND "the_table"."first" > 0"#
         );
     }

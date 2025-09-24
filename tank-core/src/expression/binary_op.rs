@@ -58,10 +58,10 @@ impl<L: Expression, R: Expression> OpPrecedence for BinaryOp<L, R> {
 }
 
 impl<L: Expression, R: Expression> Expression for BinaryOp<L, R> {
-    fn write_query(&self, writer: &dyn SqlWriter, context: Context, out: &mut dyn Write) {
+    fn write_query(&self, writer: &dyn SqlWriter, context: Context, buff: &mut dyn Write) {
         writer.write_expression_binary_op(
             context,
-            out,
+            buff,
             &BinaryOp {
                 op: self.op,
                 lhs: &self.lhs,

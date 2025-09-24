@@ -23,8 +23,8 @@ impl<E: Expression> OpPrecedence for Ordered<E> {
 }
 
 impl<E: Expression> Expression for Ordered<E> {
-    fn write_query(&self, writer: &dyn SqlWriter, context: Context, out: &mut dyn Write) {
-        self.expression.write_query(writer, context, out)
+    fn write_query(&self, writer: &dyn SqlWriter, context: Context, buff: &mut dyn Write) {
+        self.expression.write_query(writer, context, buff)
     }
     fn is_ordered(&self) -> bool {
         true

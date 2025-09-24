@@ -47,7 +47,7 @@ pub fn matches_path(path: &Path, expect: &[&str]) -> bool {
 }
 
 pub fn separated_by<W, T, F>(
-    out: &mut W,
+    buff: &mut W,
     values: impl IntoIterator<Item = T>,
     mut f: F,
     separator: &str,
@@ -59,11 +59,11 @@ pub fn separated_by<W, T, F>(
     let mut changed = false;
     for v in values {
         if !first && changed {
-            let _ = out.write_str(separator);
+            let _ = buff.write_str(separator);
         } else {
             first = false;
         }
-        changed = f(out, v);
+        changed = f(buff, v);
     }
 }
 
@@ -73,11 +73,11 @@ pub fn as_c_string<S: Into<Vec<u8>>>(str: S) -> CString {
 
 #[macro_export]
 macro_rules! possibly_parenthesized {
-    ($out:ident, $cond:expr, $v:expr) => {
+    ($buff:ident, $cond:expr, $v:expr) => {
         if $cond {
-            let _ = $out.write_char('(');
+            let _ = $buff.write_char('(');
             $v;
-            let _ = $out.write_char(')');
+            let _ = $buff.write_char(')');
         } else {
             $v;
         }
