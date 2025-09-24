@@ -18,8 +18,8 @@ use std::{
     },
 };
 use tank_core::{
-    Connection, Context, Driver, Entity, Error, Executor, Query, QueryResult, Result, RowLabeled,
-    RowsAffected, Value, as_c_string, printable_query, send_error,
+    Connection, Driver, Entity, Error, ErrorContext, Executor, Query, QueryResult, Result,
+    RowLabeled, RowsAffected, Value, as_c_string, printable_query, send_error,
     stream::{Stream, TryStreamExt},
 };
 use tokio::task::spawn_blocking;

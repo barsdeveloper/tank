@@ -1,12 +1,12 @@
 use crate::{
-    ColumnDef, Driver, Error, Executor, Expression, Result, Row, RowLabeled, RowsAffected,
+    ColumnDef, DataSet, Driver, Error, Executor, Expression, Result, Row, RowLabeled, RowsAffected,
     TableRef, Value, stream::Stream, writer::SqlWriter,
 };
 use futures::{FutureExt, StreamExt, TryFutureExt};
 use log::Level;
 use std::{future::Future, pin::pin};
 
-pub trait Entity {
+pub trait Entity: DataSet {
     type PrimaryKey<'a>;
 
     fn table_ref() -> &'static TableRef;
@@ -125,5 +125,22 @@ pub trait Entity {
                 }
             })
         })
+    }
+}
+
+impl<E: Entity> DataSet for E {
+    fn qualified_columns() -> bool
+    where
+        Self: Sized,
+    {
+        false
+    }
+    fn write_query(
+        &self,
+        writer: &dyn SqlWriter,
+        context: crate::Context,
+        out: &mut dyn std::fmt::Write,
+    ) {
+        Self::table_ref().write_query(writer, context, out);
     }
 }

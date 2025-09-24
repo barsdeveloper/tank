@@ -1,6 +1,6 @@
 use proc_macro2::TokenStream;
 use quote::{ToTokens, quote};
-use std::{borrow::Cow, cmp::min, ffi::CString};
+use std::{borrow::Cow, cmp::min, ffi::CString, fmt::Write};
 use syn::Path;
 
 #[derive(Clone)]
@@ -46,21 +46,24 @@ pub fn matches_path(path: &Path, expect: &[&str]) -> bool {
         .eq(expect.iter().rev().take(len))
 }
 
-pub fn separated_by<T, F>(
-    out: &mut String,
+pub fn separated_by<W, T, F>(
+    out: &mut W,
     values: impl IntoIterator<Item = T>,
     mut f: F,
     separator: &str,
 ) where
-    F: FnMut(&mut String, T),
+    W: Write + ?Sized,
+    F: FnMut(&mut W, T) -> bool,
 {
-    let mut len = out.len();
+    let mut first = true;
+    let mut changed = false;
     for v in values {
-        if out.len() > len {
-            out.push_str(separator);
+        if !first && changed {
+            let _ = out.write_str(separator);
+        } else {
+            first = false;
         }
-        len = out.len();
-        f(out, v);
+        changed = f(out, v);
     }
 }
 
@@ -72,9 +75,9 @@ pub fn as_c_string<S: Into<Vec<u8>>>(str: S) -> CString {
 macro_rules! possibly_parenthesized {
     ($out:ident, $cond:expr, $v:expr) => {
         if $cond {
-            $out.push('(');
+            let _ = $out.write_char('(');
             $v;
-            $out.push(')');
+            let _ = $out.write_char(')');
         } else {
             $v;
         }

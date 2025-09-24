@@ -20,7 +20,7 @@ use std::{
     },
 };
 use tank_core::{
-    Connection, Context, Driver, Error, Executor, Query, QueryResult, Result, RowLabeled,
+    Connection, Driver, Error, ErrorContext, Executor, Query, QueryResult, Result, RowLabeled,
     RowsAffected,
     future::Either,
     printable_query,

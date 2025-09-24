@@ -24,10 +24,10 @@ pub trait Executor: Send + Sized {
     ) -> impl Stream<Item = Result<QueryResult>> + Send;
 
     /// Execute the query and returns the rows.
-    fn fetch(
-        &mut self,
+    fn fetch<'s>(
+        &'s mut self,
         query: Query<<Self::Driver as Driver>::Prepared>,
-    ) -> impl Stream<Item = Result<RowLabeled>> + Send {
+    ) -> impl Stream<Item = Result<RowLabeled>> + Send + 's {
         self.run(query).filter_map(|v| async move {
             match v {
                 Ok(QueryResult::RowLabeled(v)) => Some(Ok(v)),

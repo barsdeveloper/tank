@@ -1,5 +1,5 @@
 use std::fmt::Write;
-use tank_core::{ColumnRef, Entity, SqlWriter, TableRef, Value};
+use tank_core::{ColumnRef, Context, Entity, SqlWriter, TableRef, Value};
 
 pub struct SqliteSqlWriter {}
 
@@ -8,64 +8,62 @@ impl SqlWriter for SqliteSqlWriter {
         self
     }
 
-    fn write_table_ref(&self, out: &mut String, value: &TableRef, is_declaration: bool) {
-        if !is_declaration && !value.alias.is_empty() {
-            out.push_str(&value.alias);
-        } else {
-            out.push('"');
+    fn write_column_ref(&self, context: Context, out: &mut dyn Write, value: &ColumnRef) {
+        if context.qualify_columns && !value.table.is_empty() {
+            let _ = out.write_char('"');
             if !value.schema.is_empty() {
-                self.write_escaped(out, &value.schema, '"', "\"\"");
-                out.push('.');
+                self.write_escaped(context, out, &value.schema, '"', "\"\"");
+                let _ = out.write_char('.');
             }
-            self.write_escaped(out, &value.name, '"', "\"\"");
-            out.push('"');
+            self.write_escaped(context, out, &value.table, '"', "\"\"");
+            let _ = out.write_str("\".");
         }
-        if is_declaration {
-            out.push(' ');
-            out.push_str(&value.alias);
+        self.write_identifier_quoted(context, out, &value.name);
+    }
+
+    fn write_table_ref(&self, context: Context, out: &mut dyn Write, value: &TableRef) {
+        if self.alias_declaration(context) || value.alias.is_empty() {
+            let _ = out.write_char('"');
+            if !value.schema.is_empty() {
+                self.write_escaped(context, out, &value.schema, '"', "\"\"");
+                let _ = out.write_char('.');
+            }
+            self.write_escaped(context, out, &value.name, '"', "\"\"");
+            let _ = out.write_char('"');
+        }
+        if !value.alias.is_empty() {
+            let _ = write!(out, " {}", value.alias);
         }
     }
 
-    fn write_column_ref(&self, out: &mut String, value: &ColumnRef, qualify: bool) {
-        if qualify && !value.table.is_empty() {
-            out.push('"');
-            if !value.schema.is_empty() {
-                self.write_escaped(out, &value.schema, '"', "\"\"");
-                out.push('.');
-            }
-            self.write_escaped(out, &value.table, '"', "\"\"");
-            out.push_str("\".");
-        }
-        self.write_identifier_quoted(out, &value.name);
-    }
-
-    fn write_column_type(&self, out: &mut String, value: &Value) {
-        match value {
-            Value::Boolean(..) => out.push_str("INTEGER"),
-            Value::Int8(..) => out.push_str("INTEGER"),
-            Value::Int16(..) => out.push_str("INTEGER"),
-            Value::Int32(..) => out.push_str("INTEGER"),
-            Value::Int64(..) => out.push_str("INTEGER"),
-            Value::UInt8(..) => out.push_str("INTEGER"),
-            Value::UInt16(..) => out.push_str("INTEGER"),
-            Value::UInt32(..) => out.push_str("INTEGER"),
-            Value::UInt64(..) => out.push_str("INTEGER"),
-            Value::Float32(..) => out.push_str("REAL"),
-            Value::Float64(..) => out.push_str("REAL"),
+    fn write_column_type(&self, _context: Context, out: &mut dyn Write, value: &Value) {
+        let _ = match value {
+            Value::Boolean(..) => out.write_str("INTEGER"),
+            Value::Int8(..) => out.write_str("INTEGER"),
+            Value::Int16(..) => out.write_str("INTEGER"),
+            Value::Int32(..) => out.write_str("INTEGER"),
+            Value::Int64(..) => out.write_str("INTEGER"),
+            Value::UInt8(..) => out.write_str("INTEGER"),
+            Value::UInt16(..) => out.write_str("INTEGER"),
+            Value::UInt32(..) => out.write_str("INTEGER"),
+            Value::UInt64(..) => out.write_str("INTEGER"),
+            Value::Float32(..) => out.write_str("REAL"),
+            Value::Float64(..) => out.write_str("REAL"),
             Value::Decimal(.., precision, scale) => {
-                out.push_str("REAL");
+                let _ = out.write_str("REAL");
                 if (precision, scale) != (&0, &0) {
                     let _ = write!(out, "({},{})", precision, scale);
                 }
+                Ok(())
             }
-            Value::Char(..) => out.push_str("TEXT"),
-            Value::Varchar(..) => out.push_str("TEXT"),
-            Value::Blob(..) => out.push_str("BLOB"),
-            Value::Date(..) => out.push_str("TEXT"),
-            Value::Time(..) => out.push_str("TEXT"),
-            Value::Timestamp(..) => out.push_str("TEXT"),
-            Value::TimestampWithTimezone(..) => out.push_str("TEXT"),
-            Value::Uuid(..) => out.push_str("TEXT"),
+            Value::Char(..) => out.write_str("TEXT"),
+            Value::Varchar(..) => out.write_str("TEXT"),
+            Value::Blob(..) => out.write_str("BLOB"),
+            Value::Date(..) => out.write_str("TEXT"),
+            Value::Time(..) => out.write_str("TEXT"),
+            Value::Timestamp(..) => out.write_str("TEXT"),
+            Value::TimestampWithTimezone(..) => out.write_str("TEXT"),
+            Value::Uuid(..) => out.write_str("TEXT"),
             _ => panic!(
                 "Unexpected tank::Value, cannot get the sql type from {:?} variant",
                 value
@@ -73,22 +71,22 @@ impl SqlWriter for SqliteSqlWriter {
         };
     }
 
-    fn write_value_infinity(&self, out: &mut String, negative: bool) {
+    fn write_value_infinity(&self, _context: Context, out: &mut dyn Write, negative: bool) {
         if negative {
-            out.push('-');
+            let _ = out.write_char('-');
         }
-        out.push_str("1.0e+10000");
+        let _ = out.write_str("1.0e+10000");
     }
 
-    fn write_value_blob(&self, out: &mut String, value: &[u8]) {
-        out.push_str("X'");
+    fn write_value_blob(&self, _context: Context, out: &mut dyn Write, value: &[u8]) {
+        let _ = out.write_str("X'");
         for b in value {
             let _ = write!(out, "{:X}", b);
         }
-        out.push('\'');
+        let _ = out.write_char('\'');
     }
 
-    fn write_create_schema<E>(&self, _out: &mut String, _if_not_exists: bool)
+    fn write_create_schema<E>(&self, _out: &mut dyn Write, _if_not_exists: bool)
     where
         Self: Sized,
         E: Entity,
@@ -96,7 +94,7 @@ impl SqlWriter for SqliteSqlWriter {
         // Sqlite does not support schema
     }
 
-    fn write_drop_schema<E>(&self, _out: &mut String, _if_exists: bool)
+    fn write_drop_schema<E>(&self, _out: &mut dyn Write, _if_exists: bool)
     where
         Self: Sized,
         E: Entity,

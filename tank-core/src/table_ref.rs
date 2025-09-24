@@ -1,7 +1,10 @@
-use crate::{DataSet, quote_cow, writer::SqlWriter};
+use crate::{
+    DataSet, quote_cow,
+    writer::{Context, SqlWriter},
+};
 use proc_macro2::TokenStream;
 use quote::{ToTokens, TokenStreamExt, quote};
-use std::borrow::Cow;
+use std::{borrow::Cow, fmt::Write};
 
 #[derive(Default, Clone, PartialEq, Eq, Debug)]
 pub struct TableRef {
@@ -38,8 +41,20 @@ impl DataSet for TableRef {
     {
         false
     }
-    fn write_query(&self, writer: &dyn SqlWriter, out: &mut String) {
-        writer.write_table_ref(out, self, false)
+    fn write_query(&self, writer: &dyn SqlWriter, context: Context, out: &mut dyn Write) {
+        writer.write_table_ref(context, out, self)
+    }
+}
+
+impl DataSet for &TableRef {
+    fn qualified_columns() -> bool
+    where
+        Self: Sized,
+    {
+        false
+    }
+    fn write_query(&self, writer: &dyn SqlWriter, context: Context, out: &mut dyn Write) {
+        (*writer).write_table_ref(context, out, self)
     }
 }
 
@@ -68,9 +83,8 @@ impl DataSet for DeclareTableRef {
     {
         false
     }
-
-    fn write_query(&self, writer: &dyn SqlWriter, out: &mut String) {
-        writer.write_table_ref(out, &self.0, true)
+    fn write_query(&self, writer: &dyn SqlWriter, context: Context, out: &mut dyn Write) {
+        writer.write_table_ref(context, out, &self.0)
     }
 }
 

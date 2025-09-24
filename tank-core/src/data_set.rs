@@ -1,24 +1,27 @@
 use crate::{
-    Driver, Executor, Expression, Query, Result, RowLabeled, stream::Stream, writer::SqlWriter,
+    Driver, Executor, Expression, Query, Result, RowLabeled,
+    stream::Stream,
+    writer::{Context, SqlWriter},
 };
+use std::fmt::Write;
 
 pub trait DataSet {
     /// Must qualify the column names with the table name
     fn qualified_columns() -> bool
     where
         Self: Sized;
-    fn write_query(&self, writer: &dyn SqlWriter, out: &mut String);
-    fn select<Item, Cols, Exec, Expr>(
-        &self,
+    fn write_query(&self, writer: &dyn SqlWriter, context: Context, out: &mut dyn Write);
+    fn select<'s, Item, Cols, Exec, Expr>(
+        &'s self,
         columns: Cols,
-        executor: &mut Exec,
+        executor: &'s mut Exec,
         condition: &Expr,
         limit: Option<u32>,
-    ) -> impl Stream<Item = Result<RowLabeled>>
+    ) -> impl Stream<Item = Result<RowLabeled>> + 's
     where
         Self: Sized,
         Item: Expression,
-        Cols: IntoIterator<Item = Item>,
+        Cols: IntoIterator<Item = Item> + Clone,
         Exec: Executor,
         Expr: Expression,
     {
@@ -39,7 +42,7 @@ pub trait DataSet {
     where
         Self: Sized,
         Item: Expression,
-        Cols: IntoIterator<Item = Item>,
+        Cols: IntoIterator<Item = Item> + Clone,
         Exec: Executor,
         Expr: Expression,
     {
@@ -59,32 +62,7 @@ impl DataSet for &dyn DataSet {
     {
         unreachable!("Cannot call static qualified_columns on a dyn object directly");
     }
-    fn write_query(&self, _writer: &dyn SqlWriter, _out: &mut String) {
+    fn write_query(&self, _writer: &dyn SqlWriter, _context: Context, _out: &mut dyn Write) {
         todo!()
-    }
-}
-
-impl<T: DataSet> DataSet for &T {
-    fn qualified_columns() -> bool {
-        <T as DataSet>::qualified_columns()
-    }
-    fn write_query(&self, writer: &dyn SqlWriter, out: &mut String) {
-        <T as DataSet>::write_query(self, writer, out);
-    }
-    fn select<Item, Cols, Exec: Executor, Expr: Expression>(
-        &self,
-        columns: Cols,
-        executor: &mut Exec,
-        condition: &Expr,
-        limit: Option<u32>,
-    ) -> impl Stream<Item = Result<RowLabeled>>
-    where
-        Self: Sized,
-        Item: Expression,
-        Cols: IntoIterator<Item = Item>,
-        Exec: Executor,
-        Expr: Expression,
-    {
-        (*self).select(columns, executor, condition, limit)
     }
 }

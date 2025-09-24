@@ -1,7 +1,7 @@
 use crate::{
     BinaryOp, BinaryOpType, ColumnDef, ColumnRef, DataSet, EitherIterator, Entity, Expression,
-    Interval, Join, JoinType, Operand, PrimaryKeyType, TableRef, UnaryOp, UnaryOpType, Value,
-    possibly_parenthesized, separated_by,
+    Fragment, Interval, Join, JoinType, Operand, PrimaryKeyType, TableRef, UnaryOp, UnaryOpType,
+    Value, possibly_parenthesized, separated_by, writer::Context,
 };
 use std::{collections::HashMap, fmt::Write};
 use time::{Date, Time};
@@ -9,16 +9,16 @@ use time::{Date, Time};
 macro_rules! write_integer {
     ($out:ident, $value:expr) => {{
         let mut buffer = itoa::Buffer::new();
-        $out.push_str(buffer.format($value));
+        let _ = $out.write_str(buffer.format($value));
     }};
 }
 macro_rules! write_float {
-    ($this:ident, $out:ident, $value:expr) => {{
+    ($this:ident, $context:ident,$out:ident, $value:expr) => {{
         if $value.is_infinite() {
-            $this.write_value_infinity($out, $value.is_sign_negative());
+            $this.write_value_infinity($context, $out, $value.is_sign_negative());
         } else {
             let mut buffer = ryu::Buffer::new();
-            $out.push_str(buffer.format($value));
+            let _ = $out.write_str(buffer.format($value));
         }
     }};
 }
@@ -26,96 +26,110 @@ macro_rules! write_float {
 pub trait SqlWriter {
     fn as_dyn(&self) -> &dyn SqlWriter;
 
-    fn write_escaped(&self, out: &mut String, value: &str, search: char, replace: &str) {
+    fn alias_declaration(&self, context: Context) -> bool {
+        match context.fragment {
+            Fragment::SqlSelectFrom | Fragment::SqlJoin => true,
+            _ => false,
+        }
+    }
+
+    fn write_escaped(
+        &self,
+        _: Context,
+        out: &mut dyn Write,
+        value: &str,
+        search: char,
+        replace: &str,
+    ) {
         let mut position = 0;
         for (i, c) in value.char_indices() {
             if c == search {
-                out.push_str(&value[position..i]);
-                out.push_str(replace);
+                let _ = out.write_str(&value[position..i]);
+                let _ = out.write_str(replace);
                 position = i + 1;
             }
         }
-        out.push_str(&value[position..]);
+        let _ = out.write_str(&value[position..]);
     }
 
-    fn write_identifier_quoted(&self, out: &mut String, value: &str) {
-        out.push('"');
-        self.write_escaped(out, value, '"', r#""""#);
-        out.push('"');
+    fn write_identifier_quoted(&self, context: Context, out: &mut dyn Write, value: &str) {
+        let _ = out.write_char('"');
+        self.write_escaped(context, out, value, '"', r#""""#);
+        let _ = out.write_char('"');
     }
 
-    fn write_table_ref(&self, out: &mut String, value: &TableRef, is_declaration: bool) {
-        if !is_declaration && !value.alias.is_empty() {
-            out.push_str(&value.alias);
-        } else {
+    fn write_table_ref(&self, context: Context, out: &mut dyn Write, value: &TableRef) {
+        if self.alias_declaration(context) || value.alias.is_empty() {
             if !value.schema.is_empty() {
-                self.write_identifier_quoted(out, &value.schema);
-                out.push('.');
+                self.write_identifier_quoted(context, out, &value.schema);
+                let _ = out.write_char('.');
             }
-            self.write_identifier_quoted(out, &value.name);
+            self.write_identifier_quoted(context, out, &value.name);
         }
-        if is_declaration {
-            out.push(' ');
-            out.push_str(&value.alias);
+        if !value.alias.is_empty() {
+            let _ = write!(out, " {}", value.alias);
         }
     }
 
-    fn write_column_ref(&self, out: &mut String, value: &ColumnRef, qualify: bool) {
-        if qualify && !value.table.is_empty() {
+    fn write_column_ref(&self, context: Context, out: &mut dyn Write, value: &ColumnRef) {
+        if context.qualify_columns && !value.table.is_empty() {
             if !value.schema.is_empty() {
-                self.write_identifier_quoted(out, &value.schema);
-                out.push('.');
+                self.write_identifier_quoted(context, out, &value.schema);
+                let _ = out.write_char('.');
             }
-            self.write_identifier_quoted(out, &value.table);
-            out.push('.');
+            self.write_identifier_quoted(context, out, &value.table);
+            let _ = out.write_char('.');
         }
-        self.write_identifier_quoted(out, &value.name);
+        self.write_identifier_quoted(context, out, &value.name);
     }
 
-    fn write_column_type(&self, out: &mut String, value: &Value) {
-        match value {
-            Value::Boolean(..) => out.push_str("BOOLEAN"),
-            Value::Int8(..) => out.push_str("TINYINT"),
-            Value::Int16(..) => out.push_str("SMALLINT"),
-            Value::Int32(..) => out.push_str("INTEGER"),
-            Value::Int64(..) => out.push_str("BIGINT"),
-            Value::Int128(..) => out.push_str("HUGEINT"),
-            Value::UInt8(..) => out.push_str("UTINYINT"),
-            Value::UInt16(..) => out.push_str("USMALLINT"),
-            Value::UInt32(..) => out.push_str("UINTEGER"),
-            Value::UInt64(..) => out.push_str("UBIGINT"),
-            Value::UInt128(..) => out.push_str("UHUGEINT"),
-            Value::Float32(..) => out.push_str("FLOAT"),
-            Value::Float64(..) => out.push_str("DOUBLE"),
+    fn write_column_type(&self, context: Context, out: &mut dyn Write, value: &Value) {
+        let _ = match value {
+            Value::Boolean(..) => out.write_str("BOOLEAN"),
+            Value::Int8(..) => out.write_str("TINYINT"),
+            Value::Int16(..) => out.write_str("SMALLINT"),
+            Value::Int32(..) => out.write_str("INTEGER"),
+            Value::Int64(..) => out.write_str("BIGINT"),
+            Value::Int128(..) => out.write_str("HUGEINT"),
+            Value::UInt8(..) => out.write_str("UTINYINT"),
+            Value::UInt16(..) => out.write_str("USMALLINT"),
+            Value::UInt32(..) => out.write_str("UINTEGER"),
+            Value::UInt64(..) => out.write_str("UBIGINT"),
+            Value::UInt128(..) => out.write_str("UHUGEINT"),
+            Value::Float32(..) => out.write_str("FLOAT"),
+            Value::Float64(..) => out.write_str("DOUBLE"),
             Value::Decimal(.., precision, scale) => {
-                out.push_str("DECIMAL");
+                let _ = out.write_str("DECIMAL");
                 if (precision, scale) != (&0, &0) {
-                    let _ = write!(out, "({},{})", precision, scale);
+                    write!(out, "({},{})", precision, scale)
+                } else {
+                    Ok(())
                 }
             }
-            Value::Char(..) => out.push_str("CHAR(1)"),
-            Value::Varchar(..) => out.push_str("VARCHAR"),
-            Value::Blob(..) => out.push_str("BLOB"),
-            Value::Date(..) => out.push_str("DATE"),
-            Value::Time(..) => out.push_str("TIME"),
-            Value::Timestamp(..) => out.push_str("TIMESTAMP"),
-            Value::TimestampWithTimezone(..) => out.push_str("TIMESTAMP WITH TIME ZONE"),
-            Value::Interval(..) => out.push_str("INTERVAL"),
-            Value::Uuid(..) => out.push_str("UUID"),
+            Value::Char(..) => out.write_str("CHAR(1)"),
+            Value::Varchar(..) => out.write_str("VARCHAR"),
+            Value::Blob(..) => out.write_str("BLOB"),
+            Value::Date(..) => out.write_str("DATE"),
+            Value::Time(..) => out.write_str("TIME"),
+            Value::Timestamp(..) => out.write_str("TIMESTAMP"),
+            Value::TimestampWithTimezone(..) => out.write_str("TIMESTAMP WITH TIME ZONE"),
+            Value::Interval(..) => out.write_str("INTERVAL"),
+            Value::Uuid(..) => out.write_str("UUID"),
             Value::Array(.., inner, size) => {
-                self.write_column_type(out, inner);
-                let _ = write!(out, "[{}]", size);
+                self.write_column_type(context, out, inner);
+                write!(out, "[{}]", size)
             }
             Value::List(.., inner) => {
-                self.write_column_type(out, inner);
-                out.push_str("[]");
+                self.write_column_type(context, out, inner);
+                out.write_str("[]")
             }
             Value::Map(.., key, value) => {
-                out.push_str("MAP(");
-                self.write_column_type(out, key);
-                out.push(',');
-                self.write_column_type(out, value);
-                out.push(')');
+                let _ = out.write_str("MAP(");
+                self.write_column_type(context, out, key);
+                let _ = out.write_char(',');
+                self.write_column_type(context, out, value);
+                let _ = out.write_char(')');
+                Ok(())
             }
             _ => panic!(
                 "Unexpected tank::Value, cannot get the sql type from {:?} variant",
@@ -124,7 +138,7 @@ pub trait SqlWriter {
         };
     }
 
-    fn write_value(&self, out: &mut String, value: &Value) {
+    fn write_value(&self, context: Context, out: &mut dyn Write, value: &Value) {
         let _ = match value {
             Value::Null
             | Value::Boolean(None, ..)
@@ -153,8 +167,8 @@ pub trait SqlWriter {
             | Value::Array(None, ..)
             | Value::List(None, ..)
             | Value::Map(None, ..)
-            | Value::Struct(None, ..) => self.write_value_none(out),
-            Value::Boolean(Some(v), ..) => self.write_value_bool(out, *v),
+            | Value::Struct(None, ..) => self.write_value_none(context, out),
+            Value::Boolean(Some(v), ..) => self.write_value_bool(context, out, *v),
             Value::Int8(Some(v), ..) => write_integer!(out, *v),
             Value::Int16(Some(v), ..) => write_integer!(out, *v),
             Value::Int32(Some(v), ..) => write_integer!(out, *v),
@@ -165,47 +179,47 @@ pub trait SqlWriter {
             Value::UInt32(Some(v), ..) => write_integer!(out, *v),
             Value::UInt64(Some(v), ..) => write_integer!(out, *v),
             Value::UInt128(Some(v), ..) => write_integer!(out, *v),
-            Value::Float32(Some(v), ..) => write_float!(self, out, *v),
-            Value::Float64(Some(v), ..) => write_float!(self, out, *v),
+            Value::Float32(Some(v), ..) => write_float!(self, context, out, *v),
+            Value::Float64(Some(v), ..) => write_float!(self, context, out, *v),
             Value::Decimal(Some(v), ..) => drop(write!(out, "{}", v)),
             Value::Char(Some(v), ..) => {
-                out.push('\'');
-                out.push(*v);
-                out.push('\'');
+                let _ = out.write_char('\'');
+                let _ = out.write_char(*v);
+                let _ = out.write_char('\'');
             }
-            Value::Varchar(Some(v), ..) => self.write_value_string(out, v),
-            Value::Blob(Some(v), ..) => self.write_value_blob(out, v.as_ref()),
+            Value::Varchar(Some(v), ..) => self.write_value_string(context, out, v),
+            Value::Blob(Some(v), ..) => self.write_value_blob(context, out, v.as_ref()),
             Value::Date(Some(v), ..) => {
-                out.push('\'');
-                self.write_value_date(out, v);
-                out.push('\'');
+                let _ = out.write_char('\'');
+                self.write_value_date(context, out, v);
+                let _ = out.write_char('\'');
             }
             Value::Time(Some(v), ..) => {
-                out.push('\'');
-                self.write_value_time(out, v);
-                out.push('\'');
+                let _ = out.write_char('\'');
+                self.write_value_time(context, out, v);
+                let _ = out.write_char('\'');
             }
             Value::Timestamp(Some(v), ..) => {
-                out.push('\'');
-                self.write_value_date(out, &v.date());
-                out.push('T');
-                self.write_value_time(out, &v.time());
-                out.push('\'');
+                let _ = out.write_char('\'');
+                self.write_value_date(context, out, &v.date());
+                let _ = out.write_char('T');
+                self.write_value_time(context, out, &v.time());
+                let _ = out.write_char('\'');
             }
             Value::TimestampWithTimezone(Some(v), ..) => {
-                out.push('\'');
-                self.write_value_date(out, &v.date());
-                out.push('T');
-                self.write_value_time(out, &v.time());
+                let _ = out.write_char('\'');
+                self.write_value_date(context, out, &v.date());
+                let _ = out.write_char('T');
+                self.write_value_time(context, out, &v.time());
                 let _ = write!(
                     out,
                     "{:+02}:{:02}",
                     v.offset().whole_hours(),
                     v.offset().whole_minutes()
                 );
-                out.push('\'');
+                let _ = out.write_char('\'');
             }
-            Value::Interval(Some(v), ..) => self.write_value_interval(out, v),
+            Value::Interval(Some(v), ..) => self.write_value_interval(context, out, v),
             Value::Uuid(Some(v), ..) => drop(write!(out, "'{}'", v)),
             Value::List(Some(..), ..) | Value::Array(Some(..), ..) => {
                 let v = match value {
@@ -213,35 +227,37 @@ pub trait SqlWriter {
                     Value::Array(Some(v), ..) => v.iter(),
                     _ => unreachable!(),
                 };
-                out.push('[');
+                let _ = out.write_char('[');
                 separated_by(
                     out,
                     v,
                     |out, v| {
-                        self.write_value(out, v);
+                        self.write_value(context, out, v);
+                        true
                     },
                     ",",
                 );
-                out.push(']');
+                let _ = out.write_char(']');
             }
-            Value::Map(Some(v), ..) => self.write_value_map(out, v),
+            Value::Map(Some(v), ..) => self.write_value_map(context, out, v),
             Value::Struct(Some(_v), ..) => {
                 todo!()
             }
         };
     }
 
-    fn write_value_none(&self, out: &mut String) {
-        out.push_str("NULL")
+    fn write_value_none(&self, _context: Context, out: &mut dyn Write) {
+        let _ = out.write_str("NULL");
     }
 
-    fn write_value_bool(&self, out: &mut String, value: bool) {
-        out.push_str(["false", "true"][value as usize])
+    fn write_value_bool(&self, _context: Context, out: &mut dyn Write, value: bool) {
+        let _ = out.write_str(["false", "true"][value as usize]);
     }
 
-    fn write_value_infinity(&self, out: &mut String, negative: bool) {
+    fn write_value_infinity(&self, context: Context, out: &mut dyn Write, negative: bool) {
         let mut buffer = ryu::Buffer::new();
         self.write_expression_binary_op(
+            context,
             out,
             &BinaryOp {
                 op: BinaryOpType::Cast,
@@ -252,37 +268,36 @@ pub trait SqlWriter {
                 })),
                 rhs: &Operand::Type(Value::Float64(None)),
             },
-            false,
         );
     }
 
-    fn write_value_string(&self, out: &mut String, value: &str) {
-        out.push('\'');
+    fn write_value_string(&self, _context: Context, out: &mut dyn Write, value: &str) {
+        let _ = out.write_char('\'');
         let mut position = 0;
         for (i, c) in value.char_indices() {
             if c == '\'' {
-                out.push_str(&value[position..i]);
-                out.push_str("''");
+                let _ = out.write_str(&value[position..i]);
+                let _ = out.write_str("''");
                 position = i + 1;
             } else if c == '\n' {
-                out.push_str(&value[position..i]);
-                out.push_str("\\n");
+                let _ = out.write_str(&value[position..i]);
+                let _ = out.write_str("\\n");
                 position = i + 1;
             }
         }
-        out.push_str(&value[position..]);
-        out.push('\'');
+        let _ = out.write_str(&value[position..]);
+        let _ = out.write_char('\'');
     }
 
-    fn write_value_blob(&self, out: &mut String, value: &[u8]) {
-        out.push('\'');
+    fn write_value_blob(&self, _context: Context, out: &mut dyn Write, value: &[u8]) {
+        let _ = out.write_char('\'');
         for b in value {
             let _ = write!(out, "\\x{:X}", b);
         }
-        out.push('\'');
+        let _ = out.write_char('\'');
     }
 
-    fn write_value_date(&self, out: &mut String, value: &Date) {
+    fn write_value_date(&self, _context: Context, out: &mut dyn Write, value: &Date) {
         let _ = write!(
             out,
             "{:04}-{:02}-{:02}",
@@ -292,7 +307,7 @@ pub trait SqlWriter {
         );
     }
 
-    fn write_value_time(&self, out: &mut String, value: &Time) {
+    fn write_value_time(&self, _context: Context, out: &mut dyn Write, value: &Time) {
         let mut subsecond = value.nanosecond();
         let mut width = 9;
         while width > 1 && subsecond % 10 == 0 {
@@ -321,60 +336,68 @@ pub trait SqlWriter {
         UNITS
     }
 
-    fn write_value_interval(&self, out: &mut String, value: &Interval) {
-        let _ = out.write_str("INTERVAL");
-        let quote_position = out.len() + 1;
+    fn write_value_interval(&self, _context: Context, out: &mut dyn Write, value: &Interval) {
+        let _ = out.write_str("INTERVAL ");
         macro_rules! write_unit {
             ($out:ident, $val:expr, $unit:expr) => {
                 let _ = write!(
                     $out,
-                    " {} {}{}",
+                    "{} {}{}",
                     $val,
                     $unit,
                     if $val != 1 { "S" } else { "" }
                 );
             };
         }
-        let mut units = 0;
-        if value.months != 0 {
-            if value.months % 12 == 0 {
-                write_unit!(out, value.months / 12, "YEAR");
-                units += 1;
+        let months = value.months;
+        let nanos = value.nanos + value.days as i128 * Interval::NANOS_IN_DAY;
+        let multiple_units = nanos != 0 && value.months != 0;
+        if multiple_units {
+            let _ = out.write_char('\'');
+        }
+        if months != 0 {
+            if months % 12 == 0 {
+                write_unit!(out, months / 12, "YEAR");
             } else {
-                write_unit!(out, value.months, "MONTH");
-                units += 1;
+                write_unit!(out, months, "MONTH");
             }
         }
-        let nanos = value.nanos + value.days as i128 * Interval::NANOS_IN_DAY;
         for &(name, factor) in self.value_interval_units() {
             if nanos % factor == 0 {
                 let value = nanos / factor;
-                if units == 0 || value != 0 {
+                if value != 0 {
+                    if months != 0 {
+                        let _ = out.write_char(' ');
+                    }
                     write_unit!(out, value, name);
-                    units += 1;
                     break;
                 }
             }
         }
-        if units > 1 {
-            out.insert(quote_position, '\'');
-            out.push('\'');
+        if multiple_units {
+            let _ = out.write_char('\'');
         }
     }
 
-    fn write_value_map(&self, out: &mut String, value: &HashMap<Value, Value>) {
-        out.push('{');
+    fn write_value_map(
+        &self,
+        context: Context,
+        out: &mut dyn Write,
+        value: &HashMap<Value, Value>,
+    ) {
+        let _ = out.write_char('{');
         separated_by(
             out,
             value,
             |out, (k, v)| {
-                self.write_value(out, k);
-                out.push(':');
-                self.write_value(out, v);
+                self.write_value(context, out, k);
+                let _ = out.write_char(':');
+                self.write_value(context, out, v);
+                true
             },
             ",",
         );
-        out.push('}');
+        let _ = out.write_char('}');
     }
 
     fn expression_unary_op_precedence<'a>(&self, value: &UnaryOpType) -> i32 {
@@ -417,69 +440,71 @@ pub trait SqlWriter {
         }
     }
 
-    fn write_expression_operand(&self, out: &mut String, value: &Operand, qualify_columns: bool) {
+    fn write_expression_operand(&self, context: Context, out: &mut dyn Write, value: &Operand) {
         let _ = match value {
-            Operand::LitBool(v) => self.write_value_bool(out, *v),
-            Operand::LitFloat(v) => write_float!(self, out, *v),
-            Operand::LitIdent(v) => out.push_str(v),
-            Operand::LitField(v) => separated_by(out, *v, |out, v| out.push_str(v), "."),
+            Operand::LitBool(v) => self.write_value_bool(context, out, *v),
+            Operand::LitFloat(v) => write_float!(self, context, out, *v),
+            Operand::LitIdent(v) => drop(out.write_str(v)),
+            Operand::LitField(v) => separated_by(out, *v, |out, v| out.write_str(v).is_ok(), "."),
             Operand::LitInt(v) => write_integer!(out, *v),
-            Operand::LitStr(v) => self.write_value_string(out, v),
+            Operand::LitStr(v) => self.write_value_string(context, out, v),
             Operand::LitArray(v) => {
-                out.push('[');
+                let _ = out.write_char('[');
                 separated_by(
                     out,
                     *v,
                     |out, v| {
-                        v.write_query(self.as_dyn(), out, qualify_columns);
+                        v.write_query(self.as_dyn(), context, out);
+                        true
                     },
                     ", ",
                 );
-                out.push(']');
+                let _ = out.write_char(']');
             }
-            Operand::Null => out.push_str("NULL"),
-            Operand::Type(v) => self.write_column_type(out, v),
-            Operand::Variable(v) => self.write_value(out, v),
+            Operand::Null => drop(out.write_str("NULL")),
+            Operand::Type(v) => self.write_column_type(context, out, v),
+            Operand::Variable(v) => self.write_value(context, out, v),
             Operand::Call(f, args) => {
-                out.push_str(f);
-                out.push('(');
+                let _ = out.write_str(f);
+                let _ = out.write_char('(');
                 separated_by(
                     out,
                     *args,
                     |out, v| {
-                        v.write_query(self.as_dyn(), out, qualify_columns);
+                        v.write_query(self.as_dyn(), context, out);
+                        true
                     },
                     ",",
                 );
-                out.push(')');
+                let _ = out.write_char(')');
             }
-            Operand::Asterisk => out.push('*'),
-            Operand::QuestionMark => out.push('?'),
+            Operand::Asterisk => drop(out.write_char('*')),
+            Operand::QuestionMark => drop(out.write_char('?')),
         };
     }
 
     fn write_expression_unary_op(
         self: &Self,
-        out: &mut String,
+        context: Context,
+        out: &mut dyn Write,
         value: &UnaryOp<&dyn Expression>,
-        qualify_columns: bool,
     ) {
         let _ = match value.op {
-            UnaryOpType::Negative => out.push('-'),
-            UnaryOpType::Not => out.push_str("NOT "),
+            UnaryOpType::Negative => out.write_char('-'),
+            UnaryOpType::Not => out.write_str("NOT "),
         };
         possibly_parenthesized!(
             out,
             value.arg.precedence(self.as_dyn()) <= self.expression_unary_op_precedence(&value.op),
-            value.arg.write_query(self.as_dyn(), out, qualify_columns)
+            value.arg.write_query(self.as_dyn(), context, out)
         );
     }
 
     fn write_expression_binary_op(
         &self,
-        out: &mut String,
+        context: Context,
+        out: &mut dyn Write,
         value: &BinaryOp<&dyn Expression, &dyn Expression>,
-        qualify_columns: bool,
     ) {
         let (prefix, infix, suffix, lhs_parenthesized, rhs_parenthesized) = match value.op {
             BinaryOpType::Indexing => ("", "[", "]", false, true),
@@ -512,23 +537,23 @@ pub trait SqlWriter {
             BinaryOpType::Alias => ("", " AS ", "", false, false),
         };
         let precedence = self.expression_binary_op_precedence(&value.op);
-        out.push_str(prefix);
+        let _ = out.write_str(prefix);
         possibly_parenthesized!(
             out,
             !lhs_parenthesized && value.lhs.precedence(self.as_dyn()) < precedence,
-            value.lhs.write_query(self.as_dyn(), out, qualify_columns)
+            value.lhs.write_query(self.as_dyn(), context, out)
         );
-        out.push_str(infix);
+        let _ = out.write_str(infix);
         possibly_parenthesized!(
             out,
             !rhs_parenthesized && value.rhs.precedence(self.as_dyn()) <= precedence,
-            value.rhs.write_query(self.as_dyn(), out, qualify_columns)
+            value.rhs.write_query(self.as_dyn(), context, out)
         );
-        out.push_str(suffix);
+        let _ = out.write_str(suffix);
     }
 
-    fn write_join_type(&self, out: &mut String, join_type: &JoinType) {
-        out.push_str(match &join_type {
+    fn write_join_type(&self, _context: Context, out: &mut dyn Write, join_type: &JoinType) {
+        let _ = out.write_str(match &join_type {
             JoinType::Default => "JOIN",
             JoinType::Inner => "INNER JOIN",
             JoinType::Outer => "OUTER JOIN",
@@ -541,153 +566,202 @@ pub trait SqlWriter {
 
     fn write_join(
         &self,
-        out: &mut String,
+        _context: Context,
+        out: &mut dyn Write,
         join: &Join<&dyn DataSet, &dyn DataSet, &dyn Expression>,
     ) {
-        join.lhs.write_query(self.as_dyn(), out);
-        out.push(' ');
-        self.write_join_type(out, &join.join);
-        out.push(' ');
-        join.rhs.write_query(self.as_dyn(), out);
+        let context = Context {
+            fragment: Fragment::SqlJoin,
+            qualify_columns: true,
+        };
+        join.lhs.write_query(self.as_dyn(), context, out);
+        let _ = out.write_char(' ');
+        self.write_join_type(context, out, &join.join);
+        let _ = out.write_char(' ');
+        join.rhs.write_query(self.as_dyn(), context, out);
         if let Some(on) = &join.on {
-            out.push_str(" ON ");
-            on.write_query(self.as_dyn(), out, true);
+            let _ = out.write_str(" ON ");
+            let context = Context {
+                qualify_columns: true,
+                ..context
+            };
+            on.write_query(self.as_dyn(), context, out);
         }
     }
 
-    fn write_create_schema<E>(&self, out: &mut String, if_not_exists: bool)
+    fn write_create_schema<E>(&self, out: &mut dyn Write, if_not_exists: bool)
     where
         Self: Sized,
         E: Entity,
     {
-        out.push_str("CREATE SCHEMA ");
+        let _ = out.write_str("CREATE SCHEMA ");
+        let context = Context {
+            fragment: Fragment::SqlCreateSchema,
+            qualify_columns: E::qualified_columns(),
+        };
         if if_not_exists {
-            out.push_str("IF NOT EXISTS ");
+            let _ = out.write_str("IF NOT EXISTS ");
         }
-        self.write_identifier_quoted(out, E::table_ref().schema);
-        out.push(';');
+        self.write_identifier_quoted(context, out, E::table_ref().schema);
+        let _ = out.write_char(';');
     }
 
-    fn write_drop_schema<E>(&self, out: &mut String, if_exists: bool)
+    fn write_drop_schema<E>(&self, out: &mut dyn Write, if_exists: bool)
     where
         Self: Sized,
         E: Entity,
     {
-        out.push_str("DROP SCHEMA ");
+        let _ = out.write_str("DROP SCHEMA ");
+        let context = Context {
+            fragment: Fragment::SqlDropSchema,
+            qualify_columns: E::qualified_columns(),
+        };
         if if_exists {
-            out.push_str("IF EXISTS ");
+            let _ = out.write_str("IF EXISTS ");
         }
-        self.write_identifier_quoted(out, E::table_ref().schema);
-        out.push(';');
+        self.write_identifier_quoted(context, out, E::table_ref().schema);
+        let _ = out.write_char(';');
     }
 
-    fn write_create_table<E>(&self, out: &mut String, if_not_exists: bool)
+    fn write_create_table<E>(&self, out: &mut dyn Write, if_not_exists: bool)
     where
         Self: Sized,
         E: Entity,
     {
-        out.push_str("CREATE TABLE ");
+        let _ = out.write_str("CREATE TABLE ");
         if if_not_exists {
-            out.push_str("IF NOT EXISTS ");
+            let _ = out.write_str("IF NOT EXISTS ");
         }
-        self.write_table_ref(out, E::table_ref(), false);
-        out.push_str(" (\n");
+        let context = Context {
+            fragment: Fragment::SqlCreateTable,
+            qualify_columns: E::qualified_columns(),
+        };
+        self.write_table_ref(context, out, E::table_ref());
+        let _ = out.write_str(" (\n");
         separated_by(
             out,
             E::columns(),
             |out, v| {
-                self.write_create_table_column_fragment(out, v);
+                self.write_create_table_column_fragment(context, out, v);
+                true
             },
             ",\n",
         );
         let primary_key = E::primary_key_def();
         if primary_key.len() > 1 {
-            out.push_str(",\nPRIMARY KEY (");
+            let _ = out.write_str(",\nPRIMARY KEY (");
             separated_by(
                 out,
                 primary_key,
-                |out, v| self.write_identifier_quoted(out, v.name()),
+                |out, v| {
+                    self.write_identifier_quoted(
+                        context.with_context(Fragment::SqlCreateTablePrimaryKey),
+                        out,
+                        v.name(),
+                    );
+                    true
+                },
                 ", ",
             );
-            out.push(')');
+            let _ = out.write_char(')');
         }
         for unique in E::unique_defs() {
             if unique.len() > 1 {
-                out.push_str(",\nUNIQUE (");
+                let _ = out.write_str(",\nUNIQUE (");
                 separated_by(
                     out,
                     unique,
-                    |out, v| self.write_identifier_quoted(out, v.name()),
+                    |out, v| {
+                        self.write_identifier_quoted(
+                            context.with_context(Fragment::SqlCreateTableUnique),
+                            out,
+                            v.name(),
+                        );
+                        true
+                    },
                     ", ",
                 );
-                out.push(')');
+                let _ = out.write_char(')');
             }
         }
-        out.push_str("\n)");
-        out.push(';');
-        self.write_column_comments::<E>(out);
+        let _ = out.write_str("\n)");
+        let _ = out.write_char(';');
+        self.write_column_comments::<E>(context, out);
     }
 
-    fn write_column_comments<E>(&self, out: &mut String)
+    fn write_column_comments<E>(&self, _context: Context, out: &mut dyn Write)
     where
         Self: Sized,
         E: Entity,
     {
+        let context = Context {
+            fragment: Fragment::SqlCommentOnColumn,
+            qualify_columns: true,
+        };
         for c in E::columns().iter().filter(|c| !c.comment.is_empty()) {
-            out.push_str("\nCOMMENT ON COLUMN ");
-            self.write_column_ref(out, c.into(), true);
-            out.push_str(" IS ");
-            self.write_value_string(out, c.comment);
-            out.push(';');
+            let _ = out.write_str("\nCOMMENT ON COLUMN ");
+            self.write_column_ref(context, out, c.into());
+            let _ = out.write_str(" IS ");
+            self.write_value_string(context, out, c.comment);
+            let _ = out.write_char(';');
         }
     }
 
-    fn write_create_table_column_fragment(&self, out: &mut String, column: &ColumnDef) {
-        self.write_identifier_quoted(out, &column.name());
-        out.push(' ');
+    fn write_create_table_column_fragment(
+        &self,
+        context: Context,
+        out: &mut dyn Write,
+        column: &ColumnDef,
+    ) {
+        self.write_identifier_quoted(context, out, &column.name());
+        let _ = out.write_char(' ');
         if !column.column_type.is_empty() {
-            out.push_str(&column.column_type);
+            let _ = out.write_str(&column.column_type);
         } else {
-            SqlWriter::write_column_type(self, out, &column.value);
+            SqlWriter::write_column_type(self, context, out, &column.value);
         }
         if !column.nullable && column.primary_key == PrimaryKeyType::None {
-            out.push_str(" NOT NULL");
+            let _ = out.write_str(" NOT NULL");
         }
         if let Some(default) = &column.default {
-            out.push_str(" DEFAULT ");
-            default.write_query(self.as_dyn(), out, true);
+            let _ = out.write_str(" DEFAULT ");
+            default.write_query(self.as_dyn(), context, out);
         }
         if column.primary_key == PrimaryKeyType::PrimaryKey {
             // Composite primary key will be printed elsewhere
-            out.push_str(" PRIMARY KEY");
+            let _ = out.write_str(" PRIMARY KEY");
         }
         if column.unique && column.primary_key != PrimaryKeyType::PrimaryKey {
-            out.push_str(" UNIQUE");
+            let _ = out.write_str(" UNIQUE");
         }
         if let Some(references) = column.references {
-            out.push_str(" REFERENCES ");
-            self.write_table_ref(out, &references.table_ref(), false);
-            out.push('(');
-            self.write_column_ref(out, &references, false);
-            out.push(')');
+            let _ = out.write_str(" REFERENCES ");
+            self.write_table_ref(context, out, &references.table_ref());
+            let _ = out.write_char('(');
+            self.write_column_ref(context, out, &references);
+            let _ = out.write_char(')');
         }
     }
 
-    fn write_drop_table<E: Entity>(&self, out: &mut String, if_exists: bool)
+    fn write_drop_table<E: Entity>(&self, out: &mut dyn Write, if_exists: bool)
     where
         Self: Sized,
     {
-        out.push_str("DROP TABLE ");
+        let _ = out.write_str("DROP TABLE ");
+        let context = Context {
+            fragment: Fragment::SqlDropTable,
+            qualify_columns: E::qualified_columns(),
+        };
         if if_exists {
-            out.push_str("IF EXISTS ");
+            let _ = out.write_str("IF EXISTS ");
         }
-        self.write_table_ref(out, E::table_ref(), false);
-        out.push(';');
+        self.write_table_ref(context, out, E::table_ref());
+        let _ = out.write_char(';');
     }
 
     fn write_select<Item, Cols, Data, Cond>(
         &self,
-        out: &mut String,
+        out: &mut dyn Write,
         columns: Cols,
         from: &Data,
         condition: &Cond,
@@ -695,30 +769,43 @@ pub trait SqlWriter {
     ) where
         Self: Sized,
         Item: Expression,
-        Cols: IntoIterator<Item = Item>,
+        Cols: IntoIterator<Item = Item> + Clone,
         Data: DataSet,
         Cond: Expression,
     {
-        out.push_str("SELECT ");
+        let _ = out.write_str("SELECT ");
+        let mut has_order_by = false;
+        let context = Context {
+            fragment: Fragment::SqlSelect,
+            qualify_columns: Data::qualified_columns(),
+        };
         separated_by(
             out,
-            columns,
+            columns.clone(),
             |out, col| {
-                col.write_query(self, out, Data::qualified_columns());
+                col.write_query(self, context, out);
+                has_order_by = has_order_by || col.is_ordered();
+                true
             },
             ", ",
         );
-        out.push_str("\nFROM ");
-        from.write_query(self, out);
-        out.push_str("\nWHERE ");
-        condition.write_query(self, out, Data::qualified_columns());
+        let _ = out.write_str("\nFROM ");
+        from.write_query(self, context.with_context(Fragment::SqlSelectFrom), out);
+        let _ = out.write_str("\nWHERE ");
+        condition.write_query(self, context.with_context(Fragment::SqlSelectWhere), out);
+        if has_order_by {
+            let _ = out.write_str("\nORDER BY ");
+            for col in columns.into_iter().filter(Expression::is_ordered) {
+                col.write_query(self, context.with_context(Fragment::SqlSelectOrderBy), out);
+            }
+        }
         if let Some(limit) = limit {
             let _ = write!(out, "\nLIMIT {}", limit);
         }
-        out.push(';');
+        let _ = out.write_char(';');
     }
 
-    fn write_insert<'b, E, It>(&self, out: &mut String, entities: It, update: bool)
+    fn write_insert<'b, E, It>(&self, out: &mut dyn Write, entities: It, update: bool)
     where
         Self: Sized,
         E: Entity + 'b,
@@ -728,9 +815,13 @@ pub trait SqlWriter {
         let Some(mut row) = rows.next() else {
             return;
         };
-        out.push_str("INSERT INTO ");
-        self.write_table_ref(out, E::table_ref(), false);
-        out.push_str(" (");
+        let _ = out.write_str("INSERT INTO ");
+        let mut context = Context {
+            fragment: Fragment::SqlInsertInto,
+            qualify_columns: E::qualified_columns(),
+        };
+        self.write_table_ref(context, out, E::table_ref());
+        let _ = out.write_str(" (");
         let columns = E::columns().iter();
         let single = rows.peek().is_none();
         if single {
@@ -738,7 +829,10 @@ pub trait SqlWriter {
             separated_by(
                 out,
                 row.iter(),
-                |out, v| self.write_identifier_quoted(out, v.0),
+                |out, v| {
+                    self.write_identifier_quoted(context, out, v.0);
+                    true
+                },
                 ", ",
             );
         } else {
@@ -746,18 +840,22 @@ pub trait SqlWriter {
             separated_by(
                 out,
                 columns.clone(),
-                |out, v| self.write_identifier_quoted(out, v.name()),
+                |out, v| {
+                    self.write_identifier_quoted(context, out, v.name());
+                    true
+                },
                 ", ",
             );
         };
-        out.push_str(") VALUES\n");
+        let _ = out.write_str(") VALUES\n");
+        context.fragment = Fragment::SqlInsertIntoValues;
         let mut first_row = None;
         let mut separate = false;
         loop {
             if separate {
-                out.push_str(",\n");
+                let _ = out.write_str(",\n");
             }
-            out.push('(');
+            let _ = out.write_char('(');
             let mut fields = row.iter();
             let mut field = fields.next();
             separated_by(
@@ -766,19 +864,24 @@ pub trait SqlWriter {
                 |out, col| {
                     if Some(col.name()) == field.map(|v| v.0) {
                         self.write_value(
+                            context,
                             out,
                             field
                                 .map(|v| &v.1)
-                                .expect("Column does not to have a value"),
+                                .expect(&format!("Column {} does not have a value", col.name())),
                         );
                         field = fields.next();
+                        true
                     } else if !single {
-                        out.push_str("DEFAULT");
+                        let _ = out.write_str("DEFAULT");
+                        true
+                    } else {
+                        false
                     }
                 },
                 ", ",
             );
-            out.push(')');
+            let _ = out.write_char(')');
             separate = true;
             if first_row.is_none() {
                 first_row = row.into();
@@ -795,6 +898,7 @@ pub trait SqlWriter {
             .map(|(v, _)| v);
         if update {
             self.write_insert_update_fragment::<E, _>(
+                context,
                 out,
                 if single {
                     EitherIterator::Left(
@@ -806,11 +910,15 @@ pub trait SqlWriter {
                 },
             );
         }
-        out.push(';');
+        let _ = out.write_char(';');
     }
 
-    fn write_insert_update_fragment<'a, E, It>(&self, out: &mut String, columns: It)
-    where
+    fn write_insert_update_fragment<'a, E, It>(
+        &self,
+        mut context: Context,
+        out: &mut dyn Write,
+        columns: It,
+    ) where
         Self: Sized,
         E: Entity,
         It: Iterator<Item = &'a ColumnDef>,
@@ -819,39 +927,52 @@ pub trait SqlWriter {
         if pk.len() == 0 {
             return;
         }
-        out.push_str("\nON CONFLICT");
+        let _ = out.write_str("\nON CONFLICT");
+        context.fragment = Fragment::SqlInsertIntoOnConflict;
         if pk.len() > 0 {
-            out.push_str(" (");
+            let _ = out.write_str(" (");
             separated_by(
                 out,
                 pk,
-                |out, v| self.write_identifier_quoted(out, v.name()),
+                |out, v| {
+                    self.write_identifier_quoted(context, out, v.name());
+                    true
+                },
                 ", ",
             );
-            out.push(')');
+            let _ = out.write_char(')');
         }
-        out.push_str(" DO UPDATE SET\n");
+        let _ = out.write_str(" DO UPDATE SET\n");
         separated_by(
             out,
             columns.filter(|c| c.primary_key == PrimaryKeyType::None),
             |out, v| {
-                self.write_identifier_quoted(out, v.name());
-                out.push_str(" = EXCLUDED.");
-                self.write_identifier_quoted(out, v.name());
+                self.write_identifier_quoted(context, out, v.name());
+                let _ = out.write_str(" = EXCLUDED.");
+                self.write_identifier_quoted(context, out, v.name());
+                true
             },
             ",\n",
         );
     }
 
-    fn write_delete<E: Entity, Expr: Expression>(&self, out: &mut String, condition: &Expr)
+    fn write_delete<E: Entity, Expr: Expression>(&self, out: &mut dyn Write, condition: &Expr)
     where
         Self: Sized,
     {
-        out.push_str("DELETE FROM ");
-        self.write_table_ref(out, E::table_ref(), false);
-        out.push_str("\nWHERE ");
-        condition.write_query(self, out, false);
-        out.push(';');
+        let _ = out.write_str("DELETE FROM ");
+        let context = Context {
+            fragment: Fragment::SqlDeleteFrom,
+            qualify_columns: E::qualified_columns(),
+        };
+        self.write_table_ref(context, out, E::table_ref());
+        let _ = out.write_str("\nWHERE ");
+        condition.write_query(
+            self,
+            context.with_context(Fragment::SqlDeleteFromWhere),
+            out,
+        );
+        let _ = out.write_char(';');
     }
 }
 

@@ -25,7 +25,8 @@ use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::{
-    Expr, Ident, Index, ItemStruct, parse_macro_input, punctuated::Punctuated, token::AndAnd,
+    Expr, Ident, Index, ItemStruct, parse_macro_input, parse2, punctuated::Punctuated,
+    token::AndAnd,
 };
 use tank_core::PrimaryKeyType;
 
@@ -352,11 +353,14 @@ pub fn expr(input: TokenStream) -> TokenStream {
 
 #[proc_macro]
 pub fn cols(input: TokenStream) -> TokenStream {
-    let ColList { cols: items } = parse_macro_input!(input as ColList);
+    let input = flag_evaluated(input.into());
+    let Ok(ColList { cols: items }) = parse2(input) else {
+        panic!("Could not parse the columns");
+    };
     let generated = items.iter().map(|item| {
         let expr = &item.expr;
         match &item.order {
-            Some(dir) => {
+            Some(_dir) => {
                 quote! { expr!(#expr) }
             }
             None => {

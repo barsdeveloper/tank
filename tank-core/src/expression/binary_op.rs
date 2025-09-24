@@ -1,7 +1,10 @@
-use crate::{Expression, OpPrecedence, writer::SqlWriter};
+use crate::{
+    Expression, OpPrecedence,
+    writer::{Context, SqlWriter},
+};
 use proc_macro2::TokenStream;
 use quote::{ToTokens, TokenStreamExt, quote};
-use std::fmt::{self, Display, Formatter};
+use std::fmt::{self, Display, Formatter, Write};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BinaryOpType {
@@ -55,15 +58,15 @@ impl<L: Expression, R: Expression> OpPrecedence for BinaryOp<L, R> {
 }
 
 impl<L: Expression, R: Expression> Expression for BinaryOp<L, R> {
-    fn write_query(&self, writer: &dyn SqlWriter, out: &mut String, qualify_columns: bool) {
+    fn write_query(&self, writer: &dyn SqlWriter, context: Context, out: &mut dyn Write) {
         writer.write_expression_binary_op(
+            context,
             out,
             &BinaryOp {
                 op: self.op,
                 lhs: &self.lhs,
                 rhs: &self.rhs,
             },
-            qualify_columns,
         )
     }
 }

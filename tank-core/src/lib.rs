@@ -18,7 +18,7 @@ mod util;
 mod value;
 mod writer;
 
-pub use ::anyhow::Context;
+pub use ::anyhow::Context as ErrorContext;
 pub use as_value::*;
 pub use column::*;
 pub use connection::*;

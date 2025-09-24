@@ -1,4 +1,8 @@
-use crate::{Expression, OpPrecedence, Value, writer::SqlWriter};
+use crate::{
+    Expression, OpPrecedence, Value,
+    writer::{Context, SqlWriter},
+};
+use std::fmt::Write;
 
 #[derive(Debug)]
 pub enum Operand<'a> {
@@ -24,8 +28,8 @@ impl OpPrecedence for Operand<'_> {
 }
 
 impl Expression for Operand<'_> {
-    fn write_query(&self, writer: &dyn SqlWriter, out: &mut String, qualify_columns: bool) {
-        writer.write_expression_operand(out, self, qualify_columns)
+    fn write_query(&self, writer: &dyn SqlWriter, context: Context, out: &mut dyn Write) {
+        writer.write_expression_operand(context, out, self)
     }
 }
 

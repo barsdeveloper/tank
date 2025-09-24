@@ -1,4 +1,8 @@
-use crate::{Expression, OpPrecedence, writer::SqlWriter};
+use crate::{
+    Expression, OpPrecedence,
+    writer::{Context, SqlWriter},
+};
+use std::fmt::Write;
 
 #[derive(Debug, Clone, Copy)]
 pub enum Order {
@@ -19,7 +23,10 @@ impl<E: Expression> OpPrecedence for Ordered<E> {
 }
 
 impl<E: Expression> Expression for Ordered<E> {
-    fn write_query(&self, writer: &dyn SqlWriter, out: &mut String, qualify_columns: bool) {
-        self.expression.write_query(writer, out, qualify_columns)
+    fn write_query(&self, writer: &dyn SqlWriter, context: Context, out: &mut dyn Write) {
+        self.expression.write_query(writer, context, out)
+    }
+    fn is_ordered(&self) -> bool {
+        true
     }
 }

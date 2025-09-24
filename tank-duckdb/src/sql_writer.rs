@@ -1,5 +1,5 @@
 use std::{collections::HashMap, fmt::Write};
-use tank_core::{Interval, SqlWriter, Value, separated_by};
+use tank_core::{Context, Interval, SqlWriter, Value, separated_by};
 
 #[derive(Default)]
 pub struct DuckDBSqlWriter {}
@@ -9,12 +9,12 @@ impl SqlWriter for DuckDBSqlWriter {
         self
     }
 
-    fn write_value_blob(&self, out: &mut String, value: &[u8]) {
-        out.push('\'');
+    fn write_value_blob(&self, _context: Context, out: &mut dyn Write, value: &[u8]) {
+        let _ = out.write_char('\'');
         for b in value {
             let _ = write!(out, "\\x{:X}", b);
         }
-        out.push('\'');
+        let _ = out.write_char('\'');
     }
 
     fn value_interval_units(&self) -> &[(&str, i128)] {
@@ -28,18 +28,24 @@ impl SqlWriter for DuckDBSqlWriter {
         UNITS
     }
 
-    fn write_value_map(&self, out: &mut String, value: &HashMap<Value, Value>) {
-        out.push_str("MAP{");
+    fn write_value_map(
+        &self,
+        context: Context,
+        out: &mut dyn Write,
+        value: &HashMap<Value, Value>,
+    ) {
+        let _ = out.write_str("MAP{");
         separated_by(
             out,
             value,
             |out, (k, v)| {
-                self.write_value(out, k);
-                out.push(':');
-                self.write_value(out, v);
+                self.write_value(context, out, k);
+                let _ = out.write_char(':');
+                self.write_value(context, out, v);
+                true
             },
             ",",
         );
-        out.push('}');
+        let _ = out.write_char('}');
     }
 }

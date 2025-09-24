@@ -1,29 +1,35 @@
-use crate::{OpPrecedence, writer::SqlWriter};
-use std::fmt::Debug;
+use crate::{
+    OpPrecedence,
+    writer::{Context, SqlWriter},
+};
+use std::fmt::{Debug, Write};
 
 pub trait Expression: OpPrecedence + Send + Sync + Debug {
-    fn write_query(&self, writer: &dyn SqlWriter, out: &mut String, qualify_columns: bool);
+    fn write_query(&self, writer: &dyn SqlWriter, context: Context, out: &mut dyn Write);
+    fn is_ordered(&self) -> bool {
+        false
+    }
 }
 
 impl<T: Expression> Expression for &T {
-    fn write_query(&self, writer: &dyn SqlWriter, out: &mut String, qualify_columns: bool) {
-        (*self).write_query(writer, out, qualify_columns);
+    fn write_query(&self, writer: &dyn SqlWriter, context: Context, out: &mut dyn Write) {
+        (*self).write_query(writer, context, out);
     }
 }
 
 impl Expression for &dyn Expression {
-    fn write_query(&self, writer: &dyn SqlWriter, out: &mut String, qualify_columns: bool) {
-        (*self).write_query(writer, out, qualify_columns);
+    fn write_query(&self, writer: &dyn SqlWriter, context: Context, out: &mut dyn Write) {
+        (*self).write_query(writer, context, out);
     }
 }
 
 impl Expression for () {
-    fn write_query(&self, _writer: &dyn SqlWriter, _out: &mut String, _qualify_columns: bool) {}
+    fn write_query(&self, _writer: &dyn SqlWriter, _context: Context, _out: &mut dyn Write) {}
 }
 
 impl Expression for bool {
-    fn write_query(&self, writer: &dyn SqlWriter, out: &mut String, _qualify_columns: bool) {
-        writer.write_value_bool(out, *self);
+    fn write_query(&self, writer: &dyn SqlWriter, context: Context, out: &mut dyn Write) {
+        writer.write_value_bool(context, out, *self);
     }
 }
 

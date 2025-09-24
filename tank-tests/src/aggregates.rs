@@ -3,7 +3,7 @@ use std::{pin::pin, sync::LazyLock};
 use tank::{
     AsValue, DataSet, Entity, Passive, RowLabeled, expr, stream::StreamExt, stream::TryStreamExt,
 };
-use tank::{Executor, Prepared, Query};
+use tank::{Executor, Prepared, Query, cols};
 use tokio::sync::Mutex;
 
 static MUTEX: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
@@ -59,7 +59,7 @@ pub async fn aggregates<E: Executor>(executor: &mut E) {
     // SELECT COUNT(*), SUM(value)
     {
         let mut stream = pin!(Values::table_ref().select(
-            [expr!(COUNT(*)), expr!(SUM(Values::value))],
+            cols!(COUNT(*), SUM(Values::value)),
             executor,
             &true,
             None
@@ -92,9 +92,8 @@ pub async fn aggregates<E: Executor>(executor: &mut E) {
 
     // SELECT *
     {
-        let cols = [expr!(*)];
         {
-            let stream = pin!(Values::table_ref().select(&cols, executor, &true, None));
+            let stream = pin!(Values::table_ref().select(cols!(*), executor, &true, None));
             let values = stream
                 .map(|row| {
                     let row = row.expect("Error while fetching the row");
@@ -114,7 +113,6 @@ pub async fn aggregates<E: Executor>(executor: &mut E) {
                 "The result didn't received from the db contains all the values that were inserted"
             );
         }
-        let _cols = cols; // Can still use it afterwards because it was borrowed to select
     }
 
     // SELECT value WHERE value > ?
