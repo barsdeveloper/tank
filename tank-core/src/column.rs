@@ -1,7 +1,6 @@
 use crate::{Expression, OpPrecedence, TableRef, Value, writer::Context};
 use proc_macro2::TokenStream;
 use quote::{ToTokens, TokenStreamExt, quote};
-use std::fmt::Write;
 
 pub trait ColumnTrait {
     fn column_def(&self) -> &ColumnDef;
@@ -83,7 +82,7 @@ impl OpPrecedence for ColumnRef {
 }
 
 impl Expression for ColumnRef {
-    fn write_query(&self, writer: &dyn crate::SqlWriter, context: Context, buff: &mut dyn Write) {
+    fn write_query(&self, writer: &dyn crate::SqlWriter, context: Context, buff: &mut String) {
         writer.write_column_ref(context, buff, self);
     }
 }
@@ -95,7 +94,7 @@ impl OpPrecedence for ColumnDef {
 }
 
 impl Expression for ColumnDef {
-    fn write_query(&self, writer: &dyn crate::SqlWriter, context: Context, buff: &mut dyn Write) {
+    fn write_query(&self, writer: &dyn crate::SqlWriter, context: Context, buff: &mut String) {
         writer.write_column_ref(context, buff, &self.column_ref);
     }
 }

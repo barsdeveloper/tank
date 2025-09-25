@@ -2,7 +2,6 @@ use crate::{
     Expression, OpPrecedence,
     writer::{Context, SqlWriter},
 };
-use std::fmt::Write;
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum UnaryOpType {
@@ -28,7 +27,7 @@ impl<E: Expression> OpPrecedence for UnaryOp<E> {
 }
 
 impl<E: Expression> Expression for UnaryOp<E> {
-    fn write_query(&self, writer: &dyn SqlWriter, context: Context, buff: &mut dyn Write) {
+    fn write_query(&self, writer: &dyn SqlWriter, context: Context, buff: &mut String) {
         writer.write_expression_unary_op(
             context,
             buff,

@@ -4,7 +4,7 @@ use crate::{
 };
 use proc_macro2::TokenStream;
 use quote::{ToTokens, TokenStreamExt, quote};
-use std::fmt::{self, Display, Formatter, Write};
+use std::fmt::{self, Display, Formatter};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BinaryOpType {
@@ -58,7 +58,7 @@ impl<L: Expression, R: Expression> OpPrecedence for BinaryOp<L, R> {
 }
 
 impl<L: Expression, R: Expression> Expression for BinaryOp<L, R> {
-    fn write_query(&self, writer: &dyn SqlWriter, context: Context, buff: &mut dyn Write) {
+    fn write_query(&self, writer: &dyn SqlWriter, context: Context, buff: &mut String) {
         writer.write_expression_binary_op(
             context,
             buff,

@@ -161,7 +161,7 @@ mod tests {
     #[test]
     fn test_employee_create_table() {
         let mut query = String::new();
-        WRITER.write_create_table::<Employee, _>(&mut query, false);
+        WRITER.write_create_table::<Employee>(&mut query, false);
         assert_eq!(
             query,
             indoc! {r#"
@@ -184,7 +184,7 @@ mod tests {
     #[test]
     fn test_employee_drop_table() {
         let mut query = String::new();
-        WRITER.write_drop_table::<Employee, _>(&mut query, true);
+        WRITER.write_drop_table::<Employee>(&mut query, true);
         assert_eq!(query, r#"DROP TABLE IF EXISTS "company"."employee";"#);
     }
 
@@ -246,7 +246,7 @@ mod tests {
     #[test]
     fn test_sql_delete() {
         let mut query = String::new();
-        WRITER.write_delete::<Employee, _, _>(&mut query, &expr!(Employee::name == "Bob"));
+        WRITER.write_delete::<Employee, _>(&mut query, &expr!(Employee::name == "Bob"));
         assert_eq!(
             query,
             indoc! {r#"

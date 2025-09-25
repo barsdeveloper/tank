@@ -1,6 +1,6 @@
 use proc_macro2::TokenStream;
 use quote::{ToTokens, quote};
-use std::{borrow::Cow, cmp::min, ffi::CString, fmt::Write};
+use std::{borrow::Cow, cmp::min, ffi::CString};
 use syn::Path;
 
 #[derive(Clone)]
@@ -46,24 +46,21 @@ pub fn matches_path(path: &Path, expect: &[&str]) -> bool {
         .eq(expect.iter().rev().take(len))
 }
 
-pub fn separated_by<W, T, F>(
-    buff: &mut W,
+pub fn separated_by<T, F>(
+    out: &mut String,
     values: impl IntoIterator<Item = T>,
     mut f: F,
     separator: &str,
 ) where
-    W: Write + ?Sized,
-    F: FnMut(&mut W, T) -> bool,
+    F: FnMut(&mut String, T),
 {
-    let mut first = true;
-    let mut changed = false;
+    let mut len = out.len();
     for v in values {
-        if !first && changed {
-            let _ = buff.write_str(separator);
-        } else {
-            first = false;
+        if out.len() > len {
+            out.push_str(separator);
         }
-        changed = f(buff, v);
+        len = out.len();
+        f(out, v);
     }
 }
 

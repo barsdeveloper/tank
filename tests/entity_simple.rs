@@ -78,7 +78,7 @@ mod tests {
     #[test]
     fn test_simple_entity_create_table() {
         let mut query = String::new();
-        WRITER.write_create_table::<SomeSimpleEntity, _>(&mut query, false);
+        WRITER.write_create_table::<SomeSimpleEntity>(&mut query, false);
         assert_eq!(
             query,
             indoc! {r#"
@@ -97,7 +97,7 @@ mod tests {
     #[test]
     fn test_simple_entity_drop_table() {
         let mut query = String::new();
-        WRITER.write_drop_table::<SomeSimpleEntity, _>(&mut query, true);
+        WRITER.write_drop_table::<SomeSimpleEntity>(&mut query, true);
         assert_eq!(query, r#"DROP TABLE IF EXISTS "simple_entity";"#);
     }
 
@@ -140,7 +140,7 @@ mod tests {
     #[test]
     fn test_simple_entity_delete() {
         let mut query = String::new();
-        WRITER.write_delete::<SomeSimpleEntity, _, _>(
+        WRITER.write_delete::<SomeSimpleEntity, _>(
             &mut query,
             &expr!(SomeSimpleEntity::b != "hello"),
         );

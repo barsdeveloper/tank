@@ -4,7 +4,7 @@ use crate::{
 };
 use proc_macro2::TokenStream;
 use quote::{ToTokens, TokenStreamExt, quote};
-use std::{borrow::Cow, fmt::Write};
+use std::borrow::Cow;
 
 #[derive(Default, Clone, PartialEq, Eq, Debug)]
 pub struct TableRef {
@@ -41,7 +41,7 @@ impl DataSet for TableRef {
     {
         false
     }
-    fn write_query(&self, writer: &dyn SqlWriter, context: Context, buff: &mut dyn Write) {
+    fn write_query(&self, writer: &dyn SqlWriter, context: Context, buff: &mut String) {
         writer.write_table_ref(context, buff, self)
     }
 }
@@ -53,7 +53,7 @@ impl DataSet for &TableRef {
     {
         false
     }
-    fn write_query(&self, writer: &dyn SqlWriter, context: Context, buff: &mut dyn Write) {
+    fn write_query(&self, writer: &dyn SqlWriter, context: Context, buff: &mut String) {
         (*writer).write_table_ref(context, buff, self)
     }
 }
@@ -83,7 +83,7 @@ impl DataSet for DeclareTableRef {
     {
         false
     }
-    fn write_query(&self, writer: &dyn SqlWriter, context: Context, buff: &mut dyn Write) {
+    fn write_query(&self, writer: &dyn SqlWriter, context: Context, buff: &mut String) {
         writer.write_table_ref(context, buff, &self.0)
     }
 }

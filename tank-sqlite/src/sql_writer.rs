@@ -8,7 +8,7 @@ impl SqlWriter for SqliteSqlWriter {
         self
     }
 
-    fn write_column_ref(&self, context: Context, buff: &mut dyn Write, value: &ColumnRef) {
+    fn write_column_ref(&self, context: Context, buff: &mut String, value: &ColumnRef) {
         if context.qualify_columns && !value.table.is_empty() {
             let _ = buff.write_char('"');
             if !value.schema.is_empty() {
@@ -21,7 +21,7 @@ impl SqlWriter for SqliteSqlWriter {
         self.write_identifier_quoted(context, buff, &value.name);
     }
 
-    fn write_table_ref(&self, context: Context, buff: &mut dyn Write, value: &TableRef) {
+    fn write_table_ref(&self, context: Context, buff: &mut String, value: &TableRef) {
         if self.alias_declaration(context) || value.alias.is_empty() {
             let _ = buff.write_char('"');
             if !value.schema.is_empty() {
@@ -36,7 +36,7 @@ impl SqlWriter for SqliteSqlWriter {
         }
     }
 
-    fn write_column_type(&self, _context: Context, buff: &mut dyn Write, value: &Value) {
+    fn write_column_type(&self, _context: Context, buff: &mut String, value: &Value) {
         let _ = match value {
             Value::Boolean(..) => buff.write_str("INTEGER"),
             Value::Int8(..) => buff.write_str("INTEGER"),
@@ -71,14 +71,14 @@ impl SqlWriter for SqliteSqlWriter {
         };
     }
 
-    fn write_value_infinity(&self, _context: Context, buff: &mut dyn Write, negative: bool) {
+    fn write_value_infinity(&self, _context: Context, buff: &mut String, negative: bool) {
         if negative {
             let _ = buff.write_char('-');
         }
         let _ = buff.write_str("1.0e+10000");
     }
 
-    fn write_value_blob(&self, _context: Context, buff: &mut dyn Write, value: &[u8]) {
+    fn write_value_blob(&self, _context: Context, buff: &mut String, value: &[u8]) {
         let _ = buff.write_str("X'");
         for b in value {
             let _ = write!(buff, "{:X}", b);
@@ -86,20 +86,18 @@ impl SqlWriter for SqliteSqlWriter {
         let _ = buff.write_char('\'');
     }
 
-    fn write_create_schema<E, Buff>(&self, _out: &mut Buff, _if_not_exists: bool)
+    fn write_create_schema<E>(&self, _buff: &mut String, _if_not_exists: bool)
     where
         Self: Sized,
         E: Entity,
-        Buff: Write,
     {
         // Sqlite does not support schema
     }
 
-    fn write_drop_schema<E, Buff>(&self, _out: &mut Buff, _if_exists: bool)
+    fn write_drop_schema<E>(&self, _buff: &mut String, _if_exists: bool)
     where
         Self: Sized,
         E: Entity,
-        Buff: Write,
     {
         // Sqlite does not support schema
     }

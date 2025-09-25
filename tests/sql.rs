@@ -29,7 +29,7 @@ mod tests {
         }
         {
             let mut buff = String::new();
-            WRITER.write_create_table::<Table, _>(&mut buff, false);
+            WRITER.write_create_table::<Table>(&mut buff, false);
             assert_eq!(
                 buff,
                 indoc! {r#"
@@ -44,7 +44,7 @@ mod tests {
         }
         {
             let mut buff = String::new();
-            WRITER.write_drop_table::<Table, _>(&mut buff, true);
+            WRITER.write_drop_table::<Table>(&mut buff, true);
             assert_eq!(buff, r#"DROP TABLE IF EXISTS "my_table";"#)
         }
         {
@@ -117,7 +117,7 @@ mod tests {
 
         {
             let mut buff = String::new();
-            WRITER.write_create_table::<Cart, _>(&mut buff, true);
+            WRITER.write_create_table::<Cart>(&mut buff, true);
             assert_eq!(
                 buff,
                 indoc! {r#"
@@ -135,7 +135,7 @@ mod tests {
         }
         {
             let mut buff = String::new();
-            WRITER.write_drop_table::<Cart, _>(&mut buff, false);
+            WRITER.write_drop_table::<Cart>(&mut buff, false);
             assert_eq!(buff, r#"DROP TABLE "cart";"#)
         }
         {

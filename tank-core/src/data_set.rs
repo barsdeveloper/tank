@@ -3,14 +3,13 @@ use crate::{
     stream::Stream,
     writer::{Context, SqlWriter},
 };
-use std::fmt::Write;
 
 pub trait DataSet {
     /// Must qualify the column names with the table name
     fn qualified_columns() -> bool
     where
         Self: Sized;
-    fn write_query(&self, writer: &dyn SqlWriter, context: Context, buff: &mut dyn Write);
+    fn write_query(&self, writer: &dyn SqlWriter, context: Context, buff: &mut String);
     fn select<'s, Item, Cols, Exec, Expr>(
         &'s self,
         columns: Cols,
@@ -62,7 +61,7 @@ impl DataSet for &dyn DataSet {
     {
         unreachable!("Cannot call static qualified_columns on a dyn object directly");
     }
-    fn write_query(&self, writer: &dyn SqlWriter, context: Context, buff: &mut dyn Write) {
+    fn write_query(&self, writer: &dyn SqlWriter, context: Context, buff: &mut String) {
         (*self).write_query(writer, context, buff)
     }
 }

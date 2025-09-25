@@ -4,7 +4,6 @@ use crate::{
 };
 use proc_macro2::{TokenStream, TokenTree};
 use quote::{ToTokens, TokenStreamExt, quote};
-use std::fmt::Write;
 use syn::{
     Ident,
     parse::{Parse, ParseStream},
@@ -37,7 +36,7 @@ impl<L: DataSet, R: DataSet, E: Expression> DataSet for Join<L, R, E> {
     {
         true
     }
-    fn write_query(&self, writer: &dyn SqlWriter, context: Context, buff: &mut dyn Write) {
+    fn write_query(&self, writer: &dyn SqlWriter, context: Context, buff: &mut String) {
         writer.write_join(
             context,
             buff,
