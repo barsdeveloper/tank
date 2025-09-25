@@ -10,11 +10,11 @@ impl SqlWriter for DuckDBSqlWriter {
     }
 
     fn write_value_blob(&self, _context: Context, buff: &mut String, value: &[u8]) {
-        let _ = buff.write_char('\'');
+        buff.push('\'');
         for b in value {
             let _ = write!(buff, "\\x{:X}", b);
         }
-        let _ = buff.write_char('\'');
+        buff.push('\'');
     }
 
     fn value_interval_units(&self) -> &[(&str, i128)] {
@@ -29,17 +29,17 @@ impl SqlWriter for DuckDBSqlWriter {
     }
 
     fn write_value_map(&self, context: Context, buff: &mut String, value: &HashMap<Value, Value>) {
-        let _ = buff.write_str("MAP{");
+        buff.push_str("MAP{");
         separated_by(
             buff,
             value,
             |buff, (k, v)| {
                 self.write_value(context, buff, k);
-                let _ = buff.write_char(':');
+                buff.push(':');
                 self.write_value(context, buff, v);
             },
             ",",
         );
-        let _ = buff.write_char('}');
+        buff.push('}');
     }
 }

@@ -72,9 +72,9 @@ pub fn as_c_string<S: Into<Vec<u8>>>(str: S) -> CString {
 macro_rules! possibly_parenthesized {
     ($buff:ident, $cond:expr, $v:expr) => {
         if $cond {
-            let _ = $buff.write_char('(');
+            $buff.push('(');
             $v;
-            let _ = $buff.write_char(')');
+            $buff.push(')');
         } else {
             $v;
         }
