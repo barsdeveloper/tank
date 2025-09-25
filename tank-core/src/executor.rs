@@ -1,10 +1,9 @@
-use futures::FutureExt;
-
 use crate::{
     Driver, Entity, Query, QueryResult, Result, RowLabeled, RowsAffected,
     stream::{Stream, StreamExt, TryStreamExt},
     writer::SqlWriter,
 };
+use futures::FutureExt;
 use std::future::Future;
 
 pub trait Executor: Send + Sized {

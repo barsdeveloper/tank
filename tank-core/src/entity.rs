@@ -6,7 +6,7 @@ use futures::{FutureExt, StreamExt, TryFutureExt};
 use log::Level;
 use std::{future::Future, pin::pin};
 
-pub trait Entity: DataSet {
+pub trait Entity {
     type PrimaryKey<'a>;
 
     fn table_ref() -> &'static TableRef;

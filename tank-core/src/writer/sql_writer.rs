@@ -1,6 +1,6 @@
 use crate::{
     BinaryOp, BinaryOpType, ColumnDef, ColumnRef, DataSet, EitherIterator, Entity, Expression,
-    Fragment, Interval, Join, JoinType, Operand, Order, PrimaryKeyType, TableRef, UnaryOp,
+    Fragment, Interval, Join, JoinType, Operand, Order, Ordered, PrimaryKeyType, TableRef, UnaryOp,
     UnaryOpType, Value, possibly_parenthesized, separated_by, writer::Context,
 };
 use std::{collections::HashMap, fmt::Write};
@@ -558,15 +558,14 @@ pub trait SqlWriter {
         &self,
         context: Context,
         buff: &mut dyn Write,
-        value: &dyn Expression,
-        order: Order,
+        value: &Ordered<&dyn Expression>,
     ) {
-        value.write_query(self.as_dyn(), context, buff);
+        value.expression.write_query(self.as_dyn(), context, buff);
         if context.fragment == Fragment::SqlSelectOrderBy {
             let _ = write!(
                 buff,
                 " {}",
-                match order {
+                match value.order {
                     Order::ASC => "ASC",
                     Order::DESC => "DESC",
                 }

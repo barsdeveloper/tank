@@ -12,8 +12,8 @@ pub enum Fragment {
     SqlInsertInto,
     SqlInsertIntoOnConflict,
     SqlInsertIntoValues,
-    #[default]
     SqlJoin,
+    #[default]
     SqlSelect,
     SqlSelectFrom,
     SqlSelectOrderBy,

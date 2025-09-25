@@ -62,7 +62,7 @@ impl DataSet for &dyn DataSet {
     {
         unreachable!("Cannot call static qualified_columns on a dyn object directly");
     }
-    fn write_query(&self, _writer: &dyn SqlWriter, _context: Context, _out: &mut dyn Write) {
-        todo!()
+    fn write_query(&self, writer: &dyn SqlWriter, context: Context, buff: &mut dyn Write) {
+        (*self).write_query(writer, context, buff)
     }
 }
