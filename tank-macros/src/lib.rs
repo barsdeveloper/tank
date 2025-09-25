@@ -360,8 +360,13 @@ pub fn cols(input: TokenStream) -> TokenStream {
     let generated = items.iter().map(|item| {
         let expr = &item.expr;
         match &item.order {
-            Some(_dir) => {
-                quote! { expr!(#expr) }
+            Some(order) => {
+                quote! {
+                    ::tank::Ordered {
+                        order: #order,
+                        expression: #expr,
+                    }
+                }
             }
             None => {
                 quote! { expr!(#expr) }

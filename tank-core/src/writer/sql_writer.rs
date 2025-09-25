@@ -1,7 +1,7 @@
 use crate::{
     BinaryOp, BinaryOpType, ColumnDef, ColumnRef, DataSet, EitherIterator, Entity, Expression,
-    Fragment, Interval, Join, JoinType, Operand, PrimaryKeyType, TableRef, UnaryOp, UnaryOpType,
-    Value, possibly_parenthesized, separated_by, writer::Context,
+    Fragment, Interval, Join, JoinType, Operand, Order, PrimaryKeyType, TableRef, UnaryOp,
+    UnaryOpType, Value, possibly_parenthesized, separated_by, writer::Context,
 };
 use std::{collections::HashMap, fmt::Write};
 use time::{Date, Time};
@@ -552,6 +552,26 @@ pub trait SqlWriter {
             value.rhs.write_query(self.as_dyn(), context, buff)
         );
         let _ = buff.write_str(suffix);
+    }
+
+    fn write_expression_ordered(
+        &self,
+        context: Context,
+        buff: &mut dyn Write,
+        value: &dyn Expression,
+        order: Order,
+    ) {
+        value.write_query(self.as_dyn(), context, buff);
+        if context.fragment == Fragment::SqlSelectOrderBy {
+            let _ = write!(
+                buff,
+                " {}",
+                match order {
+                    Order::ASC => "ASC",
+                    Order::DESC => "DESC",
+                }
+            );
+        }
     }
 
     fn write_join_type(&self, _context: Context, buff: &mut dyn Write, join_type: &JoinType) {

@@ -15,11 +15,17 @@ impl<T: Expression> Expression for &T {
     fn write_query(&self, writer: &dyn SqlWriter, context: Context, buff: &mut dyn Write) {
         (*self).write_query(writer, context, buff);
     }
+    fn is_ordered(&self) -> bool {
+        (*self).is_ordered()
+    }
 }
 
 impl Expression for &dyn Expression {
     fn write_query(&self, writer: &dyn SqlWriter, context: Context, buff: &mut dyn Write) {
         (*self).write_query(writer, context, buff);
+    }
+    fn is_ordered(&self) -> bool {
+        (*self).is_ordered()
     }
 }
 

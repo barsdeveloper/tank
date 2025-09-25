@@ -1,6 +1,7 @@
 use std::{collections::HashSet, sync::LazyLock};
 use tank::{
-    DataSet, Entity, Executor, Passive, RowLabeled, Value, cols, expr, join, stream::TryStreamExt,
+    AsValue, DataSet, Entity, Executor, Passive, RowLabeled, Value, cols, expr, join,
+    stream::TryStreamExt,
 };
 use tokio::sync::Mutex;
 use uuid::Uuid;
@@ -317,4 +318,23 @@ pub async fn books<E: Executor>(executor: &mut E) {
             },
         ])
     );
+
+    #[cfg(not(feature = "disable-ordering"))]
+    {
+        let authors = Author::table_ref()
+            .select(cols!(Author::name ASC), executor, &true, None)
+            .and_then(|row| async move { AsValue::try_from_value((*row.values)[0].clone()) })
+            .try_collect::<Vec<String>>()
+            .await
+            .expect("Could not return the ordered names of the authors");
+        assert_eq!(
+            authors,
+            vec![
+                "Dmitrij Gluchovskij".to_string(),
+                "J.K. Rowling".to_string(),
+                "J.R.R. Tolkien".to_string(),
+                "Linus Torvalds".to_string(),
+            ]
+        )
+    }
 }

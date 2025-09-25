@@ -20,7 +20,10 @@ impl Parse for ColItem {
             } else if let Ok(..) = input.parse::<DESC>() {
                 Some(Order::DESC)
             } else {
-                None
+                panic!(
+                    "Unexpected keyword `{}` after column, use either ASC or DESC",
+                    input
+                );
             }
         } else {
             None
