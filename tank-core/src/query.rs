@@ -11,26 +11,26 @@ use std::{
 };
 
 #[derive(Clone)]
-pub enum Query<P: Prepared> {
+pub enum Query<D: Driver> {
     Raw(Arc<str>),
-    Prepared(P),
+    Prepared(D::Prepared),
 }
 
-impl<P: Prepared> Query<P> {
-    pub fn run<'e, Exec: Executor<Driver = impl Driver<Prepared = P>>>(
+impl<D: Driver> Query<D> {
+    pub fn run<'e, Exec: Executor<Driver = D>>(
         self,
         executor: &mut Exec,
     ) -> impl Stream<Item = Result<QueryResult>> + Send {
         executor.run(self)
     }
-    pub fn fetch_one<Exec: Executor<Driver = impl Driver<Prepared = P>>>(
+    pub fn fetch_one<Exec: Executor<Driver = D>>(
         self,
         executor: &mut Exec,
     ) -> impl Future<Output = Result<Option<RowLabeled>>> + Send {
         let stream = executor.fetch(self);
         async move { pin!(stream).into_future().map(|(v, _)| v).await.transpose() }
     }
-    pub fn fetch_many<Exec: Executor<Driver = impl Driver<Prepared = P>>>(
+    pub fn fetch_many<Exec: Executor<Driver = D>>(
         self,
         executor: &mut Exec,
     ) -> impl Stream<Item = Result<RowLabeled>> + Send {
@@ -38,31 +38,35 @@ impl<P: Prepared> Query<P> {
     }
 }
 
-impl<P: Prepared> From<&str> for Query<P> {
+impl<D: Driver> From<&str> for Query<D> {
     fn from(value: &str) -> Self {
         Query::Raw(value.into())
     }
 }
 
-impl<P: Prepared> From<String> for Query<P> {
+impl<D: Driver> From<String> for Query<D> {
     fn from(value: String) -> Self {
         Query::Raw(value.into())
     }
 }
 
-impl<P: Prepared> From<Arc<str>> for Query<P> {
+impl<D: Driver> From<Arc<str>> for Query<D> {
     fn from(value: Arc<str>) -> Self {
         Query::Raw(value)
     }
 }
 
-impl<P: Prepared> From<P> for Query<P> {
+impl<D, P> From<P> for Query<D>
+where
+    D: Driver<Prepared = P>,
+    P: Prepared,
+{
     fn from(value: P) -> Self {
         Query::Prepared(value)
     }
 }
 
-impl<P: Prepared> Display for Query<P> {
+impl<D: Driver> Display for Query<D> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Query::Raw(query) => write!(f, "{}", printable_query!(query)),

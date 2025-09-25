@@ -38,7 +38,7 @@ pub trait DataSet {
         executor: &mut Exec,
         condition: &Expr,
         limit: Option<u32>,
-    ) -> impl Future<Output = Result<Query<<Exec::Driver as Driver>::Prepared>>>
+    ) -> impl Future<Output = Result<Query<Exec::Driver>>>
     where
         Self: Sized,
         Item: Expression,

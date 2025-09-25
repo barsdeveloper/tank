@@ -14,18 +14,16 @@ pub trait Executor: Send + Sized {
     fn prepare(
         &mut self,
         query: String,
-    ) -> impl Future<Output = Result<Query<<Self::Driver as Driver>::Prepared>>> + Send;
+    ) -> impl Future<Output = Result<Query<Self::Driver>>> + Send;
 
     /// General method to send any query and return any result type (either row or count)
-    fn run(
-        &mut self,
-        query: Query<<Self::Driver as Driver>::Prepared>,
-    ) -> impl Stream<Item = Result<QueryResult>> + Send;
+    fn run(&mut self, query: Query<Self::Driver>)
+    -> impl Stream<Item = Result<QueryResult>> + Send;
 
     /// Execute the query and returns the rows.
     fn fetch<'s>(
         &'s mut self,
-        query: Query<<Self::Driver as Driver>::Prepared>,
+        query: Query<Self::Driver>,
     ) -> impl Stream<Item = Result<RowLabeled>> + Send + 's {
         self.run(query).filter_map(|v| async move {
             match v {
@@ -39,7 +37,7 @@ pub trait Executor: Send + Sized {
     /// Execute the query and return the total number of rows affected.
     fn execute(
         &mut self,
-        query: Query<<Self::Driver as Driver>::Prepared>,
+        query: Query<Self::Driver>,
     ) -> impl Future<Output = Result<RowsAffected>> + Send {
         self.run(query)
             .filter_map(|v| async move {

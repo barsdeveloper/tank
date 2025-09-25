@@ -191,7 +191,7 @@ impl Executor for DuckDBConnection {
         &DuckDBDriver {}
     }
 
-    async fn prepare(&mut self, query: String) -> Result<Query<DuckDBPrepared>> {
+    async fn prepare(&mut self, query: String) -> Result<Query<DuckDBDriver>> {
         let connection = AtomicPtr::new(*self.connection);
         let source = query.clone();
         let context = format!(
@@ -229,7 +229,7 @@ impl Executor for DuckDBConnection {
         Ok(prepared.into())
     }
 
-    fn run(&mut self, query: Query<DuckDBPrepared>) -> impl Stream<Item = Result<QueryResult>> {
+    fn run(&mut self, query: Query<DuckDBDriver>) -> impl Stream<Item = Result<QueryResult>> {
         let (tx, rx) = flume::unbounded::<Result<QueryResult>>();
         let connection = AtomicPtr::new(*self.connection);
         let context = Arc::new(format!("While executing the query:\n{}", query));

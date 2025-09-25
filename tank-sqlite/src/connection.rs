@@ -122,10 +122,7 @@ impl Executor for SqliteConnection {
         &SqliteDriver {}
     }
 
-    async fn prepare(
-        &mut self,
-        query: String,
-    ) -> Result<Query<<Self::Driver as Driver>::Prepared>> {
+    async fn prepare(&mut self, query: String) -> Result<Query<Self::Driver>> {
         let connection = AtomicPtr::new(*self.connection);
         let context = format!(
             "Failed to prepare the query:\n{}",
@@ -179,7 +176,7 @@ impl Executor for SqliteConnection {
 
     fn run(
         &mut self,
-        query: Query<<Self::Driver as Driver>::Prepared>,
+        query: Query<Self::Driver>,
     ) -> impl Stream<Item = Result<QueryResult>> + Send {
         match query {
             Query::Raw(sql) => Either::Left(self.run_unprepared(sql)),
