@@ -5,6 +5,7 @@ mod books;
 mod complex;
 mod insane;
 mod limits;
+mod multiple;
 mod readme;
 mod simple;
 mod trade;
@@ -15,6 +16,7 @@ use crate::{
     complex::complex,
     insane::insane,
     limits::limits,
+    multiple::multiple,
     simple::simple,
     trade::{trade_multiple, trade_simple},
     user::users,
@@ -41,5 +43,6 @@ pub async fn execute_tests<C: Connection>(mut connection: C) {
     complex(&mut connection).await;
     insane(&mut connection).await;
     limits(&mut connection).await;
+    multiple(&mut connection).await;
     let _ = readme(&mut connection).await;
 }

@@ -7,21 +7,20 @@ use libduckdb_sys::*;
 use std::{
     ffi::c_void,
     fmt::{self, Display},
-    sync::Arc,
 };
 use tank_core::{AsValue, Error, Prepared, Result, Value};
 
 pub struct DuckDBPrepared {
-    pub(crate) statement: Arc<CBox<duckdb_prepared_statement>>,
+    pub(crate) statement: CBox<duckdb_prepared_statement>,
     pub(crate) index: u64,
 }
 impl DuckDBPrepared {
-    pub(crate) fn new(prepared: CBox<duckdb_prepared_statement>) -> Self {
+    pub(crate) fn new(statement: CBox<duckdb_prepared_statement>) -> Self {
         unsafe {
-            duckdb_clear_bindings(*prepared);
+            duckdb_clear_bindings(*statement);
         }
         Self {
-            statement: Arc::new(prepared),
+            statement,
             index: 1,
         }
     }
@@ -29,7 +28,7 @@ impl DuckDBPrepared {
 
 impl Display for DuckDBPrepared {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:p}", self.statement)
+        write!(f, "{:p}", *self.statement)
     }
 }
 
@@ -39,7 +38,7 @@ impl Prepared for DuckDBPrepared {
     }
     fn bind_index<V: AsValue>(&mut self, v: V, index: u64) -> Result<&mut Self> {
         unsafe {
-            let prepared = **self.statement;
+            let prepared = *self.statement;
             let value = v.as_value();
             let state = match value {
                 Value::Null
@@ -151,5 +150,11 @@ impl Prepared for DuckDBPrepared {
             self.index = index + 1;
             Ok(self)
         }
+    }
+}
+
+impl From<CBox<duckdb_prepared_statement>> for DuckDBPrepared {
+    fn from(value: CBox<duckdb_prepared_statement>) -> Self {
+        Self::new(value)
     }
 }

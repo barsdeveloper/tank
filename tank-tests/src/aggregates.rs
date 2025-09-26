@@ -6,14 +6,13 @@ use tank::{
 use tank::{Executor, Prepared, Query, cols};
 use tokio::sync::Mutex;
 
-static MUTEX: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
 #[derive(Default, Entity)]
 struct Values {
     id: Passive<u64>,
     /// This column contains the actual value
     value: u32,
 }
-
+static MUTEX: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
 const EXPECTED_SUM: u32 = 68978385;
 const EXPECTED_AVG: u32 = 5873;
 const COUNT: u32 = 11745;

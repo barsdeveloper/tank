@@ -5,32 +5,32 @@ use tank::{Entity, Executor, Interval};
 use time::{Date, Month, Time};
 use tokio::sync::Mutex;
 
-pub async fn limits<E: Executor>(executor: &mut E) {
-    #[derive(Entity)]
-    struct Limits {
-        boolean: bool,
-        int8: i8,
-        uint8: u8,
-        int16: i16,
-        uint16: u16,
-        int32: i32,
-        uint32: u32,
-        int64: i64,
-        #[cfg(not(feature = "disable-large-integers"))]
-        uint64: u64,
-        #[cfg(not(feature = "disable-large-integers"))]
-        int128: i128,
-        #[cfg(not(feature = "disable-large-integers"))]
-        uint128: u128,
-        float32: f32,
-        float64: f64,
-        time: Time,
-        date: Date,
-        #[cfg(not(feature = "disable-duration"))]
-        interval: Interval,
-    }
+#[derive(Entity)]
+struct Limits {
+    boolean: bool,
+    int8: i8,
+    uint8: u8,
+    int16: i16,
+    uint16: u16,
+    int32: i32,
+    uint32: u32,
+    int64: i64,
+    #[cfg(not(feature = "disable-large-integers"))]
+    uint64: u64,
+    #[cfg(not(feature = "disable-large-integers"))]
+    int128: i128,
+    #[cfg(not(feature = "disable-large-integers"))]
+    uint128: u128,
+    float32: f32,
+    float64: f64,
+    time: Time,
+    date: Date,
+    #[cfg(not(feature = "disable-duration"))]
+    interval: Interval,
+}
+static MUTEX: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
 
-    static MUTEX: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
+pub async fn limits<E: Executor>(executor: &mut E) {
     let _lock = MUTEX.lock().await;
 
     // Setup

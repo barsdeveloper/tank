@@ -2,7 +2,6 @@ use std::{borrow::Cow, collections::HashSet, sync::LazyLock};
 use tank::{Entity, Executor, Result, expr, stream::TryStreamExt};
 use tokio::sync::Mutex;
 
-static MUTEX: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
 #[derive(Entity)]
 #[tank(schema = "army")]
 pub struct Tank {
@@ -16,6 +15,7 @@ pub struct Tank {
     pub is_operational: bool,
     pub units_produced: Option<u32>,
 }
+static MUTEX: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
 
 pub async fn readme<E: Executor>(connection: &mut E) -> Result<()> {
     let _lock = MUTEX.lock();

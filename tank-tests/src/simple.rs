@@ -9,29 +9,29 @@ use time::{Date, Time, macros::date};
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
-pub async fn simple<E: Executor>(executor: &mut E) {
-    #[derive(Entity)]
-    struct SimpleFields {
-        alpha: Option<u8>,
-        bravo: Option<i32>,
-        charlie: Option<i16>,
-        delta: Option<u64>,
-        echo: Option<Uuid>,
-        #[cfg(not(feature = "disable-large-integers"))]
-        foxtrot: Option<i128>,
-        golf: Option<Time>,
-        hotel: Option<Cow<'static, str>>,
-        india: Box<Option<char>>,
-        juliet: Option<bool>,
-        kilo: Option<u32>,
-        lima: Arc<Option<f32>>,
-        mike: Option<Date>,
-        november: Option<Cell<FixedDecimal<4, 2>>>,
-        oscar: Option<RefCell<FixedDecimal<8, 3>>>,
-        papa: Option<FixedDecimal<20, 1>>,
-    }
+#[derive(Entity)]
+struct SimpleFields {
+    alpha: Option<u8>,
+    bravo: Option<i32>,
+    charlie: Option<i16>,
+    delta: Option<u64>,
+    echo: Option<Uuid>,
+    #[cfg(not(feature = "disable-large-integers"))]
+    foxtrot: Option<i128>,
+    golf: Option<Time>,
+    hotel: Option<Cow<'static, str>>,
+    india: Box<Option<char>>,
+    juliet: Option<bool>,
+    kilo: Option<u32>,
+    lima: Arc<Option<f32>>,
+    mike: Option<Date>,
+    november: Option<Cell<FixedDecimal<4, 2>>>,
+    oscar: Option<RefCell<FixedDecimal<8, 3>>>,
+    papa: Option<FixedDecimal<20, 1>>,
+}
+static MUTEX: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
 
-    static MUTEX: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
+pub async fn simple<E: Executor>(executor: &mut E) {
     let _lock = MUTEX.lock().await;
 
     // Setup

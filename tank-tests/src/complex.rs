@@ -7,45 +7,43 @@ use std::{
 use tank::{Entity, Executor};
 use tokio::sync::Mutex;
 
-pub async fn complex<E: Executor>(executor: &mut E) {
-    #[derive(Default)]
-    struct TankUnsupported {
-        field: i32,
-    }
-
-    #[derive(Entity)]
-    struct ComplexNullFields {
-        #[cfg(not(feature = "disable-arrays"))]
-        first: Option<[Option<f64>; 8]>,
-        #[cfg(all(not(feature = "disable-lists"), not(feature = "disable-duration")))]
-        second: Option<Vec<Option<Duration>>>,
-        third: Option<Box<[u8]>>,
-        #[cfg(all(not(feature = "disable-maps"), not(feature = "disable-arrays")))]
-        fourth: Option<Box<BTreeMap<String, Option<[Option<i128>; 3]>>>>,
-        #[cfg(all(not(feature = "disable-lists"), not(feature = "disable-maps")))]
-        fifth: LinkedList<Option<VecDeque<Option<BTreeMap<i32, Option<i32>>>>>>,
-        #[tank(ignore)]
-        sixth: TankUnsupported,
-    }
-
-    impl Default for ComplexNullFields {
-        fn default() -> Self {
-            Self {
-                #[cfg(not(feature = "disable-arrays"))]
-                first: None,
-                #[cfg(all(not(feature = "disable-lists"), not(feature = "disable-duration")))]
-                second: None,
-                third: None,
-                #[cfg(all(not(feature = "disable-maps"), not(feature = "disable-arrays")))]
-                fourth: None,
-                #[cfg(all(not(feature = "disable-lists"), not(feature = "disable-maps")))]
-                fifth: Default::default(),
-                sixth: TankUnsupported { field: 777 },
-            }
+#[derive(Default)]
+struct TankUnsupported {
+    field: i32,
+}
+#[derive(Entity)]
+struct ComplexNullFields {
+    #[cfg(not(feature = "disable-arrays"))]
+    first: Option<[Option<f64>; 8]>,
+    #[cfg(all(not(feature = "disable-lists"), not(feature = "disable-duration")))]
+    second: Option<Vec<Option<Duration>>>,
+    third: Option<Box<[u8]>>,
+    #[cfg(all(not(feature = "disable-maps"), not(feature = "disable-arrays")))]
+    fourth: Option<Box<BTreeMap<String, Option<[Option<i128>; 3]>>>>,
+    #[cfg(all(not(feature = "disable-lists"), not(feature = "disable-maps")))]
+    fifth: LinkedList<Option<VecDeque<Option<BTreeMap<i32, Option<i32>>>>>>,
+    #[tank(ignore)]
+    sixth: TankUnsupported,
+}
+impl Default for ComplexNullFields {
+    fn default() -> Self {
+        Self {
+            #[cfg(not(feature = "disable-arrays"))]
+            first: None,
+            #[cfg(all(not(feature = "disable-lists"), not(feature = "disable-duration")))]
+            second: None,
+            third: None,
+            #[cfg(all(not(feature = "disable-maps"), not(feature = "disable-arrays")))]
+            fourth: None,
+            #[cfg(all(not(feature = "disable-lists"), not(feature = "disable-maps")))]
+            fifth: Default::default(),
+            sixth: TankUnsupported { field: 777 },
         }
     }
+}
+static MUTEX: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
 
-    static MUTEX: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
+pub async fn complex<E: Executor>(executor: &mut E) {
     let _lock = MUTEX.lock().await;
 
     // Setup

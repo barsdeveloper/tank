@@ -9,8 +9,6 @@ use time::macros::datetime;
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
-static MUTEX: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
-
 #[derive(Entity, Debug)]
 #[tank(schema = "trading", name = "trade_execution", primary_key = ("trade_id", "execution_time"))]
 pub struct Trade {
@@ -35,6 +33,7 @@ pub struct Trade {
     #[cfg(not(feature = "disable-maps"))]
     pub tags: Option<BTreeMap<String, String>>,
 }
+static MUTEX: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
 
 pub async fn trade_simple<E: Executor>(executor: &mut E) {
     let _lock = MUTEX.lock().await;

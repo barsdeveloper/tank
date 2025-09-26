@@ -77,29 +77,52 @@ impl DuckDBConnection {
                 })));
                 return;
             }
-            Self::extract_result(result, tx);
+            Self::extract_result(&mut *result, tx);
         }
     }
 
     pub(crate) fn run_unprepared(
         connection: duckdb_connection,
-        query: &str,
+        sql: CString,
         tx: Sender<Result<QueryResult>>,
     ) {
-        Self::run(
-            |result| unsafe { duckdb_query(connection, as_c_string(query).as_ptr(), result) },
-            tx,
-        );
+        unsafe {
+            let mut statements =
+                CBox::new(ptr::null_mut(), |mut p| duckdb_destroy_extracted(&mut p));
+            let count = duckdb_extract_statements(connection, sql.as_ptr(), &mut *statements);
+            if count == 0 {
+                let error = Error::msg(
+                    error_message_from_ptr(&duckdb_extract_statements_error(*statements))
+                        .to_string(),
+                );
+                send_error!(tx, error);
+                return;
+            }
+            for i in 0..count {
+                let mut statement =
+                    CBox::new(ptr::null_mut(), |mut p| duckdb_destroy_prepare(&mut p));
+                let rc =
+                    duckdb_prepare_extracted_statement(connection, *statements, i, &mut *statement);
+                if rc != duckdb_state_DuckDBSuccess {
+                    let error = Error::msg(
+                        error_message_from_ptr(&duckdb_prepare_error(*statement)).to_string(),
+                    );
+                    send_error!(tx, error);
+                    return;
+                }
+                Self::run_prepared(statement.into(), tx.clone());
+            }
+        }
     }
 
-    pub(crate) fn run_prepared(query: DuckDBPrepared, tx: Sender<Result<QueryResult>>) {
+    pub(crate) fn run_prepared(prepared: DuckDBPrepared, tx: Sender<Result<QueryResult>>) {
         let tx2 = tx.clone();
         Self::run(
             |result| unsafe {
-                let rc = duckdb_execute_prepared_streaming(**query.statement, result);
+                let rc = duckdb_execute_prepared_streaming(*prepared.statement, result);
                 if rc != duckdb_state_DuckDBSuccess {
                     let error = Error::msg(
-                        error_message_from_ptr(&duckdb_prepare_error(**query.statement))
+                        error_message_from_ptr(&duckdb_prepare_error(*prepared.statement))
                             .to_string(),
                     )
                     .context("While preparing a query");
@@ -110,11 +133,11 @@ impl DuckDBConnection {
             tx,
         );
         unsafe {
-            duckdb_clear_bindings(**query.statement);
+            duckdb_clear_bindings(*prepared.statement);
         }
     }
 
-    pub(crate) fn extract_result(mut result: CBox<duckdb_result>, tx: Sender<Result<QueryResult>>) {
+    pub(crate) fn extract_result(result: *mut duckdb_result, tx: Sender<Result<QueryResult>>) {
         unsafe {
             let is_streaming = duckdb_result_is_streaming(*result);
             loop {
@@ -238,7 +261,8 @@ impl Executor for DuckDBConnection {
             .map_err(move |e| e.context(context.clone()));
         spawn_blocking(move || match query {
             Query::Raw(query) => {
-                Self::run_unprepared(connection.load(Ordering::Relaxed), &query, tx)
+                let query = unsafe { CString::from_vec_unchecked(query.into_bytes()) };
+                Self::run_unprepared(connection.load(Ordering::Relaxed), query, tx)
             }
             Query::Prepared(query) => Self::run_prepared(query, tx),
         });
@@ -523,7 +547,7 @@ impl Connection for DuckDBConnection {
                 &mut *error,
             );
             if rc != duckdb_state_DuckDBSuccess {
-                let error = CStr::from_ptr(error.ptr)
+                let error = CStr::from_ptr(*error)
                     .to_str()
                     .context("While reading the error from `duckdb_get_or_create_from_cache`")?
                     .to_owned();

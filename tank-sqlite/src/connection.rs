@@ -80,7 +80,7 @@ impl SqliteConnection {
 
     pub(crate) fn run_unprepared(
         &mut self,
-        sql: Arc<str>,
+        sql: String,
     ) -> impl Stream<Item = Result<QueryResult>> {
         let connection = CBox::new(*self.connection, |_| {});
         try_stream! {
@@ -122,25 +122,16 @@ impl Executor for SqliteConnection {
         &SqliteDriver {}
     }
 
-    async fn prepare(&mut self, query: String) -> Result<Query<Self::Driver>> {
+    async fn prepare(&mut self, sql: String) -> Result<Query<Self::Driver>> {
         let connection = AtomicPtr::new(*self.connection);
         let context = format!(
             "Failed to prepare the query:\n{}",
-            printable_query!(query.as_str())
+            printable_query!(sql.as_str())
         );
         let prepared = spawn_blocking(move || unsafe {
-            let query = query.trim();
             let connection = connection.load(Ordering::Relaxed);
-            let len = query.len();
-            let sql = match CString::new(query.as_bytes()) {
-                Ok(query) => query,
-                Err(e) => {
-                    let error =
-                        Error::new(e).context("Could not create a CString from the sql String");
-                    log::error!("{:#}", error);
-                    return Err(error);
-                }
-            };
+            let len = sql.len();
+            let sql = CString::new(sql.as_bytes())?;
             let mut statement = CBox::new(ptr::null_mut(), |p| {
                 sqlite3_finalize(p);
             });

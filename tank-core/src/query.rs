@@ -12,7 +12,7 @@ use std::{
 
 #[derive(Clone)]
 pub enum Query<D: Driver> {
-    Raw(Arc<str>),
+    Raw(String),
     Prepared(D::Prepared),
 }
 
@@ -47,12 +47,6 @@ impl<D: Driver> From<&str> for Query<D> {
 impl<D: Driver> From<String> for Query<D> {
     fn from(value: String) -> Self {
         Query::Raw(value.into())
-    }
-}
-
-impl<D: Driver> From<Arc<str>> for Query<D> {
-    fn from(value: Arc<str>) -> Self {
-        Query::Raw(value)
     }
 }
 
@@ -97,13 +91,17 @@ impl RowLabeled {
             values,
         }
     }
-
     pub fn names(&self) -> &[String] {
         &self.labels
     }
-
     pub fn values(&self) -> &[Value] {
         &self.values
+    }
+    pub fn get_column(&self, name: &str) -> Option<&Value> {
+        self.labels
+            .iter()
+            .position(|v| v == name)
+            .map(|i| &self.values()[i])
     }
 }
 

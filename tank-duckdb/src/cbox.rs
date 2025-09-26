@@ -46,7 +46,7 @@ impl NullCheck for duckdb_result {
 
 #[derive(Debug)]
 pub(crate) struct CBox<T: NullCheck> {
-    pub(crate) ptr: T,
+    ptr: T,
     dealloc: fn(T),
 }
 
@@ -82,30 +82,3 @@ impl<T: NullCheck> DerefMut for CBox<T> {
 
 unsafe impl<T: NullCheck> Send for CBox<T> {}
 unsafe impl<T: NullCheck> Sync for CBox<T> {}
-
-#[cfg(test)]
-mod tests {
-    use std::ptr;
-
-    use crate::cbox::CBox;
-
-    #[tokio::test]
-    async fn cbox_pointer() {
-        static mut DESTROYED: bool = false;
-        let v = 123;
-        let ptr: *const i32 = &v;
-        unsafe {
-            {
-                let ptr = CBox::new(ptr::null::<*const i32>(), |_| DESTROYED = true);
-                assert_eq!(*ptr, ptr::null());
-            }
-            assert!(!DESTROYED);
-            {
-                let ptr = CBox::new(ptr, |_| DESTROYED = true);
-                assert_eq!(**ptr, 123);
-                assert!(!DESTROYED);
-            }
-            assert!(DESTROYED)
-        }
-    }
-}

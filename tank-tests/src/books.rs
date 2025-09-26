@@ -6,8 +6,6 @@ use tank::{
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
-static MUTEX: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
-
 #[derive(Entity, Debug, Clone, PartialEq)]
 #[tank(schema = "testing", name = "authors")]
 pub struct Author {
@@ -17,7 +15,6 @@ pub struct Author {
     pub country: String,
     pub books_published: Option<u16>,
 }
-
 #[derive(Entity, Debug, Clone)]
 #[tank(schema = "testing", name = "books", primary_key = (Self::title, Self::author))]
 pub struct Book {
@@ -31,6 +28,7 @@ pub struct Book {
     pub co_author: Option<Uuid>,
     pub year: i32,
 }
+static MUTEX: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
 
 pub async fn books<E: Executor>(executor: &mut E) {
     let _lock = MUTEX.lock().await;

@@ -13,34 +13,30 @@ use tokio::sync::Mutex;
 #[allow(unused_imports)]
 use uuid::Uuid;
 
-pub async fn insane<E: Executor>(executor: &mut E) {
-    #[derive(Entity)]
-    struct InsaneNullFields {
-        #[cfg(all(
-            not(feature = "disable-arrays"),
-            not(feature = "disable-lists"),
-            not(feature = "disable-maps")
-        ))]
-        red: Option<
-            Vec<Option<Vec<HashMap<Cow<'static, str>, BTreeMap<u128, Option<Vec<[i8; 2]>>>>>>>,
-        >,
-        #[cfg(all(
-            not(feature = "disable-arrays"),
-            not(feature = "disable-lists"),
-            not(feature = "disable-maps")
-        ))]
-        yellow: std::rc::Rc<
-            Option<
-                Rc<
-                    std::cell::RefCell<
-                        Vec<
-                            Option<
-                                Arc<
-                                    std::collections::HashMap<
-                                        Box<u64>,
-                                        collections::VecDeque<
-                                            Option<Arc<[Cell<Option<Option<uuid::Uuid>>>; 2]>>,
-                                        >,
+#[derive(Entity)]
+struct InsaneNullFields {
+    #[cfg(all(
+        not(feature = "disable-arrays"),
+        not(feature = "disable-lists"),
+        not(feature = "disable-maps")
+    ))]
+    red: Option<Vec<Option<Vec<HashMap<Cow<'static, str>, BTreeMap<u128, Option<Vec<[i8; 2]>>>>>>>>,
+    #[cfg(all(
+        not(feature = "disable-arrays"),
+        not(feature = "disable-lists"),
+        not(feature = "disable-maps")
+    ))]
+    yellow: std::rc::Rc<
+        Option<
+            Rc<
+                std::cell::RefCell<
+                    Vec<
+                        Option<
+                            Arc<
+                                std::collections::HashMap<
+                                    Box<u64>,
+                                    collections::VecDeque<
+                                        Option<Arc<[Cell<Option<Option<uuid::Uuid>>>; 2]>>,
                                     >,
                                 >,
                             >,
@@ -49,12 +45,14 @@ pub async fn insane<E: Executor>(executor: &mut E) {
                 >,
             >,
         >,
-        #[cfg(not(feature = "disable-lists"))]
-        blue: Vec<Option<Arc<VecDeque<i32>>>>,
-        green: Box<RefCell<Arc<Box<Arc<Arc<Arc<RefCell<time::Time>>>>>>>>,
-    }
+    >,
+    #[cfg(not(feature = "disable-lists"))]
+    blue: Vec<Option<Arc<VecDeque<i32>>>>,
+    green: Box<RefCell<Arc<Box<Arc<Arc<Arc<RefCell<time::Time>>>>>>>>,
+}
+static MUTEX: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
 
-    static MUTEX: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
+pub async fn insane<E: Executor>(executor: &mut E) {
     let _lock = MUTEX.lock().await;
 
     // Setup

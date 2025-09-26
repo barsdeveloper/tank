@@ -334,6 +334,10 @@ pub trait SqlWriter {
 
     fn write_value_interval(&self, _context: Context, buff: &mut String, value: &Interval) {
         buff.push_str("INTERVAL ");
+        if value.is_zero() {
+            buff.push_str("0 SECONDS");
+            return;
+        }
         macro_rules! write_unit {
             ($buff:ident, $val:expr, $unit:expr) => {
                 let _ = write!(
