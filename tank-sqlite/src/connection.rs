@@ -82,34 +82,48 @@ impl SqliteConnection {
         &mut self,
         sql: String,
     ) -> impl Stream<Item = Result<QueryResult>> {
-        let connection = CBox::new(*self.connection, |_| {});
         try_stream! {
-            let len = sql.len();
-            let (statement, _remaining) = spawn_blocking(move || unsafe {
-                let mut statement = CBox::new(ptr::null_mut(), |p| {
-                    sqlite3_finalize(p);
-                });
-                let mut sql_tail = ptr::null();
-                let c_ptr = sql.as_ptr() as *const c_char;
-                let rc = sqlite3_prepare_v2(
-                    *connection,
-                    c_ptr,
-                    len as c_int,
-                    &mut *statement,
-                    &mut sql_tail,
-                );
-                if rc != SQLITE_OK {
-                    return Err(Error::msg(
-                        error_message_from_ptr(&sqlite3_errmsg(*connection)).to_string(),
-                    ));
+            let mut len = sql.trim_end().len();
+            let buff = sql.into_bytes();
+            let mut it = CBox::new(buff.as_ptr() as *const c_char, |_| {});
+            loop {
+                let connection = CBox::new(*self.connection, |_| {});
+                let sql = CBox::new(*it, |_| {});
+                let (statement, tail) = spawn_blocking(move || unsafe {
+                    let mut statement = CBox::new(ptr::null_mut(), |p| {
+                        sqlite3_finalize(p);
+                    });
+                    let mut sql_tail = CBox::new(ptr::null(), |_| {});
+                    let rc = sqlite3_prepare_v2(
+                        *connection,
+                        *sql,
+                        len as c_int,
+                        &mut *statement,
+                        &mut *sql_tail,
+                    );
+                    if rc != SQLITE_OK {
+                        return Err(Error::msg(
+                            error_message_from_ptr(&sqlite3_errmsg(*connection)).to_string(),
+                        ));
+                    }
+                    Ok((statement, sql_tail))
+                })
+                .await??;
+                let mut stream = pin!(self.run_prepared(statement));
+                while let Some(value) = stream.next().await {
+                    yield value?
                 }
-                let remaining_sql = CStr::from_ptr(sql_tail).to_owned();
-                Ok((statement, remaining_sql.to_owned()))
-            })
-            .await??;
-            let mut stream = pin!(self.run_prepared(statement));
-            while let Some(value) = stream.next().await {
-                yield value?
+                unsafe {
+                    len = if *tail != ptr::null() {
+                        len - tail.offset_from_unsigned(*it)
+                    } else {
+                        0
+                    };
+                    if len == 0 {
+                        break;
+                    }
+                }
+                *it = *tail;
             }
         }
     }

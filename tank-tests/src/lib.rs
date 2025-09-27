@@ -30,6 +30,8 @@ pub fn init_logs() {
     let _ = env_logger::builder()
         .is_test(true)
         .filter_level(LevelFilter::Warn)
+        .format_file(true)
+        .format_line_number(true)
         .try_init();
 }
 

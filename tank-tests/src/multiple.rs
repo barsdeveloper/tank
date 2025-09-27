@@ -24,10 +24,12 @@ pub async fn multiple<E: Executor>(executor: &mut E) {
     let _lock = MUTEX.lock().await;
 
     let mut sql = String::new();
+    sql.push_str("    \n\n  \n \n\t\t\n   \n    ");
     executor
         .driver()
         .sql_writer()
         .write_drop_table::<One>(&mut sql, true);
+    sql.push_str("\t\t");
     executor
         .driver()
         .sql_writer()
@@ -40,6 +42,7 @@ pub async fn multiple<E: Executor>(executor: &mut E) {
         .driver()
         .sql_writer()
         .write_create_table::<One>(&mut sql, true);
+    sql.push('\n');
     executor
         .driver()
         .sql_writer()
@@ -48,6 +51,7 @@ pub async fn multiple<E: Executor>(executor: &mut E) {
         .driver()
         .sql_writer()
         .write_create_table::<Three>(&mut sql, true);
+    sql.push_str(" ");
     executor.driver().sql_writer().write_insert(
         &mut sql,
         [
@@ -66,6 +70,7 @@ pub async fn multiple<E: Executor>(executor: &mut E) {
         ],
         false,
     );
+    sql.push_str("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
     executor.driver().sql_writer().write_insert(
         &mut sql,
         [
@@ -108,6 +113,7 @@ pub async fn multiple<E: Executor>(executor: &mut E) {
         &true,
         None,
     );
+    sql.push_str("            \t    \t\t  \n \n \n \t    \n\n\n ");
     let mut result = executor
         .run(sql.into())
         .try_filter_map(|v| async {

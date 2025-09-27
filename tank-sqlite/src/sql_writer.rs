@@ -100,4 +100,11 @@ impl SqlWriter for SqliteSqlWriter {
     {
         // Sqlite does not support schema
     }
+
+    fn write_column_comments<E>(&self, _context: Context, _buff: &mut String)
+    where
+        Self: Sized,
+        E: Entity,
+    {
+    }
 }
