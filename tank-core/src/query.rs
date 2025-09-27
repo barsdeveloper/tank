@@ -69,7 +69,7 @@ impl<D: Driver> Display for Query<D> {
     }
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone, Copy)]
 pub struct RowsAffected {
     pub rows_affected: u64,
     pub last_affected_id: Option<i64>,
@@ -78,7 +78,7 @@ pub struct RowsAffected {
 pub type RowNames = Arc<[String]>;
 pub type Row = Box<[Value]>;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct RowLabeled {
     pub labels: RowNames,
     pub values: Row,

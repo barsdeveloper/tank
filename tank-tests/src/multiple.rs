@@ -3,18 +3,18 @@ use tank::AsValue;
 use tank::{Driver, Entity, Executor, QueryResult, RowLabeled, SqlWriter, stream::TryStreamExt};
 use tokio::sync::Mutex;
 
-#[derive(Entity)]
+#[derive(Debug, Entity, PartialEq)]
 struct One {
     a1: u32,
     string: String,
     c1: u64,
 }
-#[derive(Entity)]
+#[derive(Debug, Entity, PartialEq)]
 struct Two {
     a2: u32,
     string: String,
 }
-#[derive(Entity)]
+#[derive(Debug, Entity, PartialEq)]
 struct Three {
     string: String,
 }
@@ -57,15 +57,15 @@ pub async fn multiple<E: Executor>(executor: &mut E) {
         [
             &Two {
                 a2: 21,
-                string: "Two-1".into(),
+                string: "aaa".into(),
             },
             &Two {
                 a2: 22,
-                string: "Two-2".into(),
+                string: "bbb".into(),
             },
             &Two {
                 a2: 23,
-                string: "Two-3".into(),
+                string: "eee".into(),
             },
         ],
         false,
@@ -75,10 +75,10 @@ pub async fn multiple<E: Executor>(executor: &mut E) {
         &mut sql,
         [
             &Three {
-                string: "Three-1".into(),
+                string: "ddd".into(),
             },
             &Three {
-                string: "Three-2".into(),
+                string: "ccc".into(),
             },
         ],
         false,
@@ -94,7 +94,7 @@ pub async fn multiple<E: Executor>(executor: &mut E) {
         &mut sql,
         [&One {
             a1: 11,
-            string: "One-1".into(),
+            string: "zzz".into(),
             c1: 512,
         }],
         false,
@@ -138,5 +138,59 @@ pub async fn multiple<E: Executor>(executor: &mut E) {
             .expect("The column called `string` is not a VARCHAR");
         a.cmp(&b)
     });
-    assert_eq!(*result[0].labels, ["a1", "string", "c1"]);
+    assert_eq!(result.len(), 6);
+    let mut result = result.into_iter().peekable();
+    assert_eq!(*result.peek().unwrap().labels, ["a2", "string"]);
+    assert_eq!(
+        Two::from_row(result.peek().unwrap().clone()).expect("The row was not a entity Two"),
+        Two {
+            a2: 21,
+            string: "aaa".into()
+        }
+    );
+    result.next();
+    assert_eq!(*result.peek().unwrap().labels, ["a2", "string"]);
+    assert_eq!(
+        Two::from_row(result.peek().unwrap().clone()).expect("The row was not a entity Two"),
+        Two {
+            a2: 22,
+            string: "bbb".into()
+        }
+    );
+    result.next();
+    assert_eq!(*result.peek().unwrap().labels, ["string"]);
+    assert_eq!(
+        Three::from_row(result.peek().unwrap().clone()).expect("The row was not a entity Two"),
+        Three {
+            string: "ccc".into(),
+        }
+    );
+    result.next();
+    assert_eq!(*result.peek().unwrap().labels, ["string"]);
+    assert_eq!(
+        Three::from_row(result.peek().unwrap().clone()).expect("The row was not a entity Two"),
+        Three {
+            string: "ddd".into(),
+        }
+    );
+    result.next();
+    assert_eq!(*result.peek().unwrap().labels, ["a2", "string"]);
+    assert_eq!(
+        Two::from_row(result.peek().unwrap().clone()).expect("The row was not a entity Two"),
+        Two {
+            a2: 23,
+            string: "eee".into()
+        }
+    );
+    result.next();
+    assert_eq!(*result.peek().unwrap().labels, ["a1", "string", "c1"]);
+    assert_eq!(
+        One::from_row(result.peek().unwrap().clone()).expect("The row was not a entity Two"),
+        One {
+            a1: 11,
+            string: "zzz".into(),
+            c1: 512,
+        }
+    );
+    result.next();
 }
