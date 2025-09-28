@@ -3,23 +3,24 @@
 layout: home
 
 hero:
-  name: "Tank"
+  name: "TANK"
   text: "Table Abstraction & Navigation Kit"
   tagline: The Rust data layer
+  image:
+    src: /logo.png
+    alt: Tank logo
   actions:
     - theme: brand
-      text: Markdown Examples
-      link: /markdown-examples
-    - theme: alt
-      text: API Examples
-      link: /api-examples
+      text: Getting started
+      link: /getting-started
 
 features:
-  - title: Async operations - Fire and forget
+  - title: Async operations
     details: Your queries run async like artillery, load fast, return fire later.
-  - title: Extensible - Adapts to any battlefield
-    details: Plug new backends in like swapping magazines. Designed from day one to implement any database.
-  - title: Doesn’t Hide SQL — Command your data
-    details: Tank gives you the weapons. Fire raw queries when you need precision strikes, use the abstractions for standard sorties.
+  - title: Simple workflow
+    details: Fire raw queries when you need precision strikes, use the abstractions for standard sorties.
+  - title: Adapts to any battlefield
+    details: Plug new backends in like changing magazines. Designed from day one to be extensible.
+  - title: Rich type arsenal
+    details: Define your units and let Tank take care or conversions
 ---
-

@@ -1,45 +1,13 @@
-<div align="center">
-    <img width="300" height="300" src="https://github.com/barsdeveloper/tank/blob/master/docs/logo.png?raw=true" alt="Tank: Table Abstraction & Navigation Kit logo featuring a green tank with a gear background and stacked database cylinders" />
-</div>
-
-# Tank
-Tank (Table Abstraction & Navigation Kit): the Rust data layer.
-
-Simple and flexible ORM that manages in a unified way data from different sources.
-
-https://github.com/barsdeveloper/tank ⭐
-
-https://crates.io/crates/tank
-
-**Known battlefields**:
-- DuckDB
-- SQLite
-- PostgreSQL (Coming soon)
-- MySQL (Coming soon)
-- Cassandra/ScyllaDB (Coming soon)
-- More to be decided...
-
-## Mission objectives
-- Async operations - fire and forget.
-- Simple workflow - every query is visible on your tactical map.
-- Extensible driver system - swap databases like changing magazines mid-battle.
-- SQL and NoSQL support: one Tank, all terrains.
-- Transactional strikes: commit on success or rollback the mission if the plan goes sideways.
-- Rich type arsenal with automatic conversions.
-- Optional appender API for high caliber bulk inserts.
-
-## No-fly zone
-- No schema migrations
-- No implicit joins (no entities as fields, every alliance is signed)
-- No complex query builder (write raw SQL and take full credit)
-
-## Getting started
+# Getting Started
+###### *Field Manual Section 2* - Deployment Orders
 1) Arm your cargo
 ```sh
 cargo add tank
 ```
 
 2) Choose your ammunition
+
+Check the [armory](docs#armory) to see what driver is available.
 ```sh
 cargo add tank-duckdb
 ```
@@ -173,5 +141,3 @@ async fn data() -> Result<()> {
     Ok(())
 }
 ```
-
-*Rustaceans don't hide behind ORMs, they drive Tanks.*

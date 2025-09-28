@@ -16,20 +16,24 @@ export default defineConfig({
     nav: [
       { text: 'Home', link: '/' },
       { text: 'Docs', link: '/docs' },
+      { text: 'API', link: 'https://docs.rs/tank/' },
     ],
 
     sidebar: [
       {
-        text: 'Examples',
+        text: 'Docs',
         items: [
-          { text: 'Markdown Examples', link: '/markdown-examples' },
-          { text: 'Runtime API Examples', link: '/api-examples' },
+          { text: 'Introduction', link: '/docs' },
+          { text: 'Getting started', link: '/getting-started' },
+          { text: 'Entity definition', link: '/entity-definition' },
+          { text: 'Data retrieval', link: '/data-retrieval' },
         ],
       },
+
     ],
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/vuejs/vitepress' },
+      { icon: 'github', link: 'https://github.com/barsdeveloper/tank' },
     ]
   },
 })
