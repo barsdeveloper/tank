@@ -1,6 +1,6 @@
 use std::sync::LazyLock;
 use tank::AsValue;
-use tank::{Driver, Entity, Executor, QueryResult, RowLabeled, SqlWriter, stream::TryStreamExt};
+use tank::{Driver, Entity, Executor, QueryResult, SqlWriter, stream::TryStreamExt};
 use tokio::sync::Mutex;
 
 #[derive(Debug, Entity, PartialEq)]
@@ -114,17 +114,19 @@ pub async fn multiple<E: Executor>(executor: &mut E) {
         None,
     );
     sql.push_str("            \t    \t\t  \n \n \n \t    \n\n\n ");
-    let mut result = executor
+    let result = executor
         .run(sql.into())
-        .try_filter_map(|v| async {
-            Ok(match v {
-                QueryResult::RowLabeled(row) => Some(row),
-                QueryResult::Affected(..) => None,
-            })
-        })
-        .try_collect::<Vec<RowLabeled>>()
+        .try_collect::<Vec<_>>()
         .await
         .expect("Could not run the composite query");
+    assert_eq!(result.len(), 15);
+    let mut result = result
+        .into_iter()
+        .filter_map(|v| match v {
+            QueryResult::RowLabeled(row) => Some(row),
+            QueryResult::Affected(..) => None,
+        })
+        .collect::<Vec<_>>();
     result.sort_by(|a, b| {
         let a = a
             .get_column("string")

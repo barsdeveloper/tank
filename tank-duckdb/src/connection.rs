@@ -64,11 +64,9 @@ impl DuckDBConnection {
             }
             let statement_type = duckdb_result_statement_type(*result);
             #[allow(non_upper_case_globals)]
-            if matches!(
+            if !matches!(
                 statement_type,
-                duckdb_statement_type_DUCKDB_STATEMENT_TYPE_INSERT
-                    | duckdb_statement_type_DUCKDB_STATEMENT_TYPE_UPDATE
-                    | duckdb_statement_type_DUCKDB_STATEMENT_TYPE_DELETE
+                duckdb_statement_type_DUCKDB_STATEMENT_TYPE_SELECT
             ) {
                 let rows_affected = duckdb_rows_changed(&mut *result);
                 let _ = tx.send(Ok(QueryResult::Affected(RowsAffected {
@@ -269,15 +267,15 @@ impl Executor for DuckDBConnection {
         stream
     }
 
-    async fn append<'a, E, It>(&mut self, rows: It) -> Result<()>
+    async fn append<'a, E, It>(&mut self, rows: It) -> Result<RowsAffected>
     where
         E: Entity + 'a,
-        It: IntoIterator<Item = &'a E>,
+        It: IntoIterator<Item = &'a E> + Send,
     {
         let connection = AtomicPtr::new(*self.connection);
         let rows = rows.into_iter().map(Entity::row_full).collect::<Vec<_>>();
         if rows.is_empty() {
-            return Ok(());
+            return Ok(Default::default());
         }
         spawn_blocking(move || unsafe {
             let table_ref = E::table_ref();
@@ -310,37 +308,10 @@ impl Executor for DuckDBConnection {
             for column in E::columns() {
                 duckdb_appender_add_column(*appender, as_c_string(column.name()).as_ptr());
             }
+            let rows_affected = rows.len() as u64;
             for row in rows {
                 for value in row {
-                    match value {
-                        Value::Null
-                        | Value::Boolean(None, ..)
-                        | Value::Int8(None, ..)
-                        | Value::Int16(None, ..)
-                        | Value::Int32(None, ..)
-                        | Value::Int64(None, ..)
-                        | Value::Int128(None, ..)
-                        | Value::UInt8(None, ..)
-                        | Value::UInt16(None, ..)
-                        | Value::UInt32(None, ..)
-                        | Value::UInt64(None, ..)
-                        | Value::UInt128(None, ..)
-                        | Value::Float32(None, ..)
-                        | Value::Float64(None, ..)
-                        | Value::Decimal(None, ..)
-                        | Value::Char(None, ..)
-                        | Value::Varchar(None, ..)
-                        | Value::Blob(None, ..)
-                        | Value::Date(None, ..)
-                        | Value::Time(None, ..)
-                        | Value::Timestamp(None, ..)
-                        | Value::TimestampWithTimezone(None, ..)
-                        | Value::Interval(None, ..)
-                        | Value::Uuid(None, ..)
-                        | Value::Array(None, ..)
-                        | Value::List(None, ..)
-                        | Value::Map(None, ..)
-                        | Value::Struct(None, ..) => duckdb_append_null(*appender),
+                    let rc = match value {
                         Value::Boolean(Some(v), ..) => duckdb_append_bool(*appender, v),
                         Value::Int8(Some(v), ..) => duckdb_append_int8(*appender, v),
                         Value::Int16(Some(v), ..) => duckdb_append_int16(*appender, v),
@@ -393,9 +364,10 @@ impl Executor for DuckDBConnection {
                         Value::Interval(Some(ref v), ..) => {
                             duckdb_append_interval(*appender, interval_to_duckdb_interval(&v))
                         }
-                        Value::Uuid(Some(ref v), ..) => {
-                            duckdb_append_uhugeint(*appender, u128_to_duckdb_uhugeint(v.as_u128()))
-                        }
+                        Value::Uuid(Some(ref v), ..) => duckdb_append_value(
+                            *appender,
+                            duckdb_create_uuid(u128_to_duckdb_uhugeint(v.as_u128())),
+                        ),
                         Value::List(Some(ref v), ty) => {
                             let logical_type = tank_value_to_duckdb_logical_type(&ty);
                             let values = v.iter().map(|v| tank_value_to_duckdb_value(v));
@@ -460,10 +432,22 @@ impl Executor for DuckDBConnection {
                             );
                             duckdb_append_value(*appender, *value)
                         }
+                        _ => duckdb_append_null(*appender),
                     };
+                    if rc != duckdb_state_DuckDBSuccess {
+                        let error = Error::msg(
+                            error_message_from_ptr(&duckdb_appender_error(*appender)).to_string(),
+                        );
+                        log::error!("{}", error);
+                        return Err(error);
+                    }
                 }
+                duckdb_appender_end_row(*appender);
             }
-            Ok(())
+            Ok(RowsAffected {
+                last_affected_id: None,
+                rows_affected,
+            })
         })
         .await?
     }

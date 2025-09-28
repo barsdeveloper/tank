@@ -226,16 +226,9 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
             where
                 Self: 'a,
                 Exec: ::tank::Executor,
-                It: IntoIterator<Item = &'a Self>
+                It: IntoIterator<Item = &'a Self> + Send,
             {
-                let mut query = String::with_capacity(128);
-                ::tank::SqlWriter::write_insert(
-                    &::tank::Driver::sql_writer(executor.driver()),
-                    &mut query,
-                    entities,
-                    false,
-                );
-                executor.execute(::tank::Query::Raw(query.into()))
+                executor.append(entities)
             }
 
             fn find_pk<E: ::tank::Executor>(

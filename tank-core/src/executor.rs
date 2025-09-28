@@ -3,7 +3,6 @@ use crate::{
     stream::{Stream, StreamExt, TryStreamExt},
     writer::SqlWriter,
 };
-use futures::FutureExt;
 use std::future::Future;
 
 pub trait Executor: Send + Sized {
@@ -50,16 +49,19 @@ pub trait Executor: Send + Sized {
             .try_collect()
     }
 
-    /// Append rows to a table. Defaults to insert query for drivers that do not support this feature.
-    fn append<'a, E, It>(&mut self, rows: It) -> impl Future<Output = Result<()>>
+    /// Append entities to a table. Defaults to insert query for drivers that do not support this feature.
+    fn append<'a, E, It>(
+        &mut self,
+        entities: It,
+    ) -> impl Future<Output = Result<RowsAffected>> + Send
     where
         E: Entity + 'a,
-        It: IntoIterator<Item = &'a E>,
+        It: IntoIterator<Item = &'a E> + Send,
     {
         let mut query = String::new();
         self.driver()
             .sql_writer()
-            .write_insert(&mut query, rows, false);
-        self.execute(query.into()).map(|_| Ok(()))
+            .write_insert(&mut query, entities, false);
+        self.execute(query.into())
     }
 }

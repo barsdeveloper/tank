@@ -43,7 +43,7 @@ pub trait Entity {
     where
         Self: 'a,
         Exec: Executor,
-        It: IntoIterator<Item = &'a Self>;
+        It: IntoIterator<Item = &'a Self> + Send;
 
     fn find_pk<Exec: Executor>(
         executor: &mut Exec,
