@@ -1,5 +1,7 @@
-use crate::{DuckDBPrepared, connection::DuckDBConnection, sql_writer::DuckDBSqlWriter};
-use tank_core::Driver;
+use crate::{
+    DuckDBPrepared, DuckDBTransaction, connection::DuckDBConnection, sql_writer::DuckDBSqlWriter,
+};
+use tank_core::{Driver, DriverTransactional};
 
 #[derive(Default, Clone, Copy)]
 pub struct DuckDBDriver {}
@@ -20,4 +22,8 @@ impl Driver for DuckDBDriver {
     fn sql_writer(&self) -> Self::SqlWriter {
         DuckDBSqlWriter::default()
     }
+}
+
+impl DriverTransactional for DuckDBDriver {
+    type Transaction<'c> = DuckDBTransaction<'c>;
 }

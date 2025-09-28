@@ -4,6 +4,7 @@ mod driver;
 mod extract;
 mod prepared;
 mod sql_writer;
+mod transaction;
 
 use std::{ffi::CStr, ptr};
 
@@ -11,6 +12,7 @@ pub(crate) use cbox::*;
 pub use connection::*;
 pub use driver::*;
 pub use prepared::*;
+pub use transaction::*;
 
 pub(crate) fn error_message_from_ptr(ptr: &'_ *const i8) -> &'_ str {
     unsafe {

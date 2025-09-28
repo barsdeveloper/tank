@@ -600,6 +600,18 @@ pub trait SqlWriter {
         }
     }
 
+    fn write_transaction_begin(&self, buff: &mut String) {
+        buff.push_str("BEGIN;");
+    }
+
+    fn write_transaction_commit(&self, buff: &mut String) {
+        buff.push_str("COMMIT;");
+    }
+
+    fn write_transaction_rollback(&self, buff: &mut String) {
+        buff.push_str("ROLLBACK;");
+    }
+
     fn write_create_schema<E>(&self, buff: &mut String, if_not_exists: bool)
     where
         Self: Sized,

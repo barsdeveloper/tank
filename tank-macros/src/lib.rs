@@ -362,7 +362,7 @@ pub fn cols(input: TokenStream) -> TokenStream {
                 }
             }
             None => {
-                quote! { expr!(#expr) }
+                quote! { ::tank::expr!(#expr) }
             }
         }
     });

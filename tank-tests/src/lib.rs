@@ -9,6 +9,7 @@ mod multiple;
 mod readme;
 mod simple;
 mod trade;
+mod transaction1;
 mod user;
 
 use crate::{
@@ -19,6 +20,7 @@ use crate::{
     multiple::multiple,
     simple::simple,
     trade::{trade_multiple, trade_simple},
+    transaction1::transaction1,
     user::users,
 };
 use aggregates::aggregates;
@@ -46,5 +48,7 @@ pub async fn execute_tests<C: Connection>(mut connection: C) {
     insane(&mut connection).await;
     limits(&mut connection).await;
     multiple(&mut connection).await;
+    #[cfg(not(feature = "disable-transactions"))]
+    transaction1(&mut connection).await;
     let _ = readme(&mut connection).await;
 }

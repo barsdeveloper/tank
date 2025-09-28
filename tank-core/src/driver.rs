@@ -1,4 +1,4 @@
-use crate::{Connection, Prepared, Result, writer::SqlWriter};
+use crate::{Connection, Prepared, Result, Transaction, writer::SqlWriter};
 use std::{borrow::Cow, future::Future};
 
 pub trait Driver {
@@ -13,4 +13,8 @@ pub trait Driver {
     }
 
     fn sql_writer(&self) -> Self::SqlWriter;
+}
+
+pub trait DriverTransactional: Driver {
+    type Transaction<'c>: Transaction<'c>;
 }

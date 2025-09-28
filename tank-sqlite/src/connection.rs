@@ -1,5 +1,5 @@
 use crate::{
-    CBox, SqliteDriver, SqlitePrepared, error_message_from_ptr,
+    CBox, SqliteDriver, SqlitePrepared, SqliteTransaction, error_message_from_ptr,
     extract::{extract_name, extract_value},
 };
 use async_stream::{stream, try_stream};
@@ -232,5 +232,10 @@ impl Connection for SqliteConnection {
             connection,
             _transaction: false,
         })
+    }
+
+    #[allow(refining_impl_trait)]
+    fn begin(&mut self) -> impl Future<Output = Result<SqliteTransaction>> {
+        SqliteTransaction::new(self)
     }
 }

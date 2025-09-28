@@ -1,5 +1,5 @@
 use crate::{
-    DuckDBPrepared, cbox::CBox, date_to_duckdb_date, decimal_to_duckdb_decimal,
+    DuckDBPrepared, DuckDBTransaction, cbox::CBox, date_to_duckdb_date, decimal_to_duckdb_decimal,
     driver::DuckDBDriver, error_message_from_ptr, extract::extract_value, i128_to_duckdb_hugeint,
     interval_to_duckdb_interval, offsetdatetime_to_duckdb_timestamp,
     primitive_date_time_to_duckdb_timestamp, tank_value_to_duckdb_logical_type,
@@ -549,5 +549,10 @@ impl Connection for DuckDBConnection {
             connection,
             transaction: false,
         })
+    }
+
+    #[allow(refining_impl_trait)]
+    fn begin(&mut self) -> impl Future<Output = Result<DuckDBTransaction<'_>>> {
+        DuckDBTransaction::new(self)
     }
 }

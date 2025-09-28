@@ -24,6 +24,7 @@ https://crates.io/crates/tank
 - Simple workflow - every query is visible on your tactical map.
 - Extensible driver system - swap databases like changing magazines mid-battle.
 - SQL and NoSQL support: one tank, all terrains.
+- Transactional strikes: commit on success or rollback the mission if the plan goes sideways.
 - Rich type arsenal with automatic conversions.
 - Optional appender API for high caliber bulk inserts.
 
@@ -120,6 +121,7 @@ async fn data() -> Result<()> {
     my_tank.save(connection).await?;
 
     /*
+     * In the case of Duckdb, it uses the appender API, in other cases the resulting query is:
      * INSERT INTO "army"."tank" ("name", "country", "caliber", "speed", "is_operational", "units_produced") VALUES
      *     ('T-34/85', 'Soviet Union', 85, 53.0, false, 49200),
      *     ('M1 Abrams', 'USA', 120, 72.0, true, NULL);

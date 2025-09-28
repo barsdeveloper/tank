@@ -1,6 +1,6 @@
-use tank_core::Driver;
+use tank_core::{Driver, DriverTransactional};
 
-use crate::{SqliteConnection, SqlitePrepared, sql_writer::SqliteSqlWriter};
+use crate::{SqliteConnection, SqlitePrepared, SqliteTransaction, sql_writer::SqliteSqlWriter};
 
 pub struct SqliteDriver {}
 
@@ -20,4 +20,8 @@ impl Driver for SqliteDriver {
     fn sql_writer(&self) -> SqliteSqlWriter {
         SqliteSqlWriter {}
     }
+}
+
+impl DriverTransactional for SqliteDriver {
+    type Transaction<'c> = SqliteTransaction<'c>;
 }
