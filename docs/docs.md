@@ -8,11 +8,11 @@ Welcome to the Tank field manual. This is the quick-and-mean guide for developer
 - **Extensible driver system** - swap databases like changing magazines mid-battle.
 - **SQL and NoSQL support**: one Tank, all terrains.
 - **Transactional strikes**: commit on success or rollback the mission if the plan goes sideways.
-- **Rich type arsenal** with automatic conversions.
+- **Rich type arsenal** with automatic conversions between Rust and database types.
 - **Optional appender API** for high caliber bulk inserts.
 
 ## Armory
-- [**tank**](https://crates.io/crates/tank): The command vehicle. User-facing crate that unites the arsenal core, macros.
+- [**tank**](https://crates.io/crates/tank): The command vehicle, rallying the core arsenal and procedural macro firepower for seamless battlefield operations.
 - [**tank-duckdb**](https://crates.io/crates/tank-duckdb): DuckDB driver.
 - [**tank-sqlite**](https://crates.io/crates/tank-sqlite): Sqlite driver.
 - [**tank-postgres**](https://crates.io/crates/tank-postgres): Postgres driver.

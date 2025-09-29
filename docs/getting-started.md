@@ -7,7 +7,7 @@ cargo add tank
 
 2) Choose your ammunition
 
-Check the [armory](docs#armory) to see what driver is available.
+Check the [armory](docs.md#armory) to see what driver is available.
 ```sh
 cargo add tank-duckdb
 ```
@@ -69,8 +69,7 @@ async fn data() -> Result<()> {
      *     "caliber" USMALLINT NOT NULL,
      *     "speed" FLOAT NOT NULL,
      *     "is_operational" BOOLEAN NOT NULL,
-     *     "units_produced" UINTEGER
-     * );
+     *     "units_produced" UINTEGER);
      */
     Tank::create_table(connection, true, true)
         .await

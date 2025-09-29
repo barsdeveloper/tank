@@ -44,8 +44,7 @@ pub async fn readme<E: Executor>(connection: &mut E) -> Result<()> {
      *     "caliber" USMALLINT NOT NULL,
      *     "speed" FLOAT NOT NULL,
      *     "is_operational" BOOLEAN NOT NULL,
-     *     "units_produced" UINTEGER
-     * );
+     *     "units_produced" UINTEGER);
      */
     Tank::create_table(connection, true, true)
         .await

@@ -704,8 +704,7 @@ pub trait SqlWriter {
                 buff.push(')');
             }
         }
-        buff.push_str("\n)");
-        buff.push(';');
+        buff.push_str(");");
         self.write_column_comments::<E>(context, buff);
     }
 
