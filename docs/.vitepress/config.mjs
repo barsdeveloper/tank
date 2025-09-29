@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitepress'
+import { tabsMarkdownPlugin } from 'vitepress-plugin-tabs'
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
@@ -15,7 +16,7 @@ export default defineConfig({
 
     nav: [
       { text: 'Home', link: '/' },
-      { text: 'Docs', link: '/docs' },
+      { text: 'Docs', link: '/1-introduction' },
       { text: 'API', link: 'https://docs.rs/tank/' },
     ],
 
@@ -23,10 +24,10 @@ export default defineConfig({
       {
         text: 'Docs',
         items: [
-          { text: 'Introduction', link: '/docs' },
-          { text: 'Getting started', link: '/getting-started' },
-          { text: 'Entity definition', link: '/entity-definition' },
-          { text: 'Data retrieval', link: '/data-retrieval' },
+          { text: 'Introduction', link: '/1-introduction' },
+          { text: 'Getting started', link: '/2-getting-started' },
+          { text: 'Entity definition', link: '/3-entity-definition' },
+          { text: 'Entity operations', link: '/4-entity-operations' },
         ],
       },
 
@@ -35,5 +36,10 @@ export default defineConfig({
     socialLinks: [
       { icon: 'github', link: 'https://github.com/barsdeveloper/tank' },
     ]
+  },
+  markdown: {
+    config(md) {
+      md.use(tabsMarkdownPlugin)
+    },
   },
 })
