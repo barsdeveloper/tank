@@ -31,7 +31,7 @@ Tank's `#[tank(...)]` attributes are your weapon mods, fine-tuning your structs 
 - <Badge type="tip" text="struct" /><Badge type="tip" text="field" /> `#[tank(name = "the_name")]` specifies the table name on a struct and the column name on a field. **Default**: snake_case formatted name formatten name.
 - <Badge type="tip" text="struct" /> `#[tank(schema = "your_schema")]` sets the database schema. Default: no schema.
 - <Badge type="tip" text="struct" /> `#[tank(primary_key = "some_field")]` or `#[tank(primary_key = ("column_1", "column_2", ..))]` specify the the table primary key.
-- <Badge type="tip" text="field" /> `#[tank(primary_key)]` defines a unique constraint.
+- <Badge type="tip" text="field" /> `#[tank(primary_key)]` defines the field as primary key. Cannot be used in combination with struct level primary_key.
 - <Badge type="tip" text="struct" /> `#[tank(unique = "some_field")]` or `#[tank(unique = ("column_1", Self::column_2, ..))]` define a unique constraint.
 - <Badge type="tip" text="field" /> `#[tank(unique)]` defines a unique constraint.
 - <Badge type="tip" text="field" /> `#[tank(default)]` specifies the default value for the column.
