@@ -1,17 +1,17 @@
 # Entity Operations
 ###### *Field Manual Section 4* - Front-Line Extraction
-The Entity is your combat unity, a Rust struct mapped one-to-one with a database table. This section drills you on the basic maneuvers every unit must master: insertions, updates, and extractions.
+The Entity is your combat unity, a Rust struct mapped one-to-one with a database table. This section traines you on the basic maneuvers every unit must master: insertions, updates, and extractions.
 
 ## Mission Scope
-* `Entity::create_table()`: establish operating base  
-* `Entity::drop_table()`: break camp  
-* `Entity::insert_one()`: deploy a single unit  
-* `Entity::insert_many()`: bulk deployment  
-* `Entity::find_pk()`: identify the target  
-* `Entity::find_one()`: silent recon  
-* `Entity::find_many()`: wide-area sweep  
-* `Entity::delete_one()`: precision strike  
-* `Entity::delete_many()`: scorched-earth withdrawal  
+* `Entity::create_table()`: establish operating base
+* `Entity::drop_table()`: break camp
+* `Entity::insert_one()`: deploy a single unit
+* `Entity::insert_many()`: bulk deployment
+* `Entity::find_pk()`: identify the target
+* `Entity::find_one()`: silent recon
+* `Entity::find_many()`: wide-area sweep
+* `Entity::delete_one()`: precision strike
+* `Entity::delete_many()`: scorched-earth withdrawal
 * `entity.save()`: resupply and hold the position
 * `entity.delete()`: stand-down order
 
@@ -42,7 +42,7 @@ pub struct Mission {
     pub objective: String,
     pub launch_time: DateTime<Utc>,
 }
-#[derive(Debug, Clone, Entity)]
+#[derive(Entity)]
 #[tank(table_name = "assignment")]
 pub struct MissionAssignment {
     pub mission_id: Uuid,
