@@ -28,7 +28,7 @@ You have now forged a battle-ready map of your database. Create, destroy,  deplo
 
 ## Attributes
 Tank's `#[tank(...)]` attributes are your weapon mods, fine-tuning your structs for precision strikes in the database.
-- <Badge type="tip" text="struct" /><Badge type="tip" text="field" /> `#[tank(name = "the_name")]` specifies the table name on a struct and the column name on a field. **Default**: snake_case formatted name formatten name.
+- <Badge type="tip" text="struct" /><Badge type="tip" text="field" /> `#[tank(name = "the_name")]` specifies the table name on a struct and the column name on a field. **Default**: snake_case formatted name.
 - <Badge type="tip" text="struct" /> `#[tank(schema = "your_schema")]` sets the database schema. Default: no schema.
 - <Badge type="tip" text="struct" /> `#[tank(primary_key = "some_field")]` or `#[tank(primary_key = ("column_1", "column_2", ..))]` specify the the table primary key.
 - <Badge type="tip" text="field" /> `#[tank(primary_key)]` defines the field as primary key. Cannot be used in combination with struct level primary_key.
