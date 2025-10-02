@@ -20,62 +20,34 @@ The Entity is your combat unity, a Rust struct mapped one-to-one with a database
 == Rust
 ```rust
 #[derive(Entity)]
-pub struct Base {
+#[tank(schema = "operations", name = "radio_operator")]
+pub struct Operator {
     #[tank(primary_key)]
-    pub id: Passive<Uuid>,
-    pub codename: String,
-    pub location: String,
-    pub established: Passive<DateTime<Utc>>,
+    pub id: Uuid,
+    pub callsign: String,
+    #[tank(name = "rank")]
+    pub service_rank: String,
+    #[tank(name = "enlistment_date")]
+    pub enlisted: Date,
+    pub is_certified: bool,
 }
+
 #[derive(Entity)]
-pub struct Operative {
-    pub id: Passive<Uuid>,
-    pub name: String,
-    pub rank: String,
-    pub specialty: Option<String>,
-    pub base_id: Uuid,
-}
-#[derive(Entity)]
-pub struct Mission {
-    pub mission_id: Passive<Uuid>,
-    pub codename: String,
-    pub objective: String,
-    pub launch_time: DateTime<Utc>,
-}
-#[derive(Entity)]
-#[tank(table_name = "assignment")]
-pub struct MissionAssignment {
-    pub mission_id: Uuid,
-    pub operative_id: Uuid,
-    pub role: Option<String>,
+#[tank(schema = "operations")]
+pub struct RadioLog {
+    #[tank(primary_key)]
+    pub id: Uuid,
+    #[tank(references = Operator::id)]
+    pub operator: Uuid,
+    pub message: String,
+    pub unit_callsign: String,
+    #[tank(name = "tx_time")]
+    pub transmissione_time: OffsetDateTime,
+    #[tank(name = "rssi")]
+    pub signal_strength: i8,
 }
 ```
 == SQL
 ```sql
-CREATE TABLE bases (
-    base_id UUID PRIMARY KEY,
-    codename TEXT NOT NULL,
-    location TEXT NOT NULL,
-    established TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-CREATE TABLE operatives (
-    operative_id UUID PRIMARY KEY,
-    name TEXT NOT NULL,
-    rank TEXT NOT NULL,
-    specialty TEXT,
-    base_id UUID NOT NULL REFERENCES bases(base_id) ON DELETE CASCADE
-);
-CREATE TABLE missions (
-    mission_id UUID PRIMARY KEY,
-    codename TEXT NOT NULL,
-    objective TEXT NOT NULL,
-    launch_time TIMESTAMP NOT NULL
-);
-CREATE TABLE mission_assignments (
-    mission_id UUID NOT NULL REFERENCES missions(mission_id) ON DELETE CASCADE,
-    operative_id UUID NOT NULL REFERENCES operatives(operative_id) ON DELETE CASCADE,
-    role TEXT,
-    PRIMARY KEY (mission_id, operative_id)
-);
 ```
 :::
