@@ -30,4 +30,13 @@ mod tests {
             "Database file should be created after connection"
         );
     }
+
+    #[tokio::test]
+    async fn wrong_url() {
+        assert!(
+            DuckDBConnection::connect("postgres://some_value".into())
+                .await
+                .is_err()
+        );
+    }
 }

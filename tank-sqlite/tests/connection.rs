@@ -42,4 +42,13 @@ mod tests {
             "Should not be able to open in read only unexisting database"
         )
     }
+
+    #[tokio::test]
+    async fn wrong_url() {
+        assert!(
+            SqliteConnection::connect("duckdb://some_value".into())
+                .await
+                .is_err()
+        );
+    }
 }

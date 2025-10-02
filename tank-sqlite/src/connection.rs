@@ -3,12 +3,7 @@ use crate::{
     extract::{extract_name, extract_value},
 };
 use async_stream::{stream, try_stream};
-use libsqlite3_sys::{
-    SQLITE_BUSY, SQLITE_DONE, SQLITE_OK, SQLITE_OPEN_CREATE, SQLITE_OPEN_READWRITE,
-    SQLITE_OPEN_URI, SQLITE_ROW, sqlite3, sqlite3_changes64, sqlite3_close, sqlite3_column_count,
-    sqlite3_db_handle, sqlite3_errmsg, sqlite3_finalize, sqlite3_last_insert_rowid,
-    sqlite3_open_v2, sqlite3_prepare_v2, sqlite3_step, sqlite3_stmt, sqlite3_stmt_readonly,
-};
+use libsqlite3_sys::*;
 use std::{
     borrow::Cow,
     ffi::{CStr, CString, c_char, c_int},
@@ -24,7 +19,7 @@ use tank_core::{
     RowsAffected,
     future::Either,
     printable_query,
-    stream::{Stream, StreamExt},
+    stream::{Stream, StreamExt, TryStreamExt},
 };
 use tokio::task::spawn_blocking;
 
@@ -69,7 +64,6 @@ impl SqliteConnection {
                                 error_message_from_ptr(&sqlite3_errmsg(sqlite3_db_handle(*statement)))
                                     .to_string(),
                             );
-                            log::error!("{:#}", error);
                             yield Err(error);
                         }
                     }
@@ -139,7 +133,7 @@ impl Executor for SqliteConnection {
     async fn prepare(&mut self, sql: String) -> Result<Query<Self::Driver>> {
         let connection = AtomicPtr::new(*self.connection);
         let context = format!(
-            "Failed to prepare the query:\n{}",
+            "While preparing the query:\n{}",
             printable_query!(sql.as_str())
         );
         let prepared = spawn_blocking(move || unsafe {
@@ -183,10 +177,16 @@ impl Executor for SqliteConnection {
         &mut self,
         query: Query<Self::Driver>,
     ) -> impl Stream<Item = Result<QueryResult>> + Send {
+        let context = Arc::new(format!("While executing the query:\n{}", query));
         match query {
             Query::Raw(sql) => Either::Left(self.run_unprepared(sql)),
             Query::Prepared(prepared) => Either::Right(self.run_prepared(prepared.statement)),
         }
+        .map_err(move |e| {
+            let e = e.context(context.clone());
+            log::error!("{:#}", e);
+            e
+        })
     }
 }
 

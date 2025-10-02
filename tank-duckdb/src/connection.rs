@@ -19,7 +19,7 @@ use std::{
 };
 use tank_core::{
     Connection, Driver, Entity, Error, ErrorContext, Executor, Query, QueryResult, Result,
-    RowLabeled, RowsAffected, Value, as_c_string, printable_query,
+    RowLabeled, RowsAffected, Value, as_c_string, printable_query, send_value,
     stream::{Stream, TryStreamExt},
 };
 use tokio::task::spawn_blocking;
@@ -54,11 +54,12 @@ impl DuckDBConnection {
             let mut result = CBox::new(result, |mut r| duckdb_destroy_result(&mut r));
             let rc = execute(&mut *result);
             if rc != duckdb_state_DuckDBSuccess {
-                if let Err(e) = tx.send(Err(Error::msg(
-                    error_message_from_ptr(&duckdb_result_error(&mut *result)).to_string(),
-                ))) {
-                    log::error!("{:#}", e);
-                };
+                send_value!(
+                    tx,
+                    Err(Error::msg(
+                        error_message_from_ptr(&duckdb_result_error(&mut *result)).to_string(),
+                    ))
+                );
                 return;
             }
             let statement_type = duckdb_result_statement_type(*result);
@@ -68,12 +69,13 @@ impl DuckDBConnection {
                 duckdb_statement_type_DUCKDB_STATEMENT_TYPE_SELECT
             ) {
                 let rows_affected = duckdb_rows_changed(&mut *result);
-                if let Err(e) = tx.send(Ok(QueryResult::Affected(RowsAffected {
-                    rows_affected,
-                    ..Default::default()
-                }))) {
-                    log::error!("{:#}", e);
-                };
+                send_value!(
+                    tx,
+                    Ok(QueryResult::Affected(RowsAffected {
+                        rows_affected,
+                        ..Default::default()
+                    }))
+                );
                 return;
             }
             Self::extract_result(&mut *result, tx);
@@ -90,12 +92,13 @@ impl DuckDBConnection {
                 CBox::new(ptr::null_mut(), |mut p| duckdb_destroy_extracted(&mut p));
             let count = duckdb_extract_statements(connection, sql.as_ptr(), &mut *statements);
             if count == 0 {
-                if let Err(e) = tx.send(Err(Error::msg(
-                    error_message_from_ptr(&duckdb_extract_statements_error(*statements))
-                        .to_string(),
-                ))) {
-                    log::error!("{:#}", e);
-                }
+                send_value!(
+                    tx,
+                    Err(Error::msg(
+                        error_message_from_ptr(&duckdb_extract_statements_error(*statements))
+                            .to_string(),
+                    ))
+                );
                 return;
             }
             for i in 0..count {
@@ -104,11 +107,12 @@ impl DuckDBConnection {
                 let rc =
                     duckdb_prepare_extracted_statement(connection, *statements, i, &mut *statement);
                 if rc != duckdb_state_DuckDBSuccess {
-                    if let Err(e) = tx.send(Err(Error::msg(
-                        error_message_from_ptr(&duckdb_prepare_error(*statement)).to_string(),
-                    ))) {
-                        log::error!("{:#}", e);
-                    }
+                    send_value!(
+                        tx,
+                        Err(Error::msg(
+                            error_message_from_ptr(&duckdb_prepare_error(*statement)).to_string(),
+                        ))
+                    );
                     return;
                 }
                 Self::run_prepared(statement.into(), tx.clone());
@@ -122,11 +126,12 @@ impl DuckDBConnection {
             |result| unsafe {
                 let rc = duckdb_execute_prepared_streaming(*prepared.statement, result);
                 if rc != duckdb_state_DuckDBSuccess {
-                    if let Err(e) = tx2.send(Err(Error::msg(
-                        error_message_from_ptr(&duckdb_result_error(result)).to_string(),
-                    ))) {
-                        log::error!("{:#}", e);
-                    }
+                    send_value!(
+                        tx2,
+                        Err(Error::msg(
+                            error_message_from_ptr(&duckdb_result_error(result)).to_string(),
+                        ))
+                    );
                 }
                 rc
             },
@@ -189,9 +194,7 @@ impl DuckDBConnection {
                     });
                     let row =
                         RowLabeled::new(names.clone(), columns.collect::<Result<_>>().unwrap());
-                    if let Err(e) = tx.send(Ok(QueryResult::RowLabeled(row))) {
-                        log::error!("{:#}", e);
-                    }
+                    send_value!(tx, Ok(QueryResult::RowLabeled(row)));
                 }
             }
         }
@@ -214,27 +217,27 @@ impl Executor for DuckDBConnection {
         &DuckDBDriver {}
     }
 
-    async fn prepare(&mut self, query: String) -> Result<Query<DuckDBDriver>> {
+    async fn prepare(&mut self, sql: String) -> Result<Query<DuckDBDriver>> {
         let connection = AtomicPtr::new(*self.connection);
-        let source = query.clone();
         let context = format!(
-            "While preparing the query {}",
-            printable_query!(query.as_str())
+            "While preparing the query:\n{}",
+            printable_query!(sql.as_str())
         );
         let prepared = spawn_blocking(move || unsafe {
             let mut prepared = CBox::new(ptr::null_mut(), |mut p| duckdb_destroy_prepare(&mut p));
-            let source = match CString::new(source.as_bytes()) {
-                Ok(query) => query,
+            let sql = match CString::new(sql.as_bytes()) {
+                Ok(sql) => sql,
                 Err(e) => {
-                    let error =
-                        Error::new(e).context("Could not create a CString from the query String");
+                    let error = Error::new(e)
+                        .context("Could not create a CString from the query String")
+                        .context(context);
                     log::error!("{:#}", error);
                     return Err(error);
                 }
             };
             let rc = duckdb_prepare(
                 connection.load(Ordering::Relaxed),
-                source.as_ptr(),
+                sql.as_ptr(),
                 &mut *prepared,
             );
             if rc != duckdb_state_DuckDBSuccess {
@@ -248,8 +251,7 @@ impl Executor for DuckDBConnection {
             Ok(prepared)
         })
         .await?;
-        let prepared = DuckDBPrepared::new(prepared?);
-        Ok(prepared.into())
+        Ok(DuckDBPrepared::new(prepared?).into())
     }
 
     fn run(&mut self, query: Query<DuckDBDriver>) -> impl Stream<Item = Result<QueryResult>> {

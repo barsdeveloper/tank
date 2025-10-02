@@ -328,10 +328,13 @@ pub async fn books<E: Executor>(executor: &mut E) {
             co_author: None,
             year: 2025,
         };
+        let level = log::max_level();
+        log::set_max_level(log::LevelFilter::Off);
         assert!(
             book.save(executor).await.is_err(),
             "Must fail to save book violating referential integrity"
         );
+        log::set_max_level(level);
     }
 
     #[cfg(not(feature = "disable-ordering"))]

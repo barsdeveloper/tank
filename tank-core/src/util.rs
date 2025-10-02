@@ -99,13 +99,12 @@ macro_rules! printable_query {
     };
 }
 
+/// Sends the value through the channel and logs in case of error.
 #[macro_export]
-macro_rules! send_error {
-    ($tx:ident, $error:expr) => {{
-        let error = $error;
-        ::log::error!("{:#}", error);
-        if let Err(send_error) = $tx.send(Err(error)) {
-            ::log::error!("{:#}", send_error)
+macro_rules! send_value {
+    ($tx:ident, $value:expr) => {{
+        if let Err(e) = $tx.send($value) {
+            log::error!("{:#}", e);
         }
     }};
 }
