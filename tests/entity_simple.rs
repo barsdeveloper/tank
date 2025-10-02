@@ -70,6 +70,12 @@ mod tests {
         assert_eq!(columns[0].references, None);
         assert_eq!(columns[1].references, None);
         assert_eq!(columns[2].references, None);
+        assert_eq!(columns[0].on_delete, None);
+        assert_eq!(columns[1].on_delete, None);
+        assert_eq!(columns[2].on_delete, None);
+        assert_eq!(columns[0].on_update, None);
+        assert_eq!(columns[1].on_update, None);
+        assert_eq!(columns[2].on_update, None);
         assert_eq!(columns[0].passive, false);
         assert_eq!(columns[1].passive, false);
         assert_eq!(columns[2].passive, false);
@@ -87,8 +93,7 @@ mod tests {
                 "b" VARCHAR,
                 "c" USMALLINT NOT NULL UNIQUE,
                 UNIQUE ("a", "c"),
-                UNIQUE ("b", "c")
-                );
+                UNIQUE ("b", "c"));
             "#}
             .trim()
         );

@@ -43,6 +43,28 @@ impl ToTokens for PrimaryKeyType {
     }
 }
 
+#[derive(Default, Debug, PartialEq, Eq)]
+pub enum Action {
+    #[default]
+    NoAction,
+    Restrict,
+    Cascade,
+    SetNull,
+    SetDefault,
+}
+
+impl ToTokens for Action {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        tokens.append_all(match self {
+            Action::NoAction => quote! { ::tank::Action::NoAction },
+            Action::Restrict => quote! { ::tank::Action::Restrict },
+            Action::Cascade => quote! { ::tank::Action::Cascade },
+            Action::SetNull => quote! { ::tank::Action::SetNull },
+            Action::SetDefault => quote! { ::tank::Action::SetDefault },
+        });
+    }
+}
+
 #[derive(Default, Debug)]
 pub struct ColumnDef {
     pub column_ref: ColumnRef,
@@ -53,6 +75,8 @@ pub struct ColumnDef {
     pub primary_key: PrimaryKeyType,
     pub unique: bool,
     pub references: Option<ColumnRef>,
+    pub on_delete: Option<Action>,
+    pub on_update: Option<Action>,
     pub passive: bool,
     pub comment: &'static str,
 }

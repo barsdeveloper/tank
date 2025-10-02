@@ -6,49 +6,10 @@ use syn::{
     parse2,
     token::Paren,
 };
-use tank_core::JoinType;
+use tank_core::{JoinType, take_until};
 
 pub(crate) struct JoinParsed(pub(crate) TokenStream);
 struct JoinMemberParsed(pub(crate) TokenStream);
-
-/// Accumulates the tokens until a parser matches.
-///
-/// It returns the accumulated `TokenStream` as well as the result of the match (if any).
-macro_rules! take_until {
-    ($original:expr, $($parser:expr),+ $(,)?) => {{
-        let macro_local_input = $original.fork();
-        let mut macro_local_result = (
-            TokenStream::new(),
-            ($({
-                let _ = $parser;
-                None
-            }),+),
-        );
-        loop {
-            if macro_local_input.is_empty() {
-                break;
-            }
-            let mut parsed = false;
-            let produced = ($({
-                let attempt = macro_local_input.fork();
-                if let Ok(content) = ($parser)(&attempt) {
-                    macro_local_input.advance_to(&attempt);
-                    parsed = true;
-                    Some(content)
-                } else {
-                    None
-                }
-            }),+);
-            if parsed {
-                macro_local_result.1 = produced;
-                break;
-            }
-            macro_local_result.0.append(macro_local_input.parse::<TokenTree>()?);
-        }
-        $original.advance_to(&macro_local_input);
-        macro_local_result
-    }};
-}
 
 fn parse_join_rhs(original: ParseStream, join: JoinType, lhs: TokenStream) -> Result<TokenStream> {
     let input = original.fork();

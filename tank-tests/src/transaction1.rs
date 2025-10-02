@@ -1,8 +1,5 @@
 use std::sync::LazyLock;
-use tank::{
-    Connection, DataSet, Entity, Transaction, cols,
-    stream::{StreamExt, TryStreamExt},
-};
+use tank::{Connection, DataSet, Entity, Transaction, cols, stream::TryStreamExt};
 use tokio::sync::Mutex;
 
 #[derive(Entity)]

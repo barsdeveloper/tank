@@ -13,7 +13,7 @@ Start with a plain Rust struct and derive the `tank::Entity` trait.
 pub struct Mission {
     pub code_name: String,
     pub start_time: Passive<PrimitiveDateTime>,
-    #[tank(references = armory.weapons.serial_number)]
+    #[tank(references = armory.weapons(serial_number))]
     pub primary_weapon: Option<i64>,
     pub objectives: Vec<String>,
     pub success_rate: f32,

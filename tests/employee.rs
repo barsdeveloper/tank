@@ -174,8 +174,7 @@ mod tests {
                 "skills" VARCHAR[] NOT NULL,
                 "documents" MAP(VARCHAR,BLOB),
                 "access" UUID NOT NULL UNIQUE,
-                "deleted" BOOLEAN NOT NULL DEFAULT false
-                );
+                "deleted" BOOLEAN NOT NULL DEFAULT false);
             "#}
             .trim()
         );

@@ -36,8 +36,7 @@ mod tests {
                     CREATE TABLE "my_table" (
                     "special_column" VARCHAR,
                     "second_column" DOUBLE NOT NULL,
-                    "third_column" INTEGER PRIMARY KEY
-                    );
+                    "third_column" INTEGER PRIMARY KEY);
                 "#}
                 .trim()
             )
@@ -127,8 +126,7 @@ mod tests {
                     "created_at" TIMESTAMP NOT NULL,
                     "items" UUID[] NOT NULL,
                     "is_active" BOOLEAN NOT NULL,
-                    "total_price" DECIMAL NOT NULL
-                    );
+                    "total_price" DECIMAL NOT NULL);
                 "#}
                 .trim()
             )

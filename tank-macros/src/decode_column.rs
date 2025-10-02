@@ -1,12 +1,17 @@
 use crate::expr;
-use proc_macro2::{TokenStream, TokenTree};
+use proc_macro2::TokenStream;
 use quote::ToTokens;
 use std::fmt::Debug;
 use syn::{
-    Expr, ExprCall, ExprLit, ExprMethodCall, ExprPath, Field, Ident, Lit, LitStr, Type,
-    parse::ParseBuffer,
+    Expr, ExprCall, ExprLit, ExprMethodCall, ExprPath, Field, Ident, Lit, LitStr, Result, Type,
+    custom_keyword,
+    parse::{Parse, ParseStream},
+    parse2,
+    token::{Comma, Eq},
 };
-use tank_core::{CheckPassive, PrimaryKeyType, TypeDecoded, Value, decode_type};
+use tank_core::{
+    Action, CheckPassive, PrimaryKeyType, TypeDecoded, Value, decode_type, future::Either,
+};
 
 pub(crate) struct ColumnMetadata {
     pub(crate) ident: Ident,
@@ -18,7 +23,9 @@ pub(crate) struct ColumnMetadata {
     pub(crate) nullable: bool,
     pub(crate) default: Option<TokenStream>,
     pub(crate) primary_key: PrimaryKeyType,
-    pub(crate) references: Option<(String, String)>,
+    pub(crate) references: Option<Either<TokenStream, (String, String)>>,
+    pub(crate) on_delete: Option<Action>,
+    pub(crate) on_update: Option<Action>,
     pub(crate) unique: bool,
     pub(crate) passive: bool,
     pub(crate) check_passive: Option<CheckPassive>,
@@ -37,11 +44,51 @@ impl Debug for ColumnMetadata {
             .field("default", &self.default)
             .field("primary_key", &self.primary_key)
             .field("references", &self.references)
+            .field("on_delete", &self.on_delete)
+            .field("on_update", &self.on_update)
             .field("unique", &self.unique)
             .field("passive", &self.passive)
             .field("check_passive", &"..")
             .field("comment", &self.comment)
             .finish()
+    }
+}
+
+#[derive(Debug)]
+struct Entry {
+    name: String,
+    value: TokenStream,
+}
+
+impl Parse for Entry {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let ident: syn::Ident = input.parse()?;
+        let name = ident.to_string();
+        let value = if input.parse::<Eq>().is_ok() {
+            input
+                .parse::<TokenStream>()
+                .expect("There must be some value after `=`")
+        } else {
+            TokenStream::new()
+        };
+        Ok(Entry { name, value })
+    }
+}
+
+#[derive(Debug)]
+struct Entries(pub(crate) Vec<Entry>);
+
+impl Parse for Entries {
+    fn parse(input: ParseStream) -> Result<Self> {
+        Ok(Entries(
+            input
+                .parse_terminated(Expr::parse, Comma)?
+                .into_iter()
+                .map(ToTokens::into_token_stream)
+                .map(parse2::<Entry>)
+                .flatten()
+                .collect(),
+        ))
     }
 }
 
@@ -62,6 +109,8 @@ pub fn decode_column(field: &Field) -> ColumnMetadata {
         default: None,
         primary_key: PrimaryKeyType::None,
         references: None,
+        on_delete: None,
+        on_update: None,
         unique: false,
         passive: false,
         check_passive: None,
@@ -74,93 +123,83 @@ pub fn decode_column(field: &Field) -> ColumnMetadata {
         let meta = &attr.meta;
         if meta.path().is_ident("tank") {
             let Ok(list) = meta.require_list() else {
-                panic!("Error while parsing `tank`, use it like: `#[tank(attribute = value, ..)]`",);
+                panic!("Cannot parse `tank`, example: `#[tank(attribute = value, ..)]`");
             };
-            let _ = list.parse_nested_meta(|arg| {
-                if arg.path.is_ident("ignore") {
+            let entries = parse2::<Entries>(list.tokens.clone()).expect("...").0;
+            for entry in entries {
+                let (name, value) = (entry.name, entry.value);
+                if name == "ignore" {
                     metadata.ignored = true;
-                } else if arg.path.is_ident("default") {
-                    let Ok(v) = arg.value().and_then(ParseBuffer::parse::<TokenTree>)
-                    else {
-                        panic!("Error while parsing `default`, use it like: `#[tank(default = some_expression)]`");
-                    };
-                    metadata.default = Some(expr(v.to_token_stream().into()).into());
-                } else if arg.path.is_ident("name") {
-                    let Ok(v) = arg.value().and_then(ParseBuffer::parse::<LitStr>) else {
-                      panic!("Error while parsing `name`, use it like: `#[tank(name = \"my_column\")]`");
+                } else if name == "default" {
+                    metadata.default = Some(expr(value.to_token_stream().into()).into());
+                } else if name == "name" {
+                    let Ok(v) = parse2::<LitStr>(value.clone()) else {
+                        panic!("Cannot parse `name`, example: `#[tank(name = \"my_column\")]`");
                     };
                     metadata.name = v.value();
-                } else if arg.path.is_ident("type") {
-                    let Ok(v) = arg.value().and_then(ParseBuffer::parse::<LitStr>) else {
-                        panic!("Error while parsing `type`, use it like: `#[tank(type = \"VARCHAR\")]`");
-                    };
-                    metadata.column_type = v.value();
-                } else if arg.path.is_ident("primary_key") {
-                    let Err(..) = arg.value() else {
-                        // value() is Err for Meta::Path
-                        panic!(
-                            "Error while parsing `primary_key`, use it like: `#[tank(primary_key)]`"
-                        );
-                    };
+                } else if name == "type" {
+                    metadata.column_type = value.to_string();
+                } else if name == "primary_key" {
                     metadata.primary_key = PrimaryKeyType::PrimaryKey;
                     metadata.nullable = false;
-                } else if arg.path.is_ident("references") {
-                    let Ok(reference) = arg
-                        .value()
-                        .and_then(|v| {
-                            if let Ok(v) = v.fork().parse::<ExprMethodCall>().map(|v| {
-                                if !v.attrs.is_empty() {
-                                    panic!("Table reference cannot have attributes");
-                                }
-                                if v.turbofish.is_some() {
-                                    panic!("Table reference cannot have template arguments");
-                                }
-                                (format!("{}.{}", v.receiver.to_token_stream(), v.method.to_token_stream().to_string()), v.args)
-                            }) {
-                                return Ok(v);
-                            }
-                            if let Ok(v) = v.fork().parse::<ExprCall>().map(|v| {
-                                if !v.attrs.is_empty() {
-                                    panic!("Table reference cannot have attributes");
-                                }
-                                (v.func.to_token_stream().to_string(), v.args)
-                            }) {
-                                return Ok(v);
-                            }
-                            panic!("Unexpected expression syntax for `references` {:?}, use it like: `MyEntity::column` or `schema.table_name(column_name)`", v.to_string());
-                        })
-                            .map(|(func, args)| {
-                                if args.len() != 1 {
-                                    panic!("Expected references to have a single argument");
-                                }
-                                (
-                                    func,
-                                    args
-                                        .iter()
-                                        .map(|v| match v {
-                                            Expr::Lit(ExprLit{lit: Lit::Str(v), ..}) => v.value(),
-                                            Expr::Path(ExprPath {path,..}) if path.segments.len() == 1 => path.get_ident().unwrap().to_string(),
-                                            _ => panic!("Expected the referred column name to be either a string or a identifier")
-                                        })
-                                        .take(1)
-                                        .next()
-                                        .unwrap(),
-                                )
-                            }
-                        ) else {
-                            panic!("Error while parsing `references` use it like: `MyEntity::column` or `schema.table_name(column_name)`");
-                        };
-                    metadata.references = reference.into();
-                } else if arg.path.is_ident("unique") {
-                    let Err(..) = arg.value() else {
-                        panic!("Error while parsing `unique`, use it like: `#[tank(unique)]`");
+                } else if name == "references" {
+                    let reference = if let Ok(v) = parse2::<ExprMethodCall>(value.clone()) {
+                        if v.args.len() != 1 {
+                            panic!("Expected references to have a single argument");
+                        }
+                        let receiver = v.receiver.to_token_stream();
+                        let method = v.method.to_token_stream().to_string();
+                        let arg = v.args.first().unwrap().into_token_stream().to_string();
+                        Either::Right((format!("{}.{}", receiver, method), arg))
+                    } else if let Ok(v) = parse2::<ExprCall>(value.clone()) {
+                        if v.args.len() != 1 {
+                            panic!("Expected references to have a single argument");
+                        }
+                        let function = v.func.to_token_stream().to_string();
+                        let arg = v.args.first().unwrap().into_token_stream().to_string();
+                        Either::Right((function, arg))
+                    } else if let Ok(v) = parse2::<ExprPath>(value.clone()) {
+                        Either::Left(v.path.to_token_stream())
+                    } else {
+                        panic!(
+                            "Unexpected expression syntax for `references` {:?}, use it like: `MyEntity::column` or `schema.table_name(column_name)`",
+                            value.to_string()
+                        );
                     };
+                    metadata.references = Some(reference);
+                } else if name == "on_delete" || name == "on_update" {
+                    let is_delete = name == "on_delete";
+                    custom_keyword!(no_action);
+                    custom_keyword!(restrict);
+                    custom_keyword!(cascade);
+                    custom_keyword!(set_null);
+                    custom_keyword!(set_default);
+                    let action = if let Ok(..) = parse2::<no_action>(value.clone()) {
+                        Action::NoAction
+                    } else if let Ok(..) = parse2::<restrict>(value.clone()) {
+                        Action::Restrict
+                    } else if let Ok(..) = parse2::<cascade>(value.clone()) {
+                        Action::Cascade
+                    } else if let Ok(..) = parse2::<set_null>(value.clone()) {
+                        Action::SetNull
+                    } else if let Ok(..) = parse2::<set_default>(value.clone()) {
+                        Action::SetDefault
+                    } else {
+                        panic!(
+                            "Expected the action to be either no_action, restrict, cascade, set_null, set_default"
+                        );
+                    };
+                    if is_delete {
+                        metadata.on_delete = action.into();
+                    } else {
+                        metadata.on_update = action.into();
+                    }
+                } else if name == "unique" {
                     metadata.unique = true;
                 } else {
-                    panic!("Unknown attribute `{}` inside tank macro", arg.path.to_token_stream().to_string());
+                    panic!("Unknown attribute `{}` inside tank macro", name);
                 }
-                Ok(())
-            });
+            }
         } else if meta.path().is_ident("doc") {
             let Ok(&Expr::Lit(ExprLit {
                 lit: Lit::Str(ref v),

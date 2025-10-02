@@ -11,8 +11,8 @@ mod tests {
         collections::{BTreeMap, HashMap},
     };
     use tank::{
-        ColumnRef, Entity, Expression, GenericSqlWriter, Operand, Passive, PrimaryKeyType,
-        SqlWriter, TableRef, Value, expr,
+        Action, Entity, Expression, GenericSqlWriter, Operand, Passive, PrimaryKeyType, SqlWriter,
+        TableRef, Value, expr,
     };
     use time::macros::datetime;
     use uuid::Uuid;
@@ -22,7 +22,7 @@ mod tests {
     pub struct Trade {
         #[tank(name = "trade_id")]
         pub trade: u64,
-        #[tank(name = "order_id", default = "241d362d-797e-4769-b3f6-412440c8cf68", references = order(id))]
+        #[tank(name = "order_id", default = "241d362d-797e-4769-b3f6-412440c8cf68", references = order(id), on_delete = set_default, on_update = restrict)]
         pub order: Uuid,
         /// Ticker symbol
         pub symbol: String,
@@ -194,26 +194,32 @@ mod tests {
         assert_eq!(columns[10].unique, false);
         assert_eq!(columns[11].unique, false);
         assert_eq!(columns[12].unique, false);
-        assert_eq!(columns[0].references, None);
-        assert_eq!(
-            columns[1].references,
-            Some(ColumnRef {
-                name: "id",
-                table: "order",
-                ..Default::default()
-            })
-        );
-        assert_eq!(columns[2].references, None);
-        assert_eq!(columns[3].references, None);
-        assert_eq!(columns[4].references, None);
-        assert_eq!(columns[5].references, None);
-        assert_eq!(columns[6].references, None);
-        assert_eq!(columns[7].references, None);
-        assert_eq!(columns[8].references, None);
-        assert_eq!(columns[9].references, None);
-        assert_eq!(columns[10].references, None);
-        assert_eq!(columns[11].references, None);
-        assert_eq!(columns[12].references, None);
+        assert_eq!(columns[0].on_delete, None);
+        assert_eq!(columns[1].on_delete, Some(Action::SetDefault));
+        assert_eq!(columns[2].on_delete, None);
+        assert_eq!(columns[3].on_delete, None);
+        assert_eq!(columns[4].on_delete, None);
+        assert_eq!(columns[5].on_delete, None);
+        assert_eq!(columns[6].on_delete, None);
+        assert_eq!(columns[7].on_delete, None);
+        assert_eq!(columns[8].on_delete, None);
+        assert_eq!(columns[9].on_delete, None);
+        assert_eq!(columns[10].on_delete, None);
+        assert_eq!(columns[11].on_delete, None);
+        assert_eq!(columns[12].on_delete, None);
+        assert_eq!(columns[0].on_update, None);
+        assert_eq!(columns[1].on_update, Some(Action::Restrict));
+        assert_eq!(columns[2].on_update, None);
+        assert_eq!(columns[3].on_update, None);
+        assert_eq!(columns[4].on_update, None);
+        assert_eq!(columns[5].on_update, None);
+        assert_eq!(columns[6].on_update, None);
+        assert_eq!(columns[7].on_update, None);
+        assert_eq!(columns[8].on_update, None);
+        assert_eq!(columns[9].on_update, None);
+        assert_eq!(columns[10].on_update, None);
+        assert_eq!(columns[11].on_update, None);
+        assert_eq!(columns[12].on_update, None);
         assert_eq!(columns[0].passive, false);
         assert_eq!(columns[1].passive, false);
         assert_eq!(columns[2].passive, false);
@@ -238,7 +244,7 @@ mod tests {
             indoc! {r#"
                 CREATE TABLE "trading.company"."trade_execution" (
                 "trade_id" UBIGINT,
-                "order_id" UUID NOT NULL DEFAULT '241d362d-797e-4769-b3f6-412440c8cf68' REFERENCES "order"("id"),
+                "order_id" UUID NOT NULL DEFAULT '241d362d-797e-4769-b3f6-412440c8cf68' REFERENCES "order"("id") ON DELETE SET DEFAULT ON UPDATE RESTRICT,
                 "symbol" VARCHAR NOT NULL,
                 "isin" CHAR(1)[12] NOT NULL,
                 "price" DECIMAL(18,4) NOT NULL,
@@ -250,8 +256,7 @@ mod tests {
                 "child_trade_ids" BIGINT[],
                 "metadata" BLOB,
                 "tags" MAP(VARCHAR,VARCHAR),
-                PRIMARY KEY ("trade_id", "execution_time")
-                );
+                PRIMARY KEY ("trade_id", "execution_time"));
                 COMMENT ON COLUMN "trading.company"."trade_execution"."symbol" IS 'Ticker symbol';
                 COMMENT ON COLUMN "trading.company"."trade_execution"."venue" IS 'Exchange';
             "#}

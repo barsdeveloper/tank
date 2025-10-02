@@ -22,9 +22,9 @@ pub struct Book {
     pub isbn: [u8; 13],
     pub title: String,
     /// Main author
-    #[tank(references = testing.authors(author_id))]
+    #[tank(references = Author::id)]
     pub author: Uuid,
-    #[tank(references = testing.authors(author_id))]
+    #[tank(references = Author::id)]
     pub co_author: Option<Uuid>,
     pub year: i32,
 }
@@ -316,6 +316,23 @@ pub async fn books<E: Executor>(executor: &mut E) {
             },
         ])
     );
+
+    #[cfg(not(feature = "disable-references"))]
+    {
+        // Insert book violating referential integrity
+        let book = Book {
+            #[cfg(not(feature = "disable-arrays"))]
+            isbn: [9, 7, 8, 1, 7, 3, 3, 5, 6, 1, 0, 8, 0],
+            title: "My book".into(),
+            author: Uuid::parse_str("c18c04b4-1aae-48a3-9814-9b70f7a38315").unwrap(),
+            co_author: None,
+            year: 2025,
+        };
+        assert!(
+            book.save(executor).await.is_err(),
+            "Must fail to save book violating referential integrity"
+        );
+    }
 
     #[cfg(not(feature = "disable-ordering"))]
     {

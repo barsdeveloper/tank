@@ -36,6 +36,13 @@ where
     }
 }
 
+pub fn quote_option<T: ToTokens>(value: &Option<T>) -> TokenStream {
+    match value {
+        None => quote! { None },
+        Some(v) => quote! { Some(#v) },
+    }
+}
+
 pub fn matches_path(path: &Path, expect: &[&str]) -> bool {
     let len = min(path.segments.len(), expect.len());
     path.segments
@@ -100,5 +107,45 @@ macro_rules! send_error {
         if let Err(send_error) = $tx.send(Err(error)) {
             ::log::error!("{:#}", send_error)
         }
+    }};
+}
+
+/// Accumulates the tokens until a parser matches.
+///
+/// It returns the accumulated `TokenStream` as well as the result of the match (if any).
+#[macro_export]
+macro_rules! take_until {
+    ($original:expr, $($parser:expr),+ $(,)?) => {{
+        let macro_local_input = $original.fork();
+        let mut macro_local_result = (
+            TokenStream::new(),
+            ($({
+                let _ = $parser;
+                None
+            }),+),
+        );
+        loop {
+            if macro_local_input.is_empty() {
+                break;
+            }
+            let mut parsed = false;
+            let produced = ($({
+                let attempt = macro_local_input.fork();
+                if let Ok(content) = ($parser)(&attempt) {
+                    macro_local_input.advance_to(&attempt);
+                    parsed = true;
+                    Some(content)
+                } else {
+                    None
+                }
+            }),+);
+            if parsed {
+                macro_local_result.1 = produced;
+                break;
+            }
+            macro_local_result.0.append(macro_local_input.parse::<TokenTree>()?);
+        }
+        $original.advance_to(&macro_local_input);
+        macro_local_result
     }};
 }

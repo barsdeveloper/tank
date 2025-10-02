@@ -1,7 +1,7 @@
 use crate::{
-    BinaryOp, BinaryOpType, ColumnDef, ColumnRef, DataSet, EitherIterator, Entity, Expression,
-    Fragment, Interval, Join, JoinType, Operand, Order, Ordered, PrimaryKeyType, TableRef, UnaryOp,
-    UnaryOpType, Value, possibly_parenthesized, separated_by, writer::Context,
+    Action, BinaryOp, BinaryOpType, ColumnDef, ColumnRef, DataSet, EitherIterator, Entity,
+    Expression, Fragment, Interval, Join, JoinType, Operand, Order, Ordered, PrimaryKeyType,
+    TableRef, UnaryOp, UnaryOpType, Value, possibly_parenthesized, separated_by, writer::Context,
 };
 use std::{collections::HashMap, fmt::Write};
 use time::{Date, Time};
@@ -761,7 +761,30 @@ pub trait SqlWriter {
             buff.push('(');
             self.write_column_ref(context, buff, &references);
             buff.push(')');
+            if let Some(on_delete) = &column.on_delete {
+                buff.push_str(" ON DELETE ");
+                self.write_create_table_references_action(context, buff, on_delete);
+            }
+            if let Some(on_update) = &column.on_update {
+                buff.push_str(" ON UPDATE ");
+                self.write_create_table_references_action(context, buff, on_update);
+            }
         }
+    }
+
+    fn write_create_table_references_action(
+        &self,
+        _context: Context,
+        buff: &mut String,
+        action: &Action,
+    ) {
+        buff.push_str(match action {
+            Action::NoAction => "NO ACTION",
+            Action::Restrict => "RESTRICT",
+            Action::Cascade => "CASCADE",
+            Action::SetNull => "SET NULL",
+            Action::SetDefault => "SET DEFAULT",
+        });
     }
 
     fn write_drop_table<E>(&self, buff: &mut String, if_exists: bool)

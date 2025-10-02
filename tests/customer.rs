@@ -93,6 +93,16 @@ mod tests {
         assert_eq!(columns[2].references, None);
         assert_eq!(columns[3].references, None);
         assert_eq!(columns[4].references, None);
+        assert_eq!(columns[0].on_delete, None);
+        assert_eq!(columns[1].on_delete, None);
+        assert_eq!(columns[2].on_delete, None);
+        assert_eq!(columns[3].on_delete, None);
+        assert_eq!(columns[4].on_delete, None);
+        assert_eq!(columns[0].on_update, None);
+        assert_eq!(columns[1].on_update, None);
+        assert_eq!(columns[2].on_update, None);
+        assert_eq!(columns[3].on_update, None);
+        assert_eq!(columns[4].on_update, None);
         assert_eq!(columns[0].passive, false);
         assert_eq!(columns[1].passive, false);
         assert_eq!(columns[2].passive, false);
@@ -126,8 +136,7 @@ mod tests {
                 "settings" VARCHAR[] DEFAULT ['discount', 'newsletter'],
                 "values" FLOAT[],
                 "signup_duration" INTERVAL NOT NULL,
-                "recent_purchases" BIGINT[][]
-                );
+                "recent_purchases" BIGINT[][]);
                 COMMENT ON COLUMN "customers"."recent_purchases" IS 'List of all the full cart products\nIt''s a list of lists of ids\n\nCan also be empty';
             "#}
             .trim()

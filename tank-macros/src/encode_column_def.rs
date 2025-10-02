@@ -1,6 +1,7 @@
 use crate::decode_column::ColumnMetadata;
 use proc_macro2::TokenStream;
 use quote::quote;
+use tank_core::{future::Either, quote_option};
 
 pub fn encode_column_def(metadata: &ColumnMetadata, column_ref: TokenStream) -> TokenStream {
     let column_type = &metadata.column_type;
@@ -11,7 +12,10 @@ pub fn encode_column_def(metadata: &ColumnMetadata, column_ref: TokenStream) -> 
         .as_ref()
         .map_or(quote!(None), |v| quote!(Some(Box::new(#v))));
     let primary_key = &metadata.primary_key;
-    let references = if let Some((table, column)) = &metadata.references {
+    let references = if let Some(Either::Left(tokens)) = &metadata.references {
+        let tokens = tokens.clone();
+        quote!(Some(#tokens))
+    } else if let Some(Either::Right((table, column))) = &metadata.references {
         let (schema, table) = match table.rsplit_once('.') {
             Some((schema, table)) => (schema.to_string(), table.to_string()),
             _ => (String::new(), table.to_string()),
@@ -26,6 +30,8 @@ pub fn encode_column_def(metadata: &ColumnMetadata, column_ref: TokenStream) -> 
     } else {
         quote!(None)
     };
+    let on_delete = quote_option(&metadata.on_delete);
+    let on_update = quote_option(&metadata.on_update);
     let unique = &metadata.unique;
     let passive = &metadata.passive;
     let comment = &metadata.comment;
@@ -38,6 +44,8 @@ pub fn encode_column_def(metadata: &ColumnMetadata, column_ref: TokenStream) -> 
             default: #default,
             primary_key: #primary_key,
             references: #references,
+            on_delete: #on_delete,
+            on_update: #on_update,
             unique: #unique,
             passive: #passive,
             comment: #comment,
