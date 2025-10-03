@@ -186,19 +186,19 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                 drop_schema: bool,
             ) -> ::tank::Result<()> {
                 let mut query = String::with_capacity(256);
-                if drop_schema && !#schema.is_empty() {
-                    ::tank::SqlWriter::write_drop_schema::<#ident>(
-                        &::tank::Driver::sql_writer(executor.driver()),
-                        &mut query,
-                        true,
-                    );
-                    query.push('\n');
-                }
                 ::tank::SqlWriter::write_drop_table::<#ident>(
                     &::tank::Driver::sql_writer(executor.driver()),
                     &mut query,
                     if_exists,
                 );
+                if drop_schema && !#schema.is_empty() {
+                    query.push('\n');
+                    ::tank::SqlWriter::write_drop_schema::<#ident>(
+                        &::tank::Driver::sql_writer(executor.driver()),
+                        &mut query,
+                        true,
+                    );
+                }
                 executor
                     .execute(::tank::Query::Raw(query.into()))
                     .await

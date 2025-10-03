@@ -3,6 +3,7 @@
 mod aggregates;
 mod books;
 mod complex;
+mod documentation;
 mod insane;
 mod limits;
 mod multiple;
@@ -15,6 +16,7 @@ mod user;
 use crate::{
     books::books,
     complex::complex,
+    documentation::documentation,
     insane::insane,
     limits::limits,
     multiple::multiple,
@@ -50,5 +52,6 @@ pub async fn execute_tests<C: Connection>(mut connection: C) {
     multiple(&mut connection).await;
     #[cfg(not(feature = "disable-transactions"))]
     transaction1(&mut connection).await;
-    let _ = readme(&mut connection).await;
+    drop(readme(&mut connection).await);
+    documentation(&mut connection).await;
 }
