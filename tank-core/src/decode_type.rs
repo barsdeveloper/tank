@@ -79,6 +79,8 @@ pub fn decode_type(ty: &Type) -> (TypeDecoded, Option<CheckPassive>) {
                 break 'data_type Value::Date(None);
             } else if matches_path(path, &["time", "PrimitiveDateTime"]) {
                 break 'data_type Value::Timestamp(None);
+            } else if matches_path(path, &["time", "OffsetDateTime"]) {
+                break 'data_type Value::TimestampWithTimezone(None);
             } else if matches_path(path, &["std", "time", "Duration"])
                 || matches_path(path, &["tank", "Interval"])
             {
