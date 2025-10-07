@@ -39,7 +39,7 @@ https://crates.io/crates/tank
 cargo add tank
 ```
 
-2) Choose your ammunition
+2) Choose your battlefield
 ```sh
 cargo add tank-duckdb
 ```
@@ -101,8 +101,7 @@ async fn data() -> Result<()> {
      *     "caliber" USMALLINT NOT NULL,
      *     "speed" FLOAT NOT NULL,
      *     "is_operational" BOOLEAN NOT NULL,
-     *     "units_produced" UINTEGER
-     * );
+     *     "units_produced" UINTEGER);
      */
     Tank::create_table(connection, true, true)
         .await
