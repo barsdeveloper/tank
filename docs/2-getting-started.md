@@ -8,7 +8,7 @@ cargo add tank
 
 2) Choose your ammunition
 
-Check the [armory](1-introduction.md#armory) to see what driver is available.
+Check the [equipment](1-introduction.md#equipment) to see what driver is available.
 ```sh
 cargo add tank-duckdb
 ```
