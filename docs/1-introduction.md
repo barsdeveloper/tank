@@ -11,7 +11,7 @@ Welcome to the Tank field manual. This is the quick-and-mean guide for developer
 - **Rich type arsenal** with automatic conversions between Rust and database types.
 - **Optional appender API** for high caliber bulk inserts.
 
-## Armory
+## Equipment
 - [**tank**](https://crates.io/crates/tank): The command vehicle, rallying the core arsenal and procedural macro firepower for seamless battlefield operations.
 - [**tank-duckdb**](https://crates.io/crates/tank-duckdb): DuckDB driver.
 - [**tank-sqlite**](https://crates.io/crates/tank-sqlite): Sqlite driver.
