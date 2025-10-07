@@ -6,7 +6,7 @@ What follows is just a visit to the shooting range, not the full campaign. This 
 cargo add tank
 ```
 
-2) Choose your ammunition
+2) Choose your battlefield
 
 Check the [equipment](1-introduction.md#equipment) to see what driver is available.
 ```sh
