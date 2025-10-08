@@ -1,6 +1,5 @@
-use tank_core::{Driver, DriverTransactional};
-
 use crate::{SqliteConnection, SqlitePrepared, SqliteTransaction, sql_writer::SqliteSqlWriter};
+use tank_core::{Driver, DriverTransactional};
 
 pub struct SqliteDriver {}
 
