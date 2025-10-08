@@ -1518,8 +1518,8 @@ version = "0.3.0"
 dependencies = [
  "indoc",
  "rust_decimal",
- "tank-core 0.3.0",
- "tank-macros 0.3.0",
+ "tank-core 0.2.0",
+ "tank-macros 0.2.0",
  "time",
  "tokio",
  "uuid",
@@ -1573,7 +1573,7 @@ dependencies = [
  "libduckdb-sys",
  "log",
  "rust_decimal",
- "tank-core 0.3.0",
+ "tank-core 0.2.0",
  "tank-tests",
  "time",
  "tokio",
@@ -1603,7 +1603,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.106",
- "tank-core 0.3.0",
+ "tank-core 0.2.0",
 ]
 
 [[package]]
@@ -1614,7 +1614,7 @@ dependencies = [
  "log",
  "postgres-types",
  "rust_decimal",
- "tank-core 0.3.0",
+ "tank-core 0.2.0",
  "tank-tests",
  "time",
  "tokio-postgres",
@@ -1631,7 +1631,7 @@ dependencies = [
  "libsqlite3-sys",
  "log",
  "rust_decimal",
- "tank-core 0.3.0",
+ "tank-core 0.2.0",
  "tank-tests",
  "tokio",
  "url",
