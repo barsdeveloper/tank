@@ -1,11 +1,10 @@
+use crate::{PostgresTransaction, ValueHolder};
 use std::{
     fmt::{self, Debug, Display},
     mem,
 };
 use tank_core::{AsValue, Error, Prepared, Result, future::Either};
 use tokio_postgres::{Portal, Statement};
-
-use crate::{PostgresTransaction, ValueHolder};
 
 pub struct PostgresPrepared {
     pub(crate) statement: Statement,

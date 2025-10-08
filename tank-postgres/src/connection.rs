@@ -1,3 +1,6 @@
+use crate::{
+    PostgresDriver, PostgresPrepared, PostgresTransaction, ValueHolder, util::row_to_tank_row,
+};
 use async_stream::try_stream;
 use std::{borrow::Cow, future, pin::pin, sync::Arc};
 use tank_core::{
@@ -7,10 +10,6 @@ use tank_core::{
     stream::{self, Stream, StreamExt},
 };
 use tokio_postgres::{NoTls, Socket, tls::NoTlsStream};
-
-use crate::{
-    PostgresDriver, PostgresPrepared, PostgresTransaction, ValueHolder, util::row_to_tank_row,
-};
 
 pub struct PostgresConnection {
     pub(crate) connection: tokio_postgres::Connection<Socket, NoTlsStream>,

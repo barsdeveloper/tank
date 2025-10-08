@@ -1,7 +1,7 @@
 [package]
 name = "tank-postgres"
 description = "Postgres driver implementation for Tank: the Rust data layer"
-version = "0.2.0"
+version = "0.3.0"
 authors.workspace = true
 license.workspace = true
 edition.workspace = true
@@ -13,7 +13,7 @@ async-stream = "0.3.6"
 log = { workspace = true }
 postgres-types = "0.2.10"
 rust_decimal = { workspace = true }
-tank-core = { version = "0.2.0" }
+tank-core = { version = "0.3.0" }
 time.workspace = true
 tokio-postgres = { version = "0.7.14", features = ["with-time-0_3"] }
 url = { workspace = true }

@@ -1505,24 +1505,24 @@ dependencies = [
 [[package]]
 name = "tank"
 version = "0.2.0"
-dependencies = [
- "indoc",
- "rust_decimal",
- "tank-core",
- "tank-macros",
- "time",
- "tokio",
- "uuid",
-]
-
-[[package]]
-name = "tank"
-version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bf683514f2b7a797fbe37760d13a57eb4e772333fc7f084cd977840515f1c508"
 dependencies = [
  "tank-core",
- "tank-macros",
+ "tank-macros 0.2.0",
+]
+
+[[package]]
+name = "tank"
+version = "0.3.0"
+dependencies = [
+ "indoc",
+ "rust_decimal",
+ "tank-core",
+ "tank-macros 0.2.0",
+ "time",
+ "tokio",
+ "uuid",
 ]
 
 [[package]]
@@ -1564,6 +1564,19 @@ dependencies = [
 [[package]]
 name = "tank-macros"
 version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d6bfdccf61c5565371c7ca4b43553c59ecde6c95af76e7e03fc065572bb1e749"
+dependencies = [
+ "convert_case",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.106",
+ "tank-core",
+]
+
+[[package]]
+name = "tank-macros"
+version = "0.3.0"
 dependencies = [
  "convert_case",
  "proc-macro2",
@@ -1607,12 +1620,12 @@ dependencies = [
 
 [[package]]
 name = "tank-tests"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "env_logger",
  "log",
  "rust_decimal",
- "tank 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tank 0.2.0",
  "time",
  "tokio",
  "uuid",

@@ -1,9 +1,7 @@
-use std::pin::pin;
-
-use async_stream::try_stream;
-use tank_core::stream::{Stream, StreamExt};
-
 use crate::ValueHolder;
+use async_stream::try_stream;
+use std::pin::pin;
+use tank_core::stream::{Stream, StreamExt};
 
 pub(crate) fn row_to_tank_row(row: tokio_postgres::Row) -> tank_core::Row {
     (0..row.len())

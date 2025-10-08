@@ -1,9 +1,8 @@
-use std::pin::pin;
-
 use crate::{
     PostgresConnection, PostgresDriver, PostgresPrepared, ValueHolder, util::row_to_tank_row,
 };
 use async_stream::try_stream;
+use std::pin::pin;
 use tank_core::{
     Error, Executor, Query, QueryResult, Result, RowLabeled, Transaction,
     future::{Either, TryFutureExt},
