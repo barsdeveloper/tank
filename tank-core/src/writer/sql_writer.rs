@@ -128,8 +128,8 @@ pub trait SqlWriter {
                 self.write_column_type(context, buff, value);
                 buff.push(')');
             }
-            _ => panic!(
-                "Unexpected tank::Value, cannot get the sql type from {:?} variant",
+            _ => log::error!(
+                "Unexpected tank::Value, variant {:?} is not supported",
                 value
             ),
         };
