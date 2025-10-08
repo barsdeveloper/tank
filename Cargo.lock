@@ -1508,7 +1508,7 @@ version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bf683514f2b7a797fbe37760d13a57eb4e772333fc7f084cd977840515f1c508"
 dependencies = [
- "tank-core",
+ "tank-core 0.2.0",
  "tank-macros 0.2.0",
 ]
 
@@ -1518,8 +1518,8 @@ version = "0.3.0"
 dependencies = [
  "indoc",
  "rust_decimal",
- "tank-core",
- "tank-macros 0.2.0",
+ "tank-core 0.3.0",
+ "tank-macros 0.3.0",
  "time",
  "tokio",
  "uuid",
@@ -1528,6 +1528,27 @@ dependencies = [
 [[package]]
 name = "tank-core"
 version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3c756d1e9274c9dc340680b4ec8a172e28f915b938a901e60fc59dc580e2dd2d"
+dependencies = [
+ "anyhow",
+ "async-stream",
+ "futures",
+ "itoa",
+ "log",
+ "proc-macro2",
+ "quote",
+ "rust_decimal",
+ "ryu",
+ "syn 2.0.106",
+ "time",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
+name = "tank-core"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "async-stream",
@@ -1546,13 +1567,13 @@ dependencies = [
 
 [[package]]
 name = "tank-duckdb"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "flume",
  "libduckdb-sys",
  "log",
  "rust_decimal",
- "tank-core",
+ "tank-core 0.3.0",
  "tank-tests",
  "time",
  "tokio",
@@ -1571,7 +1592,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.106",
- "tank-core",
+ "tank-core 0.2.0",
 ]
 
 [[package]]
@@ -1582,18 +1603,18 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.106",
- "tank-core",
+ "tank-core 0.3.0",
 ]
 
 [[package]]
 name = "tank-postgres"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "async-stream",
  "log",
  "postgres-types",
  "rust_decimal",
- "tank-core",
+ "tank-core 0.3.0",
  "tank-tests",
  "time",
  "tokio-postgres",
@@ -1604,13 +1625,13 @@ dependencies = [
 
 [[package]]
 name = "tank-sqlite"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "async-stream",
  "libsqlite3-sys",
  "log",
  "rust_decimal",
- "tank-core",
+ "tank-core 0.3.0",
  "tank-tests",
  "tokio",
  "url",
