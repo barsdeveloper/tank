@@ -133,3 +133,15 @@ impl<'a> From<&'a RowLabeled> for &'a Row {
         &value.values
     }
 }
+
+impl From<RowLabeled> for QueryResult {
+    fn from(value: RowLabeled) -> Self {
+        QueryResult::RowLabeled(value)
+    }
+}
+
+impl From<RowsAffected> for QueryResult {
+    fn from(value: RowsAffected) -> Self {
+        QueryResult::Affected(value)
+    }
+}
