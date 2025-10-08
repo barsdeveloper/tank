@@ -34,6 +34,7 @@ pub struct RadioLog {
 static MUTEX: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
 
 pub async fn documentation<E: Executor>(executor: &mut E) {
+    let _lock = MUTEX.lock().await;
     Operator::drop_table(executor, true, true)
         .await
         .expect("Failed to drop Operator table");

@@ -14,7 +14,7 @@ https://crates.io/crates/tank
 **Known battlefields**:
 - DuckDB
 - SQLite
-- PostgreSQL (Coming soon)
+- PostgreSQL (WIP)
 - MySQL (Coming soon)
 - Cassandra/ScyllaDB (Coming soon)
 - More to be decided...

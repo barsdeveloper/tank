@@ -64,7 +64,7 @@ impl SqlWriter for SqliteSqlWriter {
             Value::TimestampWithTimezone(..) => buff.push_str("TEXT"),
             Value::Uuid(..) => buff.push_str("TEXT"),
             _ => log::error!(
-                "Unexpected tank::Value, cannot get the sql type from {:?} variant",
+                "Unexpected tank::Value, Sqlite does not support {:?}",
                 value
             ),
         };
