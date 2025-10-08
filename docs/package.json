@@ -5,7 +5,6 @@
     "docs:preview": "vitepress preview"
   },
   "devDependencies": {
-    "vitepress": "^1.6.4",
-    "vitepress-plugin-tabs": "^0.7.3"
+    "vitepress": "^1.6.4"
   }
 }

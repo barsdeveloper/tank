@@ -1,5 +1,5 @@
 <div align="center">
-    <img width="300" height="300" src="https://github.com/barsdeveloper/tank/blob/master/docs/logo.png?raw=true" alt="Tank: Table Abstraction & Navigation Kit logo featuring a green tank with a gear background and stacked database cylinders" />
+    <img width="300" height="300" src="https://github.com/barsdeveloper/tank/blob/master/docs/img/logo.png?raw=true" alt="Tank: Table Abstraction & Navigation Kit logo featuring a green tank with a gear background and stacked database cylinders" />
 </div>
 
 # Tank

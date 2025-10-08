@@ -16,9 +16,8 @@ The Entity is your combat unity, a Rust struct mapped one-to-one with a database
 * `entity.delete()`: stand-down order
 
 ## Forward Operations Schema
-:::tabs
-== Rust
-```rust
+::: code-group
+```rust [Rust]
 #[derive(Entity)]
 #[tank(schema = "operations", name = "radio_operator")]
 pub struct Operator {
@@ -47,7 +46,20 @@ pub struct RadioLog {
     pub signal_strength: i8,
 }
 ```
-== SQL
-```sql
+```sql [SQL]
+CREATE TABLE IF NOT EXISTS operations.radio_operator (
+    id UUID PRIMARY KEY,
+    callsign VARCHAR NOT NULL,
+    rank VARCHAR NOT NULL,
+    enlistment_date DATE NOT NULL,
+    is_certified BOOLEAN NOT NULL);
+
+CREATE TABLE IF NOT EXISTS operations.radio_log (
+    id UUID PRIMARY KEY,
+    operator UUID NOT NULL REFERENCES operations.radio_operator(id),
+    message VARCHAR NOT NULL,
+    unit_callsign VARCHAR NOT NULL,
+    tx_time TIMESTAMP WITH TIME ZONE NOT NULL,
+    rssi TINYINT NOT NULL);"
 ```
 :::
