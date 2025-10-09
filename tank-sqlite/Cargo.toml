@@ -1,7 +1,7 @@
 [package]
 name = "tank-sqlite"
 description = "Sqlite driver implementation for Tank: the Rust data layer"
-version = "0.3.0"
+version.workspace = true
 authors.workspace = true
 license.workspace = true
 edition.workspace = true
@@ -11,13 +11,13 @@ categories.workspace = true
 [dependencies]
 async-stream = "0.3.6"
 libsqlite3-sys = { version = "0.35.0", features = ["bundled"] }
-log = { workspace = true }
-rust_decimal = { workspace = true }
-tank-core = { version = "0.2.0" }
-tokio = { workspace = true }
-url = { workspace = true }
-urlencoding = { workspace = true }
-uuid = { workspace = true }
+log.workspace = true
+rust_decimal.workspace = true
+tank-core.workspace = true
+tokio.workspace = true
+url.workspace = true
+urlencoding.workspace = true
+uuid.workspace = true
 
 [dev-dependencies]
 tank-tests = { path = "../tank-tests", features = ["disable-arrays", "disable-duration", "disable-large-integers", "disable-lists", "disable-maps"] }

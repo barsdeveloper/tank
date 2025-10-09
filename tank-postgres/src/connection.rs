@@ -9,10 +9,10 @@ use tank_core::{
     printable_query,
     stream::{self, Stream, StreamExt},
 };
-use tokio_postgres::{NoTls, Socket, tls::NoTlsStream};
+use tokio::spawn;
+use tokio_postgres::NoTls;
 
 pub struct PostgresConnection {
-    pub(crate) connection: tokio_postgres::Connection<Socket, NoTlsStream>,
     pub(crate) client: tokio_postgres::Client,
     pub(crate) _transaction: bool,
 }
@@ -84,20 +84,23 @@ impl Connection for PostgresConnection {
             log::error!("{:#}", error);
             return Err(error);
         }
-        let url = url.trim_start_matches(&prefix);
-        let (client, connection) = tokio_postgres::connect(url, NoTls)
+        let (client, connection) = tokio_postgres::connect(&url, NoTls)
             .await
-            .with_context(|| format!("While trying to connect to {}", url))?;
+            .with_context(|| format!("While trying to connect to `{}`", url))?;
+        spawn(async move {
+            if let Err(e) = connection.await {
+                log::error!("Postgres connection error: {:#}", e);
+            }
+        });
 
         Ok(Self {
-            connection,
             client,
             _transaction: false,
         })
     }
 
     #[allow(refining_impl_trait)]
-    fn begin(&mut self) -> impl Future<Output = Result<PostgresTransaction>> {
+    fn begin(&mut self) -> impl Future<Output = Result<PostgresTransaction<'_>>> {
         PostgresTransaction::new(self)
     }
 }

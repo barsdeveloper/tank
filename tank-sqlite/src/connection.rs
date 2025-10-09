@@ -235,7 +235,7 @@ impl Connection for SqliteConnection {
     }
 
     #[allow(refining_impl_trait)]
-    fn begin(&mut self) -> impl Future<Output = Result<SqliteTransaction>> {
+    fn begin(&mut self) -> impl Future<Output = Result<SqliteTransaction<'_>>> {
         SqliteTransaction::new(self)
     }
 }

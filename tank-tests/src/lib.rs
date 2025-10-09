@@ -13,6 +13,8 @@ mod trade;
 mod transaction1;
 mod user;
 
+use std::env;
+
 use crate::{
     books::books,
     complex::complex,
@@ -31,12 +33,15 @@ use readme::readme;
 use tank::Connection;
 
 pub fn init_logs() {
-    let _ = env_logger::builder()
+    let mut logger = env_logger::builder();
+    logger
         .is_test(true)
-        .filter_level(LevelFilter::Warn)
         .format_file(true)
-        .format_line_number(true)
-        .try_init();
+        .format_line_number(true);
+    if env::var("RUST_LOG").is_err() {
+        logger.filter_level(LevelFilter::Warn);
+    }
+    let _ = logger.try_init();
 }
 
 pub async fn execute_tests<C: Connection>(mut connection: C) {

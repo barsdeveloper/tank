@@ -41,12 +41,13 @@
  *
  * - `danger`: Used to show error, or dangerous message to the users. Used
  *   in custom container, badges, etc.
- * -------------------------------------------------------------------------- */
+ * --------------------------------------------------------------------------
+ */
 
 @font-face {
     font-family: RobotoSlab-Bold;
     /* set name */
-    src: url(font/RobotoSlab-Bold.woff2);
+    src: url(RobotoSlab-Bold.woff2);
     /* url of the font */
 }
 

@@ -11,6 +11,17 @@
             "driver": "SQLite",
             "name": "Tests",
             "database": "${workspaceFolder:tank}/target/debug/tests.sqlite"
+        },
+        {
+            "ssh": "Disabled",
+            "previewLimit": 50,
+            "server": "localhost",
+            "port": 32779,
+            "driver": "PostgreSQL",
+            "name": "Test",
+            "database": "military",
+            "username": "tank-user",
+            "password": "armored"
         }
     ]
 }

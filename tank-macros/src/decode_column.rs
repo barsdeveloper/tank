@@ -3,7 +3,7 @@ use proc_macro2::TokenStream;
 use quote::ToTokens;
 use std::fmt::Debug;
 use syn::{
-    Expr, ExprCall, ExprLit, ExprMethodCall, ExprPath, Field, Ident, Lit, LitStr, Result, Type,
+    Expr, ExprCall, ExprLit, ExprMethodCall, Field, Ident, Lit, LitStr, Path, Result, Type,
     custom_keyword,
     parse::{Parse, ParseStream},
     parse2,
@@ -158,8 +158,8 @@ pub fn decode_column(field: &Field) -> ColumnMetadata {
                         let function = v.func.to_token_stream().to_string();
                         let arg = v.args.first().unwrap().into_token_stream().to_string();
                         Either::Right((function, arg))
-                    } else if let Ok(v) = parse2::<ExprPath>(value.clone()) {
-                        Either::Left(v.path.to_token_stream())
+                    } else if let Ok(v) = parse2::<Path>(value.clone()) {
+                        Either::Left(v.to_token_stream())
                     } else {
                         panic!(
                             "Unexpected expression syntax for `references` {:?}, use it like: `MyEntity::column` or `schema.table_name(column_name)`",
