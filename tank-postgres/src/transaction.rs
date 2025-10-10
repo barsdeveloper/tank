@@ -1,12 +1,11 @@
 use crate::{
-    PostgresConnection, PostgresDriver, PostgresPrepared, ValueHolder, util::row_to_tank_row,
+    PostgresConnection, PostgresDriver, PostgresPrepared, ValueHolder,
+    util::stream_postgres_row_as_tank_row,
 };
-use async_stream::try_stream;
-use std::pin::pin;
 use tank_core::{
-    Error, Executor, Query, QueryResult, Result, RowLabeled, Transaction,
+    Error, Executor, Query, QueryResult, Result, Transaction,
     future::{Either, TryFutureExt},
-    stream::{Stream, StreamExt},
+    stream::Stream,
 };
 
 pub struct PostgresTransaction<'c>(pub(crate) tokio_postgres::Transaction<'c>);
@@ -29,39 +28,22 @@ impl<'c> Executor for PostgresTransaction<'c> {
         &mut self,
         query: Query<Self::Driver>,
     ) -> impl Stream<Item = Result<QueryResult>> + Send {
-        try_stream! {
-            let stream = match query {
-                Query::Raw(sql) => {
-                    Either::Left(self.0.query_raw(&sql, Vec::<ValueHolder>::new()).await?)
-                }
-                Query::Prepared(mut prepared) => {
-                    let portal = if !prepared.is_complete() {
-                        prepared.complete(self).await?
-                    } else {
-                        prepared.get_portal().ok_or(Error::msg(format!(
-                            "The prepared statement `{}` is not complete",
-                            prepared
-                        )))?
-                    };
-                    Either::Right(self.0.query_portal_raw(&portal, 0).await?)
-                }
-            };
-            let mut stream = pin!(stream);
-            if let Some(first) = stream.next().await {
-                let labels = first?
-                    .columns()
-                    .iter()
-                    .map(|c| c.name().to_string())
-                    .collect::<tank_core::RowNames>();
-                while let Some(value) = stream.next().await {
-                    yield RowLabeled {
-                        labels: labels.clone(),
-                        values: row_to_tank_row(value?).into(),
-                    }
-                    .into()
-                }
+        stream_postgres_row_as_tank_row(async move || match query {
+            Query::Raw(sql) => Ok(Either::Left(
+                self.0.query_raw(&sql, Vec::<ValueHolder>::new()).await?,
+            )),
+            Query::Prepared(mut prepared) => {
+                let portal = if !prepared.is_complete() {
+                    prepared.complete(self).await?
+                } else {
+                    prepared.get_portal().ok_or(Error::msg(format!(
+                        "The prepared statement `{}` is not complete",
+                        prepared
+                    )))?
+                };
+                Ok(Either::Right(self.0.query_portal_raw(&portal, 0).await?))
             }
-        }
+        })
     }
 }
 

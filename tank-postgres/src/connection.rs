@@ -1,13 +1,13 @@
 use crate::{
-    PostgresDriver, PostgresPrepared, PostgresTransaction, ValueHolder, util::row_to_tank_row,
+    PostgresDriver, PostgresPrepared, PostgresTransaction, ValueHolder,
+    util::stream_postgres_row_as_tank_row,
 };
-use async_stream::try_stream;
-use std::{borrow::Cow, future, pin::pin, sync::Arc};
+use std::{borrow::Cow, future, sync::Arc};
 use tank_core::{
-    Connection, Driver, Error, ErrorContext, Executor, Query, QueryResult, Result, RowLabeled,
+    Connection, Driver, Error, ErrorContext, Executor, Query, QueryResult, Result,
     future::Either,
     printable_query,
-    stream::{self, Stream, StreamExt},
+    stream::{self, Stream},
 };
 use tokio::spawn;
 use tokio_postgres::NoTls;
@@ -42,32 +42,16 @@ impl Executor for PostgresConnection {
     ) -> impl Stream<Item = Result<QueryResult>> + Send {
         let context = Arc::new(format!("While executing the query:\n{}", query));
         match query {
-            Query::Raw(sql) => Either::Left(try_stream! {
-                let stream = self
-                    .client
+            Query::Raw(sql) => Either::Left(stream_postgres_row_as_tank_row(async move || {
+                self.client
                     .query_raw(&sql, Vec::<ValueHolder>::new())
                     .await
-                    .context(context.clone())?;
-                let mut stream = pin!(stream);
-                if let Some(first) = stream.next().await {
-                    let labels = first?
-                        .columns()
-                        .iter()
-                        .map(|c| c.name().to_string())
-                        .collect::<tank_core::RowNames>();
-                    while let Some(value) = stream.next().await {
-                        yield RowLabeled {
-                            labels: labels.clone(),
-                            values: row_to_tank_row(value?).into(),
-                        }
-                        .into()
-                    }
-                }
-            }),
+                    .context(context)
+            })),
             Query::Prepared(..) => Either::Right(stream::once(future::ready(Err(Error::msg(
                 "Cannot run a prepares statement without a transaction",
             )
-            .context(context.clone()))))),
+            .context(context))))),
         }
     }
 }
