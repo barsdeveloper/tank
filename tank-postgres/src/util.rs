@@ -2,14 +2,25 @@ use crate::ValueHolder;
 use async_stream::try_stream;
 use std::pin::pin;
 use tank_core::{
-    RowLabeled, RowNames,
+    Error, RowLabeled, RowNames,
     stream::{Stream, StreamExt},
 };
 
-pub(crate) fn row_to_tank_row(row: tokio_postgres::Row) -> tank_core::Row {
+pub(crate) fn row_to_tank_row(row: tokio_postgres::Row) -> tank_core::Result<tank_core::Row> {
     (0..row.len())
-        .map(|i| row.get::<_, ValueHolder>(i).0)
-        .collect::<tank_core::Row>()
+        .map(|i| match row.try_get::<_, ValueHolder>(i) {
+            Ok(v) => Ok(v.0),
+            Err(..) => {
+                let col = &row.columns()[i];
+                Err(Error::msg(format!(
+                    "Could not deserialize column {} `{}`: {}",
+                    i,
+                    col.name(),
+                    col.type_()
+                )))
+            }
+        })
+        .collect::<tank_core::Result<tank_core::Row>>()
 }
 
 pub(crate) fn stream_postgres_row_as_tank_row<V, R>(
@@ -29,7 +40,7 @@ where
             });
             yield RowLabeled {
                 labels: labels.clone(),
-                values: row_to_tank_row(row).into(),
+                values: row_to_tank_row(row)?.into(),
             }.into();
         }
     }

@@ -1,9 +1,11 @@
 use crate::PostgresSqlWriter;
 use postgres_types::Type;
+use rust_decimal::Decimal;
 use std::{error::Error, fmt::Write, io::Read};
 use tank_core::{SqlWriter, Value};
 use time::{Date, OffsetDateTime, PrimitiveDateTime, Time};
 use tokio_postgres::types::{FromSql, IsNull, ToSql, private::BytesMut};
+use uuid::Uuid;
 
 #[derive(Debug)]
 pub(crate) struct ValueHolder(pub(crate) Value);
@@ -26,13 +28,13 @@ impl<'a> FromSql<'a> for ValueHolder {
         raw: Option<&'a [u8]>,
     ) -> Result<Self, Box<dyn Error + Sync + Send>> {
         macro_rules! to_value {
-            ($ty_var:ident, $raw:ident, $($($ty:path)|+ => ( $value:path, $source:ty ) ,)+) => {
+            ($ty_var:ident, $raw:ident, $($($ty:path)|+ => ( $value:path, $source:ty $(, $additional:expr)* ) ,)+) => {
                 match *$ty_var {
-                    $($($ty)|+ => $value(if let Some($raw) = $raw { Some(<$source>::from_sql($ty_var, $raw)?.into()) } else { None }),)+
+                    $($($ty)|+ => $value(if let Some($raw) = $raw { Some(<$source>::from_sql($ty_var, $raw)?.into()) } else { None } $(, $additional)*),)+
                     _ => {
                         if let Some(mut raw) = $raw {
                             let mut buf = String::new();
-                            raw.read_to_string(&mut buf);
+                            let _ = raw.read_to_string(&mut buf);
                             return Err(tank_core::Error::msg(format!("Unknown value type {}: `{}`", $ty_var, buf)).into());
                         }
                         Value::Null
@@ -42,19 +44,21 @@ impl<'a> FromSql<'a> for ValueHolder {
         }
         let value = to_value!(ty, raw,
             Type::BOOL => (Value::Boolean, bool),
-            Type::BYTEA => (Value::Blob, Vec<u8>),
-            Type::CHAR => (Value::Int8, i8),
-            Type::VARCHAR | Type::TEXT | Type::NAME | Type::JSON | Type::XML => (Value::Varchar, String),
-            Type::INT8 => (Value::Int64, i64),
             Type::INT2 => (Value::Int16, i16),
             Type::INT4 => (Value::Int32, i32),
-            Type::OID => (Value::UInt32, u32),
+            Type::INT8 => (Value::Int64, i64),
             Type::FLOAT4 => (Value::Float32, f32),
             Type::FLOAT8 => (Value::Float64, f64),
+            Type::NUMERIC => (Value::Decimal, Decimal, 0, 0),
+            Type::OID => (Value::UInt32, u32),
+            Type::CHAR => (Value::Int8, i8),
+            Type::VARCHAR | Type::TEXT | Type::NAME | Type::JSON | Type::XML => (Value::Varchar, String),
+            Type::BYTEA => (Value::Blob, Vec<u8>),
             Type::DATE => (Value::Date, Date),
             Type::TIME => (Value::Time, Time),
             Type::TIMESTAMP => (Value::Timestamp, PrimitiveDateTime),
             Type::TIMESTAMPTZ => (Value::TimestampWithTimezone, OffsetDateTime),
+            Type::UUID => (Value::Uuid, Uuid),
         );
         Ok(value.into())
     }

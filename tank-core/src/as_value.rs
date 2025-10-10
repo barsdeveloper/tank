@@ -1,7 +1,7 @@
 use crate::{Error, FixedDecimal, Interval, Passive, Result, Value};
 use anyhow::Context;
 use quote::ToTokens;
-use rust_decimal::{Decimal, prelude::FromPrimitive};
+use rust_decimal::{Decimal, prelude::FromPrimitive, prelude::ToPrimitive};
 use std::{
     any, array,
     borrow::Cow,
@@ -88,6 +88,14 @@ impl_as_value!(
     Value::UInt32 => |v| Ok(v as i32),
     Value::UInt16 => |v| Ok(v as i32),
     Value::UInt8 => |v| Ok(v as i32),
+    Value::Decimal => |v: Decimal| {
+        let error = Error::msg(format!("Value `{:?}` cannot fit into `i32`", v));
+        if v.is_integer() {
+            v.to_i32().ok_or(error)
+        } else {
+            Err(error.context("The value is not integer"))
+        }
+    }
 );
 impl_as_value!(
     i64,
@@ -99,6 +107,14 @@ impl_as_value!(
     Value::UInt32 => |v| Ok(v as i64),
     Value::UInt16 => |v| Ok(v as i64),
     Value::UInt8 => |v| Ok(v as i64),
+    Value::Decimal => |v: Decimal| {
+        let error = Error::msg(format!("Value `{:?}` cannot fit into `i64`", v));
+        if v.is_integer() {
+            v.to_i64().ok_or(error)
+        } else {
+            Err(error.context("The value is not integer"))
+        }
+    }
 );
 impl_as_value!(
     i128,
@@ -112,8 +128,22 @@ impl_as_value!(
     Value::UInt32 => |v| Ok(v as i128),
     Value::UInt16 => |v| Ok(v as i128),
     Value::UInt8 => |v| Ok(v as i128),
+    Value::Decimal => |v: Decimal| {
+        let error = Error::msg(format!("Value `{:?}` cannot fit into `i128`", v));
+        if v.is_integer() {
+            v.to_i128().ok_or(error)
+        } else {
+            Err(error.context("The value is not integer"))
+        }
+    }
 );
-impl_as_value!(u8, Value::UInt8 => |v| Ok(v));
+impl_as_value!(
+    u8,
+    Value::UInt8 => |v| Ok(v),
+    Value::Int16 => |v: i16| {
+        v.to_u8().ok_or(Error::msg(format!("Value `{:?}` cannot fit into `u8`", v)))
+    }
+);
 impl_as_value!(
     u16,
     Value::UInt16 => |v| Ok(v),
@@ -131,6 +161,14 @@ impl_as_value!(
     Value::UInt32 => |v| Ok(v as u64),
     Value::UInt16 => |v| Ok(v as u64),
     Value::UInt8 => |v| Ok(v as u64),
+    Value::Decimal => |v: Decimal| {
+        let error = Error::msg(format!("Value `{:?}` cannot fit into `u64`", v));
+        if v.is_integer() {
+            v.to_u64().ok_or(error)
+        } else {
+            Err(error.context("The value is not integer"))
+        }
+    }
 );
 impl_as_value!(
     u128,
@@ -139,6 +177,14 @@ impl_as_value!(
     Value::UInt32 => |v| Ok(v as u128),
     Value::UInt16 => |v| Ok(v as u128),
     Value::UInt8 => |v| Ok(v as u128),
+    Value::Decimal => |v: Decimal| {
+        let error = Error::msg(format!("Value `{:?}` cannot fit into `u128`", v));
+        if v.is_integer() {
+            v.to_u128().ok_or(error)
+        } else {
+            Err(error.context("The value is not integer"))
+        }
+    }
 );
 
 macro_rules! impl_as_value {

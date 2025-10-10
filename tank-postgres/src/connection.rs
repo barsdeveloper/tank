@@ -46,6 +46,7 @@ impl Executor for PostgresConnection {
                 self.client
                     .query_raw(&sql, Vec::<ValueHolder>::new())
                     .await
+                    .map_err(Error::new)
                     .context(context)
             })),
             Query::Prepared(..) => Either::Right(stream::once(future::ready(Err(Error::msg(

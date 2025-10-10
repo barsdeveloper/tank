@@ -1667,6 +1667,7 @@ dependencies = [
  "fallible-iterator",
  "postgres-protocol",
  "time",
+ "uuid",
 ]
 
 [[package]]
@@ -1972,6 +1973,7 @@ dependencies = [
  "borsh",
  "bytes",
  "num-traits",
+ "postgres-types",
  "rand 0.8.5",
  "rkyv",
  "serde",
@@ -2412,37 +2414,8 @@ version = "0.4.0"
 dependencies = [
  "indoc",
  "rust_decimal",
- "tank-core 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "tank-macros 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "time",
- "tokio",
- "uuid",
-]
-
-[[package]]
-name = "tank"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c83f7e8398c35c15ff309a350105e8de8f22eb902459c2c01bdcd722a866d3a9"
-dependencies = [
- "tank-core 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "tank-macros 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "tank-core"
-version = "0.4.0"
-dependencies = [
- "anyhow",
- "async-stream",
- "futures",
- "itoa",
- "log",
- "proc-macro2",
- "quote",
- "rust_decimal",
- "ryu",
- "syn 2.0.106",
+ "tank-core",
+ "tank-macros",
  "time",
  "tokio",
  "uuid",
@@ -2451,8 +2424,6 @@ dependencies = [
 [[package]]
 name = "tank-core"
 version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9750464a7443b5f8e0d48133bcd2b9b990bade5796f21799116ba694fa7bfab7"
 dependencies = [
  "anyhow",
  "async-stream",
@@ -2477,7 +2448,7 @@ dependencies = [
  "libduckdb-sys",
  "log",
  "rust_decimal",
- "tank-core 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tank-core",
  "tank-tests",
  "time",
  "tokio",
@@ -2494,20 +2465,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.106",
- "tank-core 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "tank-macros"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1a545cb1c6e991d74818209019f5aeafe58086d666207c4849793014262de468"
-dependencies = [
- "convert_case",
- "proc-macro2",
- "quote",
- "syn 2.0.106",
- "tank-core 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tank-core",
 ]
 
 [[package]]
@@ -2518,7 +2476,7 @@ dependencies = [
  "log",
  "postgres-types",
  "rust_decimal",
- "tank-core 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tank-core",
  "tank-tests",
  "testcontainers-modules",
  "time",
@@ -2537,7 +2495,7 @@ dependencies = [
  "libsqlite3-sys",
  "log",
  "rust_decimal",
- "tank-core 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tank-core",
  "tank-tests",
  "tokio",
  "url",
@@ -2552,7 +2510,7 @@ dependencies = [
  "env_logger",
  "log",
  "rust_decimal",
- "tank 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tank",
  "time",
  "tokio",
  "uuid",
