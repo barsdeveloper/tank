@@ -9,7 +9,7 @@ pub trait DataSet {
     fn qualified_columns() -> bool
     where
         Self: Sized;
-    fn write_query(&self, writer: &dyn SqlWriter, context: Context, buff: &mut String);
+    fn write_query(&self, writer: &dyn SqlWriter, context: &mut Context, buff: &mut String);
     fn select<'s, Item, Cols, Exec, Expr>(
         &'s self,
         columns: Cols,
@@ -61,7 +61,7 @@ impl DataSet for &dyn DataSet {
     {
         unreachable!("Cannot call static qualified_columns on a dyn object directly");
     }
-    fn write_query(&self, writer: &dyn SqlWriter, context: Context, buff: &mut String) {
+    fn write_query(&self, writer: &dyn SqlWriter, context: &mut Context, buff: &mut String) {
         (*self).write_query(writer, context, buff)
     }
 }

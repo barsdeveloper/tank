@@ -1,6 +1,6 @@
 use crate::{
-    ColumnDef, DataSet, Driver, Error, Executor, Expression, Result, Row, RowLabeled, RowsAffected,
-    TableRef, Value, stream::Stream, writer::SqlWriter,
+    ColumnDef, Context, DataSet, Driver, Error, Executor, Expression, Result, Row, RowLabeled,
+    RowsAffected, TableRef, Value, stream::Stream, writer::SqlWriter,
 };
 use futures::{FutureExt, StreamExt, TryFutureExt};
 use log::Level;
@@ -135,7 +135,7 @@ impl<E: Entity> DataSet for E {
     {
         false
     }
-    fn write_query(&self, writer: &dyn SqlWriter, context: crate::Context, buff: &mut String) {
+    fn write_query(&self, writer: &dyn SqlWriter, context: &mut Context, buff: &mut String) {
         Self::table_ref().write_query(writer, context, buff);
     }
 }

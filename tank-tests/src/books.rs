@@ -320,6 +320,8 @@ pub async fn books<E: Executor>(executor: &mut E) {
     #[cfg(not(feature = "disable-references"))]
     {
         // Insert book violating referential integrity
+
+        use crate::silent_logs;
         let book = Book {
             #[cfg(not(feature = "disable-arrays"))]
             isbn: [9, 7, 8, 1, 7, 3, 3, 5, 6, 1, 0, 8, 0],
@@ -328,13 +330,12 @@ pub async fn books<E: Executor>(executor: &mut E) {
             co_author: None,
             year: 2025,
         };
-        let level = log::max_level();
-        log::set_max_level(log::LevelFilter::Off);
-        assert!(
-            book.save(executor).await.is_err(),
-            "Must fail to save book violating referential integrity"
-        );
-        log::set_max_level(level);
+        silent_logs! {
+            assert!(
+                book.save(executor).await.is_err(),
+                "Must fail to save book violating referential integrity"
+            );
+        }
     }
 
     #[cfg(not(feature = "disable-ordering"))]

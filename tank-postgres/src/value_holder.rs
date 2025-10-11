@@ -52,13 +52,20 @@ impl<'a> FromSql<'a> for ValueHolder {
             Type::NUMERIC => (Value::Decimal, Decimal, 0, 0),
             Type::OID => (Value::UInt32, u32),
             Type::CHAR => (Value::Int8, i8),
-            Type::VARCHAR | Type::TEXT | Type::NAME | Type::JSON | Type::XML => (Value::Varchar, String),
+            Type::VARCHAR
+            | Type::TEXT
+            | Type::NAME
+            | Type::BPCHAR
+            | Type::JSON
+            | Type::XML => (Value::Varchar, String),
             Type::BYTEA => (Value::Blob, Vec<u8>),
             Type::DATE => (Value::Date, Date),
             Type::TIME => (Value::Time, Time),
             Type::TIMESTAMP => (Value::Timestamp, PrimitiveDateTime),
             Type::TIMESTAMPTZ => (Value::TimestampWithTimezone, OffsetDateTime),
             Type::UUID => (Value::Uuid, Uuid),
+            Type::INT8_ARRAY => (Value::List, VecWrap<ValueHolder>, Box::new(Value::Int64(None))),
+            Type::BPCHAR_ARRAY => (Value::List, VecWrap<ValueHolder>, Box::new(Value::Varchar(None))),
         );
         Ok(value.into())
     }
@@ -74,7 +81,7 @@ impl ToSql for ValueHolder {
         Self: Sized,
     {
         let mut sql = String::new();
-        PostgresSqlWriter {}.write_value(Default::default(), &mut sql, &self.0);
+        PostgresSqlWriter {}.write_value(&mut Default::default(), &mut sql, &self.0);
         out.write_str(&sql)?;
         Ok(if self.0.is_null() {
             IsNull::Yes
@@ -153,5 +160,31 @@ pub fn value_to_type(value: &Value) -> Type {
             _ => Type::ANYARRAY,
         },
         _ => Type::UNKNOWN,
+    }
+}
+
+struct VecWrap<T>(pub Vec<T>);
+
+impl<'a, T: FromSql<'a>> FromSql<'a> for VecWrap<T> {
+    fn from_sql_null(ty: &Type) -> Result<Self, Box<dyn Error + Sync + Send>> {
+        Vec::<T>::from_sql_null(ty).map(VecWrap)
+    }
+    fn from_sql_nullable(
+        ty: &Type,
+        raw: Option<&'a [u8]>,
+    ) -> Result<Self, Box<dyn Error + Sync + Send>> {
+        Vec::<T>::from_sql_nullable(ty, raw).map(VecWrap)
+    }
+    fn from_sql(ty: &Type, raw: &'a [u8]) -> Result<Self, Box<dyn Error + Sync + Send>> {
+        Vec::<T>::from_sql(ty, raw).map(VecWrap)
+    }
+    fn accepts(ty: &Type) -> bool {
+        Vec::<T>::accepts(ty)
+    }
+}
+
+impl From<VecWrap<ValueHolder>> for Vec<Value> {
+    fn from(value: VecWrap<ValueHolder>) -> Self {
+        value.0.into_iter().map(|v| v.0).collect()
     }
 }

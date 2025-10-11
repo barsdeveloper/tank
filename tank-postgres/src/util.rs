@@ -36,10 +36,10 @@ pub(crate) fn row_to_tank_row(row: tokio_postgres::Row) -> tank_core::Result<tan
             Err(..) => {
                 let col = &row.columns()[i];
                 Err(tank_core::Error::msg(format!(
-                    "Could not deserialize column {} `{}`: {}",
-                    i,
+                    "Unknown column type {} `{}`({})",
+                    col.type_(),
                     col.name(),
-                    col.type_()
+                    i,
                 )))
             }
         })

@@ -8,6 +8,7 @@ mod tests {
     use tank_postgres::PostgresConnection;
     use tank_tests::execute_tests;
     use tank_tests::init_logs;
+    use tank_tests::silent_logs;
 
     static MUTEX: Mutex<()> = Mutex::new(());
 
@@ -25,10 +26,12 @@ mod tests {
 
     #[tokio::test]
     async fn wrong_url() {
-        assert!(
-            PostgresConnection::connect("mysql://some_url".into())
-                .await
-                .is_err()
-        );
+        silent_logs! {
+            assert!(
+                PostgresConnection::connect("mysql://some_url".into())
+                    .await
+                    .is_err()
+            );
+        }
     }
 }

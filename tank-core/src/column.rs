@@ -106,7 +106,7 @@ impl OpPrecedence for ColumnRef {
 }
 
 impl Expression for ColumnRef {
-    fn write_query(&self, writer: &dyn crate::SqlWriter, context: Context, buff: &mut String) {
+    fn write_query(&self, writer: &dyn crate::SqlWriter, context: &mut Context, buff: &mut String) {
         writer.write_column_ref(context, buff, self);
     }
 }
@@ -118,7 +118,7 @@ impl OpPrecedence for ColumnDef {
 }
 
 impl Expression for ColumnDef {
-    fn write_query(&self, writer: &dyn crate::SqlWriter, context: Context, buff: &mut String) {
+    fn write_query(&self, writer: &dyn crate::SqlWriter, context: &mut Context, buff: &mut String) {
         writer.write_column_ref(context, buff, &self.column_ref);
     }
 }

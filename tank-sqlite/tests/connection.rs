@@ -3,7 +3,7 @@ mod tests {
     use std::{path::Path, sync::Mutex};
     use tank_core::Connection;
     use tank_sqlite::SqliteConnection;
-    use tank_tests::init_logs;
+    use tank_tests::{init_logs, silent_logs};
     use tokio::fs;
 
     static MUTEX: Mutex<()> = Mutex::new(());
@@ -45,10 +45,12 @@ mod tests {
 
     #[tokio::test]
     async fn wrong_url() {
-        assert!(
-            SqliteConnection::connect("duckdb://some_value".into())
-                .await
-                .is_err()
-        );
+        silent_logs! {
+            assert!(
+                SqliteConnection::connect("duckdb://some_value".into())
+                    .await
+                    .is_err()
+            );
+        };
     }
 }

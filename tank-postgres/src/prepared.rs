@@ -16,7 +16,7 @@ impl PostgresPrepared {
     pub(crate) fn new(statement: Statement) -> Self {
         Self {
             statement,
-            index: Default::default(),
+            index: 1,
             value: Either::Left(vec![]),
         }
     }

@@ -8,7 +8,7 @@ impl SqlWriter for PostgresSqlWriter {
         self
     }
 
-    fn write_column_type(&self, context: Context, buff: &mut String, value: &Value) {
+    fn write_column_type(&self, context: &mut Context, buff: &mut String, value: &Value) {
         match value {
             Value::Boolean(..) => buff.push_str("BOOLEAN"),
             Value::Int8(..) => buff.push_str("SMALLINT"),
@@ -53,7 +53,7 @@ impl SqlWriter for PostgresSqlWriter {
         };
     }
 
-    fn write_value_blob(&self, _context: Context, buff: &mut String, value: &[u8]) {
+    fn write_value_blob(&self, _context: &mut Context, buff: &mut String, value: &[u8]) {
         buff.push_str("'\\x");
         for b in value {
             let _ = write!(buff, "{:X}", b);
@@ -63,9 +63,10 @@ impl SqlWriter for PostgresSqlWriter {
 
     fn write_value_list<'a>(
         &self,
-        context: Context,
+        context: &mut Context,
         buff: &mut String,
         value: Either<&Box<[Value]>, &Vec<Value>>,
+        ty: &Value,
     ) {
         buff.push_str("ARRAY[");
         separated_by(
@@ -79,6 +80,12 @@ impl SqlWriter for PostgresSqlWriter {
             },
             ",",
         );
-        buff.push(']');
+        buff.push_str("]::");
+        self.write_column_type(context, buff, ty);
+    }
+
+    fn write_expression_operand_question_mark(&self, context: &mut Context, buff: &mut String) {
+        context.counter += 1;
+        let _ = write!(buff, "${}", context.counter);
     }
 }

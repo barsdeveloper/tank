@@ -60,3 +60,13 @@ pub async fn execute_tests<C: Connection>(mut connection: C) {
     drop(readme(&mut connection).await);
     documentation(&mut connection).await;
 }
+
+#[macro_export]
+macro_rules! silent_logs {
+    ($($code:tt)+) => {{
+        let level = log::max_level();
+        log::set_max_level(log::LevelFilter::Off);
+        $($code)+
+        log::set_max_level(level);
+    }};
+}

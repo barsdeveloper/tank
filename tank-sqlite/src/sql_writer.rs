@@ -8,7 +8,7 @@ impl SqlWriter for SqliteSqlWriter {
         self
     }
 
-    fn write_column_ref(&self, context: Context, buff: &mut String, value: &ColumnRef) {
+    fn write_column_ref(&self, context: &mut Context, buff: &mut String, value: &ColumnRef) {
         if context.qualify_columns && !value.table.is_empty() {
             buff.push('"');
             if !value.schema.is_empty() {
@@ -21,7 +21,7 @@ impl SqlWriter for SqliteSqlWriter {
         self.write_identifier_quoted(context, buff, &value.name);
     }
 
-    fn write_table_ref(&self, context: Context, buff: &mut String, value: &TableRef) {
+    fn write_table_ref(&self, context: &mut Context, buff: &mut String, value: &TableRef) {
         if self.alias_declaration(context) || value.alias.is_empty() {
             buff.push('"');
             if !value.schema.is_empty() {
@@ -36,7 +36,7 @@ impl SqlWriter for SqliteSqlWriter {
         }
     }
 
-    fn write_column_type(&self, _context: Context, buff: &mut String, value: &Value) {
+    fn write_column_type(&self, _context: &mut Context, buff: &mut String, value: &Value) {
         match value {
             Value::Boolean(..) => buff.push_str("INTEGER"),
             Value::Int8(..) => buff.push_str("INTEGER"),
@@ -70,14 +70,14 @@ impl SqlWriter for SqliteSqlWriter {
         };
     }
 
-    fn write_value_infinity(&self, _context: Context, buff: &mut String, negative: bool) {
+    fn write_value_infinity(&self, _context: &mut Context, buff: &mut String, negative: bool) {
         if negative {
             buff.push('-');
         }
         buff.push_str("1.0e+10000");
     }
 
-    fn write_value_blob(&self, _context: Context, buff: &mut String, value: &[u8]) {
+    fn write_value_blob(&self, _context: &mut Context, buff: &mut String, value: &[u8]) {
         buff.push_str("X'");
         for b in value {
             let _ = write!(buff, "{:X}", b);
@@ -101,7 +101,7 @@ impl SqlWriter for SqliteSqlWriter {
         // Sqlite does not support schema
     }
 
-    fn write_column_comments<E>(&self, _context: Context, _buff: &mut String)
+    fn write_column_comments<E>(&self, _context: &mut Context, _buff: &mut String)
     where
         Self: Sized,
         E: Entity,

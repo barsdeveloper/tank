@@ -27,7 +27,7 @@ impl<E: Expression> OpPrecedence for UnaryOp<E> {
 }
 
 impl<E: Expression> Expression for UnaryOp<E> {
-    fn write_query(&self, writer: &dyn SqlWriter, context: Context, buff: &mut String) {
+    fn write_query(&self, writer: &dyn SqlWriter, context: &mut Context, buff: &mut String) {
         writer.write_expression_unary_op(
             context,
             buff,
