@@ -1,6 +1,6 @@
 use crate::{
     PostgresConnection, PostgresDriver, PostgresPrepared, ValueHolder,
-    util::stream_postgres_row_as_tank_row,
+    util::stream_postgres_row_to_tank_row,
 };
 use tank_core::{
     Error, Executor, Query, QueryResult, Result, Transaction,
@@ -28,7 +28,7 @@ impl<'c> Executor for PostgresTransaction<'c> {
         &mut self,
         query: Query<Self::Driver>,
     ) -> impl Stream<Item = Result<QueryResult>> + Send {
-        stream_postgres_row_as_tank_row(async move || match query {
+        stream_postgres_row_to_tank_row(async move || match query {
             Query::Raw(sql) => Ok(Either::Left(
                 self.0.query_raw(&sql, Vec::<ValueHolder>::new()).await?,
             )),

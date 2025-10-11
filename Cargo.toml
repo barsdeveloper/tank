@@ -27,9 +27,9 @@ proc-macro2 = "1.0.101"
 quote = "1.0.40"
 rust_decimal = "1.38.0"
 syn = { version = "2.0.106", features = ["full"] }
-tank.path = "."
-tank-core.path = "tank-core"
-tank-macros.path = "tank-macros"
+tank = "0.4.0"
+tank-core = "0.4.0"
+tank-macros = "0.4.0"
 time = { version = "0.3.44", features = ["macros", "parsing"] }
 tokio = { version = "1.47.1", features = ["fs", "macros", "rt-multi-thread", "sync"] }
 url = "2.5.7"

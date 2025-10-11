@@ -48,6 +48,7 @@ pub enum Value {
         Option<Vec<(String, Value)>>,
         /* type: */ Vec<(String, Value)>,
     ),
+    Unknown(Option<String>),
 }
 
 impl Value {
@@ -97,7 +98,8 @@ impl Value {
             | Value::Array(None, ..)
             | Value::List(None, ..)
             | Value::Map(None, ..)
-            | Value::Struct(None, ..) => true,
+            | Value::Struct(None, ..)
+            | Value::Unknown(None, ..) => true,
             _ => false,
         }
     }
@@ -132,6 +134,7 @@ impl Value {
             Value::List(.., t) => Value::List(None, t.clone()),
             Value::Map(.., k, v) => Value::Map(None, k.clone(), v.clone()),
             Value::Struct(.., t) => Value::Struct(None, t.clone()),
+            Value::Unknown(..) => Value::Unknown(None),
         }
     }
 }
@@ -180,6 +183,7 @@ impl PartialEq for Value {
                 l.is_empty() == r.is_empty() && self.same_type(other)
             }
             (Self::Map(..), Self::Map(..)) => self.same_type(other),
+            (Self::Unknown(..), Self::Unknown(..)) => false,
             _ => false,
         }
     }
@@ -227,18 +231,15 @@ impl Hash for Value {
             TimestampWithTimezone(v) => v.hash(state),
             Interval(v) => v.hash(state),
             Uuid(v) => v.hash(state),
-
             Array(v, typ, len) => {
                 v.hash(state);
                 typ.hash(state);
                 len.hash(state);
             }
-
             List(v, typ) => {
                 v.hash(state);
                 typ.hash(state);
             }
-
             Map(v, key, val) => {
                 match v {
                     Some(map) => {
@@ -259,6 +260,7 @@ impl Hash for Value {
                 }
                 t.hash(state);
             }
+            Unknown(v) => v.hash(state),
         }
     }
 }
@@ -317,6 +319,7 @@ impl ToTokens for Value {
                 let values = t.into_iter().map(|(k, v)| quote!((#k.into(), #v)));
                 quote!(::tank::Value::Struct(None, vec!(#(#values),*)))
             }
+            Value::Unknown(..) => quote!(::tank::Value::Unknown(None)),
         };
         tokens.extend(ts);
     }

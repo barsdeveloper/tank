@@ -3,6 +3,7 @@ use crate::{
     Expression, Fragment, Interval, Join, JoinType, Operand, Order, Ordered, PrimaryKeyType,
     TableRef, UnaryOp, UnaryOpType, Value, possibly_parenthesized, separated_by, writer::Context,
 };
+use futures::future::Either;
 use std::{collections::HashMap, fmt::Write};
 use time::{Date, Time};
 
@@ -137,34 +138,7 @@ pub trait SqlWriter {
 
     fn write_value(&self, context: Context, buff: &mut String, value: &Value) {
         match value {
-            Value::Null
-            | Value::Boolean(None, ..)
-            | Value::Int8(None, ..)
-            | Value::Int16(None, ..)
-            | Value::Int32(None, ..)
-            | Value::Int64(None, ..)
-            | Value::Int128(None, ..)
-            | Value::UInt8(None, ..)
-            | Value::UInt16(None, ..)
-            | Value::UInt32(None, ..)
-            | Value::UInt64(None, ..)
-            | Value::UInt128(None, ..)
-            | Value::Float32(None, ..)
-            | Value::Float64(None, ..)
-            | Value::Decimal(None, ..)
-            | Value::Char(None, ..)
-            | Value::Varchar(None, ..)
-            | Value::Blob(None, ..)
-            | Value::Date(None, ..)
-            | Value::Time(None, ..)
-            | Value::Timestamp(None, ..)
-            | Value::TimestampWithTimezone(None, ..)
-            | Value::Interval(None, ..)
-            | Value::Uuid(None, ..)
-            | Value::Array(None, ..)
-            | Value::List(None, ..)
-            | Value::Map(None, ..)
-            | Value::Struct(None, ..) => self.write_value_none(context, buff),
+            v if v.is_null() => self.write_value_none(context, buff),
             Value::Boolean(Some(v), ..) => self.write_value_bool(context, buff, *v),
             Value::Int8(Some(v), ..) => write_integer!(buff, *v),
             Value::Int16(Some(v), ..) => write_integer!(buff, *v),
@@ -218,26 +192,23 @@ pub trait SqlWriter {
             }
             Value::Interval(Some(v), ..) => self.write_value_interval(context, buff, v),
             Value::Uuid(Some(v), ..) => drop(write!(buff, "'{}'", v)),
-            Value::List(Some(..), ..) | Value::Array(Some(..), ..) => {
-                let v = match value {
-                    Value::List(Some(v), ..) => v.iter(),
-                    Value::Array(Some(v), ..) => v.iter(),
-                    _ => unreachable!(),
-                };
-                buff.push('[');
-                separated_by(
+            Value::Array(Some(..), ..) | Value::List(Some(..), ..) => {
+                self.write_value_list(
+                    context,
                     buff,
-                    v,
-                    |buff, v| {
-                        self.write_value(context, buff, v);
+                    match value {
+                        Value::Array(Some(v), ..) => Either::Left(v),
+                        Value::List(Some(v), ..) => Either::Right(v),
+                        _ => unreachable!(),
                     },
-                    ",",
                 );
-                buff.push(']');
             }
             Value::Map(Some(v), ..) => self.write_value_map(context, buff, v),
             Value::Struct(Some(_v), ..) => {
                 todo!()
+            }
+            _ => {
+                log::error!("Cannot write {:?}", value);
             }
         };
     }
@@ -377,6 +348,27 @@ pub trait SqlWriter {
         if multiple_units {
             buff.push('\'');
         }
+    }
+
+    fn write_value_list<'a>(
+        &self,
+        context: Context,
+        buff: &mut String,
+        value: Either<&Box<[Value]>, &Vec<Value>>,
+    ) {
+        buff.push('[');
+        separated_by(
+            buff,
+            match value {
+                Either::Left(v) => v.iter(),
+                Either::Right(v) => v.iter(),
+            },
+            |buff, v| {
+                self.write_value(context, buff, v);
+            },
+            ",",
+        );
+        buff.push(']');
     }
 
     fn write_value_map(&self, context: Context, buff: &mut String, value: &HashMap<Value, Value>) {

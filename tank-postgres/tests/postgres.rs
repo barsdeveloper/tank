@@ -26,7 +26,7 @@ mod tests {
     #[tokio::test]
     async fn wrong_url() {
         assert!(
-            PostgresConnection::connect("mysql://some_value".into())
+            PostgresConnection::connect("mysql://some_url".into())
                 .await
                 .is_err()
         );

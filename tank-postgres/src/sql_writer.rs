@@ -1,5 +1,5 @@
 use std::fmt::Write;
-use tank_core::{Context, SqlWriter, Value};
+use tank_core::{Context, SqlWriter, Value, future::Either, separated_by};
 
 pub struct PostgresSqlWriter {}
 
@@ -51,5 +51,34 @@ impl SqlWriter for PostgresSqlWriter {
                 value
             ),
         };
+    }
+
+    fn write_value_blob(&self, _context: Context, buff: &mut String, value: &[u8]) {
+        buff.push_str("'\\x");
+        for b in value {
+            let _ = write!(buff, "{:X}", b);
+        }
+        buff.push('\'');
+    }
+
+    fn write_value_list<'a>(
+        &self,
+        context: Context,
+        buff: &mut String,
+        value: Either<&Box<[Value]>, &Vec<Value>>,
+    ) {
+        buff.push_str("ARRAY[");
+        separated_by(
+            buff,
+            match value {
+                Either::Left(v) => v.iter(),
+                Either::Right(v) => v.iter(),
+            },
+            |buff, v| {
+                self.write_value(context, buff, v);
+            },
+            ",",
+        );
+        buff.push(']');
     }
 }

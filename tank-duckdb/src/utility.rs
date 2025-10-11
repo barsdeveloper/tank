@@ -4,7 +4,10 @@ use crate::{
     primitive_date_time_to_duckdb_timestamp, time_to_duckdb_time, u128_to_duckdb_uhugeint,
 };
 use libduckdb_sys::*;
-use std::{ffi::CStr, ptr};
+use std::{
+    ffi::{CStr, c_char},
+    ptr,
+};
 use tank_core::{Value, as_c_string};
 
 pub(crate) fn error_message_from_ptr(ptr: &'_ *const i8) -> &'_ str {
@@ -111,6 +114,10 @@ pub(crate) fn tank_value_to_duckdb_logical_type(v: &Value) -> CBox<duckdb_logica
                     v.len() as u64,
                 )
             }
+            _ => {
+                log::error!("tank::Value `{:?}` is unsupported", v);
+                *result = duckdb_create_logical_type(DUCKDB_TYPE_DUCKDB_TYPE_INVALID)
+            }
         }
         result
     }
@@ -120,34 +127,7 @@ pub(crate) fn tank_value_to_duckdb_value(value: &Value) -> CBox<duckdb_value> {
     unsafe {
         CBox::new(
             match value {
-                Value::Null
-                | Value::Boolean(None, ..)
-                | Value::Int8(None, ..)
-                | Value::Int16(None, ..)
-                | Value::Int32(None, ..)
-                | Value::Int64(None, ..)
-                | Value::Int128(None, ..)
-                | Value::UInt8(None, ..)
-                | Value::UInt16(None, ..)
-                | Value::UInt32(None, ..)
-                | Value::UInt64(None, ..)
-                | Value::UInt128(None, ..)
-                | Value::Float32(None, ..)
-                | Value::Float64(None, ..)
-                | Value::Decimal(None, ..)
-                | Value::Char(None, ..)
-                | Value::Varchar(None, ..)
-                | Value::Blob(None, ..)
-                | Value::Date(None, ..)
-                | Value::Time(None, ..)
-                | Value::Timestamp(None, ..)
-                | Value::TimestampWithTimezone(None, ..)
-                | Value::Interval(None, ..)
-                | Value::Uuid(None, ..)
-                | Value::Array(None, ..)
-                | Value::List(None, ..)
-                | Value::Map(None, ..)
-                | Value::Struct(None, ..) => duckdb_create_null_value(),
+                v if v.is_null() => duckdb_create_null_value(),
                 Value::Boolean(Some(v)) => duckdb_create_bool(*v),
                 Value::Int8(Some(v)) => duckdb_create_int8(*v),
                 Value::Int16(Some(v)) => duckdb_create_int16(*v),
@@ -226,6 +206,10 @@ pub(crate) fn tank_value_to_duckdb_value(value: &Value) -> CBox<duckdb_value> {
                         *tank_value_to_duckdb_logical_type(value),
                         values.iter().map(|v| **v).collect::<Vec<_>>().as_mut_ptr(),
                     )
+                }
+                _ => {
+                    log::error!("{:?} is unsupported", value);
+                    duckdb_create_varchar("".as_ptr() as *const c_char)
                 }
             },
             |mut p| duckdb_destroy_value(&mut p),

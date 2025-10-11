@@ -1,13 +1,15 @@
 use crate::{
     PostgresDriver, PostgresPrepared, PostgresTransaction, ValueHolder,
-    util::stream_postgres_row_as_tank_row,
+    util::{
+        stream_postgres_row_to_tank_row, stream_postgres_simple_query_message_to_tank_query_result,
+    },
 };
 use std::{borrow::Cow, future, sync::Arc};
 use tank_core::{
     Connection, Driver, Error, ErrorContext, Executor, Query, QueryResult, Result,
     future::Either,
     printable_query,
-    stream::{self, Stream},
+    stream::{self, Stream, TryStreamExt},
 };
 use tokio::spawn;
 use tokio_postgres::NoTls;
@@ -40,9 +42,28 @@ impl Executor for PostgresConnection {
         &mut self,
         query: Query<Self::Driver>,
     ) -> impl Stream<Item = Result<QueryResult>> + Send {
-        let context = Arc::new(format!("While executing the query:\n{}", query));
+        let context = Arc::new(format!("While running the query:\n{}", query));
         match query {
-            Query::Raw(sql) => Either::Left(stream_postgres_row_as_tank_row(async move || {
+            Query::Raw(sql) => Either::Left(
+                stream_postgres_simple_query_message_to_tank_query_result(async move || {
+                    self.client.simple_query_raw(&sql).await.map_err(Error::new)
+                })
+                .map_err(move |e| e.context(context.clone())),
+            ),
+            Query::Prepared(..) => Either::Right(stream::once(future::ready(Err(Error::msg(
+                "Cannot run a prepares statement without a transaction",
+            )
+            .context(context))))),
+        }
+    }
+
+    fn fetch<'s>(
+        &'s mut self,
+        query: Query<Self::Driver>,
+    ) -> impl Stream<Item = Result<tank_core::RowLabeled>> + Send + 's {
+        let context = Arc::new(format!("While fetching the query:\n{}", query));
+        match query {
+            Query::Raw(sql) => Either::Left(stream_postgres_row_to_tank_row(async move || {
                 self.client
                     .query_raw(&sql, Vec::<ValueHolder>::new())
                     .await
