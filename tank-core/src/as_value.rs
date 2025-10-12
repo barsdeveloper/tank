@@ -148,6 +148,13 @@ impl_as_value!(
     u16,
     Value::UInt16 => |v| Ok(v),
     Value::UInt8 => |v| Ok(v as u16),
+    Value::Int32 => |v: i32| {
+        let result = v as u16;
+        if result as i32 != v {
+            return Err(Error::msg(format!("Value {}: i32 cannot fit into u16", v)));
+        }
+        Ok(result)
+    }
 );
 impl_as_value!(
     u32,

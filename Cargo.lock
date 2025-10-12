@@ -2473,6 +2473,7 @@ name = "tank-postgres"
 version = "0.4.0"
 dependencies = [
  "async-stream",
+ "bytes",
  "log",
  "postgres-types",
  "rust_decimal",

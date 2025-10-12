@@ -1,4 +1,4 @@
-use crate::interval::Interval;
+use crate::{AsValue, Error, Result, interval::Interval};
 use proc_macro2::TokenStream;
 use quote::{ToTokens, quote};
 use rust_decimal::Decimal;
@@ -135,6 +135,50 @@ impl Value {
             Value::Map(.., k, v) => Value::Map(None, k.clone(), v.clone()),
             Value::Struct(.., t) => Value::Struct(None, t.clone()),
             Value::Unknown(..) => Value::Unknown(None),
+        }
+    }
+
+    pub fn try_as(self, value: &Value) -> Result<Value> {
+        if self.same_type(value) {
+            return Ok(self);
+        }
+        match value {
+            Value::Boolean(..) => bool::try_from_value(self).map(AsValue::as_value),
+            Value::Int8(..) => i8::try_from_value(self).map(AsValue::as_value),
+            Value::Int16(..) => i16::try_from_value(self).map(AsValue::as_value),
+            Value::Int32(..) => i32::try_from_value(self).map(AsValue::as_value),
+            Value::Int64(..) => i64::try_from_value(self).map(AsValue::as_value),
+            Value::Int128(..) => i128::try_from_value(self).map(AsValue::as_value),
+            Value::UInt8(..) => u8::try_from_value(self).map(AsValue::as_value),
+            Value::UInt16(..) => u16::try_from_value(self).map(AsValue::as_value),
+            Value::UInt32(..) => u32::try_from_value(self).map(AsValue::as_value),
+            Value::UInt64(..) => u64::try_from_value(self).map(AsValue::as_value),
+            Value::UInt128(..) => u128::try_from_value(self).map(AsValue::as_value),
+            Value::Float32(..) => f32::try_from_value(self).map(AsValue::as_value),
+            Value::Float64(..) => f64::try_from_value(self).map(AsValue::as_value),
+            Value::Decimal(..) => Decimal::try_from_value(self).map(AsValue::as_value),
+            Value::Char(..) => char::try_from_value(self).map(AsValue::as_value),
+            Value::Varchar(..) => String::try_from_value(self).map(AsValue::as_value),
+            Value::Blob(..) => Box::<[u8]>::try_from_value(self).map(AsValue::as_value),
+            Value::Date(..) => Date::try_from_value(self).map(AsValue::as_value),
+            Value::Time(..) => Time::try_from_value(self).map(AsValue::as_value),
+            Value::Timestamp(..) => PrimitiveDateTime::try_from_value(self).map(AsValue::as_value),
+            Value::TimestampWithTimezone(..) => {
+                OffsetDateTime::try_from_value(self).map(AsValue::as_value)
+            }
+            Value::Interval(..) => Interval::try_from_value(self).map(AsValue::as_value),
+            Value::Uuid(..) => Uuid::try_from_value(self).map(AsValue::as_value),
+            // Value::Array(.., ty, len) => {
+            //     Box::<[Value]>::try_from_value(self).map(AsValue::as_value)
+            // }
+            // Value::List(..) => Box::<[Value]>::try_from_value(self).map(AsValue::as_value),
+            // Value::Map(..) => Date::try_from_value(self).map(AsValue::as_value),
+            _ => {
+                return Err(Error::msg(format!(
+                    "Cannot convert value {:?} into value {:?}",
+                    self, value
+                )));
+            }
         }
     }
 }

@@ -1,10 +1,9 @@
-use crate::PostgresSqlWriter;
-use postgres_types::Type;
-use rust_decimal::Decimal;
-use std::{error::Error, fmt::Write, io::Read};
-use tank_core::{SqlWriter, Value};
+use bytes::BytesMut;
+use postgres_types::{FromSql, IsNull, ToSql, Type, to_sql_checked};
+use rust_decimal::{Decimal, prelude::FromPrimitive};
+use std::{error::Error, io::Read};
+use tank_core::Value;
 use time::{Date, OffsetDateTime, PrimitiveDateTime, Time};
-use tokio_postgres::types::{FromSql, IsNull, ToSql, private::BytesMut};
 use uuid::Uuid;
 
 #[derive(Debug)]
@@ -44,6 +43,7 @@ impl<'a> FromSql<'a> for ValueHolder {
         }
         let value = to_value!(ty, raw,
             Type::BOOL => (Value::Boolean, bool),
+            Type::CHAR => (Value::Int8, i8),
             Type::INT2 => (Value::Int16, i16),
             Type::INT4 => (Value::Int32, i32),
             Type::INT8 => (Value::Int64, i64),
@@ -51,7 +51,6 @@ impl<'a> FromSql<'a> for ValueHolder {
             Type::FLOAT8 => (Value::Float64, f64),
             Type::NUMERIC => (Value::Decimal, Decimal, 0, 0),
             Type::OID => (Value::UInt32, u32),
-            Type::CHAR => (Value::Int8, i8),
             Type::VARCHAR
             | Type::TEXT
             | Type::NAME
@@ -64,7 +63,11 @@ impl<'a> FromSql<'a> for ValueHolder {
             Type::TIMESTAMP => (Value::Timestamp, PrimitiveDateTime),
             Type::TIMESTAMPTZ => (Value::TimestampWithTimezone, OffsetDateTime),
             Type::UUID => (Value::Uuid, Uuid),
+            Type::INT2_ARRAY => (Value::List, VecWrap<ValueHolder>, Box::new(Value::Int16(None))),
+            Type::INT4_ARRAY => (Value::List, VecWrap<ValueHolder>, Box::new(Value::Int32(None))),
             Type::INT8_ARRAY => (Value::List, VecWrap<ValueHolder>, Box::new(Value::Int64(None))),
+            Type::FLOAT4_ARRAY => (Value::List, VecWrap<ValueHolder>, Box::new(Value::Float32(None))),
+            Type::FLOAT8_ARRAY => (Value::List, VecWrap<ValueHolder>, Box::new(Value::Float64(None))),
             Type::BPCHAR_ARRAY => (Value::List, VecWrap<ValueHolder>, Box::new(Value::Varchar(None))),
         );
         Ok(value.into())
@@ -76,90 +79,95 @@ impl<'a> FromSql<'a> for ValueHolder {
 }
 
 impl ToSql for ValueHolder {
-    fn to_sql(&self, _ty: &Type, out: &mut BytesMut) -> Result<IsNull, Box<dyn Error + Sync + Send>>
+    fn to_sql(&self, ty: &Type, out: &mut BytesMut) -> Result<IsNull, Box<dyn Error + Sync + Send>>
     where
         Self: Sized,
     {
-        let mut sql = String::new();
-        PostgresSqlWriter {}.write_value(&mut Default::default(), &mut sql, &self.0);
-        out.write_str(&sql)?;
-        Ok(if self.0.is_null() {
-            IsNull::Yes
-        } else {
-            IsNull::No
-        })
+        match &self.0 {
+            Value::Null => None::<String>.to_sql(ty, out),
+            Value::Boolean(v) => v.to_sql(ty, out),
+            Value::Int8(v) => v.to_sql(ty, out),
+            Value::Int16(v) => v.to_sql(ty, out),
+            Value::Int32(v) => v.to_sql(ty, out),
+            Value::Int64(v) => v.to_sql(ty, out),
+            Value::Int128(v) => v.map(|v| Decimal::from_i128(v)).to_sql(ty, out),
+            Value::UInt8(v) => v.map(|v| v as i16).to_sql(ty, out),
+            Value::UInt16(v) => v.map(|v| v as i32).to_sql(ty, out),
+            Value::UInt32(v) => v.to_sql(ty, out),
+            Value::UInt64(v) => v.map(|v| Decimal::from_u64(v)).to_sql(ty, out),
+            Value::UInt128(v) => v.map(|v| Decimal::from_u128(v)).to_sql(ty, out),
+            Value::Float32(v) => v.to_sql(ty, out),
+            Value::Float64(v) => v.to_sql(ty, out),
+            Value::Decimal(v, _, _) => v.to_sql(ty, out),
+            Value::Char(v) => v.map(|v| v.to_string()).to_sql(ty, out),
+            Value::Varchar(v) => v.to_sql(ty, out),
+            Value::Blob(v) => v.as_deref().to_sql(ty, out),
+            Value::Date(v) => v.to_sql(ty, out),
+            Value::Time(v) => v.to_sql(ty, out),
+            Value::Timestamp(v) => v.to_sql(ty, out),
+            Value::TimestampWithTimezone(v) => v.to_sql(ty, out),
+            Value::Uuid(v) => v.to_sql(ty, out),
+            Value::Array(v, ..) => v
+                .as_ref()
+                .map(|v| v.clone().into_iter().map(ValueHolder).collect::<Vec<_>>())
+                .to_sql(ty, out),
+            Value::List(v, ..) => v
+                .as_ref()
+                .map(|v| v.clone().into_iter().map(ValueHolder).collect::<Vec<_>>())
+                .to_sql(ty, out),
+            _ => {
+                return Err(tank_core::Error::msg(format!(
+                    "tank::Value variant `{:?}` is not supported by Postgres",
+                    &self.0
+                ))
+                .into());
+            }
+        }
     }
 
     fn accepts(_ty: &Type) -> bool
     where
         Self: Sized,
     {
-        todo!()
+        true
     }
 
-    fn to_sql_checked(
-        &self,
-        _ty: &Type,
-        _out: &mut BytesMut,
-    ) -> Result<IsNull, Box<dyn Error + Sync + Send>> {
-        todo!()
-    }
+    to_sql_checked!();
 }
-
-pub fn value_to_type(value: &Value) -> Type {
-    match value {
-        Value::Null => Type::UNKNOWN,
-        Value::Boolean(..) => Type::BOOL,
-        Value::Int8(..) => Type::CHAR,
-        Value::Int16(..) => Type::INT2,
-        Value::Int32(..) => Type::INT4,
-        Value::Int64(..) => Type::INT8,
-        Value::Int128(..) => Type::UNKNOWN,
-        Value::UInt8(..) => Type::INT2,
-        Value::UInt16(..) => Type::INT4,
-        Value::UInt32(..) => Type::INT8,
-        Value::UInt64(..) => Type::INT8,
-        Value::UInt128(..) => Type::UNKNOWN,
-        Value::Float32(..) => Type::FLOAT4,
-        Value::Float64(..) => Type::FLOAT8,
-        Value::Decimal(..) => Type::NUMERIC,
-        Value::Char(..) => Type::CHAR,
-        Value::Varchar(..) => Type::TEXT,
-        Value::Blob(..) => Type::BYTEA,
-        Value::Date(..) => Type::DATE,
-        Value::Time(..) => Type::TIME,
-        Value::Timestamp(..) => Type::TIMESTAMP,
-        Value::TimestampWithTimezone(..) => Type::TIMESTAMPTZ,
-        Value::Interval(..) => Type::INTERVAL,
-        Value::Uuid(..) => Type::UUID,
-        Value::Array(.., ty, _) => match **ty {
-            Value::Null => Type::UNKNOWN,
-            Value::Boolean(..) => Type::BOOL_ARRAY,
-            Value::Int8(..) => Type::INT2_ARRAY,
-            Value::Int16(..) => Type::INT2_ARRAY,
-            Value::Int32(..) => Type::INT4_ARRAY,
-            Value::Int64(..) => Type::INT8_ARRAY,
-            Value::Int128(..) => Type::UNKNOWN,
-            Value::UInt8(..) => Type::INT2_ARRAY,
-            Value::UInt16(..) => Type::INT4_ARRAY,
-            Value::UInt32(..) => Type::INT8_ARRAY,
-            Value::UInt64(..) => Type::INT8_ARRAY,
-            Value::UInt128(..) => Type::UNKNOWN,
-            Value::Float32(..) => Type::FLOAT4_ARRAY,
-            Value::Float64(..) => Type::FLOAT8_ARRAY,
-            Value::Decimal(..) => Type::NUMERIC_ARRAY,
-            Value::Char(..) => Type::CHAR_ARRAY,
-            Value::Varchar(..) => Type::TEXT_ARRAY,
-            Value::Blob(..) => Type::BYTEA_ARRAY,
-            Value::Date(..) => Type::DATE_ARRAY,
-            Value::Time(..) => Type::TIME_ARRAY,
-            Value::Timestamp(..) => Type::TIMESTAMP_ARRAY,
-            Value::TimestampWithTimezone(..) => Type::TIMESTAMPTZ_ARRAY,
-            Value::Interval(..) => Type::INTERVAL_ARRAY,
-            Value::Uuid(..) => Type::UUID_ARRAY,
-            _ => Type::ANYARRAY,
-        },
-        _ => Type::UNKNOWN,
+pub fn postgres_type_to_value(ty: &Type) -> Value {
+    match *ty {
+        Type::BOOL => Value::Boolean(None),
+        Type::CHAR => Value::Int8(None),
+        Type::INT2 => Value::Int16(None),
+        Type::INT4 => Value::Int32(None),
+        Type::INT8 => Value::Int64(None),
+        Type::FLOAT4 => Value::Float32(None),
+        Type::FLOAT8 => Value::Float64(None),
+        Type::NUMERIC => Value::Decimal(None, 0, 0),
+        Type::VARCHAR | Type::TEXT | Type::BPCHAR | Type::JSON | Type::XML => Value::Varchar(None),
+        Type::BYTEA => Value::Blob(None),
+        Type::DATE => Value::Date(None),
+        Type::TIME => Value::Time(None),
+        Type::TIMESTAMP => Value::Timestamp(None),
+        Type::TIMESTAMPTZ => Value::TimestampWithTimezone(None),
+        Type::INTERVAL => Value::Interval(None),
+        Type::UUID => Value::Uuid(None),
+        Type::BOOL_ARRAY => Value::List(None, Box::new(Value::Boolean(None))),
+        Type::INT2_ARRAY => Value::List(None, Box::new(Value::Int16(None))),
+        Type::INT4_ARRAY => Value::List(None, Box::new(Value::Int32(None))),
+        Type::INT8_ARRAY => Value::List(None, Box::new(Value::Int64(None))),
+        Type::FLOAT4_ARRAY => Value::List(None, Box::new(Value::Float32(None))),
+        Type::FLOAT8_ARRAY => Value::List(None, Box::new(Value::Float64(None))),
+        Type::NUMERIC_ARRAY => Value::List(None, Box::new(Value::Decimal(None, 0, 0))),
+        Type::TEXT_ARRAY | Type::VARCHAR_ARRAY => Value::List(None, Box::new(Value::Varchar(None))),
+        Type::BYTEA_ARRAY => Value::List(None, Box::new(Value::Blob(None))),
+        Type::DATE_ARRAY => Value::List(None, Box::new(Value::Date(None))),
+        Type::TIME_ARRAY => Value::List(None, Box::new(Value::Time(None))),
+        Type::TIMESTAMP_ARRAY => Value::List(None, Box::new(Value::Timestamp(None))),
+        Type::TIMESTAMPTZ_ARRAY => Value::List(None, Box::new(Value::TimestampWithTimezone(None))),
+        Type::INTERVAL_ARRAY => Value::List(None, Box::new(Value::Interval(None))),
+        Type::UUID_ARRAY => Value::List(None, Box::new(Value::Uuid(None))),
+        _ => Value::Null,
     }
 }
 

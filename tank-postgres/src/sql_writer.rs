@@ -21,8 +21,8 @@ impl SqlWriter for PostgresSqlWriter {
             Value::UInt32(..) => buff.push_str("BIGINT"),
             Value::UInt64(..) => buff.push_str("NUMERIC(19)"),
             Value::UInt128(..) => buff.push_str("NUMERIC(38)"),
-            Value::Float32(..) => buff.push_str("REAL"),
-            Value::Float64(..) => buff.push_str("DOUBLE"),
+            Value::Float32(..) => buff.push_str("FLOAT4"),
+            Value::Float64(..) => buff.push_str("FLOAT8"),
             Value::Decimal(.., precision, scale) => {
                 buff.push_str("NUMERIC");
                 if (precision, scale) != (&0, &0) {

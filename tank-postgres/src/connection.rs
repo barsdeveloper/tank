@@ -4,12 +4,13 @@ use crate::{
         stream_postgres_row_to_tank_row, stream_postgres_simple_query_message_to_tank_query_result,
     },
 };
-use std::{borrow::Cow, future, sync::Arc};
+use async_stream::try_stream;
+use std::{borrow::Cow, pin::pin, sync::Arc};
 use tank_core::{
-    Connection, Driver, Error, ErrorContext, Executor, Query, QueryResult, Result,
+    Connection, Driver, Error, ErrorContext, Executor, Query, QueryResult, Result, Transaction,
     future::Either,
     printable_query,
-    stream::{self, Stream, TryStreamExt},
+    stream::{Stream, StreamExt, TryStreamExt},
 };
 use tokio::spawn;
 use tokio_postgres::NoTls;
@@ -48,10 +49,17 @@ impl Executor for PostgresConnection {
                 })
                 .map_err(move |e| e.context(context.clone())),
             ),
-            Query::Prepared(..) => Either::Right(stream::once(future::ready(Err(Error::msg(
-                "Cannot run a prepares statement without a transaction",
-            )
-            .context(context))))),
+            Query::Prepared(..) => Either::Right(try_stream! {
+                let mut transaction = self.begin().await?;
+                {
+                    let stream = transaction.run(query);
+                    let mut stream = pin!(stream);
+                    while let Some(value) = stream.next().await.transpose()? {
+                        yield value;
+                    }
+                }
+                transaction.commit().await?;
+            }),
         }
     }
 
@@ -68,10 +76,20 @@ impl Executor for PostgresConnection {
                     .map_err(Error::new)
                     .context(context)
             })),
-            Query::Prepared(..) => Either::Right(stream::once(future::ready(Err(Error::msg(
-                "Cannot run a prepares statement without a transaction",
-            )
-            .context(context))))),
+            Query::Prepared(..) => Either::Right(
+                try_stream! {
+                    let mut transaction = self.begin().await?;
+                    {
+                        let stream = transaction.fetch(query);
+                        let mut stream = pin!(stream);
+                        while let Some(value) = stream.next().await.transpose()? {
+                            yield value;
+                        }
+                    }
+                    transaction.commit().await?;
+                }
+                .map_err(move |e: Error| e.context(context.clone())),
+            ),
         }
     }
 }

@@ -1,4 +1,4 @@
-use crate::{PostgresTransaction, ValueHolder};
+use crate::{PostgresTransaction, ValueHolder, postgres_type_to_value};
 use std::{
     fmt::{self, Debug, Display},
     mem,
@@ -16,7 +16,7 @@ impl PostgresPrepared {
     pub(crate) fn new(statement: Statement) -> Self {
         Self {
             statement,
-            index: 1,
+            index: 0,
             value: Either::Left(vec![]),
         }
     }
@@ -37,19 +37,28 @@ impl PostgresPrepared {
         {
             return Err(Error::msg(format!("The parameter {} was not set", i)));
         }
+        let types = self.statement.params();
+        let mut params = mem::take(params);
+        let mut i = 0;
+        for param in &mut params {
+            *param = Some(ValueHolder(
+                mem::take(param)
+                    .unwrap()
+                    .0
+                    .try_as(&postgres_type_to_value(&types[i]))?,
+            ));
+            i += 1;
+        }
         let portal = transaction
             .0
-            .bind_raw(
-                &self.statement,
-                mem::take(params).into_iter().map(Option::unwrap),
-            )
+            .bind_raw(&self.statement, params.into_iter().map(Option::unwrap))
             .await?;
         self.value = Either::Right(portal.clone());
         Ok(portal)
     }
     pub(crate) fn get_portal(&self) -> Option<Portal> {
         if let Either::Right(portal) = &self.value {
-            portal.clone().into()
+            Some(portal.clone())
         } else {
             None
         }
@@ -64,7 +73,7 @@ impl Prepared for PostgresPrepared {
         let Either::Left(params) = &mut self.value else {
             return Err(Error::msg("The prepared statement is already complete"));
         };
-        params.reserve(self.statement.params().len());
+        params.resize_with(self.statement.params().len(), || Default::default());
         params[index as usize] = Some(value.as_value().into());
         Ok(self)
     }

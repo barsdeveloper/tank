@@ -1,7 +1,36 @@
+use crate::{Error, Result};
 use std::{
     hash::Hash,
     ops::{Add, AddAssign, Sub, SubAssign},
 };
+
+#[derive(PartialEq, Eq)]
+pub enum IntervalUnit {
+    Year,
+    Month,
+    Day,
+    Hour,
+    Minute,
+    Second,
+    Microsecond,
+    Nanosecond,
+}
+
+impl IntervalUnit {
+    pub fn from_bitmask(mask: u8) -> Result<IntervalUnit> {
+        Ok(match mask {
+            1 => IntervalUnit::Nanosecond,
+            2 => IntervalUnit::Microsecond,
+            4 => IntervalUnit::Second,
+            8 => IntervalUnit::Minute,
+            16 => IntervalUnit::Hour,
+            32 => IntervalUnit::Day,
+            64 => IntervalUnit::Month,
+            128 => IntervalUnit::Year,
+            _ => return Err(Error::msg("Invalid mask, it must be a single bit on")),
+        })
+    }
+}
 
 #[derive(Default, Debug, Clone, Copy)]
 pub struct Interval {
@@ -17,7 +46,7 @@ impl Interval {
     pub const NANOS_IN_SEC: i128 = 1_000_000_000;
     pub const NANOS_IN_DAY: i128 = Self::SECS_IN_DAY as i128 * Self::NANOS_IN_SEC;
 
-    pub fn new(months: i64, days: i64, nanos: i128) -> Self {
+    pub const fn new(months: i64, days: i64, nanos: i128) -> Self {
         Self {
             months,
             days,
@@ -119,6 +148,59 @@ impl Interval {
         let secs = (nanos / Interval::NANOS_IN_SEC) as u64;
         let nanos = (nanos % Interval::NANOS_IN_SEC) as u32;
         std::time::Duration::new(secs, nanos)
+    }
+
+    pub const fn units_and_factors(&self) -> &[(IntervalUnit, i128)] {
+        static UNITS: &[(IntervalUnit, i128)] = &[
+            (IntervalUnit::Year, Interval::NANOS_IN_DAY * 30 * 12),
+            (IntervalUnit::Month, Interval::NANOS_IN_DAY * 30),
+            (IntervalUnit::Day, Interval::NANOS_IN_DAY),
+            (IntervalUnit::Hour, Interval::NANOS_IN_SEC * 3600),
+            (IntervalUnit::Minute, Interval::NANOS_IN_SEC * 60),
+            (IntervalUnit::Second, Interval::NANOS_IN_SEC),
+            (IntervalUnit::Microsecond, 1_000),
+            (IntervalUnit::Nanosecond, 1),
+        ];
+        UNITS
+    }
+
+    pub fn units_mask(&self) -> u8 {
+        let mut mask = 0_u8;
+        if self.months != 0 {
+            if self.months % 12 == 0 {
+                mask |= 1 << 7;
+            } else if self.months != 0 {
+                mask |= 1 << 6;
+            }
+        }
+        let nanos = self.nanos + self.days as i128 * Interval::NANOS_IN_DAY;
+        if nanos != 0 {
+            let units = self.units_and_factors().iter().skip(2).enumerate();
+            let len = units.len();
+            for (i, &(_, factor)) in units {
+                if nanos % factor == 0 {
+                    let offset = i - len;
+                    mask |= 1 << offset;
+                    break;
+                }
+            }
+        }
+        mask
+    }
+
+    pub fn unit_value(&self, unit: IntervalUnit) -> i128 {
+        if unit == IntervalUnit::Year {
+            self.months as i128 / 12
+        } else if unit == IntervalUnit::Month {
+            self.months as i128
+        } else {
+            let factor = *self
+                .units_and_factors()
+                .iter()
+                .find_map(|(u, k)| if *u == unit { Some(k) } else { None })
+                .expect("The unit must be present");
+            (self.days as i128 * Interval::NANOS_IN_DAY + self.nanos) / factor
+        }
     }
 }
 

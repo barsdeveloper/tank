@@ -129,8 +129,9 @@ pub async fn aggregates<E: Executor>(executor: &mut E) {
         let values = query
             .fetch_many(executor)
             .map_ok(|v| u32::try_from_value(v.values[0].clone()).expect("Expected a u32 as value"))
-            .collect::<Vec<_>>()
-            .await;
+            .try_collect::<Vec<_>>()
+            .await
+            .expect("Could not fetch multiple rows from the prepared statement");
         assert_eq!(values.len(), COUNT as usize / 2);
     }
 }
