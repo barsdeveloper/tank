@@ -16,7 +16,7 @@ You might need to log out and back in for this change to take effect.
 > [!CAUTION]
 > When running tests using the Postgres instance from testcontainers, never stop or kill the test abruptly (e.g., while at a breakpoint), as the container may not be cleaned up properly. Repeatedly starting and killing tests can leave multiple Postgres containers running, quickly consuming system resources..
 > 
-> To inspect running containers
+> To inspect running containers:
 > ```sh
 > docker ps
 > ```
