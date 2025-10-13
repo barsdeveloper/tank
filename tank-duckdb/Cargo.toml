@@ -18,9 +18,9 @@ libduckdb-sys = "1.4.1"
 log.workspace = true
 rust_decimal.workspace = true
 tank-core.workspace = true
-time = "0.3.41"
+time = "0.3.44"
 tokio.workspace = true
-url = "2.5.4"
+url = "2.5.7"
 urlencoding.workspace = true
 uuid.workspace = true
 

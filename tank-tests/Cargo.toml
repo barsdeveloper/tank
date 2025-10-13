@@ -14,7 +14,7 @@ log.workspace = true
 rust_decimal.workspace = true
 tank.workspace = true
 time.workspace = true
-tokio = { version = "1.45.1", features = ["macros", "rt-multi-thread", "sync"] }
+tokio = { version = "1.47.1", features = ["macros", "rt-multi-thread", "sync"] }
 uuid.workspace = true
 
 [features]

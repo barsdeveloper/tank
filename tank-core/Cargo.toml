@@ -20,5 +20,5 @@ rust_decimal.workspace = true
 ryu = "1.0.20"
 syn.workspace = true
 time.workspace = true
-tokio = { version = "1.45.1", features = ["sync"] }
+tokio = { version = "1.47.1", features = ["sync"] }
 uuid.workspace = true

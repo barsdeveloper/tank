@@ -24,12 +24,12 @@ futures = "0.3.31"
 indoc = "2.0.6"
 log = "0.4.28"
 proc-macro2 = "1.0.101"
-quote = "1.0.40"
-rust_decimal = "1.38.0"
+quote = "1.0.41"
+rust_decimal = "1.39.0"
 syn = { version = "2.0.106", features = ["full"] }
-tank = "0.4.0"
-tank-core = "0.4.0"
-tank-macros = "0.4.0"
+tank = "0.5.0"
+tank-core = "0.5.0"
+tank-macros = "0.5.0"
 time = { version = "0.3.44", features = ["macros", "parsing"] }
 tokio = { version = "1.47.1", features = ["fs", "macros", "rt-multi-thread", "sync"] }
 url = "2.5.7"
@@ -53,7 +53,7 @@ tank-macros.workspace = true
 indoc.workspace = true
 rust_decimal.workspace = true
 time.workspace = true
-tokio = { version = "1.44.2", features = ["full"] }
+tokio = { version = "1.47.1", features = ["full"] }
 uuid.workspace = true
 
 [patch.crates-io]

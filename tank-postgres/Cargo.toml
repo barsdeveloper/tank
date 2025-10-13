@@ -12,12 +12,12 @@ categories.workspace = true
 async-stream = "0.3.6"
 bytes = "1.10.1"
 log.workspace = true
-postgres-types = "0.2.10"
+postgres-types = "0.2.11"
 rust_decimal = { workspace = true, features = ["db-tokio-postgres"] }
 tank-core.workspace = true
 time.workspace = true
 tokio.workspace = true
-tokio-postgres = { version = "0.7.14", features = ["with-time-0_3", "with-uuid-1"] }
+tokio-postgres = { version = "0.7.15", features = ["with-time-0_3", "with-uuid-1"] }
 url.workspace = true
 urlencoding.workspace = true
 uuid.workspace = true
