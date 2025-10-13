@@ -1,7 +1,6 @@
-#![feature(assert_matches)]
 #[cfg(test)]
 mod tests {
-    use std::{assert_matches::assert_matches, borrow::Cow};
+    use std::borrow::Cow;
     use tank::{
         BinaryOp, BinaryOpType, ColumnRef, DataSet, DeclareTableRef, Entity, Join, JoinType,
         Operand, SqlWriter, TableRef, join,
@@ -31,7 +30,7 @@ mod tests {
     #[test]
     fn join_simple() {
         let join = join!(Alpha AA JOIN crate::tests::Bravo BB ON AA.a == BB.first);
-        assert_matches!(
+        assert!(matches!(
             join,
             Join {
                 join: JoinType::Default,
@@ -55,7 +54,7 @@ mod tests {
                 }),
                 ..
             }
-        );
+        ));
         let mut buff = String::new();
         join.write_query(&WRITER, &mut Default::default(), &mut buff);
         assert_eq!(
@@ -64,13 +63,13 @@ mod tests {
         );
 
         let join = join!(Alpha INNER JOIN Bravo ON Alpha::_a == Bravo::_first);
-        assert_matches!(
+        assert!(matches!(
             join,
             Join {
                 join: JoinType::Inner,
                 ..
             }
-        );
+        ));
         let mut buff = String::new();
         join.write_query(&WRITER, &mut Default::default(), &mut buff);
         assert_eq!(
@@ -79,13 +78,13 @@ mod tests {
         );
 
         let join = join!(Alpha FULL OUTER JOIN Bravo ON Alpha::_a == Bravo::_first);
-        assert_matches!(
+        assert!(matches!(
             join,
             Join {
                 join: JoinType::Outer,
                 ..
             }
-        );
+        ));
         let mut buff = String::new();
         join.write_query(&WRITER, &mut Default::default(), &mut buff);
         assert_eq!(
@@ -94,13 +93,13 @@ mod tests {
         );
 
         let join = join!(Alpha OUTER JOIN Bravo ON Alpha::_a == Bravo::_first);
-        assert_matches!(
+        assert!(matches!(
             join,
             Join {
                 join: JoinType::Outer,
                 ..
             }
-        );
+        ));
         let mut buff = String::new();
         join.write_query(&WRITER, &mut Default::default(), &mut buff);
         assert_eq!(
@@ -109,13 +108,13 @@ mod tests {
         );
 
         let join = join!(Alpha LEFT OUTER JOIN Bravo ON Alpha::_a == Bravo::_first);
-        assert_matches!(
+        assert!(matches!(
             join,
             Join {
                 join: JoinType::Left,
                 ..
             }
-        );
+        ));
         let mut buff = String::new();
         join.write_query(&WRITER, &mut Default::default(), &mut buff);
         assert_eq!(
@@ -124,13 +123,13 @@ mod tests {
         );
 
         let join = join!(Alpha LEFT JOIN Bravo ON Alpha::_a == Bravo::_first);
-        assert_matches!(
+        assert!(matches!(
             join,
             Join {
                 join: JoinType::Left,
                 ..
             }
-        );
+        ));
         let mut buff = String::new();
         join.write_query(&WRITER, &mut Default::default(), &mut buff);
         assert_eq!(
@@ -139,13 +138,13 @@ mod tests {
         );
 
         let join = join!(Alpha RIGHT OUTER JOIN Bravo ON Alpha::_a == Bravo::_first);
-        assert_matches!(
+        assert!(matches!(
             join,
             Join {
                 join: JoinType::Right,
                 ..
             }
-        );
+        ));
         let mut buff = String::new();
         join.write_query(&WRITER, &mut Default::default(), &mut buff);
         assert_eq!(
@@ -154,13 +153,13 @@ mod tests {
         );
 
         let join = join!(Alpha RIGHT JOIN Bravo ON Alpha::_a == Bravo::_first);
-        assert_matches!(
+        assert!(matches!(
             join,
             Join {
                 join: JoinType::Right,
                 ..
             }
-        );
+        ));
         let mut buff = String::new();
         join.write_query(&WRITER, &mut Default::default(), &mut buff);
         assert_eq!(
@@ -169,27 +168,27 @@ mod tests {
         );
 
         let join = join!(Alpha CROSS Bravo);
-        assert_matches!(
+        assert!(matches!(
             join,
             Join {
                 join: JoinType::Cross,
                 on: None,
                 ..
             },
-        );
+        ));
         let mut buff = String::new();
         join.write_query(&WRITER, &mut Default::default(), &mut buff);
         assert_eq!(buff, r#""my_data"."alpha" CROSS "bravo""#);
 
         let join = join!(Alpha NATURAL JOIN Bravo);
-        assert_matches!(
+        assert!(matches!(
             join,
             Join {
                 join: JoinType::Natural,
                 on: None,
                 ..
             },
-        );
+        ));
         let mut buff = String::new();
         join.write_query(&WRITER, &mut Default::default(), &mut buff);
         assert_eq!(buff, r#""my_data"."alpha" NATURAL JOIN "bravo""#);
@@ -204,7 +203,7 @@ mod tests {
         }
 
         let join = join!((Charlie JOIN Alpha ON Charlie::_column < Alpha::_b) JOIN Bravo ON Alpha::_a == Bravo::_second);
-        assert_matches!(
+        assert!(matches!(
             join,
             Join {
                 join: JoinType::Default,
@@ -240,7 +239,7 @@ mod tests {
                 }),
                 ..
             }
-        );
+        ));
         let mut buff = String::new();
         join.write_query(&WRITER, &mut Default::default(), &mut buff);
         assert_eq!(
@@ -264,7 +263,7 @@ mod tests {
                 Delta LEFT JOIN Alpha ON Delta::_string_column < Alpha::_b
             ) ON Bravo::_second == Delta::_string_column
         );
-        assert_matches!(
+        assert!(matches!(
             join,
             Join {
                 join: JoinType::Outer,
@@ -319,7 +318,7 @@ mod tests {
                 }),
                 ..
             }
-        );
+        ));
         let mut buff = String::new();
         join.write_query(&WRITER, &mut Default::default(), &mut buff);
         assert_eq!(
@@ -335,7 +334,7 @@ mod tests {
             col: Box<i64>,
         }
         let join = join!(Alpha A FULL OUTER JOIN Bravo ON Alpha::_b >= Bravo::_second RIGHT JOIN Some ON Some::col == Bravo::_first);
-        assert_matches!(
+        assert!(matches!(
             join,
             Join {
                 join: JoinType::Right,
@@ -386,7 +385,7 @@ mod tests {
                 }),
                 ..
             }
-        );
+        ));
         let mut buff = String::new();
         join.write_query(&WRITER, &mut Default::default(), &mut buff);
         assert_eq!(
@@ -410,7 +409,7 @@ mod tests {
                     LEFT JOIN Bravo ON Bravo::_second == Alpha::_b
                         CROSS Delta
         );
-        assert_matches!(
+        assert!(matches!(
             join,
             Join {
                 join: JoinType::Cross,
@@ -449,7 +448,7 @@ mod tests {
                 on: None,
                 ..
             }
-        );
+        ));
         let mut buff = String::new();
         join.write_query(&WRITER, &mut Default::default(), &mut buff);
         assert_eq!(
@@ -463,7 +462,7 @@ mod tests {
         let join = join!(
             ((((((Alpha RIGHT JOIN Bravo ON (((((((((((((Alpha::_a)) <= (((((((Bravo::_first))))))))))))))))))))))))
         );
-        assert_matches!(
+        assert!(matches!(
             join,
             Join {
                 join: JoinType::Right,
@@ -495,7 +494,7 @@ mod tests {
                 }),
                 ..
             }
-        );
+        ));
         let mut buff = String::new();
         join.write_query(&WRITER, &mut Default::default(), &mut buff);
         assert_eq!(

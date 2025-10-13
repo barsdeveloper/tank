@@ -1,9 +1,8 @@
-#![feature(assert_matches)]
 #[cfg(test)]
 mod tests {
     use indoc::indoc;
     use rust_decimal::Decimal;
-    use std::{assert_matches::assert_matches, borrow::Cow};
+    use std::borrow::Cow;
     use tank::{Entity, GenericSqlWriter, Passive, PrimaryKeyType, SqlWriter, TableRef, Value};
     use time::{Date, Month, PrimitiveDateTime, Time};
 
@@ -38,15 +37,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_product() {
-        assert_matches!(
+        assert!(matches!(
             Product::table_ref(),
             TableRef {
                 name: "products",
                 schema: "",
                 alias: Cow::Borrowed(""),
             }
-        );
-
+        ));
         assert_eq!(
             Product::primary_key_def()
                 .map(|c| c.column_ref.name)
@@ -73,24 +71,24 @@ mod tests {
         assert_eq!(columns[3].column_ref.schema, "");
         assert_eq!(columns[4].column_ref.schema, "");
         assert_eq!(columns[5].column_ref.schema, "");
-        assert_matches!(columns[0].value, Value::UInt64(None, ..));
-        assert_matches!(columns[1].value, Value::Varchar(None, ..));
-        assert_matches!(columns[2].value, Value::Decimal(None, ..));
-        assert_matches!(columns[3].value, Value::Boolean(None, ..));
-        assert_matches!(columns[4].value, Value::List(None, ..));
-        assert_matches!(columns[5].value, Value::Timestamp(None, ..));
+        assert!(matches!(columns[0].value, Value::UInt64(None, ..)));
+        assert!(matches!(columns[1].value, Value::Varchar(None, ..)));
+        assert!(matches!(columns[2].value, Value::Decimal(None, ..)));
+        assert!(matches!(columns[3].value, Value::Boolean(None, ..)));
+        assert!(matches!(columns[4].value, Value::List(None, ..)));
+        assert!(matches!(columns[5].value, Value::Timestamp(None, ..)));
         assert_eq!(columns[0].nullable, false);
         assert_eq!(columns[1].nullable, false);
         assert_eq!(columns[2].nullable, false);
         assert_eq!(columns[3].nullable, false);
         assert_eq!(columns[4].nullable, false);
         assert_eq!(columns[5].nullable, false);
-        assert_matches!(columns[0].default, None);
-        assert_matches!(columns[1].default, None);
-        assert_matches!(columns[2].default, None);
-        assert_matches!(columns[3].default, None);
-        assert_matches!(columns[4].default, None);
-        assert_matches!(columns[5].default, None);
+        assert!(matches!(columns[0].default, None));
+        assert!(matches!(columns[1].default, None));
+        assert!(matches!(columns[2].default, None));
+        assert!(matches!(columns[3].default, None));
+        assert!(matches!(columns[4].default, None));
+        assert!(matches!(columns[5].default, None));
         assert_eq!(columns[0].primary_key, PrimaryKeyType::PrimaryKey);
         assert_eq!(columns[1].primary_key, PrimaryKeyType::None);
         assert_eq!(columns[2].primary_key, PrimaryKeyType::None);

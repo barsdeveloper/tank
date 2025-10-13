@@ -1,8 +1,7 @@
-#![feature(assert_matches)]
 #[cfg(test)]
 mod tests {
     use indoc::indoc;
-    use std::{assert_matches::assert_matches, borrow::Cow, sync::Mutex};
+    use std::{borrow::Cow, sync::Mutex};
     use tank::{Entity, GenericSqlWriter, PrimaryKeyType, SqlWriter, TableRef, Value, expr};
 
     #[derive(Entity)]
@@ -30,37 +29,37 @@ mod tests {
 
     #[tokio::test]
     async fn test_simple_entity() {
-        assert_matches!(
+        assert!(matches!(
             SomeSimpleEntity::table_ref(),
             TableRef {
                 name: "simple_entity",
                 schema: "",
                 alias: Cow::Borrowed(""),
             }
-        );
+        ));
 
         assert_eq!(SomeSimpleEntity::primary_key_def().len(), 0);
 
         let columns = SomeSimpleEntity::columns();
         assert_eq!(columns.len(), 3);
-        assert_matches!(columns[0].name(), "a");
-        assert_matches!(columns[1].name(), "b");
-        assert_matches!(columns[2].name(), "c");
-        assert_matches!(columns[0].table(), "simple_entity");
-        assert_matches!(columns[1].table(), "simple_entity");
-        assert_matches!(columns[2].table(), "simple_entity");
-        assert_matches!(columns[0].schema(), "");
-        assert_matches!(columns[1].schema(), "");
-        assert_matches!(columns[2].schema(), "");
-        assert_matches!(columns[0].value, Value::Int8(..));
-        assert_matches!(columns[1].value, Value::Varchar(..));
-        assert_matches!(columns[2].value, Value::UInt16(..));
+        assert!(matches!(columns[0].name(), "a"));
+        assert!(matches!(columns[1].name(), "b"));
+        assert!(matches!(columns[2].name(), "c"));
+        assert!(matches!(columns[0].table(), "simple_entity"));
+        assert!(matches!(columns[1].table(), "simple_entity"));
+        assert!(matches!(columns[2].table(), "simple_entity"));
+        assert!(matches!(columns[0].schema(), ""));
+        assert!(matches!(columns[1].schema(), ""));
+        assert!(matches!(columns[2].schema(), ""));
+        assert!(matches!(columns[0].value, Value::Int8(..)));
+        assert!(matches!(columns[1].value, Value::Varchar(..)));
+        assert!(matches!(columns[2].value, Value::UInt16(..)));
         assert_eq!(columns[0].nullable, false);
         assert_eq!(columns[1].nullable, true);
         assert_eq!(columns[2].nullable, false);
-        assert_matches!(columns[0].default, None);
-        assert_matches!(columns[1].default, None);
-        assert_matches!(columns[2].default, None);
+        assert!(matches!(columns[0].default, None));
+        assert!(matches!(columns[1].default, None));
+        assert!(matches!(columns[2].default, None));
         assert_eq!(columns[0].primary_key, PrimaryKeyType::None);
         assert_eq!(columns[1].primary_key, PrimaryKeyType::None);
         assert_eq!(columns[2].primary_key, PrimaryKeyType::None);

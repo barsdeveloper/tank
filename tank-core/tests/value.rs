@@ -1,5 +1,3 @@
-#![feature(assert_matches)]
-
 #[cfg(test)]
 mod tests {
     use rust_decimal::{
@@ -7,7 +5,6 @@ mod tests {
         prelude::{FromPrimitive, Zero},
     };
     use std::{
-        assert_matches::assert_matches,
         borrow::Cow,
         collections::{LinkedList, VecDeque},
         str::FromStr,
@@ -44,7 +41,7 @@ mod tests {
         assert_eq!(bool::try_from_value((1 as u32).into()).unwrap(), true);
         assert_eq!(bool::try_from_value((0 as u64).into()).unwrap(), false);
         assert_eq!(bool::try_from_value((2 as u128).into()).unwrap(), true);
-        assert_matches!(bool::try_from_value((0.5 as f32).into()), Err(..));
+        assert!(matches!(bool::try_from_value((0.5 as f32).into()), Err(..)));
     }
 
     #[test]
@@ -58,7 +55,7 @@ mod tests {
         let var: i8 = AsValue::try_from_value(val).unwrap();
         assert_eq!(var, 127);
         assert_eq!(i8::try_from_value((99 as u8).into()).unwrap(), 99);
-        assert_matches!(i8::try_from_value((0.1 as f64).into()), Err(..));
+        assert!(matches!(i8::try_from_value((0.1 as f64).into()), Err(..)));
     }
 
     #[test]
@@ -247,14 +244,14 @@ mod tests {
         assert_ne!(val, Value::Char(Some('b')));
         let var: char = AsValue::try_from_value(val).unwrap();
         assert_eq!(var, 'a');
-        assert_matches!(
+        assert!(matches!(
             char::try_from_value(Value::Varchar(Some("t".into()))),
             Ok('t'),
-        );
-        assert_matches!(
+        ));
+        assert!(matches!(
             char::try_from_value(Value::Varchar(Some("long".into()))),
             Err(..)
-        );
+        ));
     }
 
     #[test]
@@ -280,14 +277,14 @@ mod tests {
         let val = var.as_value();
         let var: Cow<'_, str> = AsValue::try_from_value(val).unwrap();
         assert_eq!(var, "Hello World!");
-        assert_matches!(
+        assert!(matches!(
             <Cow<'static, str> as AsValue>::as_empty_value(),
             Value::Varchar(..),
-        );
-        assert_matches!(
+        ));
+        assert!(matches!(
             <Cow<'static, str> as AsValue>::try_from_value(Value::Boolean(Some(false))),
             Err(..),
-        );
+        ));
     }
 
     #[test]

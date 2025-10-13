@@ -3,14 +3,13 @@ use anyhow::Context;
 use quote::ToTokens;
 use rust_decimal::{Decimal, prelude::FromPrimitive, prelude::ToPrimitive};
 use std::{
-    any, array,
+    any,
     borrow::Cow,
     cell::{Cell, RefCell},
     collections::{BTreeMap, HashMap, LinkedList, VecDeque},
     hash::Hash,
     rc::Rc,
     sync::{Arc, RwLock},
-    vec,
 };
 use time::macros::format_description;
 
@@ -440,21 +439,23 @@ impl<T: AsValue, const N: usize> AsValue for [T; N] {
         )
     }
     fn try_from_value(value: Value) -> Result<Self> {
-        let from_iter = |mut it: vec::IntoIter<Value>| {
-            let len = it.len();
-            array::try_from_fn(|_| {
-                T::try_from_value(it.next().ok_or_else(|| {
+        let convert_iter = |iter: Vec<Value>| -> Result<[T; N]> {
+            iter.into_iter()
+                .map(T::try_from_value)
+                .collect::<Result<Vec<_>>>()?
+                .try_into()
+                .map_err(|v: Vec<T>| {
                     Error::msg(format!(
-                        "Cannot convert a container of {} elements to array {}",
-                        len,
-                        any::type_name::<Self>()
+                        "Expected array of length {}, got {} elements ({})",
+                        N,
+                        v.len(),
+                        any::type_name::<[T; N]>()
                     ))
-                })?)
-            })
+                })
         };
         match value {
-            Value::List(Some(v), ..) if v.len() == N => from_iter(v.into_iter()),
-            Value::Array(Some(v), ..) => from_iter(v.into_iter()),
+            Value::List(Some(v), ..) if v.len() == N => convert_iter(v),
+            Value::Array(Some(v), ..) if v.len() == N => convert_iter(v.into()),
             _ => Err(Error::msg(format!(
                 "Cannot convert `{:?}` into array `{}`",
                 value,

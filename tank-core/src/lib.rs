@@ -1,4 +1,3 @@
-#![feature(array_try_from_fn)]
 mod as_value;
 mod column;
 mod connection;
