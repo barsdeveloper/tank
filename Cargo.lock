@@ -1016,7 +1016,7 @@ dependencies = [
  "hyper",
  "libc",
  "pin-project-lite",
- "socket2 0.6.0",
+ "socket2 0.5.10",
  "tokio",
  "tower-service",
  "tracing",
@@ -2411,11 +2411,21 @@ dependencies = [
 [[package]]
 name = "tank"
 version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c83f7e8398c35c15ff309a350105e8de8f22eb902459c2c01bdcd722a866d3a9"
+dependencies = [
+ "tank-core 0.4.0",
+ "tank-macros 0.4.0",
+]
+
+[[package]]
+name = "tank"
+version = "0.5.0"
 dependencies = [
  "indoc",
  "rust_decimal",
- "tank-core",
- "tank-macros",
+ "tank-core 0.4.0",
+ "tank-macros 0.4.0",
  "time",
  "tokio",
  "uuid",
@@ -2424,6 +2434,27 @@ dependencies = [
 [[package]]
 name = "tank-core"
 version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9750464a7443b5f8e0d48133bcd2b9b990bade5796f21799116ba694fa7bfab7"
+dependencies = [
+ "anyhow",
+ "async-stream",
+ "futures",
+ "itoa",
+ "log",
+ "proc-macro2",
+ "quote",
+ "rust_decimal",
+ "ryu",
+ "syn 2.0.106",
+ "time",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
+name = "tank-core"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "async-stream",
@@ -2442,13 +2473,13 @@ dependencies = [
 
 [[package]]
 name = "tank-duckdb"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "flume",
  "libduckdb-sys",
  "log",
  "rust_decimal",
- "tank-core",
+ "tank-core 0.4.0",
  "tank-tests",
  "time",
  "tokio",
@@ -2460,24 +2491,37 @@ dependencies = [
 [[package]]
 name = "tank-macros"
 version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1a545cb1c6e991d74818209019f5aeafe58086d666207c4849793014262de468"
 dependencies = [
  "convert_case",
  "proc-macro2",
  "quote",
  "syn 2.0.106",
- "tank-core",
+ "tank-core 0.4.0",
+]
+
+[[package]]
+name = "tank-macros"
+version = "0.5.0"
+dependencies = [
+ "convert_case",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.106",
+ "tank-core 0.4.0",
 ]
 
 [[package]]
 name = "tank-postgres"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "async-stream",
  "bytes",
  "log",
  "postgres-types",
  "rust_decimal",
- "tank-core",
+ "tank-core 0.4.0",
  "tank-tests",
  "testcontainers-modules",
  "time",
@@ -2490,13 +2534,13 @@ dependencies = [
 
 [[package]]
 name = "tank-sqlite"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "async-stream",
  "libsqlite3-sys",
  "log",
  "rust_decimal",
- "tank-core",
+ "tank-core 0.4.0",
  "tank-tests",
  "tokio",
  "url",
@@ -2506,12 +2550,12 @@ dependencies = [
 
 [[package]]
 name = "tank-tests"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "env_logger",
  "log",
  "rust_decimal",
- "tank",
+ "tank 0.4.0",
  "time",
  "tokio",
  "uuid",
