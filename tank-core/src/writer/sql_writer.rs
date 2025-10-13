@@ -353,7 +353,7 @@ pub trait SqlWriter {
         context: &mut Context,
         buff: &mut String,
         value: Either<&Box<[Value]>, &Vec<Value>>,
-        ty: &Value,
+        _ty: &Value,
     ) {
         buff.push('[');
         separated_by(
@@ -367,8 +367,7 @@ pub trait SqlWriter {
             },
             ",",
         );
-        buff.push_str("]::");
-        self.write_column_type(context, buff, ty);
+        buff.push(']');
     }
 
     fn write_value_map(

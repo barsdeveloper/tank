@@ -29,20 +29,27 @@ pub struct Context {
 }
 
 impl Context {
-    pub fn new(fragment: Fragment, qualify_columns: bool) -> Self {
+    pub const fn new(fragment: Fragment, qualify_columns: bool) -> Self {
         Self {
             counter: 0,
             fragment,
             qualify_columns,
         }
     }
-    pub fn update_from(&mut self, context: &Context) {
+    pub const fn new_qualify(qualify_columns: bool) -> Self {
+        Self {
+            counter: 0,
+            fragment: Fragment::None,
+            qualify_columns,
+        }
+    }
+    pub const fn update_from(&mut self, context: &Context) {
         self.counter = context.counter;
     }
 }
 
 impl Context {
-    pub fn switch_fragment<'s>(&'s mut self, fragment: Fragment) -> ContextUpdater<'s> {
+    pub const fn switch_fragment<'s>(&'s mut self, fragment: Fragment) -> ContextUpdater<'s> {
         ContextUpdater {
             current: Context { fragment, ..*self },
             previous: self,

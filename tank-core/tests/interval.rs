@@ -16,7 +16,7 @@ mod tests {
         macro_rules! test_interval {
             ($interval:expr, $expected:literal) => {{
                 let mut buff = String::new();
-                WRITER.write_value(Default::default(), &mut buff, &$interval.into());
+                WRITER.write_value(&mut Default::default(), &mut buff, &$interval.into());
                 assert_eq!(buff, $expected);
             }};
         }
