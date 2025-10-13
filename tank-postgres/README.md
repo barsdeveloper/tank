@@ -3,7 +3,7 @@ Postgres driver implementation for [Tank](https://crates.io/crates/tank): the Ru
 
 ## Running Tests
 Running the tests requires an instance of Postgre. You can provide the connection URL using the environment variable `TANK_POSTGRES_TEST`. If this variable is not set, a containerized Postgres instance will automatically be launched using [testcontainers-modules](https://crates.io/crates/testcontainers-modules). 
-1. Make sure docker is running
+1. Make sure docker is running:
 ```sh
 systemctl status docker
 ```
