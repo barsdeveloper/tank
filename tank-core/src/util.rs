@@ -93,8 +93,8 @@ macro_rules! printable_query {
     ($query:expr) => {
         format_args!(
             "{}{}\n",
-            &$query[..::std::cmp::min($query.len(), 247)].trim_end(),
-            if $query.len() > 247 { "..." } else { "" },
+            &$query[..::std::cmp::min($query.len(), 497)].trim_end(),
+            if $query.len() > 497 { "..." } else { "" },
         )
     };
 }

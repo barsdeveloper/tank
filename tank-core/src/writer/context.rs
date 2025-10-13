@@ -2,6 +2,7 @@
 pub enum Fragment {
     #[default]
     None,
+    Casting,
     SqlCommentOnColumn,
     SqlCreateSchema,
     SqlCreateTable,

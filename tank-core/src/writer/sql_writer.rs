@@ -5,7 +5,7 @@ use crate::{
 };
 use futures::future::Either;
 use std::{collections::HashMap, fmt::Write};
-use time::{Date, Time};
+use time::{Date, OffsetDateTime, PrimitiveDateTime, Time};
 
 macro_rules! write_integer {
     ($buff:ident, $value:expr) => {{
@@ -111,7 +111,7 @@ pub trait SqlWriter {
             Value::Date(..) => buff.push_str("DATE"),
             Value::Time(..) => buff.push_str("TIME"),
             Value::Timestamp(..) => buff.push_str("TIMESTAMP"),
-            Value::TimestampWithTimezone(..) => buff.push_str("TIMESTAMP WITH TIME ZONE"),
+            Value::TimestampWithTimezone(..) => buff.push_str("TIMESTAMPTZ"),
             Value::Interval(..) => buff.push_str("INTERVAL"),
             Value::Uuid(..) => buff.push_str("UUID"),
             Value::Array(.., inner, size) => {
@@ -160,35 +160,11 @@ pub trait SqlWriter {
             }
             Value::Varchar(Some(v), ..) => self.write_value_string(context, buff, v),
             Value::Blob(Some(v), ..) => self.write_value_blob(context, buff, v.as_ref()),
-            Value::Date(Some(v), ..) => {
-                buff.push('\'');
-                self.write_value_date(context, buff, v);
-                buff.push('\'');
-            }
-            Value::Time(Some(v), ..) => {
-                buff.push('\'');
-                self.write_value_time(context, buff, v);
-                buff.push('\'');
-            }
-            Value::Timestamp(Some(v), ..) => {
-                buff.push('\'');
-                self.write_value_date(context, buff, &v.date());
-                buff.push('T');
-                self.write_value_time(context, buff, &v.time());
-                buff.push('\'');
-            }
+            Value::Date(Some(v), ..) => self.write_value_date(context, buff, v, false),
+            Value::Time(Some(v), ..) => self.write_value_time(context, buff, v, false),
+            Value::Timestamp(Some(v), ..) => self.write_value_timestamp(context, buff, v),
             Value::TimestampWithTimezone(Some(v), ..) => {
-                buff.push('\'');
-                self.write_value_date(context, buff, &v.date());
-                buff.push('T');
-                self.write_value_time(context, buff, &v.time());
-                let _ = write!(
-                    buff,
-                    "{:+02}:{:02}",
-                    v.offset().whole_hours(),
-                    v.offset().whole_minutes()
-                );
-                buff.push('\'');
+                self.write_value_timestamptz(context, buff, v)
             }
             Value::Interval(Some(v), ..) => self.write_value_interval(context, buff, v),
             Value::Uuid(Some(v), ..) => drop(write!(buff, "'{}'", v)),
@@ -262,31 +238,80 @@ pub trait SqlWriter {
         buff.push('\'');
     }
 
-    fn write_value_date(&self, _context: &mut Context, buff: &mut String, value: &Date) {
+    fn write_value_date(
+        &self,
+        _context: &mut Context,
+        buff: &mut String,
+        value: &Date,
+        timestamp: bool,
+    ) {
+        let b = if timestamp { "" } else { "'" };
         let _ = write!(
             buff,
-            "{:04}-{:02}-{:02}",
+            "{b}{:04}-{:02}-{:02}{b}",
             value.year(),
             value.month() as u8,
             value.day()
         );
     }
 
-    fn write_value_time(&self, _context: &mut Context, buff: &mut String, value: &Time) {
+    fn write_value_time(
+        &self,
+        _context: &mut Context,
+        buff: &mut String,
+        value: &Time,
+        timestamp: bool,
+    ) {
         let mut subsecond = value.nanosecond();
         let mut width = 9;
         while width > 1 && subsecond % 10 == 0 {
             subsecond /= 10;
             width -= 1;
         }
+        let b = if timestamp { "" } else { "'" };
         let _ = write!(
             buff,
-            "{:02}:{:02}:{:02}.{:0width$}",
+            "{b}{:02}:{:02}:{:02}.{:0width$}{b}",
             value.hour(),
             value.minute(),
             value.second(),
             subsecond
         );
+    }
+
+    fn write_value_timestamp(
+        &self,
+        context: &mut Context,
+        buff: &mut String,
+        value: &PrimitiveDateTime,
+    ) {
+        buff.push('\'');
+        self.write_value_date(context, buff, &value.date(), true);
+        buff.push('T');
+        self.write_value_time(context, buff, &value.time(), true);
+        buff.push('\'');
+    }
+
+    fn write_value_timestamptz(
+        &self,
+        context: &mut Context,
+        buff: &mut String,
+        value: &OffsetDateTime,
+    ) {
+        buff.push('\'');
+        self.write_value_date(context, buff, &value.date(), true);
+        buff.push('T');
+        self.write_value_time(context, buff, &value.time(), true);
+        let _ = write!(
+            buff,
+            "{:+02}:{:02}",
+            value.offset().whole_hours(),
+            value.offset().whole_minutes()
+        );
+        if value.date().year() <= 0 {
+            buff.push_str(" BC");
+        }
+        buff.push_str("'::TIMESTAMPTZ");
     }
 
     fn value_interval_units(&self) -> &[(&str, i128)] {
@@ -528,18 +553,27 @@ pub trait SqlWriter {
             BinaryOpType::Or => ("", " OR ", "", false, false),
             BinaryOpType::Alias => ("", " AS ", "", false, false),
         };
+        let mut context = context.switch_fragment(if value.op == BinaryOpType::Cast {
+            Fragment::Casting
+        } else {
+            context.fragment
+        });
         let precedence = self.expression_binary_op_precedence(&value.op);
         buff.push_str(prefix);
         possibly_parenthesized!(
             buff,
             !lhs_parenthesized && value.lhs.precedence(self.as_dyn()) < precedence,
-            value.lhs.write_query(self.as_dyn(), context, buff)
+            value
+                .lhs
+                .write_query(self.as_dyn(), &mut context.current, buff)
         );
         buff.push_str(infix);
         possibly_parenthesized!(
             buff,
             !rhs_parenthesized && value.rhs.precedence(self.as_dyn()) <= precedence,
-            value.rhs.write_query(self.as_dyn(), context, buff)
+            value
+                .rhs
+                .write_query(self.as_dyn(), &mut context.current, buff)
         );
         buff.push_str(suffix);
     }

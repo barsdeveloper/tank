@@ -25,33 +25,40 @@ pub async fn multiple<E: Executor>(executor: &mut E) {
 
     let mut sql = String::new();
     sql.push_str("    \n\n  \n \n\t\t\n   \n    ");
+    // 1
     executor
         .driver()
         .sql_writer()
         .write_drop_table::<One>(&mut sql, true);
     sql.push_str("\t\t");
+    // 2
     executor
         .driver()
         .sql_writer()
         .write_drop_table::<Two>(&mut sql, true);
+    // 3
     executor
         .driver()
         .sql_writer()
         .write_drop_table::<Three>(&mut sql, true);
+    // 4
     executor
         .driver()
         .sql_writer()
         .write_create_table::<One>(&mut sql, true);
     sql.push('\n');
+    // 5
     executor
         .driver()
         .sql_writer()
         .write_create_table::<Two>(&mut sql, true);
+    // 6
     executor
         .driver()
         .sql_writer()
         .write_create_table::<Three>(&mut sql, true);
     sql.push_str(" ");
+    // 7
     executor.driver().sql_writer().write_insert(
         &mut sql,
         [
@@ -71,6 +78,7 @@ pub async fn multiple<E: Executor>(executor: &mut E) {
         false,
     );
     sql.push_str("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
+    // 8
     executor.driver().sql_writer().write_insert(
         &mut sql,
         [
@@ -83,6 +91,7 @@ pub async fn multiple<E: Executor>(executor: &mut E) {
         ],
         false,
     );
+    // 9
     executor.driver().sql_writer().write_select(
         &mut sql,
         [Three::string],
@@ -90,6 +99,7 @@ pub async fn multiple<E: Executor>(executor: &mut E) {
         &true,
         None,
     );
+    // 10
     executor.driver().sql_writer().write_insert(
         &mut sql,
         [&One {
@@ -99,6 +109,7 @@ pub async fn multiple<E: Executor>(executor: &mut E) {
         }],
         false,
     );
+    // 11
     executor.driver().sql_writer().write_select(
         &mut sql,
         [One::a1, One::string, One::c1],
@@ -106,6 +117,7 @@ pub async fn multiple<E: Executor>(executor: &mut E) {
         &true,
         None,
     );
+    // 12
     executor.driver().sql_writer().write_select(
         &mut sql,
         [Two::a2, Two::string],
@@ -119,6 +131,7 @@ pub async fn multiple<E: Executor>(executor: &mut E) {
         .try_collect::<Vec<_>>()
         .await
         .expect("Could not run the composite query");
+    // 12 statements but one select returns 3 rows and another one returns 2 rows (12 - 2 + 3 + 2 = 15)
     assert_eq!(result.len(), 15);
     let mut result = result
         .into_iter()

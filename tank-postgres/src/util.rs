@@ -8,6 +8,23 @@ use tank_core::{
 };
 use tokio_postgres::SimpleQueryMessage;
 
+pub(crate) fn row_to_tank_row(row: tokio_postgres::Row) -> tank_core::Result<tank_core::Row> {
+    (0..row.len())
+        .map(|i| match row.try_get::<_, ValueHolder>(i) {
+            Ok(v) => Ok(v.0),
+            Err(..) => {
+                let col = &row.columns()[i];
+                Err(tank_core::Error::msg(format!(
+                    "Unknown column type {} `{}`({})",
+                    col.type_(),
+                    col.name(),
+                    i,
+                )))
+            }
+        })
+        .collect::<tank_core::Result<tank_core::Row>>()
+}
+
 pub(crate) fn simple_query_row_to_tank_row(
     row: tokio_postgres::SimpleQueryRow,
 ) -> tank_core::Result<tank_core::Row> {
@@ -23,23 +40,6 @@ pub(crate) fn simple_query_row_to_tank_row(
                     "Could not deserialize column {} `{}`",
                     i,
                     col.name(),
-                )))
-            }
-        })
-        .collect::<tank_core::Result<tank_core::Row>>()
-}
-
-pub(crate) fn row_to_tank_row(row: tokio_postgres::Row) -> tank_core::Result<tank_core::Row> {
-    (0..row.len())
-        .map(|i| match row.try_get::<_, ValueHolder>(i) {
-            Ok(v) => Ok(v.0),
-            Err(..) => {
-                let col = &row.columns()[i];
-                Err(tank_core::Error::msg(format!(
-                    "Unknown column type {} `{}`({})",
-                    col.type_(),
-                    col.name(),
-                    i,
                 )))
             }
         })
@@ -80,6 +80,7 @@ where
         let stream = stream().await?;
         let mut stream = pin!(stream);
         let mut labels: Option<tank_core::RowNames> = None;
+        let mut rows = false;
         while let Some(entry) = stream.next().await.transpose()? {
             match entry {
                 SimpleQueryMessage::Row(row) => {
@@ -94,13 +95,19 @@ where
                     .into();
                 }
                 SimpleQueryMessage::CommandComplete(rows_affected) => {
-                    yield tank_core::QueryResult::Affected(tank_core::RowsAffected {
-                        rows_affected,
-                        ..Default::default()
-                    })
-                    .into();
+                    if rows {
+                        // After a set of rows, a CommandComplete is received, ignore it
+                        rows = false;
+                    } else {
+                        yield tank_core::QueryResult::Affected(tank_core::RowsAffected {
+                            rows_affected,
+                            ..Default::default()
+                        })
+                        .into();
+                    }
                 }
                 SimpleQueryMessage::RowDescription(columns) => {
+                    rows = true;
                     labels = Some(
                         columns
                             .into_iter()

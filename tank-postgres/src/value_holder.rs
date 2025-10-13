@@ -34,7 +34,7 @@ impl<'a> FromSql<'a> for ValueHolder {
                         if let Some(mut raw) = $raw {
                             let mut buf = String::new();
                             let _ = raw.read_to_string(&mut buf);
-                            return Err(tank_core::Error::msg(format!("Unknown value type {}: `{}`", $ty_var, buf)).into());
+                            return Err(tank_core::Error::msg(format!("Cannot decode sql type: `{}`, value: `{}`", $ty_var, buf)).into());
                         }
                         Value::Null
                     }
@@ -69,6 +69,7 @@ impl<'a> FromSql<'a> for ValueHolder {
             Type::FLOAT4_ARRAY => (Value::List, VecWrap<ValueHolder>, Box::new(Value::Float32(None))),
             Type::FLOAT8_ARRAY => (Value::List, VecWrap<ValueHolder>, Box::new(Value::Float64(None))),
             Type::BPCHAR_ARRAY => (Value::List, VecWrap<ValueHolder>, Box::new(Value::Varchar(None))),
+            Type::UNKNOWN => (Value::Unknown, String),
         );
         Ok(value.into())
     }

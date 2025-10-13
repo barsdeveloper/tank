@@ -1,5 +1,5 @@
 use crate::{
-    OpPrecedence,
+    OpPrecedence, Value,
     writer::{Context, SqlWriter},
 };
 use std::fmt::Debug;
@@ -42,5 +42,11 @@ impl Expression for bool {
 impl<'a, T: Expression> From<&'a T> for &'a dyn Expression {
     fn from(value: &'a T) -> Self {
         value as &'a dyn Expression
+    }
+}
+
+impl Expression for Value {
+    fn write_query(&self, writer: &dyn SqlWriter, context: &mut Context, buff: &mut String) {
+        writer.write_value(context, buff, self);
     }
 }

@@ -1,5 +1,6 @@
 use crate::{Error, FixedDecimal, Interval, Passive, Result, Value};
 use anyhow::Context;
+use atoi::FromRadix10;
 use quote::ToTokens;
 use rust_decimal::{Decimal, prelude::FromPrimitive, prelude::ToPrimitive};
 use std::{
@@ -50,15 +51,27 @@ macro_rules! impl_as_value {
                         Ok(v as $source)
                     } else {
                         Err(Error::msg(format!(
-                            "Cannot convert `{:?}` into {}, the value is out of bounds",
+                            "Cannot convert `{:?}` to `{}`, the value is out of bounds",
                             v,
                             stringify!($source),
                         )))
                     }
+                    Value::Unknown(Some(v)) => {
+                        let (r, len) = <$source>::from_radix_10(v.as_bytes());
+                        if len == v.len() {
+                            Ok(r)
+                        } else {
+                            Err(Error::msg(format!(
+                                "Cannot decode `tank::Value(Some({}))` into `{}`",
+                                v,
+                                stringify!($source)
+                            )))
+                        }
+                    },
                     #[allow(unreachable_patterns)]
                     $($pat_rest(Some(v), ..) => $expr_rest(v),)*
                     _ => Err(Error::msg(format!(
-                        "Cannot convert `{:?}` into `{}`",
+                        "Cannot convert `{:?}` to `{}`",
                         value,
                         stringify!($source),
                     ))),
@@ -71,6 +84,13 @@ impl_as_value!(
     i8,
     Value::Int8 => |v| Ok(v),
     Value::UInt8 => |v| Ok(v as i8),
+    Value::Int16 => |v: i16| {
+        let result = v as i8;
+        if result as i16 != v {
+            return Err(Error::msg(format!("Value {}: i16 cannot fit into i8", v)));
+        }
+        Ok(result)
+    },
 );
 impl_as_value!(
     i16,
@@ -207,7 +227,7 @@ macro_rules! impl_as_value {
                     $value(Some(v), ..) => $expr(v),
                     $($pat_rest(Some(v), ..) => $expr_rest(v),)*
                     _ => Err(Error::msg(format!(
-                        "Cannot convert `{:?}` into `{}`",
+                        "Cannot convert `{:?}` to `{}`",
                         value,
                         stringify!($source),
                     ))),
@@ -256,6 +276,7 @@ impl_as_value!(
     String,
     Value::Varchar => |v| Ok(v),
     Value::Char => |v: char| Ok(v.into()),
+    Value::Unknown => |v: String| Ok(v),
 );
 impl<'a> AsValue for Cow<'a, str> {
     fn as_empty_value() -> Value {
@@ -270,7 +291,7 @@ impl<'a> AsValue for Cow<'a, str> {
     {
         let Value::Varchar(Some(value)) = value else {
             return Err(Error::msg(format!(
-                "Cannot convert `{}` into `Cow<'a, str>`",
+                "Cannot convert `{}` to `Cow<'a, str>`",
                 value.to_token_stream().to_string(),
             )));
         };
@@ -405,7 +426,7 @@ impl AsValue for Decimal {
             Value::Float64(Some(v), ..) => Ok(Decimal::from_f64(v)
                 .ok_or(Error::msg("Could not convert the Float64 into Decimal"))?),
             _ => Err(Error::msg(format!(
-                "Cannot convert `{:?}` into `rust_decimal::Decimal`",
+                "Cannot convert `{:?}` to `rust_decimal::Decimal`",
                 value,
             ))),
         }
@@ -457,7 +478,7 @@ impl<T: AsValue, const N: usize> AsValue for [T; N] {
             Value::List(Some(v), ..) if v.len() == N => convert_iter(v),
             Value::Array(Some(v), ..) if v.len() == N => convert_iter(v.into()),
             _ => Err(Error::msg(format!(
-                "Cannot convert `{:?}` into array `{}`",
+                "Cannot convert `{:?}` to array `{}`",
                 value,
                 any::type_name::<Self>()
             ))),
@@ -489,7 +510,7 @@ macro_rules! impl_as_value {
                         .map(|v| Ok::<_, Error>(<T as AsValue>::try_from_value(v)?))
                         .collect::<Result<_>>()?),
                     _ => Err(Error::msg(format!(
-                        "Cannot convert `{:?}` into list-like `{}`",
+                        "Cannot convert `{:?}` to list-like `{}`",
                         value,
                         stringify!($list<T>),
                     ))),
@@ -531,7 +552,7 @@ macro_rules! impl_as_value {
                         .collect::<Result<_>>()?)
                 } else {
                     Err(Error::msg(format!(
-                        "Cannot convert `{:?}` into map `{}`",
+                        "Cannot convert `{:?}` to map `{}`",
                         value,
                         stringify!($map<K, V>),
                     )))

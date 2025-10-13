@@ -1,5 +1,6 @@
 use std::fmt::Write;
 use tank_core::{Context, SqlWriter, Value, future::Either, separated_by};
+use time::{Date, PrimitiveDateTime, Time};
 
 pub struct PostgresSqlWriter {}
 
@@ -59,6 +60,77 @@ impl SqlWriter for PostgresSqlWriter {
             let _ = write!(buff, "{:X}", b);
         }
         buff.push('\'');
+    }
+
+    fn write_value_date(
+        &self,
+        _context: &mut Context,
+        buff: &mut String,
+        value: &Date,
+        timestamp: bool,
+    ) {
+        let (l, r) = if timestamp {
+            ("", "")
+        } else {
+            ("'", "'::DATE")
+        };
+        let (year, suffix) = if !timestamp && value.year() <= 0 {
+            // Year 0 in Postgres is 1 BC
+            (value.year().abs() + 1, " BC")
+        } else {
+            (value.year(), "")
+        };
+        let _ = write!(
+            buff,
+            "{l}{:04}-{:02}-{:02}{suffix}{r}",
+            year,
+            value.month() as u8,
+            value.day()
+        );
+    }
+
+    fn write_value_time(
+        &self,
+        _context: &mut Context,
+        buff: &mut String,
+        value: &Time,
+        timestamp: bool,
+    ) {
+        let mut subsecond = value.nanosecond();
+        let mut width = 9;
+        while width > 1 && subsecond % 10 == 0 {
+            subsecond /= 10;
+            width -= 1;
+        }
+        let (l, r) = if timestamp {
+            ("", "")
+        } else {
+            ("'", "'::TIME")
+        };
+        let _ = write!(
+            buff,
+            "{l}{:02}:{:02}:{:02}.{:0width$}{r}",
+            value.hour(),
+            value.minute(),
+            value.second(),
+            subsecond
+        );
+    }
+
+    fn write_value_timestamp(
+        &self,
+        context: &mut Context,
+        buff: &mut String,
+        value: &PrimitiveDateTime,
+    ) {
+        buff.push('\'');
+        self.write_value_date(context, buff, &value.date(), true);
+        buff.push('T');
+        self.write_value_time(context, buff, &value.time(), true);
+        if value.date().year() <= 0 {
+            buff.push_str(" BC");
+        }
+        buff.push_str("'::TIMESTAMP");
     }
 
     fn write_value_list<'a>(

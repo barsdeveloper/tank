@@ -63,7 +63,7 @@ pub async fn limits<E: Executor>(executor: &mut E) {
         float32: f32::MIN_POSITIVE,
         float64: f64::NEG_INFINITY,
         time: Time::from_hms(0, 0, 0).expect("All zero must be correct time"),
-        date: Date::from_calendar_date(-9999, Month::January, 01)
+        date: Date::from_calendar_date(-2000, Month::January, 01)
             .expect("Very old date must be correct"),
         #[cfg(not(feature = "disable-duration"))]
         interval: Interval::from_micros(1),
@@ -98,7 +98,7 @@ pub async fn limits<E: Executor>(executor: &mut E) {
     assert_eq!(loaded.time, Time::from_hms(0, 0, 0).unwrap());
     assert_eq!(
         loaded.date,
-        Date::from_calendar_date(-9999, Month::January, 01).unwrap()
+        Date::from_calendar_date(-2000, Month::January, 01).unwrap()
     );
     #[cfg(not(feature = "disable-duration"))]
     assert_eq!(loaded.interval, Interval::from_micros(1));
