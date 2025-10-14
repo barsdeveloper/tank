@@ -132,7 +132,13 @@ impl Prepared for DuckDBPrepared {
                 Value::Interval(Some(v), ..) => {
                     duckdb_bind_interval(prepared, index, interval_to_duckdb_interval(&v))
                 }
-                Value::Uuid(Some(_v), ..) => todo!(),
+                Value::Uuid(Some(v), ..) => {
+                    let v = CBox::new(
+                        duckdb_create_uuid(u128_to_duckdb_uhugeint(v.as_u128())),
+                        |mut ptr| duckdb_destroy_value(&mut ptr),
+                    );
+                    duckdb_bind_value(prepared, index, *v)
+                }
                 _ => {
                     let error =
                         Error::msg(format!("Cannot use a {:?} as a query parameter", value));
