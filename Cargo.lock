@@ -2419,7 +2419,7 @@ dependencies = [
 
 [[package]]
 name = "tank"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "indoc",
  "rust_decimal",
@@ -2432,7 +2432,7 @@ dependencies = [
 
 [[package]]
 name = "tank-core"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "async-stream",
@@ -2452,7 +2452,7 @@ dependencies = [
 
 [[package]]
 name = "tank-duckdb"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "flume",
  "libduckdb-sys",
@@ -2469,7 +2469,7 @@ dependencies = [
 
 [[package]]
 name = "tank-macros"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "convert_case",
  "proc-macro2",
@@ -2480,7 +2480,7 @@ dependencies = [
 
 [[package]]
 name = "tank-postgres"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "async-stream",
  "bytes",
@@ -2500,7 +2500,7 @@ dependencies = [
 
 [[package]]
 name = "tank-sqlite"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "async-stream",
  "libsqlite3-sys",
@@ -2516,7 +2516,7 @@ dependencies = [
 
 [[package]]
 name = "tank-tests"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "env_logger",
  "log",

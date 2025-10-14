@@ -178,9 +178,7 @@ pub trait SqlWriter {
                 _ => unreachable!(),
             },
             Value::Map(Some(v), ..) => self.write_value_map(context, buff, v),
-            Value::Struct(Some(_v), ..) => {
-                todo!()
-            }
+            Value::Struct(Some(v), ..) => self.write_value_struct(context, buff, v),
             _ => {
                 log::error!("Cannot write {:?}", value);
             }
@@ -407,6 +405,26 @@ pub trait SqlWriter {
             value,
             |buff, (k, v)| {
                 self.write_value(context, buff, k);
+                buff.push(':');
+                self.write_value(context, buff, v);
+            },
+            ",",
+        );
+        buff.push('}');
+    }
+
+    fn write_value_struct(
+        &self,
+        context: &mut Context,
+        buff: &mut String,
+        value: &Vec<(String, Value)>,
+    ) {
+        buff.push('{');
+        separated_by(
+            buff,
+            value,
+            |buff, (k, v)| {
+                self.write_value_string(context, buff, k);
                 buff.push(':');
                 self.write_value(context, buff, v);
             },

@@ -86,7 +86,7 @@ pub fn decode_expression(expr: &Expr) -> TokenStream {
                 BinOp::Le(..) => quote! { ::tank::BinaryOpType::LessEqual },
                 BinOp::Ge(..) => quote! { ::tank::BinaryOpType::GreaterEqual },
                 BinOp::Gt(..) => quote! { ::tank::BinaryOpType::Greater },
-                _ => todo!(),
+                _ => panic!("Unexpected {:?} operator", expr_binary.op),
             };
             let lhs = decode_expression(lhs);
             let rhs = decode_expression(rhs);

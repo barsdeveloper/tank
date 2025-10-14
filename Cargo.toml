@@ -10,7 +10,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.5.0"
+version = "0.6.0"
 authors = ["barsdeveloper <barsdeveloper@gmail.com>"]
 license = "Apache-2.0"
 edition = "2024"
@@ -27,9 +27,9 @@ proc-macro2 = "1.0.101"
 quote = "1.0.41"
 rust_decimal = "1.39.0"
 syn = { version = "2.0.106", features = ["full"] }
-tank = "0.5.0"
-tank-core = "0.5.0"
-tank-macros = "0.5.0"
+tank = "0.6.0"
+tank-core = "0.6.0"
+tank-macros = "0.6.0"
 time = { version = "0.3.44", features = ["macros", "parsing"] }
 tokio = { version = "1.47.1", features = ["fs", "macros", "rt-multi-thread", "sync"] }
 url = "2.5.7"

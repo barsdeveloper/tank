@@ -1,5 +1,4 @@
-use crate::{Error, FixedDecimal, Interval, Passive, Result, Value};
-use anyhow::Context;
+use crate::{Error, FixedDecimal, Interval, Parse, Passive, Result, Value};
 use atoi::FromRadix10;
 use quote::ToTokens;
 use rust_decimal::{Decimal, prelude::FromPrimitive, prelude::ToPrimitive};
@@ -12,7 +11,6 @@ use std::{
     rc::Rc,
     sync::{Arc, RwLock},
 };
-use time::macros::format_description;
 
 pub trait AsValue {
     fn as_empty_value() -> Value;
@@ -46,6 +44,7 @@ macro_rules! impl_as_value {
             fn try_from_value(value: Value) -> Result<Self> {
                 match value {
                     $value(Some(v), ..) => $expr(v),
+                    $($pat_rest(Some(v), ..) => $expr_rest(v),)*
                     #[allow(unreachable_patterns)]
                     Value::Int64(Some(v), ..) => if v as $source as i64 == v {
                         Ok(v as $source)
@@ -62,14 +61,12 @@ macro_rules! impl_as_value {
                             Ok(r)
                         } else {
                             Err(Error::msg(format!(
-                                "Cannot decode `tank::Value(Some({}))` into `{}`",
+                                "Cannot decode `tank::Value::Unknown(Some({}))` into `{}`",
                                 v,
                                 stringify!($source)
                             )))
                         }
-                    },
-                    #[allow(unreachable_patterns)]
-                    $($pat_rest(Some(v), ..) => $expr_rest(v),)*
+                    }
                     _ => Err(Error::msg(format!(
                         "Cannot convert `{:?}` to `{}`",
                         value,
@@ -226,6 +223,14 @@ macro_rules! impl_as_value {
                 match value {
                     $value(Some(v), ..) => $expr(v),
                     $($pat_rest(Some(v), ..) => $expr_rest(v),)*
+                    #[allow(unreachable_patterns)]
+                    Value::Unknown(Some(v)) => {
+                        v.parse::<$source>().map_err(|_| Error::msg(format!(
+                            "Cannot decode `tank::Value::Unknown(Some({}))` into `{}`",
+                            v,
+                            stringify!($source)
+                        )))
+                    }
                     _ => Err(Error::msg(format!(
                         "Cannot convert `{:?}` to `{}`",
                         value,
@@ -298,101 +303,57 @@ impl<'a> AsValue for Cow<'a, str> {
         Ok(value.into())
     }
 }
-impl_as_value!(Box<[u8]>, Value::Blob => |v| Ok(v));
+
+macro_rules! impl_as_value {
+    ($source:ty, $value:path => $expr:expr $(, $pat_rest:path => $expr_rest:expr)* $(,)?) => {
+        impl AsValue for $source {
+            fn as_empty_value() -> Value {
+                $value(None)
+            }
+            fn as_value(self) -> Value {
+                $value(Some(self.into()))
+            }
+            fn try_from_value(value: Value) -> Result<Self> {
+                match value {
+                    $value(Some(v), ..) => $expr(v),
+                    $($pat_rest(Some(v), ..) => $expr_rest(v),)*
+                    _ => Err(Error::msg(format!(
+                        "Cannot convert `{:?}` to `{}`",
+                        value,
+                        stringify!($source),
+                    ))),
+                }
+            }
+        }
+    };
+}
+impl_as_value!(
+    Box<[u8]>,
+    Value::Blob => |v| Ok(v),
+);
 impl_as_value!(
     time::Date,
     Value::Date => |v| Ok(v),
-    Value::Varchar => |v: String| Ok(
-        time::Date::parse(
-            &v,
-            format_description!("[year]-[month]-[day]")
-        )
-        .with_context(|| format!("Cannot convert '{}' to time::Time", v))
-    ?),
+    Value::Varchar => Parse::parse,
+    Value::Unknown => Parse::parse,
 );
 impl_as_value!(
     time::Time,
     Value::Time => |v| Ok(v),
-    Value::Varchar => |v: String| {
-        time::Time::parse(
-            &v,
-            format_description!("[hour]:[minute]:[second].[subsecond]"),
-        )
-        .or(time::Time::parse(
-            &v,
-            format_description!("[hour]:[minute]:[second]"),
-        ))
-        .or(time::Time::parse(
-            &v,
-            format_description!("[hour]:[minute]"),
-        ))
-        .with_context(|| format!("Cannot convert '{}' to time::Time", v))
-        .map_err(Into::into)
-    },
+    Value::Varchar => Parse::parse,
+    Value::Unknown => Parse::parse,
 );
 impl_as_value!(
     time::PrimitiveDateTime,
     Value::Timestamp => |v| Ok(v),
-    Value::Varchar => |v: String| {
-        time::PrimitiveDateTime::parse(
-            &v,
-            format_description!("[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond]")
-        )
-        .or(time::PrimitiveDateTime::parse(
-            &v,
-            format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]")
-        ))
-        .or(time::PrimitiveDateTime::parse(
-            &v,
-            format_description!("[year]-[month]-[day]T[hour]:[minute]")
-        ))
-        .or(time::PrimitiveDateTime::parse(
-            &v,
-            format_description!("[year]-[month]-[day] [hour]:[minute]:[second].[subsecond]")
-        ))
-        .or(time::PrimitiveDateTime::parse(
-            &v,
-            format_description!("[year]-[month]-[day] [hour]:[minute]:[second]")
-        ))
-        .or(time::PrimitiveDateTime::parse(
-            &v,
-            format_description!("[year]-[month]-[day] [hour]:[minute]")
-        ))
-        .with_context(|| format!("Cannot convert '{}' to time::PrimitiveDateTime", v))
-        .map_err(Into::into)
-    },
+    Value::Varchar => Parse::parse,
+    Value::Unknown => Parse::parse,
 );
 impl_as_value!(
     time::OffsetDateTime,
     Value::TimestampWithTimezone => |v| Ok(v),
-    Value::Varchar => |v: String| {
-        time::OffsetDateTime::parse(
-            &v,
-            format_description!("[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond][offset_hour sign:mandatory]:[offset_minute]")
-        )
-        .or(time::OffsetDateTime::parse(
-            &v,
-            format_description!("[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond][offset_hour sign:mandatory]")
-        ))
-        .or(time::OffsetDateTime::parse(
-            &v,
-            format_description!("[year]-[month]-[day]T[hour]:[minute]:[second][offset_hour sign:mandatory]:[offset_minute]")
-        ))
-        .or(time::OffsetDateTime::parse(
-            &v,
-            format_description!("[year]-[month]-[day]T[hour]:[minute]:[second][offset_hour sign:mandatory]")
-        ))
-        .or(time::OffsetDateTime::parse(
-            &v,
-            format_description!("[year]-[month]-[day]T[hour]:[minute][offset_hour sign:mandatory]:[offset_minute]")
-        ))
-        .or(time::OffsetDateTime::parse(
-            &v,
-            format_description!("[year]-[month]-[day]T[hour]:[minute][offset_hour sign:mandatory]")
-        ))
-        .with_context(|| format!("Cannot convert '{}' to time::OffsetDateTime", v))
-        .map_err(Into::into)
-    }
+    Value::Varchar => Parse::parse,
+    Value::Unknown => Parse::parse,
 );
 impl_as_value!(std::time::Duration, Value::Interval => |v: Interval| Ok(v.into()));
 impl_as_value!(Interval, Value::Interval => |v| Ok(v));
