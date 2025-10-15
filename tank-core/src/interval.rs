@@ -45,6 +45,7 @@ impl Interval {
     pub const SECS_IN_DAY: i64 = 60 * 60 * 24;
     pub const NANOS_IN_SEC: i128 = 1_000_000_000;
     pub const NANOS_IN_DAY: i128 = Self::SECS_IN_DAY as i128 * Self::NANOS_IN_SEC;
+    pub const MICROS_IN_DAY: i128 = Self::SECS_IN_DAY as i128 * 1_000_000;
 
     pub const fn new(months: i64, days: i64, nanos: i128) -> Self {
         Self {

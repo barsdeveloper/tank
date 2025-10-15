@@ -1,4 +1,4 @@
-use crate::ValueHolder;
+use crate::ValueWrap;
 use async_stream::try_stream;
 use postgres_types::{FromSql, Type};
 use std::pin::pin;
@@ -10,7 +10,7 @@ use tokio_postgres::SimpleQueryMessage;
 
 pub(crate) fn row_to_tank_row(row: tokio_postgres::Row) -> tank_core::Result<tank_core::Row> {
     (0..row.len())
-        .map(|i| match row.try_get::<_, ValueHolder>(i) {
+        .map(|i| match row.try_get::<_, ValueWrap>(i) {
             Ok(v) => Ok(v.0),
             Err(..) => {
                 let col = &row.columns()[i];
@@ -30,7 +30,7 @@ pub(crate) fn simple_query_row_to_tank_row(
 ) -> tank_core::Result<tank_core::Row> {
     (0..row.len())
         .map(|i| match row.try_get(i) {
-            Ok(Some(v)) => ValueHolder::from_sql(&Type::UNKNOWN, v.as_bytes())
+            Ok(Some(v)) => ValueWrap::from_sql(&Type::UNKNOWN, v.as_bytes())
                 .map(|v| v.0)
                 .map_err(|e| tank_core::Error::msg(format!("{:#}", e))),
             Ok(None) => Ok(Value::Null),

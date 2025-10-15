@@ -175,7 +175,7 @@ mod tests {
             query,
             indoc! {r#"
                 INSERT INTO "a_table" ("alpha", "bravo", "charlie", "delta", "echo") VALUES
-                (0.0, 2, 10.2, INTERVAL 1 SECOND, 23.44)
+                (0.0, 2, 10.2, INTERVAL '1 SECOND', 23.44)
                 ON CONFLICT ("bravo", "delta") DO UPDATE SET
                 "alpha" = EXCLUDED."alpha",
                 "charlie" = EXCLUDED."charlie",

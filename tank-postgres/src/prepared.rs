@@ -1,4 +1,4 @@
-use crate::{PostgresTransaction, ValueHolder, postgres_type_to_value};
+use crate::{PostgresTransaction, ValueWrap, postgres_type_to_value};
 use std::{
     fmt::{self, Debug, Display},
     mem,
@@ -9,7 +9,7 @@ use tokio_postgres::{Portal, Statement};
 pub struct PostgresPrepared {
     pub(crate) statement: Statement,
     pub(crate) index: u64,
-    pub(crate) value: Either<Vec<Option<ValueHolder>>, Portal>,
+    pub(crate) value: Either<Vec<Option<ValueWrap>>, Portal>,
 }
 
 impl PostgresPrepared {
@@ -41,7 +41,7 @@ impl PostgresPrepared {
         let mut params = mem::take(params);
         let mut i = 0;
         for param in &mut params {
-            *param = Some(ValueHolder(
+            *param = Some(ValueWrap(
                 mem::take(param)
                     .unwrap()
                     .0

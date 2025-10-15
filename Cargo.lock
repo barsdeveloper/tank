@@ -2483,6 +2483,7 @@ name = "tank-postgres"
 version = "0.6.0"
 dependencies = [
  "async-stream",
+ "byteorder",
  "bytes",
  "log",
  "postgres-types",

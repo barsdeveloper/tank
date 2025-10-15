@@ -325,10 +325,9 @@ pub trait SqlWriter {
     }
 
     fn write_value_interval(&self, _context: &mut Context, buff: &mut String, value: &Interval) {
-        buff.push_str("INTERVAL ");
+        buff.push_str("INTERVAL '");
         if value.is_zero() {
             buff.push_str("0 SECONDS");
-            return;
         }
         macro_rules! write_unit {
             ($buff:ident, $val:expr, $unit:expr) => {
@@ -343,10 +342,6 @@ pub trait SqlWriter {
         }
         let months = value.months;
         let nanos = value.nanos + value.days as i128 * Interval::NANOS_IN_DAY;
-        let multiple_units = nanos != 0 && value.months != 0;
-        if multiple_units {
-            buff.push('\'');
-        }
         if months != 0 {
             if months % 12 == 0 {
                 write_unit!(buff, months / 12, "YEAR");
@@ -366,9 +361,7 @@ pub trait SqlWriter {
                 }
             }
         }
-        if multiple_units {
-            buff.push('\'');
-        }
+        buff.push('\'');
     }
 
     fn write_value_list<'a>(

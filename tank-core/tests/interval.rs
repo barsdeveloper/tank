@@ -21,79 +21,83 @@ mod tests {
             }};
         }
 
-        test_interval!(Interval::from_nanos(1), "INTERVAL 1 NANOSECOND");
-        test_interval!(Interval::from_nanos(27), "INTERVAL 27 NANOSECONDS");
-        test_interval!(Interval::from_nanos(1_000), "INTERVAL 1 MICROSECOND");
-        test_interval!(Interval::from_nanos(54_000), "INTERVAL 54 MICROSECONDS");
+        test_interval!(Interval::default(), "INTERVAL '0 SECONDS'");
+        test_interval!(Interval::from_nanos(1), "INTERVAL '1 NANOSECOND'");
+        test_interval!(Interval::from_nanos(27), "INTERVAL '27 NANOSECONDS'");
+        test_interval!(Interval::from_nanos(1_000), "INTERVAL '1 MICROSECOND'");
+        test_interval!(Interval::from_nanos(54_000), "INTERVAL '54 MICROSECONDS'");
         test_interval!(
             Interval::from_nanos(864_000_000_000_000),
-            "INTERVAL 10 DAYS"
+            "INTERVAL '10 DAYS'"
         );
 
-        test_interval!(Interval::from_micros(1), "INTERVAL 1 MICROSECOND");
+        test_interval!(Interval::from_micros(1), "INTERVAL '1 MICROSECOND'");
         test_interval!(
             Interval::from_duration(&std::time::Duration::from_micros(1)),
-            "INTERVAL 1 MICROSECOND"
+            "INTERVAL '1 MICROSECOND'"
         );
-        test_interval!(Interval::from_micros(2), "INTERVAL 2 MICROSECONDS");
-        test_interval!(Interval::from_micros(999), "INTERVAL 999 MICROSECONDS");
-        test_interval!(Interval::from_micros(1_001), "INTERVAL 1001 MICROSECONDS");
-        test_interval!(Interval::from_micros(1_000_000), "INTERVAL 1 SECOND");
-        test_interval!(Interval::from_micros(2_000_000), "INTERVAL 2 SECONDS");
-        test_interval!(Interval::from_micros(3_000_000), "INTERVAL 3 SECONDS");
+        test_interval!(Interval::from_micros(2), "INTERVAL '2 MICROSECONDS'");
+        test_interval!(Interval::from_micros(999), "INTERVAL '999 MICROSECONDS'");
+        test_interval!(Interval::from_micros(1_001), "INTERVAL '1001 MICROSECONDS'");
+        test_interval!(Interval::from_micros(1_000_000), "INTERVAL '1 SECOND'");
+        test_interval!(Interval::from_micros(2_000_000), "INTERVAL '2 SECONDS'");
+        test_interval!(Interval::from_micros(3_000_000), "INTERVAL '3 SECONDS'");
         test_interval!(
             Interval::from_micros(1_000_999),
-            "INTERVAL 1000999 MICROSECONDS"
+            "INTERVAL '1000999 MICROSECONDS'"
         );
         test_interval!(
             Interval::from_micros(1_001_000_000),
-            "INTERVAL 1001 SECONDS"
+            "INTERVAL '1001 SECONDS'"
         );
         test_interval!(
             Interval::from_micros(1_012_000_000),
-            "INTERVAL 1012 SECONDS"
+            "INTERVAL '1012 SECONDS'"
         );
-        test_interval!(Interval::from_micros(3_600_000_000), "INTERVAL 1 HOUR");
-        test_interval!(Interval::from_micros(21_600_000_000), "INTERVAL 6 HOURS");
-        test_interval!(Interval::from_micros(3_110_400_000_000), "INTERVAL 36 DAYS");
+        test_interval!(Interval::from_micros(3_600_000_000), "INTERVAL '1 HOUR'");
+        test_interval!(Interval::from_micros(21_600_000_000), "INTERVAL '6 HOURS'");
+        test_interval!(
+            Interval::from_micros(3_110_400_000_000),
+            "INTERVAL '36 DAYS'"
+        );
 
-        test_interval!(Interval::from_millis(1_000), "INTERVAL 1 SECOND");
-        test_interval!(Interval::from_millis(2_000), "INTERVAL 2 SECONDS");
-        test_interval!(Interval::from_millis(60_000), "INTERVAL 1 MINUTE");
-        test_interval!(Interval::from_millis(3_600_000), "INTERVAL 1 HOUR");
-        test_interval!(Interval::from_millis(86_400_000), "INTERVAL 1 DAY");
-        test_interval!(Interval::from_millis(172_800_000), "INTERVAL 2 DAYS");
+        test_interval!(Interval::from_millis(1_000), "INTERVAL '1 SECOND'");
+        test_interval!(Interval::from_millis(2_000), "INTERVAL '2 SECONDS'");
+        test_interval!(Interval::from_millis(60_000), "INTERVAL '1 MINUTE'");
+        test_interval!(Interval::from_millis(3_600_000), "INTERVAL '1 HOUR'");
+        test_interval!(Interval::from_millis(86_400_000), "INTERVAL '1 DAY'");
+        test_interval!(Interval::from_millis(172_800_000), "INTERVAL '2 DAYS'");
 
-        test_interval!(Interval::from_mins(1), "INTERVAL 1 MINUTE");
-        test_interval!(Interval::from_mins(2), "INTERVAL 2 MINUTES");
-        test_interval!(Interval::from_mins(59), "INTERVAL 59 MINUTES");
-        test_interval!(Interval::from_mins(60), "INTERVAL 1 HOUR");
-        test_interval!(Interval::from_mins(61), "INTERVAL 61 MINUTES");
-        test_interval!(Interval::from_mins(90), "INTERVAL 90 MINUTES");
-        test_interval!(Interval::from_mins(120), "INTERVAL 2 HOURS");
-        test_interval!(Interval::from_mins(1_440), "INTERVAL 1 DAY");
-        test_interval!(Interval::from_mins(1_500), "INTERVAL 25 HOURS");
-        test_interval!(Interval::from_mins(2_880), "INTERVAL 2 DAYS");
-        test_interval!(Interval::from_mins(4_320), "INTERVAL 3 DAYS");
-        test_interval!(Interval::from_mins(10_080), "INTERVAL 7 DAYS");
-        test_interval!(Interval::from_mins(43_200), "INTERVAL 30 DAYS");
-        test_interval!(Interval::from_mins(525_600), "INTERVAL 365 DAYS");
-        test_interval!(Interval::from_mins(12_016_800), "INTERVAL 8345 DAYS");
+        test_interval!(Interval::from_mins(1), "INTERVAL '1 MINUTE'");
+        test_interval!(Interval::from_mins(2), "INTERVAL '2 MINUTES'");
+        test_interval!(Interval::from_mins(59), "INTERVAL '59 MINUTES'");
+        test_interval!(Interval::from_mins(60), "INTERVAL '1 HOUR'");
+        test_interval!(Interval::from_mins(61), "INTERVAL '61 MINUTES'");
+        test_interval!(Interval::from_mins(90), "INTERVAL '90 MINUTES'");
+        test_interval!(Interval::from_mins(120), "INTERVAL '2 HOURS'");
+        test_interval!(Interval::from_mins(1_440), "INTERVAL '1 DAY'");
+        test_interval!(Interval::from_mins(1_500), "INTERVAL '25 HOURS'");
+        test_interval!(Interval::from_mins(2_880), "INTERVAL '2 DAYS'");
+        test_interval!(Interval::from_mins(4_320), "INTERVAL '3 DAYS'");
+        test_interval!(Interval::from_mins(10_080), "INTERVAL '7 DAYS'");
+        test_interval!(Interval::from_mins(43_200), "INTERVAL '30 DAYS'");
+        test_interval!(Interval::from_mins(525_600), "INTERVAL '365 DAYS'");
+        test_interval!(Interval::from_mins(12_016_800), "INTERVAL '8345 DAYS'");
 
-        test_interval!(Interval::from_days(1), "INTERVAL 1 DAY");
-        test_interval!(Interval::from_days(6_000_000), "INTERVAL 6000000 DAYS");
+        test_interval!(Interval::from_days(1), "INTERVAL '1 DAY'");
+        test_interval!(Interval::from_days(6_000_000), "INTERVAL '6000000 DAYS'");
 
-        test_interval!(Interval::from_weeks(1), "INTERVAL 7 DAYS");
-        test_interval!(Interval::from_weeks(2), "INTERVAL 14 DAYS");
-        test_interval!(Interval::from_weeks(3), "INTERVAL 21 DAYS");
-        test_interval!(Interval::from_weeks(4), "INTERVAL 28 DAYS");
-        test_interval!(Interval::from_weeks(10), "INTERVAL 70 DAYS");
-        test_interval!(Interval::from_weeks(52), "INTERVAL 364 DAYS");
-        test_interval!(Interval::from_weeks(104), "INTERVAL 728 DAYS");
-        test_interval!(Interval::from_weeks(260), "INTERVAL 1820 DAYS");
-        test_interval!(Interval::from_weeks(1_000), "INTERVAL 7000 DAYS");
-        test_interval!(Interval::from_months(1), "INTERVAL 1 MONTH");
-        test_interval!(Interval::from_months(5), "INTERVAL 5 MONTHS");
+        test_interval!(Interval::from_weeks(1), "INTERVAL '7 DAYS'");
+        test_interval!(Interval::from_weeks(2), "INTERVAL '14 DAYS'");
+        test_interval!(Interval::from_weeks(3), "INTERVAL '21 DAYS'");
+        test_interval!(Interval::from_weeks(4), "INTERVAL '28 DAYS'");
+        test_interval!(Interval::from_weeks(10), "INTERVAL '70 DAYS'");
+        test_interval!(Interval::from_weeks(52), "INTERVAL '364 DAYS'");
+        test_interval!(Interval::from_weeks(104), "INTERVAL '728 DAYS'");
+        test_interval!(Interval::from_weeks(260), "INTERVAL '1820 DAYS'");
+        test_interval!(Interval::from_weeks(1_000), "INTERVAL '7000 DAYS'");
+        test_interval!(Interval::from_months(1), "INTERVAL '1 MONTH'");
+        test_interval!(Interval::from_months(5), "INTERVAL '5 MONTHS'");
 
         test_interval!(
             Interval {

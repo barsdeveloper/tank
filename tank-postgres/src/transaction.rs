@@ -1,5 +1,5 @@
 use crate::{
-    PostgresConnection, PostgresDriver, PostgresPrepared, ValueHolder,
+    PostgresConnection, PostgresDriver, PostgresPrepared, ValueWrap,
     util::stream_postgres_row_to_tank_row,
 };
 use tank_core::{
@@ -30,7 +30,7 @@ impl<'c> Executor for PostgresTransaction<'c> {
     ) -> impl Stream<Item = Result<QueryResult>> + Send {
         stream_postgres_row_to_tank_row(async move || match query {
             Query::Raw(sql) => Ok(Either::Left(
-                self.0.query_raw(&sql, Vec::<ValueHolder>::new()).await?,
+                self.0.query_raw(&sql, Vec::<ValueWrap>::new()).await?,
             )),
             Query::Prepared(mut prepared) => {
                 let portal = if !prepared.is_complete() {

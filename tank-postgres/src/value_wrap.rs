@@ -1,3 +1,4 @@
+use crate::IntervalWrap;
 use bytes::BytesMut;
 use postgres_types::{FromSql, IsNull, ToSql, Type, to_sql_checked};
 use rust_decimal::{Decimal, prelude::FromPrimitive};
@@ -7,15 +8,15 @@ use time::{Date, OffsetDateTime, PrimitiveDateTime, Time};
 use uuid::Uuid;
 
 #[derive(Debug)]
-pub(crate) struct ValueHolder(pub(crate) Value);
+pub(crate) struct ValueWrap(pub(crate) Value);
 
-impl From<Value> for ValueHolder {
+impl From<Value> for ValueWrap {
     fn from(value: Value) -> Self {
-        ValueHolder(value)
+        ValueWrap(value)
     }
 }
 
-impl<'a> FromSql<'a> for ValueHolder {
+impl<'a> FromSql<'a> for ValueWrap {
     fn from_sql(ty: &Type, raw: &'a [u8]) -> Result<Self, Box<dyn Error + Sync + Send>> {
         Self::from_sql_nullable(ty, Some(raw))
     }
@@ -62,13 +63,14 @@ impl<'a> FromSql<'a> for ValueHolder {
             Type::TIME => (Value::Time, Time),
             Type::TIMESTAMP => (Value::Timestamp, PrimitiveDateTime),
             Type::TIMESTAMPTZ => (Value::TimestampWithTimezone, OffsetDateTime),
+            Type::INTERVAL =>(Value::Interval, IntervalWrap),
             Type::UUID => (Value::Uuid, Uuid),
-            Type::INT2_ARRAY => (Value::List, VecWrap<ValueHolder>, Box::new(Value::Int16(None))),
-            Type::INT4_ARRAY => (Value::List, VecWrap<ValueHolder>, Box::new(Value::Int32(None))),
-            Type::INT8_ARRAY => (Value::List, VecWrap<ValueHolder>, Box::new(Value::Int64(None))),
-            Type::FLOAT4_ARRAY => (Value::List, VecWrap<ValueHolder>, Box::new(Value::Float32(None))),
-            Type::FLOAT8_ARRAY => (Value::List, VecWrap<ValueHolder>, Box::new(Value::Float64(None))),
-            Type::BPCHAR_ARRAY => (Value::List, VecWrap<ValueHolder>, Box::new(Value::Varchar(None))),
+            Type::INT2_ARRAY => (Value::List, VecWrap<ValueWrap>, Box::new(Value::Int16(None))),
+            Type::INT4_ARRAY => (Value::List, VecWrap<ValueWrap>, Box::new(Value::Int32(None))),
+            Type::INT8_ARRAY => (Value::List, VecWrap<ValueWrap>, Box::new(Value::Int64(None))),
+            Type::FLOAT4_ARRAY => (Value::List, VecWrap<ValueWrap>, Box::new(Value::Float32(None))),
+            Type::FLOAT8_ARRAY => (Value::List, VecWrap<ValueWrap>, Box::new(Value::Float64(None))),
+            Type::BPCHAR_ARRAY => (Value::List, VecWrap<ValueWrap>, Box::new(Value::Varchar(None))),
             Type::UNKNOWN => (Value::Unknown, String),
         );
         Ok(value.into())
@@ -79,7 +81,7 @@ impl<'a> FromSql<'a> for ValueHolder {
     }
 }
 
-impl ToSql for ValueHolder {
+impl ToSql for ValueWrap {
     fn to_sql(&self, ty: &Type, out: &mut BytesMut) -> Result<IsNull, Box<dyn Error + Sync + Send>>
     where
         Self: Sized,
@@ -110,11 +112,11 @@ impl ToSql for ValueHolder {
             Value::Uuid(v) => v.to_sql(ty, out),
             Value::Array(v, ..) => v
                 .as_ref()
-                .map(|v| v.clone().into_iter().map(ValueHolder).collect::<Vec<_>>())
+                .map(|v| v.clone().into_iter().map(ValueWrap).collect::<Vec<_>>())
                 .to_sql(ty, out),
             Value::List(v, ..) => v
                 .as_ref()
-                .map(|v| v.clone().into_iter().map(ValueHolder).collect::<Vec<_>>())
+                .map(|v| v.clone().into_iter().map(ValueWrap).collect::<Vec<_>>())
                 .to_sql(ty, out),
             _ => {
                 return Err(tank_core::Error::msg(format!(
@@ -192,8 +194,8 @@ impl<'a, T: FromSql<'a>> FromSql<'a> for VecWrap<T> {
     }
 }
 
-impl From<VecWrap<ValueHolder>> for Vec<Value> {
-    fn from(value: VecWrap<ValueHolder>) -> Self {
+impl From<VecWrap<ValueWrap>> for Vec<Value> {
+    fn from(value: VecWrap<ValueWrap>) -> Self {
         value.0.into_iter().map(|v| v.0).collect()
     }
 }

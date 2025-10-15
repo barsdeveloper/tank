@@ -1,5 +1,5 @@
 use crate::{
-    PostgresDriver, PostgresPrepared, PostgresTransaction, ValueHolder,
+    PostgresDriver, PostgresPrepared, PostgresTransaction, ValueWrap,
     util::{
         stream_postgres_row_to_tank_row, stream_postgres_simple_query_message_to_tank_query_result,
     },
@@ -71,7 +71,7 @@ impl Executor for PostgresConnection {
         match query {
             Query::Raw(sql) => Either::Left(stream_postgres_row_to_tank_row(async move || {
                 self.client
-                    .query_raw(&sql, Vec::<ValueHolder>::new())
+                    .query_raw(&sql, Vec::<ValueWrap>::new())
                     .await
                     .map_err(Error::new)
                     .context(context)
