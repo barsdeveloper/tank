@@ -341,7 +341,8 @@ pub trait SqlWriter {
             };
         }
         let months = value.months;
-        let nanos = value.nanos + value.days as i128 * Interval::NANOS_IN_DAY;
+        let mut nanos = value.nanos + value.days as i128 * Interval::NANOS_IN_DAY;
+        let mut len = buff.len();
         if months != 0 {
             if months % 12 == 0 {
                 write_unit!(buff, months / 12, "YEAR");
@@ -350,14 +351,19 @@ pub trait SqlWriter {
             }
         }
         for &(name, factor) in self.value_interval_units() {
-            if nanos % factor == 0 {
+            let rem = nanos % factor;
+            if rem == 0 || factor / rem > 1_000_000 {
                 let value = nanos / factor;
                 if value != 0 {
-                    if months != 0 {
+                    if buff.len() > len {
                         buff.push(' ');
+                        len = buff.len();
                     }
                     write_unit!(buff, value, name);
-                    break;
+                    nanos = rem;
+                    if nanos == 0 {
+                        break;
+                    }
                 }
             }
         }

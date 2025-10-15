@@ -301,7 +301,7 @@ impl From<Interval> for time::Duration {
     fn from(value: Interval) -> Self {
         let seconds = ((value.days + value.months * Interval::DAYS_IN_MONTH as i64)
             * Interval::SECS_IN_DAY) as i128
-            + value.nanos * Interval::NANOS_IN_SEC;
+            + value.nanos / Interval::NANOS_IN_SEC;
         let nanos = (value.nanos % Interval::NANOS_IN_SEC) as i32;
         time::Duration::new(seconds as i64, nanos)
     }

@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use std::i64;
+    use std::{i64, time::Duration};
     use tank_core::{Interval, SqlWriter};
 
     struct Writer;
@@ -164,5 +164,16 @@ mod tests {
                 nanos: 1015, // 15 + 1000
             }
         );
+    }
+
+    #[test]
+    fn conversion() {
+        let value = time::Duration::minutes(1) + time::Duration::days(1);
+        let expected: time::Duration = Interval::from_mins(1441).into();
+        assert_eq!(value, expected);
+
+        let value = Duration::from_micros(1) + Duration::from_hours(6);
+        let expected: time::Duration = Interval::from_micros(1 + 6 * 3600 * 1_000_000).into();
+        assert_eq!(value, expected);
     }
 }

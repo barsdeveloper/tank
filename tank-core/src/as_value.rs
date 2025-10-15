@@ -46,29 +46,29 @@ macro_rules! impl_as_value {
                     $value(Some(v), ..) => $expr(v),
                     $($pat_rest(Some(v), ..) => $expr_rest(v),)*
                     #[allow(unreachable_patterns)]
-                    Value::Int64(Some(v), ..) => if v as $source as i64 == v {
-                        Ok(v as $source)
-                    } else {
-                        Err(Error::msg(format!(
-                            "Cannot convert `{:?}` to `{}`, the value is out of bounds",
-                            v,
-                            stringify!($source),
-                        )))
-                    }
-                    Value::Unknown(Some(v)) => {
-                        let (r, len) = <$source>::from_radix_10(v.as_bytes());
-                        if len == v.len() {
-                            Ok(r)
-                        } else {
-                            Err(Error::msg(format!(
-                                "Cannot decode `tank::Value::Unknown(Some({}))` into `{}`",
+                    Value::Int64(Some(v), ..) => {
+                        if (v as i128).clamp(<$source>::MIN as i128, <$source>::MAX as i128) != v as i128 {
+                            return Err(Error::msg(format!(
+                                "Value {}: i64 does not fit into {}",
                                 v,
-                                stringify!($source)
+                                stringify!($source),
+                            )));
+                        }
+                        Ok(v as $source)
+                    }
+                    Value::Unknown(Some(ref v), ..) => {
+                        let (r, len) = <$source>::from_radix_10(v.as_bytes());
+                        if len != v.len() {
+                            return Err(Error::msg(format!(
+                                "Cannot decode {:?} into {}",
+                                value,
+                                stringify!($source),
                             )))
                         }
+                        Ok(r)
                     }
                     _ => Err(Error::msg(format!(
-                        "Cannot convert `{:?}` to `{}`",
+                        "Cannot convert {:?} to {}",
                         value,
                         stringify!($source),
                     ))),
@@ -84,7 +84,7 @@ impl_as_value!(
     Value::Int16 => |v: i16| {
         let result = v as i8;
         if result as i16 != v {
-            return Err(Error::msg(format!("Value {}: i16 cannot fit into i8", v)));
+            return Err(Error::msg(format!("Value {}: i64 does not fit into i8", v)));
         }
         Ok(result)
     },
@@ -105,12 +105,11 @@ impl_as_value!(
     Value::UInt16 => |v| Ok(v as i32),
     Value::UInt8 => |v| Ok(v as i32),
     Value::Decimal => |v: Decimal| {
-        let error = Error::msg(format!("Value `{:?}` cannot fit into `i32`", v));
-        if v.is_integer() {
-            v.to_i32().ok_or(error)
-        } else {
-            Err(error.context("The value is not integer"))
+        let error = Error::msg(format!("Value {}: Decimal does not fit into i32", v));
+        if !v.is_integer() {
+            return Err(error.context("The value is not integer"));
         }
+        v.to_i32().ok_or(error)
     }
 );
 impl_as_value!(
@@ -124,12 +123,11 @@ impl_as_value!(
     Value::UInt16 => |v| Ok(v as i64),
     Value::UInt8 => |v| Ok(v as i64),
     Value::Decimal => |v: Decimal| {
-        let error = Error::msg(format!("Value `{:?}` cannot fit into `i64`", v));
-        if v.is_integer() {
-            v.to_i64().ok_or(error)
-        } else {
-            Err(error.context("The value is not integer"))
+        let error = Error::msg(format!("Value {}: Decimal does not fit into i64", v));
+        if !v.is_integer() {
+            return Err(error.context("The value is not integer"));
         }
+        v.to_i64().ok_or(error)
     }
 );
 impl_as_value!(
@@ -145,19 +143,18 @@ impl_as_value!(
     Value::UInt16 => |v| Ok(v as i128),
     Value::UInt8 => |v| Ok(v as i128),
     Value::Decimal => |v: Decimal| {
-        let error = Error::msg(format!("Value `{:?}` cannot fit into `i128`", v));
-        if v.is_integer() {
-            v.to_i128().ok_or(error)
-        } else {
-            Err(error.context("The value is not integer"))
+        let error = Error::msg(format!("Value {}: Decimal does not fit into i128", v));
+        if !v.is_integer() {
+            return Err(error.context("The value is not integer"));
         }
+        v.to_i128().ok_or(error)
     }
 );
 impl_as_value!(
     u8,
     Value::UInt8 => |v| Ok(v),
     Value::Int16 => |v: i16| {
-        v.to_u8().ok_or(Error::msg(format!("Value `{:?}` cannot fit into `u8`", v)))
+        v.to_u8().ok_or(Error::msg(format!("Value {}: i16 does not fit into u8", v)))
     }
 );
 impl_as_value!(
@@ -167,7 +164,7 @@ impl_as_value!(
     Value::Int32 => |v: i32| {
         let result = v as u16;
         if result as i32 != v {
-            return Err(Error::msg(format!("Value {}: i32 cannot fit into u16", v)));
+            return Err(Error::msg(format!("Value {}: i32 does not fit into u16", v)));
         }
         Ok(result)
     }
@@ -185,12 +182,11 @@ impl_as_value!(
     Value::UInt16 => |v| Ok(v as u64),
     Value::UInt8 => |v| Ok(v as u64),
     Value::Decimal => |v: Decimal| {
-        let error = Error::msg(format!("Value `{:?}` cannot fit into `u64`", v));
-        if v.is_integer() {
-            v.to_u64().ok_or(error)
-        } else {
-            Err(error.context("The value is not integer"))
+        let error = Error::msg(format!("Value {}: Decimal does not fit into u64", v));
+        if !v.is_integer() {
+            return Err(error.context("The value is not integer"));
         }
+        v.to_u64().ok_or(error)
     }
 );
 impl_as_value!(
@@ -201,12 +197,11 @@ impl_as_value!(
     Value::UInt16 => |v| Ok(v as u128),
     Value::UInt8 => |v| Ok(v as u128),
     Value::Decimal => |v: Decimal| {
-        let error = Error::msg(format!("Value `{:?}` cannot fit into `u128`", v));
-        if v.is_integer() {
-            v.to_u128().ok_or(error)
-        } else {
-            Err(error.context("The value is not integer"))
+        let error = Error::msg(format!("Value {}: Decimal does not fit into u128", v));
+        if !v.is_integer() {
+            return Err(error.context("The value is not integer"));
         }
+        v.to_u128().ok_or(error)
     }
 );
 
@@ -224,15 +219,15 @@ macro_rules! impl_as_value {
                     $value(Some(v), ..) => $expr(v),
                     $($pat_rest(Some(v), ..) => $expr_rest(v),)*
                     #[allow(unreachable_patterns)]
-                    Value::Unknown(Some(v)) => {
+                    Value::Unknown(Some(ref v)) => {
                         v.parse::<$source>().map_err(|_| Error::msg(format!(
-                            "Cannot decode `tank::Value::Unknown(Some({}))` into `{}`",
-                            v,
+                            "Cannot decode {:?} into {}",
+                            value,
                             stringify!($source)
                         )))
                     }
                     _ => Err(Error::msg(format!(
-                        "Cannot convert `{:?}` to `{}`",
+                        "Cannot convert {:?} to {}",
                         value,
                         stringify!($source),
                     ))),
@@ -267,14 +262,14 @@ impl_as_value!(
     Value::Float32 => |v| Ok(v as f64),
     Value::Decimal => |v: Decimal| Ok(v.try_into()?),
 );
-impl_as_value!(char,
+impl_as_value!(
+    char,
     Value::Char => |v| Ok(v),
     Value::Varchar => |v: String| {
         if v.len() != 1 {
-            Err(Error::msg("Cannot convert Value::Varchar containing more then one character into a char."))
-        } else {
-            Ok(v.chars().next().unwrap())
+            return Err(Error::msg("Cannot convert Value::Varchar containing more then one character into a char"))
         }
+        Ok(v.chars().next().unwrap())
     }
 );
 impl_as_value!(
@@ -296,7 +291,7 @@ impl<'a> AsValue for Cow<'a, str> {
     {
         let Value::Varchar(Some(value)) = value else {
             return Err(Error::msg(format!(
-                "Cannot convert `{}` to `Cow<'a, str>`",
+                "Cannot convert {} to Cow<'a, str>",
                 value.to_token_stream().to_string(),
             )));
         };
@@ -318,7 +313,7 @@ macro_rules! impl_as_value {
                     $value(Some(v), ..) => $expr(v),
                     $($pat_rest(Some(v), ..) => $expr_rest(v),)*
                     _ => Err(Error::msg(format!(
-                        "Cannot convert `{:?}` to `{}`",
+                        "Cannot convert {:?} to {}",
                         value,
                         stringify!($source),
                     ))),
@@ -383,13 +378,12 @@ impl AsValue for Decimal {
             Value::UInt32(Some(v), ..) => Ok(Decimal::new(v as i64, 0)),
             Value::UInt64(Some(v), ..) => Ok(Decimal::new(v as i64, 0)),
             Value::Float32(Some(v), ..) => Ok(Decimal::from_f32(v)
-                .ok_or(Error::msg("Could not convert the Float32 into Decimal"))?),
+                .ok_or(Error::msg(format!("Cannot convert {:?} to Decimal", value)))?),
             Value::Float64(Some(v), ..) => Ok(Decimal::from_f64(v)
-                .ok_or(Error::msg("Could not convert the Float64 into Decimal"))?),
-            _ => Err(Error::msg(format!(
-                "Cannot convert `{:?}` to `rust_decimal::Decimal`",
-                value,
-            ))),
+                .ok_or(Error::msg(format!("Cannot convert {:?} to Decimal", value)))?),
+            _ => Err(Error::msg(
+                format!("Cannot convert {:?} to Decimal", value,),
+            )),
         }
     }
 }
@@ -439,7 +433,7 @@ impl<T: AsValue, const N: usize> AsValue for [T; N] {
             Value::List(Some(v), ..) if v.len() == N => convert_iter(v),
             Value::Array(Some(v), ..) if v.len() == N => convert_iter(v.into()),
             _ => Err(Error::msg(format!(
-                "Cannot convert `{:?}` to array `{}`",
+                "Cannot convert {:?} to array {}",
                 value,
                 any::type_name::<Self>()
             ))),
@@ -471,7 +465,7 @@ macro_rules! impl_as_value {
                         .map(|v| Ok::<_, Error>(<T as AsValue>::try_from_value(v)?))
                         .collect::<Result<_>>()?),
                     _ => Err(Error::msg(format!(
-                        "Cannot convert `{:?}` to list-like `{}`",
+                        "Cannot convert {:?} to {}",
                         value,
                         stringify!($list<T>),
                     ))),
@@ -513,7 +507,7 @@ macro_rules! impl_as_value {
                         .collect::<Result<_>>()?)
                 } else {
                     Err(Error::msg(format!(
-                        "Cannot convert `{:?}` to map `{}`",
+                        "Cannot convert {:?} to {}",
                         value,
                         stringify!($map<K, V>),
                     )))

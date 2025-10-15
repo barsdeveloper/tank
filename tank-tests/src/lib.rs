@@ -11,8 +11,6 @@ mod trade;
 mod transaction1;
 mod user;
 
-use std::env;
-
 use crate::{
     books::books,
     complex::complex,
@@ -28,7 +26,13 @@ use crate::{
 use aggregates::aggregates;
 use log::LevelFilter;
 use readme::readme;
+use std::env;
 use tank::Connection;
+
+#[cfg(not(feature = "disable-duration"))]
+mod interval;
+#[cfg(not(feature = "disable-duration"))]
+use interval::interval;
 
 pub fn init_logs() {
     let mut logger = env_logger::builder();
@@ -55,6 +59,8 @@ pub async fn execute_tests<C: Connection>(mut connection: C) {
     multiple(&mut connection).await;
     #[cfg(not(feature = "disable-transactions"))]
     transaction1(&mut connection).await;
+    #[cfg(not(feature = "disable-duration"))]
+    interval(&mut connection).await;
     drop(readme(&mut connection).await);
     documentation(&mut connection).await;
 }

@@ -27,7 +27,7 @@ impl Parse for Date {
         Self: Sized,
     {
         time::Date::parse(value.as_ref(), format_description!("[year]-[month]-[day]"))
-            .with_context(|| format!("Cannot convert '{}' to time::Time", value.as_ref()))
+            .with_context(|| format!("Cannot parse '{}' as time::Time", value.as_ref()))
     }
 }
 
@@ -49,7 +49,7 @@ impl Parse for Time {
             value,
             format_description!("[hour]:[minute]"),
         ))
-        .with_context(|| format!("Cannot convert '{}' to time::Time", value))
+        .with_context(|| format!("Cannot parse '{}' as time::Time", value))
     }
 }
 
@@ -83,7 +83,7 @@ impl Parse for PrimitiveDateTime {
             value,
             format_description!("[year]-[month]-[day] [hour]:[minute]"),
         ))
-        .with_context(|| format!("Cannot convert '{}' to time::PrimitiveDateTime", value))
+        .with_context(|| format!("Cannot parse '{}' as time::PrimitiveDateTime", value))
     }
 }
 
@@ -117,6 +117,6 @@ impl Parse for OffsetDateTime {
             value,
             format_description!("[year]-[month]-[day]T[hour]:[minute][offset_hour sign:mandatory]")
         ))
-        .with_context(|| format!("Cannot convert '{}' to time::OffsetDateTime", value))
+        .with_context(|| format!("Cannot parse '{}' as time::OffsetDateTime", value))
     }
 }
