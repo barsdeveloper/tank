@@ -150,6 +150,10 @@ mod tests {
                 + Interval::from_millis(990),
             "INTERVAL '30 YEARS 1 SECOND'"
         );
+        test_interval!(
+            Interval::from_months(5) + Interval::from_days(-2) + Interval::from_secs(1),
+            "INTERVAL '30 YEARS -172800 SECONDS'"
+        );
     }
 
     #[test]

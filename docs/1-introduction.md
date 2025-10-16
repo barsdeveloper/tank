@@ -1,5 +1,5 @@
 # Introduction
-###### *Field Manual Section 1* – Mission Briefing
+###### *Field Manual Section 1* - Mission Briefing
 Welcome to the Tank field manual. This is the quick-and-mean guide for developers who want to drive, fight and survive with Tank (Table Abstraction & Navigation Kit): the Rust data layer.
 
 ## Mission objectives

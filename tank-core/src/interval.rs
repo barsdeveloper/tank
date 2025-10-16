@@ -1,7 +1,7 @@
 use crate::{Error, Result};
 use std::{
     hash::Hash,
-    ops::{Add, AddAssign, Sub, SubAssign},
+    ops::{Add, AddAssign, Neg, Sub, SubAssign},
 };
 
 #[derive(PartialEq, Eq)]
@@ -264,6 +264,14 @@ impl Sub for Interval {
 impl SubAssign for Interval {
     fn sub_assign(&mut self, rhs: Self) {
         *self = sum_intervals!(self - rhs);
+    }
+}
+
+impl Neg for Interval {
+    type Output = Interval;
+
+    fn neg(self) -> Self::Output {
+        Self::default() - self
     }
 }
 

@@ -1,5 +1,5 @@
 # Entity Operations
-###### *Field Manual Section 4* - Front-Line Extraction
+###### *Field Manual Section 5* - Front-Line Extraction
 The Entity is your combat unity, a Rust struct mapped one-to-one with a database table. This section traines you on the basic maneuvers every unit must master: insertions, updates, and extractions.
 
 ## Mission Scope
