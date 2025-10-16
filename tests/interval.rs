@@ -30,6 +30,22 @@ mod tests {
             Interval::from_nanos(864_000_000_000_000),
             "INTERVAL '10 DAYS'"
         );
+        test_interval!(
+            Interval::from_nanos(864_000_000_000_001),
+            "INTERVAL '10 DAYS 1 NANOSECOND'"
+        );
+        test_interval!(
+            Interval::from_nanos(864_000_000_000_010),
+            "INTERVAL '10 DAYS 10 NANOSECONDS'"
+        );
+        test_interval!(
+            Interval::from_nanos(864_000_000_001_000),
+            "INTERVAL '10 DAYS 1 MICROSECOND'"
+        );
+        test_interval!(
+            Interval::from_nanos(864_000_000_001_010),
+            "INTERVAL '10 DAYS 1010 NANOSECONDS'"
+        );
 
         test_interval!(Interval::from_micros(1), "INTERVAL '1 MICROSECOND'");
         test_interval!(
@@ -56,6 +72,10 @@ mod tests {
         );
         test_interval!(Interval::from_micros(3_600_000_000), "INTERVAL '1 HOUR'");
         test_interval!(Interval::from_micros(21_600_000_000), "INTERVAL '6 HOURS'");
+        test_interval!(
+            Interval::from_micros(21_600_000_001),
+            "INTERVAL '6 HOURS 1 MICROSECOND'"
+        );
         test_interval!(
             Interval::from_micros(3_110_400_000_000),
             "INTERVAL '36 DAYS'"
@@ -115,6 +135,21 @@ mod tests {
             },
             "INTERVAL '4 YEARS 1468801 SECONDS'"
         );
+        test_interval!(
+            Interval::from_years(5000) + Interval::from_months(1),
+            "INTERVAL '5000 YEARS 1 MONTH'"
+        );
+        test_interval!(
+            Interval::from_days(30) - Interval::from_days(1) + Interval::from_millis(10),
+            "INTERVAL '29 DAYS 10000 MICROSECONDS'"
+        );
+        test_interval!(
+            Interval::from_years(29)
+                + Interval::from_months(12)
+                + Interval::from_millis(10)
+                + Interval::from_millis(990),
+            "INTERVAL '30 YEARS 1 SECOND'"
+        );
     }
 
     #[test]
@@ -164,6 +199,14 @@ mod tests {
                 nanos: 1015, // 15 + 1000
             }
         );
+
+        assert_eq!(
+            Interval::from_years(5000) + Interval::from_months(1),
+            Interval {
+                months: 5000 * 12 + 1,
+                ..Default::default()
+            }
+        )
     }
 
     #[test]

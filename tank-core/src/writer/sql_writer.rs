@@ -330,7 +330,11 @@ pub trait SqlWriter {
             buff.push_str("0 SECONDS");
         }
         macro_rules! write_unit {
-            ($buff:ident, $val:expr, $unit:expr) => {
+            ($buff:ident, $len:ident, $val:expr, $unit:expr) => {
+                if $buff.len() > $len {
+                    $buff.push(' ');
+                    $len = $buff.len();
+                }
                 let _ = write!(
                     $buff,
                     "{} {}{}",
@@ -340,14 +344,16 @@ pub trait SqlWriter {
                 );
             };
         }
-        let months = value.months;
+        let mut months = value.months;
         let mut nanos = value.nanos + value.days as i128 * Interval::NANOS_IN_DAY;
         let mut len = buff.len();
         if months != 0 {
-            if months % 12 == 0 {
-                write_unit!(buff, months / 12, "YEAR");
-            } else {
-                write_unit!(buff, months, "MONTH");
+            if months > 48 || months % 12 == 0 {
+                write_unit!(buff, len, months / 12, "YEAR");
+                months = months % 12;
+            }
+            if months != 0 {
+                write_unit!(buff, len, months, "MONTH");
             }
         }
         for &(name, factor) in self.value_interval_units() {
@@ -355,11 +361,7 @@ pub trait SqlWriter {
             if rem == 0 || factor / rem > 1_000_000 {
                 let value = nanos / factor;
                 if value != 0 {
-                    if buff.len() > len {
-                        buff.push(' ');
-                        len = buff.len();
-                    }
-                    write_unit!(buff, value, name);
+                    write_unit!(buff, len, value, name);
                     nanos = rem;
                     if nanos == 0 {
                         break;
