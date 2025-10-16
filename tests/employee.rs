@@ -54,7 +54,7 @@ mod tests {
     #[tokio::test]
     async fn test_employee() {
         assert!(matches!(
-            Employee::table_ref(),
+            Employee::table(),
             TableRef {
                 name: "employee",
                 schema: "company",
@@ -199,7 +199,7 @@ mod tests {
         WRITER.write_select(
             &mut query,
             Employee::columns(),
-            Employee::table_ref(),
+            Employee::table(),
             &expr!(Employee::salary > 50000),
             Some(10),
         );

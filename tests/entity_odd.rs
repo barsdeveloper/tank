@@ -35,7 +35,7 @@ mod tests {
     #[tokio::test]
     async fn test_odd_entity() {
         assert!(matches!(
-            MyEntity::table_ref(),
+            MyEntity::table(),
             TableRef {
                 name: "a_table",
                 schema: "",
@@ -151,7 +151,7 @@ mod tests {
         WRITER.write_select(
             &mut query,
             MyEntity::columns(),
-            MyEntity::table_ref(),
+            MyEntity::table(),
             &expr!(MyEntity::_bravo < 0),
             Some(300),
         );

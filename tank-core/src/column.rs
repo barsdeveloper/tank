@@ -15,7 +15,7 @@ pub struct ColumnRef {
 }
 
 impl ColumnRef {
-    pub fn table_ref(&self) -> TableRef {
+    pub fn table(&self) -> TableRef {
         TableRef {
             name: self.table,
             schema: self.schema,

@@ -38,7 +38,7 @@ mod tests {
     #[tokio::test]
     async fn test_product() {
         assert!(matches!(
-            Product::table_ref(),
+            Product::table(),
             TableRef {
                 name: "products",
                 schema: "",

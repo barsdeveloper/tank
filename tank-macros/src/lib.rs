@@ -117,13 +117,13 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
         impl ::tank::Entity for #ident {
             type PrimaryKey<'a> = (#(&'a #primary_key_types,)*);
 
-            fn table_ref() -> &'static ::tank::TableRef {
-                static TABLE_REF: ::tank::TableRef = ::tank::TableRef {
+            fn table() -> &'static ::tank::TableRef {
+                static TABLE: ::tank::TableRef = ::tank::TableRef {
                     name: #name,
                     schema: #schema,
                     alias: ::std::borrow::Cow::Borrowed(""),
                 };
-                &TABLE_REF
+                &TABLE
             }
 
             fn columns() -> &'static [::tank::ColumnDef] {
@@ -141,6 +141,10 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                 RESULT.iter().copied()
             }
 
+            fn primary_key<'a>(&'a self) -> Self::PrimaryKey<'a> {
+                (#(&#primary_key,)*)
+            }
+
             fn unique_defs()
             -> impl ExactSizeIterator<Item = impl ExactSizeIterator<Item = &'static ::tank::ColumnDef>> {
                 static RESULT: ::std::sync::LazyLock<Box<[Box<[&'static ::tank::ColumnDef]>]>> =
@@ -149,6 +153,17 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                         #unique_defs
                     });
                 RESULT.iter().map(|v| v.iter().copied())
+            }
+
+            fn row_filtered(&self) -> Box<[(&'static str, ::tank::Value)]> {
+                [#(#label_value_and_filter),*]
+                    .into_iter()
+                    .filter_map(|(n, v, f)| if f { Some((n, v)) } else { None })
+                    .collect()
+            }
+
+            fn row_full(&self) -> ::tank::Row {
+                [#(#row_full),*].into()
             }
 
             fn from_row(row: ::tank::RowLabeled) -> ::tank::Result<Self> {
@@ -239,11 +254,11 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                 async move {
                     let condition = ::tank::expr!(#primary_key_condition_expression);
                     let stream = ::tank::DataSet::select(
-                        Self::table_ref(),
+                        Self::table(),
+                        executor,
                         Self::columns()
                             .iter()
                             .map(|c| &c.column_ref as &dyn ::tank::Expression),
-                        executor,
                         &condition,
                         Some(1),
                     );
@@ -262,11 +277,11 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
             ) -> impl ::tank::stream::Stream<Item = ::tank::Result<Self>> {
                 ::tank::stream::StreamExt::map(
                     ::tank::DataSet::select(
-                        Self::table_ref(),
+                        Self::table(),
+                        executor,
                         Self::columns()
                             .iter()
                             .map(|c| &c.column_ref as &dyn ::tank::Expression),
-                        executor,
                         condition,
                         limit,
                     ),
@@ -306,21 +321,6 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                     condition,
                 );
                 executor.execute(::tank::Query::Raw(query.into()))
-            }
-
-            fn row_filtered(&self) -> Box<[(&'static str, ::tank::Value)]> {
-                [#(#label_value_and_filter),*]
-                    .into_iter()
-                    .filter_map(|(n, v, f)| if f { Some((n, v)) } else { None })
-                    .collect()
-            }
-
-            fn row_full(&self) -> ::tank::Row {
-                [#(#row_full),*].into()
-            }
-
-            fn primary_key<'a>(&'a self) -> Self::PrimaryKey<'a> {
-                (#(&#primary_key,)*)
             }
         }
     }

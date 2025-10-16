@@ -101,10 +101,10 @@ impl Parse for JoinMemberParsed {
         if input.peek(Ident) {
             let alias = input.parse::<Ident>()?;
             Ok(Self(
-                quote! { ::tank::DeclareTableRef(#table::table_ref().with_alias(stringify!(#alias).into())) },
+                quote! { ::tank::DeclareTableRef(#table::table().with_alias(stringify!(#alias).into())) },
             ))
         } else {
-            Ok(Self(quote! { #table::table_ref() }))
+            Ok(Self(quote! { #table::table() }))
         }
     }
 }

@@ -30,7 +30,7 @@ mod tests {
     #[tokio::test]
     async fn test_simple_entity() {
         assert!(matches!(
-            SomeSimpleEntity::table_ref(),
+            SomeSimpleEntity::table(),
             TableRef {
                 name: "simple_entity",
                 schema: "",
@@ -111,7 +111,7 @@ mod tests {
         WRITER.write_select(
             &mut query,
             SomeSimpleEntity::columns(),
-            SomeSimpleEntity::table_ref(),
+            SomeSimpleEntity::table(),
             &expr!(SomeSimpleEntity::a > 100),
             Some(1000),
         );

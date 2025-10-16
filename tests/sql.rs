@@ -51,7 +51,7 @@ mod tests {
             WRITER.write_select(
                 &mut buff,
                 Table::columns(),
-                Table::table_ref(),
+                Table::table(),
                 &expr!(Table::_second_column < 100 && Table::_first_column == "OK"),
                 None,
             );
@@ -141,7 +141,7 @@ mod tests {
             WRITER.write_select(
                 &mut buff,
                 Cart::columns(),
-                Cart::table_ref(),
+                Cart::table(),
                 &expr!(Cart::is_active == true && Cart::total_price > 100),
                 Some(1000),
             );

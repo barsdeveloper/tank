@@ -57,9 +57,9 @@ pub async fn aggregates<E: Executor>(executor: &mut E) {
 
     // SELECT COUNT(*), SUM(value)
     {
-        let mut stream = pin!(Values::table_ref().select(
-            cols!(COUNT(*), SUM(Values::value)),
+        let mut stream = pin!(Values::table().select(
             executor,
+            cols!(COUNT(*), SUM(Values::value)),
             &true,
             None
         ));
@@ -92,7 +92,7 @@ pub async fn aggregates<E: Executor>(executor: &mut E) {
     // SELECT *
     {
         {
-            let stream = pin!(Values::table_ref().select(cols!(*), executor, &true, None));
+            let stream = pin!(Values::table().select(executor, cols!(*), &true, None));
             let values = stream
                 .map(|row| {
                     let row = row.expect("Error while fetching the row");
@@ -116,7 +116,7 @@ pub async fn aggregates<E: Executor>(executor: &mut E) {
 
     // SELECT value WHERE value > ?
     {
-        let mut query = Values::table_ref()
+        let mut query = Values::table()
             .prepare([Values::value], executor, &expr!(Values::value > ?), None)
             .await
             .expect("Failed to prepare the query");

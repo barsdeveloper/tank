@@ -75,8 +75,8 @@ pub async fn transaction1<C: Connection>(connection: &mut C) {
     )
     .await
     .expect("Failed to insert 6 EntityA");
-    let entities = EntityA::table_ref()
-        .select(cols!(*), &mut transaction, &true, None)
+    let entities = EntityA::table()
+        .select(&mut transaction, cols!(*), &true, None)
         .try_collect::<Vec<_>>()
         .await
         .expect("Could not select EntityA rows");
@@ -100,8 +100,8 @@ pub async fn transaction1<C: Connection>(connection: &mut C) {
         .begin()
         .await
         .expect("Could not begin a transaction");
-    let entities = EntityA::table_ref()
-        .select(cols!(*), &mut transaction, &true, None)
+    let entities = EntityA::table()
+        .select(&mut transaction, cols!(*), &true, None)
         .try_collect::<Vec<_>>()
         .await
         .expect("Could not select EntityA rows");

@@ -284,7 +284,7 @@ impl Executor for DuckDBConnection {
             return Ok(Default::default());
         }
         spawn_blocking(move || unsafe {
-            let table_ref = E::table_ref();
+            let table_ref = E::table();
             let mut appender = CBox::new(ptr::null_mut(), |mut p| {
                 duckdb_appender_destroy(&mut p);
             });

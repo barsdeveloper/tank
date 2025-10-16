@@ -63,7 +63,7 @@ mod tests {
     #[tokio::test]
     async fn test_trade() {
         assert!(matches!(
-            Trade::table_ref(),
+            Trade::table(),
             TableRef {
                 name: "trade_execution",
                 schema: "trading.company",
@@ -282,7 +282,7 @@ mod tests {
         WRITER.write_select(
             &mut query,
             Trade::columns(),
-            Trade::table_ref(),
+            Trade::table(),
             &expr!(Trade::quantity >= 100 && Trade::price > 1000),
             None,
         );

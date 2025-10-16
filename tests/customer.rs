@@ -26,7 +26,7 @@ mod tests {
     #[tokio::test]
     async fn test_customer() {
         assert!(matches!(
-            Customer::table_ref(),
+            Customer::table(),
             TableRef {
                 name: "customers",
                 schema: "",
@@ -162,7 +162,7 @@ mod tests {
         WRITER.write_select(
             &mut query,
             Customer::columns(),
-            Customer::table_ref(),
+            Customer::table(),
             &expr!(len(Customer::_values) > 10),
             Some(10),
         );

@@ -79,7 +79,7 @@ impl<T: Entity> References<T> {
         }
     }
     pub fn table_ref(&self) -> TableRef {
-        T::table_ref().clone()
+        T::table().clone()
     }
     pub fn columns(&self) -> &[ColumnDef] {
         &self.columns

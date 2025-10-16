@@ -12,12 +12,14 @@ use std::{
 pub trait Entity {
     type PrimaryKey<'a>;
 
-    fn table_ref() -> &'static TableRef;
+    fn table() -> &'static TableRef;
     fn columns() -> &'static [ColumnDef];
     fn primary_key_def() -> impl ExactSizeIterator<Item = &'static ColumnDef>;
+    fn primary_key(&self) -> Self::PrimaryKey<'_>;
     fn unique_defs()
     -> impl ExactSizeIterator<Item = impl ExactSizeIterator<Item = &'static ColumnDef>>;
-
+    fn row_filtered(&self) -> Box<[(&'static str, Value)]>;
+    fn row_full(&self) -> Row;
     fn from_row(row: RowLabeled) -> Result<Self>
     where
         Self: Sized;
@@ -88,9 +90,6 @@ pub trait Entity {
     where
         Self: Sized;
 
-    fn row_filtered(&self) -> Box<[(&'static str, Value)]>;
-    fn row_full(&self) -> Row;
-    fn primary_key(&self) -> Self::PrimaryKey<'_>;
     fn save<Exec: Executor>(&self, executor: &mut Exec) -> impl Future<Output = Result<()>> + Send
     where
         Self: Sized,
@@ -109,6 +108,7 @@ pub trait Entity {
             .write_insert(&mut query, [self], true);
         Either::Right(executor.execute(query.into()).map_ok(|_| ()))
     }
+
     fn delete<Exec: Executor>(&self, executor: &mut Exec) -> impl Future<Output = Result<()>> + Send
     where
         Self: Sized,
@@ -152,6 +152,6 @@ impl<E: Entity> DataSet for E {
         false
     }
     fn write_query(&self, writer: &dyn SqlWriter, context: &mut Context, buff: &mut String) {
-        Self::table_ref().write_query(writer, context, buff);
+        Self::table().write_query(writer, context, buff);
     }
 }

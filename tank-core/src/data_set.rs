@@ -10,18 +10,18 @@ pub trait DataSet {
     where
         Self: Sized;
     fn write_query(&self, writer: &dyn SqlWriter, context: &mut Context, buff: &mut String);
-    fn select<'s, Item, Cols, Exec, Expr>(
+    fn select<'s, Exec, Item, Cols, Expr>(
         &'s self,
-        columns: Cols,
         executor: &'s mut Exec,
+        columns: Cols,
         condition: &Expr,
         limit: Option<u32>,
     ) -> impl Stream<Item = Result<RowLabeled>> + 's
     where
         Self: Sized,
+        Exec: Executor,
         Item: Expression,
         Cols: IntoIterator<Item = Item> + Clone,
-        Exec: Executor,
         Expr: Expression,
     {
         let mut query = String::with_capacity(1024);

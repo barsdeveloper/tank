@@ -671,7 +671,7 @@ pub trait SqlWriter {
         if if_not_exists {
             buff.push_str("IF NOT EXISTS ");
         }
-        self.write_identifier_quoted(&mut context, buff, E::table_ref().schema);
+        self.write_identifier_quoted(&mut context, buff, E::table().schema);
         buff.push(';');
     }
 
@@ -685,7 +685,7 @@ pub trait SqlWriter {
         if if_exists {
             buff.push_str("IF EXISTS ");
         }
-        self.write_identifier_quoted(&mut context, buff, E::table_ref().schema);
+        self.write_identifier_quoted(&mut context, buff, E::table().schema);
         buff.push(';');
     }
 
@@ -699,7 +699,7 @@ pub trait SqlWriter {
         if if_not_exists {
             buff.push_str("IF NOT EXISTS ");
         }
-        self.write_table_ref(&mut context, buff, E::table_ref());
+        self.write_table_ref(&mut context, buff, E::table());
         buff.push_str(" (\n");
         separated_by(
             buff,
@@ -799,7 +799,7 @@ pub trait SqlWriter {
         }
         if let Some(references) = column.references {
             buff.push_str(" REFERENCES ");
-            self.write_table_ref(context, buff, &references.table_ref());
+            self.write_table_ref(context, buff, &references.table());
             buff.push('(');
             self.write_column_ref(context, buff, &references);
             buff.push(')');
@@ -839,7 +839,7 @@ pub trait SqlWriter {
         if if_exists {
             buff.push_str("IF EXISTS ");
         }
-        self.write_table_ref(&mut context, buff, E::table_ref());
+        self.write_table_ref(&mut context, buff, E::table());
         buff.push(';');
     }
 
@@ -909,7 +909,7 @@ pub trait SqlWriter {
         };
         buff.push_str("INSERT INTO ");
         let mut context = Context::new(Fragment::SqlInsertInto, E::qualified_columns());
-        self.write_table_ref(&mut context, buff, E::table_ref());
+        self.write_table_ref(&mut context, buff, E::table());
         buff.push_str(" (");
         let columns = E::columns().iter();
         let single = rows.peek().is_none();
@@ -1045,7 +1045,7 @@ pub trait SqlWriter {
     {
         buff.push_str("DELETE FROM ");
         let mut context = Context::new(Fragment::SqlDeleteFrom, E::qualified_columns());
-        self.write_table_ref(&mut context, buff, E::table_ref());
+        self.write_table_ref(&mut context, buff, E::table());
         buff.push_str("\nWHERE ");
         condition.write_query(
             self,

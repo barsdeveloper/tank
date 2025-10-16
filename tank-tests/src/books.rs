@@ -179,8 +179,8 @@ pub async fn books<E: Executor>(executor: &mut E) {
     // Get books before 2000
     let result = join!(Book B JOIN Author A ON B.author == A.author_id)
         .select(
-            &[expr!(B.title), expr!(A.name)],
             executor,
+            &[expr!(B.title), expr!(A.name)],
             &expr!(B.year < 2000),
             None,
         )
@@ -220,8 +220,8 @@ pub async fn books<E: Executor>(executor: &mut E) {
     );
     let result = dataset
         .select(
-            cols!(B.title, A1.name as author, A2.name as co_author),
             executor,
+            cols!(B.title, A1.name as author, A2.name as co_author),
             &true,
             None,
         )
@@ -282,8 +282,8 @@ pub async fn books<E: Executor>(executor: &mut E) {
     }
     let books = join!(Book JOIN Author ON Book::author == Author::id)
         .select(
-            cols!(Book::title, Author::name as author, Book::year),
             executor,
+            cols!(Book::title, Author::name as author, Book::year),
             &true,
             None,
         )
@@ -340,8 +340,8 @@ pub async fn books<E: Executor>(executor: &mut E) {
 
     #[cfg(not(feature = "disable-ordering"))]
     {
-        let authors = Author::table_ref()
-            .select(cols!(Author::name ASC), executor, &true, None)
+        let authors = Author::table()
+            .select(executor, cols!(Author::name ASC), &true, None)
             .and_then(|row| async move { AsValue::try_from_value((*row.values)[0].clone()) })
             .try_collect::<Vec<String>>()
             .await

@@ -95,7 +95,7 @@ pub async fn multiple<E: Executor>(executor: &mut E) {
     executor.driver().sql_writer().write_select(
         &mut sql,
         [Three::string],
-        Three::table_ref(),
+        Three::table(),
         &true,
         None,
     );
@@ -113,7 +113,7 @@ pub async fn multiple<E: Executor>(executor: &mut E) {
     executor.driver().sql_writer().write_select(
         &mut sql,
         [One::a1, One::string, One::c1],
-        One::table_ref(),
+        One::table(),
         &true,
         None,
     );
@@ -121,7 +121,7 @@ pub async fn multiple<E: Executor>(executor: &mut E) {
     executor.driver().sql_writer().write_select(
         &mut sql,
         [Two::a2, Two::string],
-        Two::table_ref(),
+        Two::table(),
         &true,
         None,
     );

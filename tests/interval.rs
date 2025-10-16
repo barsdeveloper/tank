@@ -152,7 +152,7 @@ mod tests {
         );
         test_interval!(
             Interval::from_months(5) + Interval::from_days(-2) + Interval::from_secs(1),
-            "INTERVAL '30 YEARS -172800 SECONDS'"
+            "INTERVAL '5 MONTHS -172799 SECONDS'"
         );
     }
 
