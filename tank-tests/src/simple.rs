@@ -11,7 +11,8 @@ use uuid::Uuid;
 
 #[derive(Entity)]
 struct SimpleFields {
-    alpha: Option<u8>,
+    #[tank(primary_key)]
+    alpha: u8,
     bravo: Option<i32>,
     charlie: Option<i16>,
     delta: Option<u64>,
@@ -47,7 +48,7 @@ pub async fn simple<E: Executor>(executor: &mut E) {
         .await
         .expect("Failed to clear the SimpleNullFields table");
     let entity = SimpleFields {
-        alpha: None,
+        alpha: 1,
         bravo: 777.into(),
         charlie: (-2).into(),
         delta: 9876543210.into(),
@@ -73,7 +74,7 @@ pub async fn simple<E: Executor>(executor: &mut E) {
         .await
         .expect("Failed to query simple 1")
         .expect("Failed to find simple 1");
-    assert_eq!(entity.alpha, None);
+    assert_eq!(entity.alpha, 1);
     assert_eq!(entity.bravo, Some(777));
     assert_eq!(entity.charlie, Some(-2));
     assert_eq!(entity.delta, Some(9876543210));
@@ -99,7 +100,7 @@ pub async fn simple<E: Executor>(executor: &mut E) {
         .await
         .expect("Failed to clear the SimpleNullFields table");
     let entity = SimpleFields {
-        alpha: 255.into(),
+        alpha: 255,
         bravo: None,
         charlie: None,
         delta: None,
@@ -125,7 +126,7 @@ pub async fn simple<E: Executor>(executor: &mut E) {
         .await
         .expect("Failed to query simple 2")
         .expect("Failed to find simple 2");
-    assert_eq!(entity.alpha, Some(255));
+    assert_eq!(entity.alpha, 255);
     assert_eq!(entity.bravo, None);
     assert_eq!(entity.charlie, None);
     assert_eq!(entity.delta, None);

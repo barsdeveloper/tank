@@ -91,8 +91,7 @@ pub async fn complex<E: Executor>(executor: &mut E) {
         fifth: LinkedList::from_iter([]),
         sixth: Default::default(),
     };
-    entity
-        .save(executor)
+    ComplexNullFields::insert_one(executor, &entity)
         .await
         .expect("Failed to save complex 1");
     let entity = ComplexNullFields::find_one(executor, &true)
@@ -181,8 +180,7 @@ pub async fn complex<E: Executor>(executor: &mut E) {
         ]),
         sixth: Default::default(),
     };
-    entity
-        .save(executor)
+    ComplexNullFields::insert_one(executor, &entity)
         .await
         .expect("Failed to save complex 2");
     let loaded = ComplexNullFields::find_one(executor, &true)

@@ -81,11 +81,14 @@ pub async fn transaction1<C: Connection>(connection: &mut C) {
         .await
         .expect("Could not select EntityA rows");
     assert_eq!(entities.len(), 6);
-    EntityB {
-        name: "EntityB".into(),
-        field: 5883,
-    }
-    .save(&mut transaction)
+
+    EntityB::insert_one(
+        &mut transaction,
+        &EntityB {
+            name: "EntityB".into(),
+            field: 5883,
+        },
+    )
     .await
     .expect("Failed to save EntityB");
     transaction

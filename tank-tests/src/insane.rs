@@ -120,8 +120,7 @@ pub async fn insane<E: Executor>(executor: &mut E) {
             )),
         )))))),
     };
-    entity
-        .save(executor)
+    InsaneNullFields::insert_one(executor, &entity)
         .await
         .expect("Failed to save insane 1");
     #[allow(unused_variables)]
@@ -199,8 +198,7 @@ pub async fn insane<E: Executor>(executor: &mut E) {
             )),
         )))))),
     };
-    entity
-        .save(executor)
+    InsaneNullFields::insert_one(executor, &entity)
         .await
         .expect("Failed to save insane 2");
     let loaded = InsaneNullFields::find_one(executor, &true)

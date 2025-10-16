@@ -68,8 +68,7 @@ pub async fn limits<E: Executor>(executor: &mut E) {
         #[cfg(not(feature = "disable-duration"))]
         interval: Interval::from_micros(1),
     };
-    entity
-        .save(executor)
+    Limits::insert_one(executor, &entity)
         .await
         .expect("Failed to save minimals entity");
     let loaded = Limits::find_one(executor, &true)
@@ -131,8 +130,7 @@ pub async fn limits<E: Executor>(executor: &mut E) {
         #[cfg(not(feature = "disable-duration"))]
         interval: Interval::from_years(1_000_000),
     };
-    entity
-        .save(executor)
+    Limits::insert_one(executor, &entity)
         .await
         .expect("Failed to save maximals entity");
     let loaded = Limits::find_one(executor, &true)

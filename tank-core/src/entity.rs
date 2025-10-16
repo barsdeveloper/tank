@@ -1,10 +1,13 @@
 use crate::{
     ColumnDef, Context, DataSet, Driver, Error, Executor, Expression, Result, Row, RowLabeled,
-    RowsAffected, TableRef, Value, stream::Stream, writer::SqlWriter,
+    RowsAffected, TableRef, Value, future::Either, stream::Stream, writer::SqlWriter,
 };
 use futures::{FutureExt, StreamExt, TryFutureExt};
 use log::Level;
-use std::{future::Future, pin::pin};
+use std::{
+    future::{self, Future},
+    pin::pin,
+};
 
 pub trait Entity {
     type PrimaryKey<'a>;
@@ -92,18 +95,31 @@ pub trait Entity {
     where
         Self: Sized,
     {
+        if Self::primary_key_def().len() == 0 {
+            let error = Error::msg(
+                "Cannot save a entity without a primary key, it would always result in a insert",
+            );
+            log::error!("{}", error);
+            return Either::Left(future::ready(Err(error)));
+        }
         let mut query = String::with_capacity(512);
         executor
             .driver()
             .sql_writer()
             .write_insert(&mut query, [self], true);
-        executor.execute(query.into()).map_ok(|_| ())
+        Either::Right(executor.execute(query.into()).map_ok(|_| ()))
     }
     fn delete<Exec: Executor>(&self, executor: &mut Exec) -> impl Future<Output = Result<()>> + Send
     where
         Self: Sized,
     {
-        Self::delete_one(executor, self.primary_key()).map(|v| {
+        if Self::primary_key_def().len() == 0 {
+            let error =
+                Error::msg("Cannot delete a entity without a primary key, it would delete nothing");
+            log::error!("{}", error);
+            return Either::Left(future::ready(Err(error)));
+        }
+        Either::Right(Self::delete_one(executor, self.primary_key()).map(|v| {
             v.and_then(|v| {
                 if v.rows_affected == 1 {
                     Ok(())
@@ -124,7 +140,7 @@ pub trait Entity {
                     Err(error)
                 }
             })
-        })
+        }))
     }
 }
 
