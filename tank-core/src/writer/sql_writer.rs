@@ -3,6 +3,7 @@ use crate::{
     Expression, Fragment, Interval, Join, JoinType, Operand, Order, Ordered, PrimaryKeyType,
     TableRef, UnaryOp, UnaryOpType, Value, possibly_parenthesized, separated_by, writer::Context,
 };
+use core::f64;
 use futures::future::Either;
 use std::{collections::HashMap, fmt::Write};
 use time::{Date, OffsetDateTime, PrimitiveDateTime, Time};
@@ -17,6 +18,8 @@ macro_rules! write_float {
     ($this:ident, $context:ident,$buff:ident, $value:expr) => {{
         if $value.is_infinite() {
             $this.write_value_infinity($context, $buff, $value.is_sign_negative());
+        } else if $value.is_nan() {
+            $this.write_value_nan($context, $buff);
         } else {
             let mut buffer = ryu::Buffer::new();
             $buff.push_str(buffer.format($value));
@@ -205,6 +208,19 @@ pub trait SqlWriter {
                 } else {
                     f64::INFINITY
                 })),
+                rhs: &Operand::Type(Value::Float64(None)),
+            },
+        );
+    }
+
+    fn write_value_nan(&self, context: &mut Context, buff: &mut String) {
+        let mut buffer = ryu::Buffer::new();
+        self.write_expression_binary_op(
+            context,
+            buff,
+            &BinaryOp {
+                op: BinaryOpType::Cast,
+                lhs: &Operand::LitStr(buffer.format(f64::NAN)),
                 rhs: &Operand::Type(Value::Float64(None)),
             },
         );
