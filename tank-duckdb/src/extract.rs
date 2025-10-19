@@ -37,7 +37,8 @@ pub(crate) fn extract_value(
 ) -> Result<Value> {
     unsafe {
         let has_data = !data.is_null() || type_id == DUCKDB_TYPE_DUCKDB_TYPE_ARRAY;
-        let is_valid = has_data && duckdb_validity_row_is_valid(validity, row as u64);
+        let is_valid =
+            !vector.is_null() && has_data && duckdb_validity_row_is_valid(validity, row as u64);
         let result = match type_id {
             DUCKDB_TYPE_DUCKDB_TYPE_BOOLEAN => Value::Boolean(if is_valid {
                 Some(*(data as *const bool).add(row))
@@ -226,46 +227,51 @@ pub(crate) fn extract_value(
                     duckdb_destroy_logical_type(&mut v)
                 });
                 let type_id = duckdb_get_type_id(*child_logical_type);
-                let validity = duckdb_vector_get_validity(vector); // Will be null
+                let validity = duckdb_vector_get_validity(vector);
                 let element_type = extract_value(
-                    vector,
+                    ptr::null_mut(),
                     0,
                     *child_logical_type,
                     type_id,
                     ptr::null(),
                     validity,
                 )?;
+                let mut len = if is_array {
+                    duckdb_array_type_array_size(logical_type) as usize
+                } else {
+                    0
+                };
                 let value = if is_valid {
                     let range = if is_array {
-                        let size = duckdb_array_type_array_size(logical_type) as usize;
-                        let begin = row * size;
-                        begin..(begin + size)
+                        let begin = row * len;
+                        begin..(begin + len)
                     } else {
                         let entry = *(data as *const duckdb_list_entry).add(row);
+                        len = entry.length as usize;
                         let begin = entry.offset as usize;
-                        let end = begin + entry.length as usize;
-                        begin..end
+                        begin..(begin + len)
                     };
                     let data = duckdb_vector_get_data(vector);
-                    Some(
-                        range
-                            .map(|i| {
-                                let element = extract_value(
-                                    vector,
-                                    i,
-                                    *child_logical_type,
-                                    type_id,
-                                    data,
-                                    validity,
-                                )?;
-                                Ok(element)
-                            })
-                            .collect::<Result<_>>()?,
-                    )
+                    Some(range.map(move |i| {
+                        let element =
+                            extract_value(vector, i, *child_logical_type, type_id, data, validity)?;
+                        Ok(element)
+                    }))
                 } else {
                     None
                 };
-                Value::List(value, element_type.into())
+                if is_array {
+                    Value::Array(
+                        value.map(Iterator::collect::<Result<_>>).transpose()?,
+                        element_type.into(),
+                        len as u32,
+                    )
+                } else {
+                    Value::List(
+                        value.map(Iterator::collect::<Result<_>>).transpose()?,
+                        element_type.into(),
+                    )
+                }
             }
             DUCKDB_TYPE_DUCKDB_TYPE_STRUCT => {
                 let children = duckdb_struct_type_child_count(logical_type);

@@ -47,9 +47,6 @@ impl Context {
     pub const fn update_from(&mut self, context: &Context) {
         self.counter = context.counter;
     }
-}
-
-impl Context {
     pub const fn switch_fragment<'s>(&'s mut self, fragment: Fragment) -> ContextUpdater<'s> {
         ContextUpdater {
             current: Context { fragment, ..*self },
