@@ -25,7 +25,7 @@ struct Limits {
     float64: f64,
     time: Time,
     date: Date,
-    #[cfg(not(feature = "disable-duration"))]
+    #[cfg(not(feature = "disable-intervals"))]
     interval: Interval,
 }
 static MUTEX: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
@@ -65,7 +65,7 @@ pub async fn limits<E: Executor>(executor: &mut E) {
         time: Time::from_hms(0, 0, 0).expect("All zero must be correct time"),
         date: Date::from_calendar_date(-2000, Month::January, 01)
             .expect("Very old date must be correct"),
-        #[cfg(not(feature = "disable-duration"))]
+        #[cfg(not(feature = "disable-intervals"))]
         interval: Interval::from_micros(1),
     };
     Limits::insert_one(executor, &entity)
@@ -99,7 +99,7 @@ pub async fn limits<E: Executor>(executor: &mut E) {
         loaded.date,
         Date::from_calendar_date(-2000, Month::January, 01).unwrap()
     );
-    #[cfg(not(feature = "disable-duration"))]
+    #[cfg(not(feature = "disable-intervals"))]
     assert_eq!(loaded.interval, Interval::from_micros(1));
 
     // Maximals
@@ -122,12 +122,12 @@ pub async fn limits<E: Executor>(executor: &mut E) {
         #[cfg(not(feature = "disable-large-integers"))]
         uint128: 340_282_366_920_938_463_463_374_607_431_768_211_455,
         float32: f32::MAX,
-        float64: f64::INFINITY,
+        float64: f64::NAN,
         time: Time::from_hms_micro(23, 59, 59, 999_999)
             .expect("Close to midnight time must be correct"),
         date: Date::from_calendar_date(9999, Month::December, 31)
             .expect("Very old date must be correct"),
-        #[cfg(not(feature = "disable-duration"))]
+        #[cfg(not(feature = "disable-intervals"))]
         interval: Interval::from_years(1_000_000),
     };
     Limits::insert_one(executor, &entity)
@@ -158,7 +158,7 @@ pub async fn limits<E: Executor>(executor: &mut E) {
         340_282_366_920_938_463_463_374_607_431_768_211_455
     );
     assert_eq!(loaded.float32, f32::MAX);
-    assert_eq!(loaded.float64, f64::INFINITY);
+    assert!(loaded.float64.is_nan());
     assert_eq!(
         loaded.time,
         Time::from_hms_micro(23, 59, 59, 999_999).unwrap()
@@ -167,6 +167,6 @@ pub async fn limits<E: Executor>(executor: &mut E) {
         loaded.date,
         Date::from_calendar_date(9999, Month::December, 31).unwrap()
     );
-    #[cfg(not(feature = "disable-duration"))]
+    #[cfg(not(feature = "disable-intervals"))]
     assert_eq!(loaded.interval, Interval::from_years(1_000_000));
 }

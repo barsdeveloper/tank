@@ -2,6 +2,7 @@ mod aggregates;
 mod books;
 mod complex;
 mod documentation;
+mod full1;
 mod insane;
 mod limits;
 mod multiple;
@@ -29,10 +30,15 @@ use readme::readme;
 use std::env;
 use tank::Connection;
 
-#[cfg(not(feature = "disable-duration"))]
+#[cfg(not(feature = "disable-intervals"))]
 mod interval;
-#[cfg(not(feature = "disable-duration"))]
+#[cfg(not(feature = "disable-intervals"))]
 use interval::interval;
+
+#[cfg(not(feature = "disable-arrays"))]
+mod array;
+#[cfg(not(feature = "disable-arrays"))]
+use array::array;
 
 pub fn init_logs() {
     let mut logger = env_logger::builder();
@@ -59,8 +65,10 @@ pub async fn execute_tests<C: Connection>(mut connection: C) {
     multiple(&mut connection).await;
     #[cfg(not(feature = "disable-transactions"))]
     transaction1(&mut connection).await;
-    #[cfg(not(feature = "disable-duration"))]
+    #[cfg(not(feature = "disable-intervals"))]
     interval(&mut connection).await;
+    #[cfg(not(feature = "disable-arrays"))]
+    array(&mut connection).await;
     drop(readme(&mut connection).await);
     documentation(&mut connection).await;
 }

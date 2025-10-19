@@ -20,4 +20,4 @@ urlencoding.workspace = true
 uuid.workspace = true
 
 [dev-dependencies]
-tank-tests = { path = "../tank-tests", features = ["disable-arrays", "disable-duration", "disable-large-integers", "disable-lists", "disable-maps"] }
+tank-tests = { path = "../tank-tests", features = ["disable-arrays", "disable-intervals", "disable-large-integers", "disable-lists", "disable-maps"] }

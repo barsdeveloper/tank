@@ -15,7 +15,7 @@ struct TankUnsupported {
 struct ComplexNullFields {
     #[cfg(not(feature = "disable-arrays"))]
     first: Option<[Option<f64>; 8]>,
-    #[cfg(all(not(feature = "disable-lists"), not(feature = "disable-duration")))]
+    #[cfg(all(not(feature = "disable-lists"), not(feature = "disable-intervals")))]
     second: Option<Vec<Option<Duration>>>,
     third: Option<Box<[u8]>>,
     #[cfg(all(not(feature = "disable-maps"), not(feature = "disable-arrays")))]
@@ -30,7 +30,7 @@ impl Default for ComplexNullFields {
         Self {
             #[cfg(not(feature = "disable-arrays"))]
             first: None,
-            #[cfg(all(not(feature = "disable-lists"), not(feature = "disable-duration")))]
+            #[cfg(all(not(feature = "disable-lists"), not(feature = "disable-intervals")))]
             second: None,
             third: None,
             #[cfg(all(not(feature = "disable-maps"), not(feature = "disable-arrays")))]
@@ -61,7 +61,7 @@ pub async fn complex<E: Executor>(executor: &mut E) {
     let entity = ComplexNullFields {
         #[cfg(not(feature = "disable-arrays"))]
         first: None,
-        #[cfg(all(not(feature = "disable-lists"), not(feature = "disable-duration")))]
+        #[cfg(all(not(feature = "disable-lists"), not(feature = "disable-intervals")))]
         second: Some(vec![
             None,
             None,
@@ -100,7 +100,7 @@ pub async fn complex<E: Executor>(executor: &mut E) {
         .expect("Failed to find complex 1");
     #[cfg(not(feature = "disable-arrays"))]
     assert_eq!(entity.first, None);
-    #[cfg(all(not(feature = "disable-lists"), not(feature = "disable-duration")))]
+    #[cfg(all(not(feature = "disable-lists"), not(feature = "disable-intervals")))]
     assert_eq!(
         entity.second,
         Some(vec![
@@ -151,7 +151,7 @@ pub async fn complex<E: Executor>(executor: &mut E) {
             None,
             777.777.into(),
         ]),
-        #[cfg(all(not(feature = "disable-lists"), not(feature = "disable-duration")))]
+        #[cfg(all(not(feature = "disable-lists"), not(feature = "disable-intervals")))]
         second: None,
         third: None,
         #[cfg(all(not(feature = "disable-maps"), not(feature = "disable-arrays")))]
@@ -189,7 +189,7 @@ pub async fn complex<E: Executor>(executor: &mut E) {
         .expect("Failed to find complex 2");
     #[cfg(not(feature = "disable-arrays"))]
     assert_eq!(loaded.first, entity.first);
-    #[cfg(all(not(feature = "disable-lists"), not(feature = "disable-duration")))]
+    #[cfg(all(not(feature = "disable-lists"), not(feature = "disable-intervals")))]
     assert_eq!(loaded.second, None);
     assert_eq!(loaded.third, None);
     #[cfg(all(not(feature = "disable-maps"), not(feature = "disable-arrays")))]
