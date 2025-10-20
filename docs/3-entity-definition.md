@@ -1,9 +1,9 @@
 # Entity Definition
 ###### *Field Manual Section 3* - Units Schematics
-Lock and load, soldier! In Tank's war machine, the "Entity" is your frontline fighter. A Rust struct rigged with the `#[derive(Entity)]` macro that maps straight to a database table. Tank automatically handles the heavy lifting of converting Rust values to database columns and back.
+Lock and load, soldier! In Tank's war machine, the "Entity" is your frontline fighter. A Rust struct rigged with the `#[derive(Entity)]` macro that maps straight to a database table and gives you convenient functions to access and modify the data. Tank automatically handles the heavy lifting of converting Rust values to database columns and back.
 
 ## Mission Briefing
-Zero boilerplate. Define a struct, tag it, and deploy. Tank matches your Rust field types to the closest database type for each driver. Unified arsenal. Same blueprint works across all battlefields.
+Zero boilerplate. Define a struct, tag it, and deploy. Tank matches your Rust field types to the closest database type for each driver. Unified arsenal, same blueprint that works across all battlefields.
 
 ## Entity
 Start with a plain Rust struct and derive the `tank::Entity` trait.
@@ -24,7 +24,7 @@ pub struct Mission {
 * `tank::Passive<..>` allows to update a entity without setting a specific field, or let the database set the default value.
 * `Option<..>` specifies that the field is nullable.
 
-You have now forged a battle-ready map of your database. Create, destroy,  deploy new records or extract targets one-by-one. Execute every manouvre with the support of a live connection or a locked-in transaction for maximum firepower.
+You have now forged a battle-ready map of your database. Create, destroy, deploy new records or extract targets one-by-one. Execute every manouvre with the support of a live connection or a locked-in transaction for maximum firepower.
 
 ## Attributes
 Tank's `#[tank(...)]` attributes are your weapon mods, fine-tuning your structs for precision strikes in the database.
