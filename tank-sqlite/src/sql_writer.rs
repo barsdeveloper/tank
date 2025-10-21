@@ -77,6 +77,11 @@ impl SqlWriter for SqliteSqlWriter {
         buff.push_str("1.0e+10000");
     }
 
+    fn write_value_nan(&self, context: &mut Context, buff: &mut String) {
+        log::warn!("Sqlite does not support float NaN values, will write NULL instead");
+        self.write_value(context, buff, &Value::Null);
+    }
+
     fn write_value_blob(&self, _context: &mut Context, buff: &mut String, value: &[u8]) {
         buff.push_str("X'");
         for b in value {

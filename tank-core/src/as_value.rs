@@ -1,16 +1,19 @@
-use crate::{Error, FixedDecimal, Interval, Parse, Passive, Result, Value};
+use crate::{Error, FixedDecimal, Interval, Passive, Result, Value};
 use atoi::FromRadix10;
 use quote::ToTokens;
 use rust_decimal::{Decimal, prelude::FromPrimitive, prelude::ToPrimitive};
 use std::{
-    any,
+    any, array,
     borrow::Cow,
     cell::{Cell, RefCell},
     collections::{BTreeMap, HashMap, LinkedList, VecDeque},
     hash::Hash,
+    mem,
     rc::Rc,
     sync::{Arc, RwLock},
 };
+use time::format_description::parse_borrowed;
+use uuid::Uuid;
 
 pub trait AsValue {
     fn as_empty_value() -> Value;
@@ -18,6 +21,31 @@ pub trait AsValue {
     fn try_from_value(value: Value) -> Result<Self>
     where
         Self: Sized;
+    fn parse(value: impl AsRef<str>) -> Result<Self>
+    where
+        Self: Sized,
+    {
+        let mut value = value.as_ref();
+        let result = Self::extract(&mut value)?;
+        if !value.is_empty() {
+            return Err(Error::msg(format!(
+                "Value \"{}\" parsed correctly as `{}` but it did not consume all the input",
+                value,
+                any::type_name::<Self>()
+            )));
+        }
+        Ok(result)
+    }
+    fn extract(value: &mut &str) -> Result<Self>
+    where
+        Self: Sized,
+    {
+        Err(Error::msg(format!(
+            "Cannot parse '{}' as {}",
+            value,
+            any::type_name::<Self>()
+        )))
+    }
 }
 
 impl<T: AsValue> From<T> for Value {
@@ -33,55 +61,50 @@ impl From<&'static str> for Value {
 }
 
 macro_rules! impl_as_value {
-    ($source:ty, $value:path => $expr:expr $(, $pat_rest:path => $expr_rest:expr)* $(,)?) => {
+    ($source:ty, $destination:path $(, $pat_rest:pat => $expr_rest:expr)* $(,)?) => {
         impl AsValue for $source {
             fn as_empty_value() -> Value {
-                $value(None)
+                $destination(None)
             }
             fn as_value(self) -> Value {
-                $value(Some(self.into()))
+                $destination(Some(self.into()))
             }
             fn try_from_value(value: Value) -> Result<Self> {
                 match value {
-                    $value(Some(v), ..) => $expr(v),
-                    $($pat_rest(Some(v), ..) => $expr_rest(v),)*
+                    $destination(Some(v), ..) => Ok(v),
+                    $($pat_rest => $expr_rest,)*
                     #[allow(unreachable_patterns)]
                     Value::Int64(Some(v), ..) => {
                         if (v as i128).clamp(<$source>::MIN as i128, <$source>::MAX as i128) != v as i128 {
                             return Err(Error::msg(format!(
                                 "Value {}: i64 does not fit into {}",
                                 v,
-                                stringify!($source),
+                                any::type_name::<Self>(),
                             )));
                         }
                         Ok(v as $source)
                     }
-                    Value::Unknown(Some(ref v), ..) => {
-                        let (r, len) = <$source>::from_radix_10(v.as_bytes());
-                        if len != v.len() {
-                            return Err(Error::msg(format!(
-                                "Cannot decode {:?} into {}",
-                                value,
-                                stringify!($source),
-                            )))
-                        }
-                        Ok(r)
-                    }
+                    Value::Unknown(Some(ref v), ..) => Self::parse(v),
                     _ => Err(Error::msg(format!(
                         "Cannot convert {:?} to {}",
                         value,
-                        stringify!($source),
+                        any::type_name::<Self>(),
                     ))),
                 }
+            }
+            fn extract(value: &mut &str) -> Result<Self> {
+                let (r, tail) = <$source>::from_radix_10(value.as_bytes());
+                *value = &value[tail..];
+                Ok(r)
             }
         }
     };
 }
 impl_as_value!(
     i8,
-    Value::Int8 => |v| Ok(v),
-    Value::UInt8 => |v| Ok(v as i8),
-    Value::Int16 => |v: i16| {
+    Value::Int8,
+    Value::UInt8(Some(v), ..) => Ok(v as i8),
+    Value::Int16(Some(v), ..) => {
         let result = v as i8;
         if result as i16 != v {
             return Err(Error::msg(format!("Value {}: i64 does not fit into i8", v)));
@@ -91,20 +114,20 @@ impl_as_value!(
 );
 impl_as_value!(
     i16,
-    Value::Int16 => |v| Ok(v),
-    Value::Int8 => |v| Ok(v as i16),
-    Value::UInt16 => |v| Ok(v as i16),
-    Value::UInt8 => |v| Ok(v as i16),
+    Value::Int16,
+    Value::Int8(Some(v), ..) => Ok(v as i16),
+    Value::UInt16(Some(v), ..) => Ok(v as i16),
+    Value::UInt8(Some(v), ..) => Ok(v as i16),
 );
 impl_as_value!(
     i32,
-    Value::Int32 => |v| Ok(v),
-    Value::Int16 => |v| Ok(v as i32),
-    Value::Int8 => |v| Ok(v as i32),
-    Value::UInt32 => |v| Ok(v as i32),
-    Value::UInt16 => |v| Ok(v as i32),
-    Value::UInt8 => |v| Ok(v as i32),
-    Value::Decimal => |v: Decimal| {
+    Value::Int32,
+    Value::Int16(Some(v), ..) => Ok(v as i32),
+    Value::Int8(Some(v), ..) => Ok(v as i32),
+    Value::UInt32(Some(v), ..) => Ok(v as i32),
+    Value::UInt16(Some(v), ..) => Ok(v as i32),
+    Value::UInt8(Some(v), ..) => Ok(v as i32),
+    Value::Decimal(Some(v), ..) => {
         let error = Error::msg(format!("Value {}: Decimal does not fit into i32", v));
         if !v.is_integer() {
             return Err(error.context("The value is not integer"));
@@ -114,15 +137,15 @@ impl_as_value!(
 );
 impl_as_value!(
     i64,
-    Value::Int64 => |v| Ok(v),
-    Value::Int32 => |v| Ok(v as i64),
-    Value::Int16 => |v| Ok(v as i64),
-    Value::Int8 => |v| Ok(v as i64),
-    Value::UInt64 => |v| Ok(v as i64),
-    Value::UInt32 => |v| Ok(v as i64),
-    Value::UInt16 => |v| Ok(v as i64),
-    Value::UInt8 => |v| Ok(v as i64),
-    Value::Decimal => |v: Decimal| {
+    Value::Int64,
+    Value::Int32(Some(v), ..) => Ok(v as i64),
+    Value::Int16(Some(v), ..) => Ok(v as i64),
+    Value::Int8(Some(v), ..) => Ok(v as i64),
+    Value::UInt64(Some(v), ..) => Ok(v as i64),
+    Value::UInt32(Some(v), ..) => Ok(v as i64),
+    Value::UInt16(Some(v), ..) => Ok(v as i64),
+    Value::UInt8(Some(v), ..) => Ok(v as i64),
+    Value::Decimal(Some(v), ..) => {
         let error = Error::msg(format!("Value {}: Decimal does not fit into i64", v));
         if !v.is_integer() {
             return Err(error.context("The value is not integer"));
@@ -132,17 +155,17 @@ impl_as_value!(
 );
 impl_as_value!(
     i128,
-    Value::Int128 => |v| Ok(v),
-    Value::Int64 => |v| Ok(v as i128),
-    Value::Int32 => |v| Ok(v as i128),
-    Value::Int16 => |v| Ok(v as i128),
-    Value::Int8 => |v| Ok(v as i128),
-    Value::UInt128 => |v| Ok(v as i128),
-    Value::UInt64 => |v| Ok(v as i128),
-    Value::UInt32 => |v| Ok(v as i128),
-    Value::UInt16 => |v| Ok(v as i128),
-    Value::UInt8 => |v| Ok(v as i128),
-    Value::Decimal => |v: Decimal| {
+    Value::Int128,
+    Value::Int64(Some(v), ..) => Ok(v as i128),
+    Value::Int32(Some(v), ..) => Ok(v as i128),
+    Value::Int16(Some(v), ..) => Ok(v as i128),
+    Value::Int8(Some(v), ..) => Ok(v as i128),
+    Value::UInt128(Some(v), ..) => Ok(v as i128),
+    Value::UInt64(Some(v), ..) => Ok(v as i128),
+    Value::UInt32(Some(v), ..) => Ok(v as i128),
+    Value::UInt16(Some(v), ..) => Ok(v as i128),
+    Value::UInt8(Some(v), ..) => Ok(v as i128),
+    Value::Decimal(Some(v), ..) => {
         let error = Error::msg(format!("Value {}: Decimal does not fit into i128", v));
         if !v.is_integer() {
             return Err(error.context("The value is not integer"));
@@ -152,16 +175,16 @@ impl_as_value!(
 );
 impl_as_value!(
     u8,
-    Value::UInt8 => |v| Ok(v),
-    Value::Int16 => |v: i16| {
+    Value::UInt8,
+    Value::Int16(Some(v), ..) => {
         v.to_u8().ok_or(Error::msg(format!("Value {}: i16 does not fit into u8", v)))
     }
 );
 impl_as_value!(
     u16,
-    Value::UInt16 => |v| Ok(v),
-    Value::UInt8 => |v| Ok(v as u16),
-    Value::Int32 => |v: i32| {
+    Value::UInt16,
+    Value::UInt8(Some(v), ..) => Ok(v as u16),
+    Value::Int32(Some(v), ..) => {
         let result = v as u16;
         if result as i32 != v {
             return Err(Error::msg(format!("Value {}: i32 does not fit into u16", v)));
@@ -171,17 +194,17 @@ impl_as_value!(
 );
 impl_as_value!(
     u32,
-    Value::UInt32 => |v| Ok(v),
-    Value::UInt16 => |v| Ok(v as u32),
-    Value::UInt8 => |v| Ok(v as u32),
+    Value::UInt32,
+    Value::UInt16(Some(v), ..) => Ok(v as u32),
+    Value::UInt8(Some(v), ..) => Ok(v as u32),
 );
 impl_as_value!(
     u64,
-    Value::UInt64 => |v| Ok(v),
-    Value::UInt32 => |v| Ok(v as u64),
-    Value::UInt16 => |v| Ok(v as u64),
-    Value::UInt8 => |v| Ok(v as u64),
-    Value::Decimal => |v: Decimal| {
+    Value::UInt64,
+    Value::UInt32(Some(v), ..) => Ok(v as u64),
+    Value::UInt16(Some(v), ..) => Ok(v as u64),
+    Value::UInt8(Some(v), ..) => Ok(v as u64),
+    Value::Decimal(Some(v), ..) => {
         let error = Error::msg(format!("Value {}: Decimal does not fit into u64", v));
         if !v.is_integer() {
             return Err(error.context("The value is not integer"));
@@ -191,12 +214,12 @@ impl_as_value!(
 );
 impl_as_value!(
     u128,
-    Value::UInt128 => |v| Ok(v),
-    Value::UInt64 => |v| Ok(v as u128),
-    Value::UInt32 => |v| Ok(v as u128),
-    Value::UInt16 => |v| Ok(v as u128),
-    Value::UInt8 => |v| Ok(v as u128),
-    Value::Decimal => |v: Decimal| {
+    Value::UInt128,
+    Value::UInt64(Some(v), ..) => Ok(v as u128),
+    Value::UInt32(Some(v), ..) => Ok(v as u128),
+    Value::UInt16(Some(v), ..) => Ok(v as u128),
+    Value::UInt8(Some(v), ..) => Ok(v as u128),
+    Value::Decimal(Some(v), ..) => {
         let error = Error::msg(format!("Value {}: Decimal does not fit into u128", v));
         if !v.is_integer() {
             return Err(error.context("The value is not integer"));
@@ -206,66 +229,67 @@ impl_as_value!(
 );
 
 macro_rules! impl_as_value {
-    ($source:ty, $value:path => $expr:expr $(, $pat_rest:path => $expr_rest:expr)* $(,)?) => {
+    ($source:ty, $dest:path $(, $pat_rest:pat => $expr_rest:expr)* $(,)?) => {
         impl AsValue for $source {
             fn as_empty_value() -> Value {
-                $value(None)
+                $dest(None)
             }
             fn as_value(self) -> Value {
-                $value(Some(self.into()))
+                $dest(Some(self.into()))
             }
             fn try_from_value(value: Value) -> Result<Self> {
                 match value {
-                    $value(Some(v), ..) => $expr(v),
-                    $($pat_rest(Some(v), ..) => $expr_rest(v),)*
+                    $dest(Some(v), ..) => Ok(v),
+                    $($pat_rest => $expr_rest,)*
                     #[allow(unreachable_patterns)]
-                    Value::Unknown(Some(ref v)) => {
-                        v.parse::<$source>().map_err(|_| Error::msg(format!(
-                            "Cannot decode {:?} into {}",
-                            value,
-                            stringify!($source)
-                        )))
-                    }
+                    Value::Unknown(Some(ref v)) => Self::parse(v),
                     _ => Err(Error::msg(format!(
                         "Cannot convert {:?} to {}",
                         value,
-                        stringify!($source),
+                        any::type_name::<Self>(),
                     ))),
                 }
+            }
+            fn extract(value: &mut &str) -> Result<Self> {
+                value.parse::<$source>().map_err(|_| Error::msg(format!(
+                    "Cannot decode {:?} into {}",
+                    value,
+                    any::type_name::<Self>()
+                )))
             }
         }
     };
 }
 impl_as_value!(
     bool,
-    Value::Boolean => |v| Ok(v),
-    Value::Int8 => |v| Ok(v != 0),
-    Value::Int16 => |v| Ok(v != 0),
-    Value::Int32 => |v| Ok(v != 0),
-    Value::Int64 => |v| Ok(v != 0),
-    Value::Int128 => |v| Ok(v != 0),
-    Value::UInt8 => |v| Ok(v != 0),
-    Value::UInt16 => |v| Ok(v != 0),
-    Value::UInt32 => |v| Ok(v != 0),
-    Value::UInt64 => |v| Ok(v != 0),
-    Value::UInt128 => |v| Ok(v != 0),
+    Value::Boolean,
+    Value::Int8(Some(v), ..) => Ok(v != 0),
+    Value::Int16(Some(v), ..) => Ok(v != 0),
+    Value::Int32(Some(v), ..) => Ok(v != 0),
+    Value::Int64(Some(v), ..) => Ok(v != 0),
+    Value::Int128(Some(v), ..) => Ok(v != 0),
+    Value::UInt8(Some(v), ..) => Ok(v != 0),
+    Value::UInt16(Some(v), ..) => Ok(v != 0),
+    Value::UInt32(Some(v), ..) => Ok(v != 0),
+    Value::UInt64(Some(v), ..) => Ok(v != 0),
+    Value::UInt128(Some(v), ..) => Ok(v != 0),
 );
 impl_as_value!(
     f32,
-    Value::Float32 => |v| Ok(v),
-    Value::Float64 => |v| Ok(v as f32),
-    Value::Decimal => |v: Decimal| Ok(v.try_into()?),
+    Value::Float32,
+    Value::Float64(Some(v), ..) => Ok(v as f32),
+    Value::Decimal(Some(v), ..) => Ok(v.try_into()?),
 );
 impl_as_value!(
     f64,
-    Value::Float64 => |v| Ok(v),
-    Value::Float32 => |v| Ok(v as f64),
-    Value::Decimal => |v: Decimal| Ok(v.try_into()?),
+    Value::Float64,
+    Value::Float32(Some(v), ..) => Ok(v as f64),
+    Value::Decimal(Some(v), ..) => Ok(v.try_into()?),
 );
 impl_as_value!(
     char,
-    Value::Char => |v| Ok(v),
-    Value::Varchar => |v: String| {
+    Value::Char,
+    Value::Varchar(Some(v), ..) | Value::Unknown(Some(v), ..) => {
         if v.len() != 1 {
             return Err(Error::msg("Cannot convert Value::Varchar containing more then one character into a char"))
         }
@@ -274,9 +298,9 @@ impl_as_value!(
 );
 impl_as_value!(
     String,
-    Value::Varchar => |v| Ok(v),
-    Value::Char => |v: char| Ok(v.into()),
-    Value::Unknown => |v: String| Ok(v),
+    Value::Varchar,
+    Value::Char(Some(v), ..) => Ok(v.into()),
+    Value::Unknown(Some(v), ..) => Ok(v),
 );
 impl<'a> AsValue for Cow<'a, str> {
     fn as_empty_value() -> Value {
@@ -289,74 +313,153 @@ impl<'a> AsValue for Cow<'a, str> {
     where
         Self: Sized,
     {
-        let Value::Varchar(Some(value)) = value else {
-            return Err(Error::msg(format!(
+        match value {
+            Value::Varchar(Some(value)) | Value::Unknown(Some(value)) => Ok(value.into()),
+            _ => Err(Error::msg(format!(
                 "Cannot convert {} to Cow<'a, str>",
                 value.to_token_stream().to_string(),
-            )));
-        };
-        Ok(value.into())
+            ))),
+        }
     }
 }
 
 macro_rules! impl_as_value {
-    ($source:ty, $value:path => $expr:expr $(, $pat_rest:path => $expr_rest:expr)* $(,)?) => {
+    ($source:ty, $dest:path, $parser:expr $(,)?) => {
         impl AsValue for $source {
             fn as_empty_value() -> Value {
-                $value(None)
+                $dest(None)
             }
             fn as_value(self) -> Value {
-                $value(Some(self.into()))
+                $dest(Some(self.into()))
             }
             fn try_from_value(value: Value) -> Result<Self> {
                 match value {
-                    $value(Some(v), ..) => $expr(v),
-                    $($pat_rest(Some(v), ..) => $expr_rest(v),)*
+                    $dest(Some(v), ..) => Ok(v.into()),
+                    Value::Unknown(Some(v), ..) => Self::parse(v),
                     _ => Err(Error::msg(format!(
                         "Cannot convert {:?} to {}",
                         value,
-                        stringify!($source),
+                        any::type_name::<Self>(),
                     ))),
                 }
+            }
+            fn extract(value: &mut &str) -> Result<Self> {
+                $parser(value)
             }
         }
     };
 }
-impl_as_value!(
-    Box<[u8]>,
-    Value::Blob => |v| Ok(v),
-);
-impl_as_value!(
-    time::Date,
-    Value::Date => |v| Ok(v),
-    Value::Varchar => Parse::parse,
-    Value::Unknown => Parse::parse,
-);
+impl_as_value!(Box<[u8]>, Value::Blob, |v| Err(Error::msg("")));
+impl_as_value!(std::time::Duration, Value::Interval, |v| Err(Error::msg(
+    ""
+)));
+impl_as_value!(Interval, Value::Interval, |v| Err(Error::msg("")));
+impl_as_value!(time::Duration, Value::Interval, |v| {
+    <time::Time as AsValue>::extract(v).map(|v| v.duration_since(time::Time::MIDNIGHT))
+});
+
+macro_rules! impl_as_value {
+    ($source:ty, $dest:path, $parser:expr $(,)?) => {
+        impl AsValue for $source {
+            fn as_empty_value() -> Value {
+                $dest(None)
+            }
+            fn as_value(self) -> Value {
+                $dest(Some(self.into()))
+            }
+            fn try_from_value(value: Value) -> Result<Self> {
+                match value {
+                    $dest(Some(v), ..) => Ok(v.into()),
+                    Value::Varchar(Some(v), ..) | Value::Unknown(Some(v), ..) => Self::parse(v),
+                    _ => Err(Error::msg(format!(
+                        "Cannot convert {:?} to {}",
+                        value,
+                        any::type_name::<Self>(),
+                    ))),
+                }
+            }
+            fn extract(value: &mut &str) -> Result<Self> {
+                $parser(value)
+            }
+        }
+    };
+}
+impl_as_value!(Uuid, Value::Uuid, |v: &mut &str| {
+    let result = Ok(Uuid::parse_str(&v[0..36])?);
+    *v = &v[36..];
+    result
+});
+
+macro_rules! impl_as_value {
+    ($source:ty, $dest:path $(, $formats:literal)+ $(,)?) => {
+        impl AsValue for $source {
+            fn as_empty_value() -> Value {
+                $dest(None)
+            }
+            fn as_value(self) -> Value {
+                $dest(Some(self.into()))
+            }
+            fn try_from_value(value: Value) -> Result<Self> {
+                match value {
+                    $dest(Some(v), ..) => Ok(v.into()),
+                    Value::Varchar(Some(v), ..) | Value::Unknown(Some(v), ..) => {
+                        <Self as AsValue>::parse(v)
+                    }
+                    _ => Err(Error::msg(format!(
+                        "Cannot convert {:?} to {}",
+                        value,
+                        any::type_name::<Self>(),
+                    ))),
+                }
+            }
+            fn extract(value: &mut &str) -> Result<Self> {
+                for format in [$($formats,)+] {
+                    let format = parse_borrowed::<2>(format).expect("The format was not valid");
+                    let mut parsed = time::parsing::Parsed::new();
+                    let remaining = parsed.parse_items(value.as_bytes(), &format);
+                    if let Ok(remaining) = remaining {
+                        let result = parsed.try_into()?;
+                        *value = &value[(value.len() - remaining.len())..];
+                        return Ok(result);
+                    }
+                }
+                Err(Error::msg(format!(
+                    "Cannot parse '{}' as {}",
+                    value,
+                    any::type_name::<Self>()
+                )))
+            }
+        }
+    };
+}
+
+impl_as_value!(time::Date, Value::Date, "[year]-[month]-[day]");
 impl_as_value!(
     time::Time,
-    Value::Time => |v| Ok(v),
-    Value::Varchar => Parse::parse,
-    Value::Unknown => Parse::parse,
+    Value::Time,
+    "[hour]:[minute]:[second].[subsecond]",
+    "[hour]:[minute]:[second]",
+    "[hour]:[minute]",
 );
 impl_as_value!(
     time::PrimitiveDateTime,
-    Value::Timestamp => |v| Ok(v),
-    Value::Varchar => Parse::parse,
-    Value::Unknown => Parse::parse,
+    Value::Timestamp,
+    "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond]",
+    "[year]-[month]-[day]T[hour]:[minute]:[second]",
+    "[year]-[month]-[day]T[hour]:[minute]",
+    "[year]-[month]-[day] [hour]:[minute]:[second].[subsecond]",
+    "[year]-[month]-[day] [hour]:[minute]:[second]",
+    "[year]-[month]-[day] [hour]:[minute]",
 );
 impl_as_value!(
     time::OffsetDateTime,
-    Value::TimestampWithTimezone => |v| Ok(v),
-    Value::Varchar => Parse::parse,
-    Value::Unknown => Parse::parse,
-);
-impl_as_value!(std::time::Duration, Value::Interval => |v: Interval| Ok(v.into()));
-impl_as_value!(Interval, Value::Interval => |v| Ok(v));
-impl_as_value!(time::Duration, Value::Interval => |v: Interval| Ok(v.into()));
-impl_as_value!(
-    uuid::Uuid,
-    Value::Uuid => |v| Ok(v),
-    Value::Varchar => |v: String| Ok(uuid::Uuid::parse_str(&v)?),
+    Value::TimestampWithTimezone,
+    "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond][offset_hour sign:mandatory]:[offset_minute]",
+    "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond][offset_hour sign:mandatory]",
+    "[year]-[month]-[day]T[hour]:[minute]:[second][offset_hour sign:mandatory]:[offset_minute]",
+    "[year]-[month]-[day]T[hour]:[minute]:[second][offset_hour sign:mandatory]",
+    "[year]-[month]-[day]T[hour]:[minute][offset_hour sign:mandatory]:[offset_minute]",
+    "[year]-[month]-[day]T[hour]:[minute][offset_hour sign:mandatory]",
 );
 
 impl AsValue for Decimal {
@@ -432,12 +535,55 @@ impl<T: AsValue, const N: usize> AsValue for [T; N] {
         match value {
             Value::List(Some(v), ..) if v.len() == N => convert_iter(v),
             Value::Array(Some(v), ..) if v.len() == N => convert_iter(v.into()),
+            Value::Unknown(Some(v)) => Self::parse(v),
             _ => Err(Error::msg(format!(
                 "Cannot convert {:?} to array {}",
                 value,
                 any::type_name::<Self>()
             ))),
         }
+    }
+    fn extract(value: &mut &str) -> Result<Self> {
+        *value = match (value.chars().next(), value.chars().last()) {
+            (Some('{'), Some('}')) | (Some('['), Some(']')) => &value[1..value.len() - 1],
+            _ => {
+                return Err(Error::msg(format!(
+                    "Cannot parse '{}' as array {}",
+                    value,
+                    any::type_name::<Self>()
+                )));
+            }
+        };
+        // TODO Replace with array::from_fn once stable
+        let mut result = array::from_fn(|i| {
+            let result = T::extract(value);
+            match value.chars().next() {
+                Some(',') => *value = &value[1..],
+                _ if i != N - 1 => {
+                    return Err(Error::msg(format!("Incorrect array format `{}`", value)));
+                }
+                _ => {}
+            }
+            result
+        });
+        // if !value.is_empty() {
+        //     return Err(Error::msg(format!(
+        //         "Some elements in the array could not be parsed: '{}'",
+        //         value
+        //     )));
+        // }
+        if let Some(error) = result.iter_mut().find_map(|v| {
+            if let Err(e) = v {
+                let mut r = Error::msg("");
+                mem::swap(e, &mut r);
+                Some(r)
+            } else {
+                None
+            }
+        }) {
+            return Err(error);
+        }
+        Ok(result.map(Result::unwrap))
     }
 }
 
@@ -467,7 +613,7 @@ macro_rules! impl_as_value {
                     _ => Err(Error::msg(format!(
                         "Cannot convert {:?} to {}",
                         value,
-                        stringify!($list<T>),
+                        any::type_name::<Self>(),
                     ))),
                 }
             }
@@ -509,7 +655,7 @@ macro_rules! impl_as_value {
                     Err(Error::msg(format!(
                         "Cannot convert {:?} to {}",
                         value,
-                        stringify!($map<K, V>),
+                        any::type_name::<Self>(),
                     )))
                 }
             }

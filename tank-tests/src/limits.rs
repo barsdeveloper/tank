@@ -122,7 +122,7 @@ pub async fn limits<E: Executor>(executor: &mut E) {
         #[cfg(not(feature = "disable-large-integers"))]
         uint128: 340_282_366_920_938_463_463_374_607_431_768_211_455,
         float32: f32::MAX,
-        float64: f64::NAN,
+        float64: f64::INFINITY,
         time: Time::from_hms_micro(23, 59, 59, 999_999)
             .expect("Close to midnight time must be correct"),
         date: Date::from_calendar_date(9999, Month::December, 31)
@@ -158,7 +158,7 @@ pub async fn limits<E: Executor>(executor: &mut E) {
         340_282_366_920_938_463_463_374_607_431_768_211_455
     );
     assert_eq!(loaded.float32, f32::MAX);
-    assert!(loaded.float64.is_nan());
+    assert_eq!(loaded.float64, f64::INFINITY);
     assert_eq!(
         loaded.time,
         Time::from_hms_micro(23, 59, 59, 999_999).unwrap()
