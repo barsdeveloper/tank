@@ -12,6 +12,7 @@ categories.workspace = true
 anyhow.workspace = true
 async-stream = "0.3.6"
 atoi = "2.0.0"
+fast-float = "0.2.0"
 futures.workspace = true
 itoa = "1.0.15"
 log.workspace = true

@@ -2,14 +2,18 @@ use rust_decimal::{Decimal, prelude::FromPrimitive};
 use std::{
     borrow::Cow,
     cell::{Cell, RefCell},
+    pin::pin,
     sync::{Arc, LazyLock},
 };
-use tank::{Entity, Executor, FixedDecimal};
+use tank::{
+    Driver, Entity, Executor, FixedDecimal, QueryResult, RowLabeled, RowsAffected, SqlWriter,
+    stream::TryStreamExt,
+};
 use time::{Date, Time, macros::date};
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
-#[derive(Entity)]
+#[derive(Debug, Entity, PartialEq)]
 struct SimpleFields {
     #[tank(primary_key)]
     alpha: u8,
@@ -94,6 +98,55 @@ pub async fn simple<E: Executor>(executor: &mut E) {
     assert_eq!(entity.november, None);
     assert_eq!(entity.oscar, None);
     assert_eq!(entity.papa, Some(Decimal::from_f32(45.2).unwrap().into()));
+
+    // Simple 1 - multiple statements
+    let writer = executor.driver().sql_writer();
+    let mut query = String::new();
+    writer.write_delete::<SimpleFields>(&mut query, &false); // Does not delete anything
+    query.push('\n');
+    writer.write_select(
+        &mut query,
+        SimpleFields::columns(),
+        SimpleFields::table(),
+        &true,
+        None,
+    );
+    {
+        let mut stream = pin!(executor.run(query.into()));
+        let Ok(Some(QueryResult::Affected(RowsAffected { rows_affected, .. }))) =
+            stream.try_next().await
+        else {
+            panic!("Could not process the first query correctly")
+        };
+        assert_eq!(rows_affected, 0);
+        let Ok(Some(QueryResult::RowLabeled(row))) = stream.try_next().await else {
+            panic!("Could not process the second query correctly")
+        };
+        let value =
+            SimpleFields::from_row(row).expect("Could not decode the row into SimpleFields");
+        assert_eq!(
+            value,
+            SimpleFields {
+                alpha: 1,
+                bravo: 777.into(),
+                charlie: (-2).into(),
+                delta: 9876543210.into(),
+                echo: None,
+                #[cfg(not(feature = "disable-large-integers"))]
+                foxtrot: i128::MAX.into(),
+                golf: Time::from_hms(12, 0, 10).unwrap().into(),
+                hotel: Some("Hello world!".into()),
+                india: Box::new(None),
+                juliet: true.into(),
+                kilo: None,
+                lima: Arc::new(Some(3.14)),
+                mike: None,
+                november: None,
+                oscar: None,
+                papa: Some(Decimal::from_f32(45.2).unwrap().into()),
+            }
+        );
+    }
 
     // Simple 2
     SimpleFields::delete_many(executor, &true)

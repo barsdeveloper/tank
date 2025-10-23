@@ -1,11 +1,10 @@
 use std::{borrow::Cow, pin::pin, sync::LazyLock};
-use tank::{
-    AsValue, Driver, Entity, Executor, Interval, QueryResult, SqlWriter, cols, stream::TryStreamExt,
-};
+use tank::{Driver, Entity, Executor, QueryResult, SqlWriter, cols, stream::TryStreamExt};
 use tokio::sync::Mutex;
 
 #[derive(Entity, Debug, PartialEq)]
 struct Arrays1 {
+    #[cfg(not(feature = "disable-intervals"))]
     aa: [time::Duration; 3],
     bb: [[f32; 4]; 2],
     cc: [[[[i8; 1]; 1]; 3]; 1],
@@ -22,7 +21,9 @@ struct Arrays2 {
 }
 static MUTEX: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
 
-pub async fn array<E: Executor>(executor: &mut E) {
+pub async fn arrays1<E: Executor>(executor: &mut E) {
+    let _ = MUTEX.lock().await;
+
     let mut query = String::new();
     let writer = executor.driver().sql_writer();
     writer.write_drop_table::<Arrays1>(&mut query, true);
@@ -34,6 +35,7 @@ pub async fn array<E: Executor>(executor: &mut E) {
     writer.write_create_table::<Arrays2>(&mut query, true);
     query.push('\n');
     let value = Arrays1 {
+        #[cfg(not(feature = "disable-intervals"))]
         aa: [
             time::Duration::seconds(1),
             time::Duration::seconds(2),
@@ -93,6 +95,7 @@ pub async fn array<E: Executor>(executor: &mut E) {
     assert_eq!(
         value,
         Arrays1 {
+            #[cfg(not(feature = "disable-intervals"))]
             aa: [
                 time::Duration::seconds(1),
                 time::Duration::seconds(2),

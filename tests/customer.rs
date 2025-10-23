@@ -181,7 +181,7 @@ mod tests {
     #[test]
     fn test_customer_delete() {
         let mut query = String::new();
-        WRITER.write_delete::<Customer, _>(&mut query, &expr!(true));
+        WRITER.write_delete::<Customer>(&mut query, &expr!(true));
         assert_eq!(
             query,
             indoc! {r#"

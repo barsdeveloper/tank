@@ -75,6 +75,16 @@ pub fn as_c_string<S: Into<Vec<u8>>>(str: S) -> CString {
     CString::new(str.into()).expect("Expected a valid C string")
 }
 
+pub fn consume_while<'s>(input: &mut &'s str, predicate: impl FnMut(&char) -> bool) -> &'s str {
+    let len = input.chars().take_while(predicate).count();
+    if len == 0 {
+        return "";
+    }
+    let result = &input[..len];
+    *input = &input[len..];
+    result
+}
+
 #[macro_export]
 macro_rules! possibly_parenthesized {
     ($buff:ident, $cond:expr, $v:expr) => {

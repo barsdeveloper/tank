@@ -1,6 +1,6 @@
-use crate::{Error, FixedDecimal, Interval, Passive, Result, Value};
-use atoi::FromRadix10;
-use quote::ToTokens;
+use crate::{Error, FixedDecimal, Interval, Passive, Result, Value, consume_while};
+use atoi::{FromRadix10, FromRadix10Signed};
+use fast_float::parse_partial;
 use rust_decimal::{Decimal, prelude::FromPrimitive, prelude::ToPrimitive};
 use std::{
     any, array,
@@ -29,9 +29,10 @@ pub trait AsValue {
         let result = Self::extract(&mut value)?;
         if !value.is_empty() {
             return Err(Error::msg(format!(
-                "Value \"{}\" parsed correctly as `{}` but it did not consume all the input",
+                "Value '{}' parsed correctly as {} but it did not consume all the input (remaining: '{}')",
                 value,
-                any::type_name::<Self>()
+                any::type_name::<Self>(),
+                value,
             )));
         }
         Ok(result)
@@ -93,7 +94,10 @@ macro_rules! impl_as_value {
                 }
             }
             fn extract(value: &mut &str) -> Result<Self> {
-                let (r, tail) = <$source>::from_radix_10(value.as_bytes());
+                let (r, tail) = <$source>::from_radix_10_signed(value.as_bytes());
+                if tail == 0 {
+                    return Err(Error::msg(format!("Cannot extract {} from '{value}'", any::type_name::<Self>())))
+                }
                 *value = &value[tail..];
                 Ok(r)
             }
@@ -229,7 +233,7 @@ impl_as_value!(
 );
 
 macro_rules! impl_as_value {
-    ($source:ty, $dest:path $(, $pat_rest:pat => $expr_rest:expr)* $(,)?) => {
+    ($source:ty, $dest:path, $extract:expr $(, $pat_rest:pat => $expr_rest:expr)* $(,)?) => {
         impl AsValue for $source {
             fn as_empty_value() -> Value {
                 $dest(None)
@@ -239,7 +243,7 @@ macro_rules! impl_as_value {
             }
             fn try_from_value(value: Value) -> Result<Self> {
                 match value {
-                    $dest(Some(v), ..) => Ok(v),
+                    $dest(Some(v), ..) => Ok(v.into()),
                     $($pat_rest => $expr_rest,)*
                     #[allow(unreachable_patterns)]
                     Value::Unknown(Some(ref v)) => Self::parse(v),
@@ -251,11 +255,7 @@ macro_rules! impl_as_value {
                 }
             }
             fn extract(value: &mut &str) -> Result<Self> {
-                value.parse::<$source>().map_err(|_| Error::msg(format!(
-                    "Cannot decode {:?} into {}",
-                    value,
-                    any::type_name::<Self>()
-                )))
+                $extract(value)
             }
         }
     };
@@ -263,6 +263,14 @@ macro_rules! impl_as_value {
 impl_as_value!(
     bool,
     Value::Boolean,
+    |v: &mut &str| {
+        let value = consume_while(v, char::is_ascii_alphabetic);
+        match value {
+            x if x.eq_ignore_ascii_case("true") || x.eq_ignore_ascii_case("t") => Ok(true),
+            x if x.eq_ignore_ascii_case("false") || x.eq_ignore_ascii_case("f") => Ok(false),
+            _  => Err(Error::msg(format!("Cannot parse boolean from '{v}'")))
+        }
+    },
     Value::Int8(Some(v), ..) => Ok(v != 0),
     Value::Int16(Some(v), ..) => Ok(v != 0),
     Value::Int32(Some(v), ..) => Ok(v != 0),
@@ -277,19 +285,34 @@ impl_as_value!(
 impl_as_value!(
     f32,
     Value::Float32,
+    |v: &mut &str| {
+        let (num, tail) = parse_partial(*v)?;
+        *v = &v[tail..];
+        Ok(num)
+    },
     Value::Float64(Some(v), ..) => Ok(v as f32),
     Value::Decimal(Some(v), ..) => Ok(v.try_into()?),
 );
 impl_as_value!(
     f64,
     Value::Float64,
+    |v: &mut &str| {
+        let (num, tail) = parse_partial(*v)?;
+        *v = &v[tail..];
+        Ok(num)
+    },
     Value::Float32(Some(v), ..) => Ok(v as f64),
     Value::Decimal(Some(v), ..) => Ok(v.try_into()?),
 );
 impl_as_value!(
     char,
     Value::Char,
-    Value::Varchar(Some(v), ..) | Value::Unknown(Some(v), ..) => {
+    |v: &mut &str| {
+        let result = v.chars().next().ok_or(Error::msg("Empty input"))?;
+        *v = &v[1..];
+        Ok(result)
+    },
+    Value::Varchar(Some(v), ..) => {
         if v.len() != 1 {
             return Err(Error::msg("Cannot convert Value::Varchar containing more then one character into a char"))
         }
@@ -299,63 +322,121 @@ impl_as_value!(
 impl_as_value!(
     String,
     Value::Varchar,
+    |v: &mut &str| Ok((*v).into()),
     Value::Char(Some(v), ..) => Ok(v.into()),
     Value::Unknown(Some(v), ..) => Ok(v),
 );
-impl<'a> AsValue for Cow<'a, str> {
-    fn as_empty_value() -> Value {
-        Value::Varchar(None)
-    }
-    fn as_value(self) -> Value {
-        Value::Varchar(Some(self.into()))
-    }
-    fn try_from_value(value: Value) -> Result<Self>
-    where
-        Self: Sized,
-    {
-        match value {
-            Value::Varchar(Some(value)) | Value::Unknown(Some(value)) => Ok(value.into()),
-            _ => Err(Error::msg(format!(
-                "Cannot convert {} to Cow<'a, str>",
-                value.to_token_stream().to_string(),
-            ))),
-        }
-    }
-}
-
-macro_rules! impl_as_value {
-    ($source:ty, $dest:path, $parser:expr $(,)?) => {
-        impl AsValue for $source {
-            fn as_empty_value() -> Value {
-                $dest(None)
-            }
-            fn as_value(self) -> Value {
-                $dest(Some(self.into()))
-            }
-            fn try_from_value(value: Value) -> Result<Self> {
-                match value {
-                    $dest(Some(v), ..) => Ok(v.into()),
-                    Value::Unknown(Some(v), ..) => Self::parse(v),
-                    _ => Err(Error::msg(format!(
-                        "Cannot convert {:?} to {}",
-                        value,
-                        any::type_name::<Self>(),
-                    ))),
-                }
-            }
-            fn extract(value: &mut &str) -> Result<Self> {
-                $parser(value)
-            }
-        }
-    };
-}
 impl_as_value!(Box<[u8]>, Value::Blob, |v| Err(Error::msg("")));
-impl_as_value!(std::time::Duration, Value::Interval, |v| Err(Error::msg(
-    ""
-)));
-impl_as_value!(Interval, Value::Interval, |v| Err(Error::msg("")));
+impl_as_value!(Interval, Value::Interval, |input: &mut &str| {
+    let error = Arc::new(format!("Cannot extract interval from '{input}'"));
+    let mut value = *input;
+    let boundary = match value.chars().next() {
+        Some(v) if v == '"' || v == '\'' => {
+            value = &value[1..];
+            Some(v)
+        }
+        _ => None,
+    };
+    let mut interval = Interval::ZERO;
+    loop {
+        let mut cur = value;
+        let Ok(count) = i128::extract(&mut cur) else {
+            break;
+        };
+        cur = cur.trim_start();
+        let unit = consume_while(&mut cur, char::is_ascii_alphabetic);
+        if unit.is_empty() {
+            break;
+        }
+        match unit {
+            x if x.eq_ignore_ascii_case("y")
+                || x.eq_ignore_ascii_case("year")
+                || x.eq_ignore_ascii_case("years") =>
+            {
+                interval += Interval::from_years(count as _)
+            }
+            x if x.eq_ignore_ascii_case("mon")
+                || x.eq_ignore_ascii_case("mons")
+                || x.eq_ignore_ascii_case("month")
+                || x.eq_ignore_ascii_case("months") =>
+            {
+                interval += Interval::from_months(count as _)
+            }
+            x if x.eq_ignore_ascii_case("d")
+                || x.eq_ignore_ascii_case("day")
+                || x.eq_ignore_ascii_case("days") =>
+            {
+                interval += Interval::from_days(count as _)
+            }
+            x if x.eq_ignore_ascii_case("h")
+                || x.eq_ignore_ascii_case("hour")
+                || x.eq_ignore_ascii_case("hours") =>
+            {
+                interval += Interval::from_hours(count as _)
+            }
+            x if x.eq_ignore_ascii_case("min")
+                || x.eq_ignore_ascii_case("mins")
+                || x.eq_ignore_ascii_case("minute")
+                || x.eq_ignore_ascii_case("minutes") =>
+            {
+                interval += Interval::from_mins(count as _)
+            }
+            x if x.eq_ignore_ascii_case("s")
+                || x.eq_ignore_ascii_case("sec")
+                || x.eq_ignore_ascii_case("secs")
+                || x.eq_ignore_ascii_case("second")
+                || x.eq_ignore_ascii_case("seconds") =>
+            {
+                interval += Interval::from_secs(count as _)
+            }
+            x if x.eq_ignore_ascii_case("micro")
+                || x.eq_ignore_ascii_case("micros")
+                || x.eq_ignore_ascii_case("microsecond")
+                || x.eq_ignore_ascii_case("microseconds") =>
+            {
+                interval += Interval::from_micros(count as _)
+            }
+            x if x.eq_ignore_ascii_case("ns")
+                || x.eq_ignore_ascii_case("nano")
+                || x.eq_ignore_ascii_case("nanos")
+                || x.eq_ignore_ascii_case("nanosecond")
+                || x.eq_ignore_ascii_case("nanoseconds") =>
+            {
+                interval += Interval::from_micros(count as _)
+            }
+            _ => return Err(Error::msg(error)),
+        }
+        value = cur.trim_start();
+    }
+    let neg = if Some('-') == value.chars().next() {
+        value = value[1..].trim_ascii_start();
+        true
+    } else {
+        false
+    };
+    if let Ok(time) =
+        <time::Time as AsValue>::extract(&mut value).map(|v| v.duration_since(time::Time::MIDNIGHT))
+    {
+        if neg {
+            interval -= time.into();
+        } else {
+            interval += time.into();
+        }
+    }
+    if let Some(b) = boundary {
+        if value.chars().next() != Some(b) {
+            return Err(Error::msg(error));
+        }
+        value = value[1..].trim_ascii_start();
+    }
+    *input = value;
+    Ok(interval)
+});
+impl_as_value!(std::time::Duration, Value::Interval, |v| {
+    <Interval as AsValue>::extract(v).map(Into::into)
+});
 impl_as_value!(time::Duration, Value::Interval, |v| {
-    <time::Time as AsValue>::extract(v).map(|v| v.duration_since(time::Time::MIDNIGHT))
+    <Interval as AsValue>::extract(v).map(Into::into)
 });
 
 macro_rules! impl_as_value {
@@ -424,7 +505,7 @@ macro_rules! impl_as_value {
                     }
                 }
                 Err(Error::msg(format!(
-                    "Cannot parse '{}' as {}",
+                    "Cannot extract from '{}' as {}",
                     value,
                     any::type_name::<Self>()
                 )))
@@ -484,10 +565,29 @@ impl AsValue for Decimal {
                 .ok_or(Error::msg(format!("Cannot convert {:?} to Decimal", value)))?),
             Value::Float64(Some(v), ..) => Ok(Decimal::from_f64(v)
                 .ok_or(Error::msg(format!("Cannot convert {:?} to Decimal", value)))?),
+            Value::Unknown(Some(v), ..) => Self::parse(&v),
             _ => Err(Error::msg(
                 format!("Cannot convert {:?} to Decimal", value,),
             )),
         }
+    }
+    fn extract(input: &mut &str) -> Result<Self> {
+        let mut value = *input;
+        let (mut n, len) = i128::from_radix_10_signed(value.as_bytes());
+        value = &value[len..];
+        let n = if value.chars().next() == Some('.') {
+            value = &value[1..];
+            let (dec, len) = i128::from_radix_10(value.as_bytes());
+            n = n * 10u64.pow(len as _) as i128 + dec;
+            value = &value[len..];
+            Decimal::try_from_i128_with_scale(n, len as _)
+                .map_err(|_| Error::msg(format!("Could not create a Decimal from {n}")))
+        } else {
+            Decimal::from_i128(n)
+                .ok_or_else(|| Error::msg(format!("Could not create a Decimal from {n}")))
+        }?;
+        *input = value.trim_ascii_start();
+        Ok(n)
     }
 }
 
@@ -543,35 +643,33 @@ impl<T: AsValue, const N: usize> AsValue for [T; N] {
             ))),
         }
     }
-    fn extract(value: &mut &str) -> Result<Self> {
-        *value = match (value.chars().next(), value.chars().last()) {
-            (Some('{'), Some('}')) | (Some('['), Some(']')) => &value[1..value.len() - 1],
+    fn extract(input: &mut &str) -> Result<Self> {
+        let mut value = *input;
+        let error = Arc::new(format!(
+            "Cannot extract '{}' as array {}",
+            value,
+            any::type_name::<Self>(),
+        ));
+        let closing = match value.chars().next() {
+            Some('{') => '}',
+            Some('[') => ']',
             _ => {
-                return Err(Error::msg(format!(
-                    "Cannot parse '{}' as array {}",
-                    value,
-                    any::type_name::<Self>()
-                )));
+                return Err(Error::msg(error));
             }
         };
+        value = &value[1..];
         // TODO Replace with array::from_fn once stable
         let mut result = array::from_fn(|i| {
-            let result = T::extract(value);
+            let result = T::extract(&mut value)?;
             match value.chars().next() {
-                Some(',') => *value = &value[1..],
+                Some(',') => value = &value[1..],
                 _ if i != N - 1 => {
-                    return Err(Error::msg(format!("Incorrect array format `{}`", value)));
+                    return Err(Error::msg(error.clone()));
                 }
                 _ => {}
             }
-            result
+            Ok(result)
         });
-        // if !value.is_empty() {
-        //     return Err(Error::msg(format!(
-        //         "Some elements in the array could not be parsed: '{}'",
-        //         value
-        //     )));
-        // }
         if let Some(error) = result.iter_mut().find_map(|v| {
             if let Err(e) = v {
                 let mut r = Error::msg("");
@@ -583,6 +681,14 @@ impl<T: AsValue, const N: usize> AsValue for [T; N] {
         }) {
             return Err(error);
         }
+        if Some(closing) != value.chars().next() {
+            return Err(Error::msg(format!(
+                "Incorrect array format '{}', expected a '{}'",
+                value, closing
+            )));
+        };
+        value = &value[1..];
+        *input = &value;
         Ok(result.map(Result::unwrap))
     }
 }
@@ -664,6 +770,21 @@ macro_rules! impl_as_value {
 }
 impl_as_value!(BTreeMap, Ord);
 impl_as_value!(HashMap, Eq, Hash);
+
+impl<'a> AsValue for Cow<'a, str> {
+    fn as_empty_value() -> Value {
+        Value::Varchar(None)
+    }
+    fn as_value(self) -> Value {
+        Value::Varchar(Some(self.into()))
+    }
+    fn try_from_value(value: Value) -> Result<Self>
+    where
+        Self: Sized,
+    {
+        String::try_from_value(value).map(Into::into)
+    }
+}
 
 impl<T: AsValue> AsValue for Passive<T> {
     fn as_empty_value() -> Value {

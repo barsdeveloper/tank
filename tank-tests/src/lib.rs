@@ -1,9 +1,12 @@
 mod aggregates;
+mod arrays1;
+mod arrays2;
 mod books;
 mod complex;
 mod documentation;
 mod full1;
 mod insane;
+mod interval;
 mod limits;
 mod multiple;
 mod readme;
@@ -25,20 +28,17 @@ use crate::{
     user::users,
 };
 use aggregates::aggregates;
+
+#[cfg(not(feature = "disable-arrays"))]
+use arrays1::arrays1;
+#[cfg(not(feature = "disable-arrays"))]
+use arrays2::arrays2;
+#[cfg(not(feature = "disable-intervals"))]
+use interval::interval;
 use log::LevelFilter;
 use readme::readme;
 use std::env;
 use tank::Connection;
-
-#[cfg(not(feature = "disable-intervals"))]
-mod interval;
-#[cfg(not(feature = "disable-intervals"))]
-use interval::interval;
-
-#[cfg(not(feature = "disable-arrays"))]
-mod array;
-#[cfg(not(feature = "disable-arrays"))]
-use array::array;
 
 pub fn init_logs() {
     let mut logger = env_logger::builder();
@@ -68,7 +68,9 @@ pub async fn execute_tests<C: Connection>(mut connection: C) {
     #[cfg(not(feature = "disable-intervals"))]
     interval(&mut connection).await;
     #[cfg(not(feature = "disable-arrays"))]
-    array(&mut connection).await;
+    arrays1(&mut connection).await;
+    #[cfg(not(feature = "disable-arrays"))]
+    arrays2(&mut connection).await;
     drop(readme(&mut connection).await);
     documentation(&mut connection).await;
 }

@@ -144,10 +144,7 @@ mod tests {
     #[test]
     fn test_simple_entity_delete() {
         let mut query = String::new();
-        WRITER.write_delete::<SomeSimpleEntity, _>(
-            &mut query,
-            &expr!(SomeSimpleEntity::b != "hello"),
-        );
+        WRITER.write_delete::<SomeSimpleEntity>(&mut query, &expr!(SomeSimpleEntity::b != "hello"));
         assert_eq!(
             query,
             indoc! {r#"

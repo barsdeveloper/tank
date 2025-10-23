@@ -188,7 +188,7 @@ mod tests {
     #[test]
     fn test_odd_entity_delete() {
         let mut query = String::new();
-        WRITER.write_delete::<MyEntity, _>(&mut query, &expr!(MyEntity::_echo == 5));
+        WRITER.write_delete::<MyEntity>(&mut query, &expr!(MyEntity::_echo == 5));
         assert_eq!(
             query,
             indoc! {r#"

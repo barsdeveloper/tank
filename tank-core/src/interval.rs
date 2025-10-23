@@ -40,6 +40,12 @@ pub struct Interval {
 }
 
 impl Interval {
+    pub const ZERO: Interval = Interval {
+        months: 0,
+        days: 0,
+        nanos: 0,
+    };
+
     pub const DAYS_IN_MONTH: f64 = 30.0;
     pub const DAYS_IN_MONTH_AVG: f64 = 30.436875;
     pub const SECS_IN_DAY: i64 = 60 * 60 * 24;
@@ -102,7 +108,15 @@ impl Interval {
         Self {
             months: 0,
             days: (value / MINS_IN_DAYS),
-            nanos: ((value % MINS_IN_DAYS) * 60 * 1_000_000_000) as _,
+            nanos: ((value % MINS_IN_DAYS) * 60 * Interval::NANOS_IN_SEC as i64) as _,
+        }
+    }
+
+    pub const fn from_hours(value: i64) -> Self {
+        Self {
+            months: 0,
+            days: (value / 24),
+            nanos: ((value % 24) * 3600 * Interval::NANOS_IN_SEC as i64) as _,
         }
     }
 

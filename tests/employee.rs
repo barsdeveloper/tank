@@ -251,7 +251,7 @@ mod tests {
     #[test]
     fn test_sql_delete() {
         let mut query = String::new();
-        WRITER.write_delete::<Employee, _>(&mut query, &expr!(Employee::name == "Bob"));
+        WRITER.write_delete::<Employee>(&mut query, &expr!(Employee::name == "Bob"));
         assert_eq!(
             query,
             indoc! {r#"

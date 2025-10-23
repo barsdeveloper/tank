@@ -1053,11 +1053,10 @@ pub trait SqlWriter {
         );
     }
 
-    fn write_delete<E, Expr>(&self, buff: &mut String, condition: &Expr)
+    fn write_delete<E>(&self, buff: &mut String, condition: &impl Expression)
     where
         Self: Sized,
         E: Entity,
-        Expr: Expression,
     {
         buff.push_str("DELETE FROM ");
         let mut context = Context::new(Fragment::SqlDeleteFrom, E::qualified_columns());

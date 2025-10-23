@@ -316,7 +316,7 @@ mod tests {
     #[test]
     fn test_trade_delete() {
         let mut query = String::new();
-        WRITER.write_delete::<Trade, _>(&mut query, &expr!(Trade::trade == 68391));
+        WRITER.write_delete::<Trade>(&mut query, &expr!(Trade::trade == 68391));
         assert_eq!(
             query,
             indoc! {r#"
