@@ -82,7 +82,7 @@ pub async fn arrays1<E: Executor>(executor: &mut E) {
     query.push('\n');
     let rows = pin!(executor.run(query.into()).try_filter_map(|v| async move {
         Ok(match v {
-            QueryResult::RowLabeled(v) => Some(v),
+            QueryResult::Row(v) => Some(v),
             QueryResult::Affected(..) => None,
         })
     }));

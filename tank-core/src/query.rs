@@ -107,7 +107,7 @@ impl RowLabeled {
 
 #[derive(Debug)]
 pub enum QueryResult {
-    RowLabeled(RowLabeled),
+    Row(RowLabeled),
     Affected(RowsAffected),
 }
 
@@ -136,7 +136,7 @@ impl<'a> From<&'a RowLabeled> for &'a Row {
 
 impl From<RowLabeled> for QueryResult {
     fn from(value: RowLabeled) -> Self {
-        QueryResult::RowLabeled(value)
+        QueryResult::Row(value)
     }
 }
 

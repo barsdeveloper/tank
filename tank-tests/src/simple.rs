@@ -119,7 +119,7 @@ pub async fn simple<E: Executor>(executor: &mut E) {
             panic!("Could not process the first query correctly")
         };
         assert_eq!(rows_affected, 0);
-        let Ok(Some(QueryResult::RowLabeled(row))) = stream.try_next().await else {
+        let Ok(Some(QueryResult::Row(row))) = stream.try_next().await else {
             panic!("Could not process the second query correctly")
         };
         let value =

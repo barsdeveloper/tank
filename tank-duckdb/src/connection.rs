@@ -194,7 +194,7 @@ impl DuckDBConnection {
                     });
                     let row =
                         RowLabeled::new(names.clone(), columns.collect::<Result<_>>().unwrap());
-                    send_value!(tx, Ok(QueryResult::RowLabeled(row)));
+                    send_value!(tx, Ok(QueryResult::Row(row)));
                 }
             }
         }

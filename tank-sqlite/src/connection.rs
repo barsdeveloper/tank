@@ -54,7 +54,7 @@ impl SqliteConnection {
                             break;
                         }
                         SQLITE_ROW => {
-                            yield Ok(QueryResult::RowLabeled(RowLabeled {
+                            yield Ok(QueryResult::Row(RowLabeled {
                                 labels: labels.clone(),
                                 values: (0..count).map(|i| extract_value(*statement, i)).collect()?,
                             }))

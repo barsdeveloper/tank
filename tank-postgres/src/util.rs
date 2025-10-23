@@ -84,7 +84,7 @@ where
         while let Some(entry) = stream.next().await.transpose()? {
             match entry {
                 SimpleQueryMessage::Row(row) => {
-                    yield tank_core::QueryResult::RowLabeled(tank_core::RowLabeled {
+                    yield tank_core::QueryResult::Row(tank_core::RowLabeled {
                         labels: labels.as_ref().filter(|v| v.len() == row.len()).ok_or(
                             tank_core::Error::msg(
                                 "Row columns names does not match the row currently received",

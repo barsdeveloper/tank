@@ -136,7 +136,7 @@ pub async fn multiple<E: Executor>(executor: &mut E) {
     let mut result = result
         .into_iter()
         .filter_map(|v| match v {
-            QueryResult::RowLabeled(row) => Some(row),
+            QueryResult::Row(row) => Some(row),
             QueryResult::Affected(..) => None,
         })
         .collect::<Vec<_>>();

@@ -26,7 +26,7 @@ pub trait Executor: Send + Sized {
     ) -> impl Stream<Item = Result<RowLabeled>> + Send + 's {
         self.run(query).filter_map(|v| async move {
             match v {
-                Ok(QueryResult::RowLabeled(v)) => Some(Ok(v)),
+                Ok(QueryResult::Row(v)) => Some(Ok(v)),
                 Err(e) => Some(Err(e)),
                 _ => None,
             }
