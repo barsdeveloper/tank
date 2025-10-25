@@ -233,17 +233,17 @@ impl_as_value!(
 );
 
 macro_rules! impl_as_value {
-    ($source:ty, $dest:path, $extract:expr $(, $pat_rest:pat => $expr_rest:expr)* $(,)?) => {
+    ($source:ty, $destination:path, $extract:expr $(, $pat_rest:pat => $expr_rest:expr)* $(,)?) => {
         impl AsValue for $source {
             fn as_empty_value() -> Value {
-                $dest(None)
+                $destination(None)
             }
             fn as_value(self) -> Value {
-                $dest(Some(self.into()))
+                $destination(Some(self.into()))
             }
             fn try_from_value(value: Value) -> Result<Self> {
                 match value {
-                    $dest(Some(v), ..) => Ok(v.into()),
+                    $destination(Some(v), ..) => Ok(v.into()),
                     $($pat_rest => $expr_rest,)*
                     #[allow(unreachable_patterns)]
                     Value::Unknown(Some(ref v)) => Self::parse(v),
@@ -402,7 +402,7 @@ impl_as_value!(Interval, Value::Interval, |input: &mut &str| {
                 || x.eq_ignore_ascii_case("nanosecond")
                 || x.eq_ignore_ascii_case("nanoseconds") =>
             {
-                interval += Interval::from_micros(count as _)
+                interval += Interval::from_nanos(count as _)
             }
             _ => return Err(Error::msg(error)),
         }
@@ -438,51 +438,29 @@ impl_as_value!(std::time::Duration, Value::Interval, |v| {
 impl_as_value!(time::Duration, Value::Interval, |v| {
     <Interval as AsValue>::extract(v).map(Into::into)
 });
+impl_as_value!(
+    Uuid,
+    Value::Uuid,
+    |v: &mut &str| {
+        let result = Ok(Uuid::parse_str(&v[0..36])?);
+        *v = &v[36..];
+        result
+    },
+    Value::Varchar(Some(v), ..) => Self::parse(v),
+);
 
 macro_rules! impl_as_value {
-    ($source:ty, $dest:path, $parser:expr $(,)?) => {
+    ($source:ty, $destination:path $(, $formats:literal)+ $(,)?) => {
         impl AsValue for $source {
             fn as_empty_value() -> Value {
-                $dest(None)
+                $destination(None)
             }
             fn as_value(self) -> Value {
-                $dest(Some(self.into()))
+                $destination(Some(self.into()))
             }
             fn try_from_value(value: Value) -> Result<Self> {
                 match value {
-                    $dest(Some(v), ..) => Ok(v.into()),
-                    Value::Varchar(Some(v), ..) | Value::Unknown(Some(v), ..) => Self::parse(v),
-                    _ => Err(Error::msg(format!(
-                        "Cannot convert {:?} to {}",
-                        value,
-                        any::type_name::<Self>(),
-                    ))),
-                }
-            }
-            fn extract(value: &mut &str) -> Result<Self> {
-                $parser(value)
-            }
-        }
-    };
-}
-impl_as_value!(Uuid, Value::Uuid, |v: &mut &str| {
-    let result = Ok(Uuid::parse_str(&v[0..36])?);
-    *v = &v[36..];
-    result
-});
-
-macro_rules! impl_as_value {
-    ($source:ty, $dest:path $(, $formats:literal)+ $(,)?) => {
-        impl AsValue for $source {
-            fn as_empty_value() -> Value {
-                $dest(None)
-            }
-            fn as_value(self) -> Value {
-                $dest(Some(self.into()))
-            }
-            fn try_from_value(value: Value) -> Result<Self> {
-                match value {
-                    $dest(Some(v), ..) => Ok(v.into()),
+                    $destination(Some(v), ..) => Ok(v.into()),
                     Value::Varchar(Some(v), ..) | Value::Unknown(Some(v), ..) => {
                         <Self as AsValue>::parse(v)
                     }

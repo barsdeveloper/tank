@@ -6,7 +6,7 @@ use std::{
     sync::{Arc, LazyLock},
 };
 use tank::{
-    Driver, Entity, Executor, FixedDecimal, QueryResult, RowLabeled, RowsAffected, SqlWriter,
+    Driver, Entity, Executor, FixedDecimal, QueryResult, RowsAffected, SqlWriter,
     stream::TryStreamExt,
 };
 use time::{Date, Time, macros::date};
@@ -103,7 +103,6 @@ pub async fn simple<E: Executor>(executor: &mut E) {
     let writer = executor.driver().sql_writer();
     let mut query = String::new();
     writer.write_delete::<SimpleFields>(&mut query, &false); // Does not delete anything
-    query.push('\n');
     writer.write_select(
         &mut query,
         SimpleFields::columns(),
@@ -205,4 +204,59 @@ pub async fn simple<E: Executor>(executor: &mut E) {
         Some(RefCell::new(Decimal::from_f32(5080.6244).unwrap().into()))
     );
     assert_eq!(entity.papa, None);
+
+    // Simple 2 - multiple statements
+    let writer = executor.driver().sql_writer();
+    let mut query = String::new();
+    writer.write_delete::<SimpleFields>(&mut query, &true);
+    writer.write_insert(&mut query, [&entity], false);
+    writer.write_select(
+        &mut query,
+        SimpleFields::columns(),
+        SimpleFields::table(),
+        &true,
+        None,
+    );
+    {
+        let mut stream = pin!(executor.run(query.into()));
+        let Ok(Some(QueryResult::Affected(RowsAffected { rows_affected, .. }))) =
+            stream.try_next().await
+        else {
+            panic!("Could not process the first query correctly")
+        };
+        assert_eq!(rows_affected, 1);
+        let Ok(Some(QueryResult::Affected(RowsAffected { rows_affected, .. }))) =
+            stream.try_next().await
+        else {
+            panic!("Could not process the first query correctly")
+        };
+        assert_eq!(rows_affected, 1);
+        let Ok(Some(QueryResult::Row(row))) = stream.try_next().await else {
+            panic!("Could not process the second query correctly")
+        };
+        let value =
+            SimpleFields::from_row(row).expect("Could not decode the row into SimpleFields");
+        assert_eq!(
+            value,
+            SimpleFields {
+                alpha: 255,
+                bravo: None,
+                charlie: None,
+                delta: None,
+                echo: Some(Uuid::parse_str("5e915574-bb30-4430-98cf-c5854f61fbbd").unwrap()),
+                #[cfg(not(feature = "disable-large-integers"))]
+                foxtrot: None,
+                golf: None,
+                hotel: None,
+                india: Box::new(None),
+                juliet: None,
+                kilo: 4294967295.into(),
+                lima: Arc::new(None),
+                mike: date!(2025 - 09 - 07).into(),
+                november: Cell::new(Decimal::from_f32(1.5).unwrap().into()).into(),
+                oscar: RefCell::new(Decimal::from_f32(5080.6244).unwrap().into()).into(),
+                papa: None,
+            }
+        );
+    }
 }

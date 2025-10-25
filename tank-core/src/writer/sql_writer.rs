@@ -682,6 +682,9 @@ pub trait SqlWriter {
         Self: Sized,
         E: Entity,
     {
+        if !buff.is_empty() {
+            buff.push('\n');
+        }
         buff.push_str("CREATE SCHEMA ");
         let mut context = Context::new(Fragment::SqlCreateSchema, E::qualified_columns());
         if if_not_exists {
@@ -696,6 +699,9 @@ pub trait SqlWriter {
         Self: Sized,
         E: Entity,
     {
+        if !buff.is_empty() {
+            buff.push('\n');
+        }
         buff.push_str("DROP SCHEMA ");
         let mut context = Context::new(Fragment::SqlDropSchema, E::qualified_columns());
         if if_exists {
@@ -711,6 +717,9 @@ pub trait SqlWriter {
         E: Entity,
     {
         let mut context = Context::new(Fragment::SqlCreateTable, E::qualified_columns());
+        if !buff.is_empty() {
+            buff.push('\n');
+        }
         buff.push_str("CREATE TABLE ");
         if if_not_exists {
             buff.push_str("IF NOT EXISTS ");
@@ -776,6 +785,9 @@ pub trait SqlWriter {
         let mut context = context.switch_fragment(Fragment::SqlCommentOnColumn);
         context.current.qualify_columns = true;
         for c in E::columns().iter().filter(|c| !c.comment.is_empty()) {
+            if !buff.is_empty() {
+                buff.push('\n');
+            }
             buff.push_str("\nCOMMENT ON COLUMN ");
             self.write_column_ref(&mut context.current, buff, c.into());
             buff.push_str(" IS ");
@@ -850,6 +862,9 @@ pub trait SqlWriter {
         Self: Sized,
         E: Entity,
     {
+        if !buff.is_empty() {
+            buff.push('\n');
+        }
         buff.push_str("DROP TABLE ");
         let mut context = Context::new(Fragment::SqlDropTable, E::qualified_columns());
         if if_exists {
@@ -873,6 +888,9 @@ pub trait SqlWriter {
         Data: DataSet,
         Cond: Expression,
     {
+        if !buff.is_empty() {
+            buff.push('\n');
+        }
         buff.push_str("SELECT ");
         let mut has_order_by = false;
         let mut context = Context::new(Fragment::SqlSelect, Data::qualified_columns());
@@ -923,6 +941,9 @@ pub trait SqlWriter {
         let Some(mut row) = rows.next() else {
             return;
         };
+        if !buff.is_empty() {
+            buff.push('\n');
+        }
         buff.push_str("INSERT INTO ");
         let mut context = Context::new(Fragment::SqlInsertInto, E::qualified_columns());
         self.write_table_ref(&mut context, buff, E::table());
@@ -1058,6 +1079,9 @@ pub trait SqlWriter {
         Self: Sized,
         E: Entity,
     {
+        if !buff.is_empty() {
+            buff.push('\n');
+        }
         buff.push_str("DELETE FROM ");
         let mut context = Context::new(Fragment::SqlDeleteFrom, E::qualified_columns());
         self.write_table_ref(&mut context, buff, E::table());

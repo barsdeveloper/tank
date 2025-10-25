@@ -29,12 +29,17 @@ impl Executor for PostgresConnection {
 
     async fn prepare(&mut self, sql: String) -> Result<Query<Self::Driver>> {
         let sql = sql.trim_end().trim_end_matches(';');
-        Ok(PostgresPrepared::new(
-            self.client.prepare(&sql).await.with_context(|| {
-                format!("While preparing the query:\n{}", printable_query!(sql))
-            })?,
+        Ok(
+            PostgresPrepared::new(self.client.prepare(&sql).await.map_err(|e| {
+                let e = Error::new(e).context(format!(
+                    "While preparing the query:\n{}",
+                    printable_query!(sql)
+                ));
+                log::error!("{:#}", e);
+                e
+            })?)
+            .into(),
         )
-        .into())
     }
 
     fn run(
@@ -45,21 +50,31 @@ impl Executor for PostgresConnection {
         match query {
             Query::Raw(sql) => Either::Left(
                 stream_postgres_simple_query_message_to_tank_query_result(async move || {
-                    self.client.simple_query_raw(&sql).await.map_err(Error::new)
-                })
-                .map_err(move |e| e.context(context.clone())),
+                    self.client.simple_query_raw(&sql).await.map_err(move |e| {
+                        let e = Error::new(e).context(context.clone());
+                        log::error!("{:#}", e);
+                        e
+                    })
+                }),
             ),
-            Query::Prepared(..) => Either::Right(try_stream! {
-                let mut transaction = self.begin().await?;
-                {
-                    let stream = transaction.run(query);
-                    let mut stream = pin!(stream);
-                    while let Some(value) = stream.next().await.transpose()? {
-                        yield value;
+            Query::Prepared(..) => Either::Right(
+                try_stream! {
+                    let mut transaction = self.begin().await?;
+                    {
+                        let stream = transaction.run(query);
+                        let mut stream = pin!(stream);
+                        while let Some(value) = stream.next().await.transpose()? {
+                            yield value;
+                        }
                     }
+                    transaction.commit().await?;
                 }
-                transaction.commit().await?;
-            }),
+                .map_err(move |e: Error| {
+                    let e = e.context(context.clone());
+                    log::error!("{:#}", e);
+                    e
+                }),
+            ),
         }
     }
 
@@ -73,8 +88,11 @@ impl Executor for PostgresConnection {
                 self.client
                     .query_raw(&sql, Vec::<ValueWrap>::new())
                     .await
-                    .map_err(Error::new)
-                    .context(context)
+                    .map_err(|e| {
+                        let e = Error::new(e).context(context.clone());
+                        log::error!("{:#}", e);
+                        e
+                    })
             })),
             Query::Prepared(..) => Either::Right(
                 try_stream! {
@@ -88,7 +106,11 @@ impl Executor for PostgresConnection {
                     }
                     transaction.commit().await?;
                 }
-                .map_err(move |e: Error| e.context(context.clone())),
+                .map_err(move |e: Error| {
+                    let e = e.context(context.clone());
+                    log::error!("{:#}", e);
+                    e
+                }),
             ),
         }
     }

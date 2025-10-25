@@ -1,7 +1,8 @@
-use std::{collections::HashSet, sync::LazyLock};
+use std::{collections::HashSet, pin::pin, sync::LazyLock};
 use tank::{
-    AsValue, DataSet, Entity, Executor, Passive, RowLabeled, Value, cols, expr, join,
-    stream::TryStreamExt,
+    AsValue, DataSet, Driver, Entity, Executor, Passive, QueryResult, RowLabeled, SqlWriter, Value,
+    cols, expr, join,
+    stream::{StreamExt, TryStreamExt},
 };
 use tokio::sync::Mutex;
 use uuid::Uuid;
@@ -15,7 +16,7 @@ pub struct Author {
     pub country: String,
     pub books_published: Option<u16>,
 }
-#[derive(Entity, Debug, Clone)]
+#[derive(Entity, Debug, Clone, PartialEq)]
 #[tank(schema = "testing", name = "books", primary_key = (Self::title, Self::author))]
 pub struct Book {
     #[cfg(not(feature = "disable-arrays"))]
@@ -320,7 +321,6 @@ pub async fn books<E: Executor>(executor: &mut E) {
     #[cfg(not(feature = "disable-references"))]
     {
         // Insert book violating referential integrity
-
         use crate::silent_logs;
         let book = Book {
             #[cfg(not(feature = "disable-arrays"))]
@@ -340,6 +340,7 @@ pub async fn books<E: Executor>(executor: &mut E) {
 
     #[cfg(not(feature = "disable-ordering"))]
     {
+        // Authors names alphabetical order
         let authors = Author::table()
             .select(executor, cols!(Author::name ASC), &true, None)
             .and_then(|row| async move { AsValue::try_from_value((*row.values)[0].clone()) })
@@ -356,4 +357,53 @@ pub async fn books<E: Executor>(executor: &mut E) {
             ]
         )
     }
+
+    // Specific books
+    let mut query = String::new();
+    let writer = executor.driver().sql_writer();
+    writer.write_select(
+        &mut query,
+        Book::columns(),
+        Book::table(),
+        &expr!(Book::title == "Metro 2033"),
+        Some(1),
+    );
+    writer.write_select(
+        &mut query,
+        Book::columns(),
+        Book::table(),
+        &expr!(Book::title == "Harry Potter and the Deathly Hallows"),
+        Some(1),
+    );
+    let mut stream = pin!(executor.run(query.into()));
+    let Some(Ok(QueryResult::Row(row))) = stream.next().await else {
+        panic!("Could not get the first row")
+    };
+    let book = Book::from_row(row).expect("Could not get the book from row");
+    assert_eq!(
+        book,
+        Book {
+            #[cfg(not(feature = "disable-arrays"))]
+            isbn: [9, 7, 8, 5, 1, 7, 0, 5, 9, 6, 7, 8, 2],
+            title: "Metro 2033".into(),
+            author: gluchovskij_id,
+            co_author: None,
+            year: 2002,
+        }
+    );
+    let Some(Ok(QueryResult::Row(row))) = stream.next().await else {
+        panic!("Could not get the first row")
+    };
+    let book = Book::from_row(row).expect("Could not get the book from row");
+    assert_eq!(
+        book,
+        Book {
+            #[cfg(not(feature = "disable-arrays"))]
+            isbn: [9, 7, 8, 0, 7, 4, 7, 5, 9, 1, 0, 5, 4],
+            title: "Harry Potter and the Deathly Hallows".into(),
+            author: rowling_id,
+            co_author: None,
+            year: 2007,
+        }
+    );
 }

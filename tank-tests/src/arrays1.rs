@@ -27,13 +27,9 @@ pub async fn arrays1<E: Executor>(executor: &mut E) {
     let mut query = String::new();
     let writer = executor.driver().sql_writer();
     writer.write_drop_table::<Arrays1>(&mut query, true);
-    query.push('\n');
     writer.write_create_table::<Arrays1>(&mut query, true);
-    query.push('\n');
     writer.write_drop_table::<Arrays2>(&mut query, true);
-    query.push('\n');
     writer.write_create_table::<Arrays2>(&mut query, true);
-    query.push('\n');
     let value = Arrays1 {
         #[cfg(not(feature = "disable-intervals"))]
         aa: [
@@ -49,9 +45,7 @@ pub async fn arrays1<E: Executor>(executor: &mut E) {
         dd: [[[[[10, 20, 30]]], [[[40, 50, 60]]]]],
     };
     writer.write_insert(&mut query, &[value], false);
-    query.push('\n');
     writer.write_select(&mut query, cols!(*), Arrays1::table(), &true, None);
-    query.push('\n');
     let value = Arrays2 {
         alpha: [1, 2, 3, 4, 5],
         bravo: [[10, 11], [12, 13], [14, 15]],
@@ -63,7 +57,6 @@ pub async fn arrays1<E: Executor>(executor: &mut E) {
         ]],
     };
     writer.write_insert(&mut query, &[value], false);
-    query.push('\n');
     writer.write_select(
         &mut query,
         [Arrays2::alpha, Arrays2::bravo, Arrays2::charlie],
@@ -71,7 +64,6 @@ pub async fn arrays1<E: Executor>(executor: &mut E) {
         &true,
         None,
     );
-    query.push('\n');
     writer.write_select(
         &mut query,
         [Arrays2::delta, Arrays2::echo],
@@ -79,7 +71,6 @@ pub async fn arrays1<E: Executor>(executor: &mut E) {
         &true,
         None,
     );
-    query.push('\n');
     let rows = pin!(executor.run(query.into()).try_filter_map(|v| async move {
         Ok(match v {
             QueryResult::Row(v) => Some(v),

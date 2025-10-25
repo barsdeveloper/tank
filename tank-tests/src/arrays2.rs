@@ -19,9 +19,7 @@ pub async fn arrays2<E: Executor>(executor: &mut E) {
     let mut query = String::new();
     let writer = executor.driver().sql_writer();
     writer.write_drop_table::<Container>(&mut query, true);
-    query.push('\n');
     writer.write_create_table::<Container>(&mut query, true);
-    query.push('\n');
     let value = Container {
         first: [[
             Interval::from_years(500),
@@ -34,7 +32,6 @@ pub async fn arrays2<E: Executor>(executor: &mut E) {
         ]],
     };
     writer.write_insert(&mut query, &[value], false);
-    query.push('\n');
     writer.write_select(
         &mut query,
         Container::columns(),

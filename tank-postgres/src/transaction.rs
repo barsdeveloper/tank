@@ -5,14 +5,17 @@ use crate::{
 use tank_core::{
     Error, Executor, Query, QueryResult, Result, Transaction,
     future::{Either, TryFutureExt},
-    stream::Stream,
+    stream::{Stream, TryStreamExt},
 };
 
 pub struct PostgresTransaction<'c>(pub(crate) tokio_postgres::Transaction<'c>);
 
 impl<'c> PostgresTransaction<'c> {
     pub async fn new(client: &'c mut PostgresConnection) -> Result<Self> {
-        Ok(Self(client.client.transaction().await?))
+        Ok(Self(client.client.transaction().await.map_err(|e| {
+            log::error!("{:#}", e);
+            e
+        })?))
     }
 }
 
@@ -22,7 +25,14 @@ impl<'c> Executor for PostgresTransaction<'c> {
         &PostgresDriver {}
     }
     async fn prepare(&mut self, query: String) -> Result<Query<Self::Driver>> {
-        Ok(PostgresPrepared::new(self.0.prepare(&query).await?).into())
+        Ok(
+            PostgresPrepared::new(self.0.prepare(&query).await.map_err(|e| {
+                let e = Error::new(e);
+                log::error!("{:#}", e);
+                e
+            })?)
+            .into(),
+        )
     }
     fn run(
         &mut self,
@@ -44,14 +54,26 @@ impl<'c> Executor for PostgresTransaction<'c> {
                 Ok(Either::Right(self.0.query_portal_raw(&portal, 0).await?))
             }
         })
+        .map_err(|e| {
+            log::error!("{:#}", e);
+            e
+        })
     }
 }
 
 impl<'c> Transaction<'c> for PostgresTransaction<'c> {
     fn commit(self) -> impl Future<Output = Result<()>> {
-        self.0.commit().map_err(Into::into)
+        self.0.commit().map_err(|e| {
+            let e = Error::new(e);
+            log::error!("{:#}", e);
+            e
+        })
     }
     fn rollback(self) -> impl Future<Output = Result<()>> {
-        self.0.rollback().map_err(Into::into)
+        self.0.rollback().map_err(|e| {
+            let e = Error::new(e);
+            log::error!("{:#}", e);
+            e
+        })
     }
 }

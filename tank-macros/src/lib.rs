@@ -182,7 +182,6 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                         &mut query,
                         true,
                     );
-                    query.push('\n');
                 }
                 ::tank::SqlWriter::write_create_table::<#ident>(
                     &::tank::Driver::sql_writer(executor.driver()),
@@ -207,7 +206,6 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                     if_exists,
                 );
                 if drop_schema && !#schema.is_empty() {
-                    query.push('\n');
                     ::tank::SqlWriter::write_drop_schema::<#ident>(
                         &::tank::Driver::sql_writer(executor.driver()),
                         &mut query,
