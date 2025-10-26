@@ -1,6 +1,9 @@
 use crate::silent_logs;
-use std::{sync::LazyLock, time::Duration};
-use tank::{Entity, Executor, Interval};
+use std::{pin::pin, sync::LazyLock, time::Duration};
+use tank::{
+    Driver, Entity, Executor, Interval, QueryResult, Row, RowsAffected, SqlWriter,
+    stream::StreamExt,
+};
 use tokio::sync::Mutex;
 
 #[derive(Entity)]
@@ -91,4 +94,53 @@ pub async fn interval<E: Executor>(executor: &mut E) {
         .await
         .expect_err("Should not be able to save a entity without a primary key");
     }
+
+    // Multiple statements
+    let mut query = String::new();
+    let writer = executor.driver().sql_writer();
+    writer.write_delete::<Intervals>(&mut query, &true);
+    writer.write_insert(
+        &mut query,
+        &[
+            Intervals {
+                first: time::Duration::weeks(4) + time::Duration::hours(5),
+                second: Interval::from_years(20_000) + Interval::from_millis(300),
+                third: Duration::from_secs(0),
+            },
+            Intervals {
+                first: time::Duration::minutes(20) + time::Duration::milliseconds(1),
+                second: Interval::from_months(4) + Interval::from_days(2),
+                third: Duration::from_nanos(5000),
+            },
+        ],
+        false,
+    );
+    writer.write_select(
+        &mut query,
+        Intervals::columns(),
+        Intervals::table(),
+        &true,
+        None,
+    );
+    let mut stream = pin!(executor.run(query.into()));
+    let Some(Ok(QueryResult::Affected(RowsAffected { rows_affected, .. }))) = stream.next().await
+    else {
+        panic!("Could not get the result of deleting the rows")
+    };
+    assert_eq!(rows_affected, 1);
+    let Some(Ok(QueryResult::Affected(RowsAffected { rows_affected, .. }))) = stream.next().await
+    else {
+        panic!("Could not get the result of inserting the rows")
+    };
+    assert_eq!(rows_affected, 2);
+    let Some(Ok(QueryResult::Row(row))) = stream.next().await else {
+        panic!("Could not get the result of selecting the rows")
+    };
+    let interval = Intervals::from_row(row).expect("Could not decode the first Intervals row");
+    assert_eq!(interval.first, time::Duration::hours(4 * 7 * 24 + 5));
+    assert_eq!(
+        interval.second,
+        Interval::from_months(20000 * 12) + Interval::from_micros(300_000)
+    );
+    assert_eq!(interval.third, Duration::ZERO);
 }

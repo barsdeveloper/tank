@@ -785,9 +785,6 @@ pub trait SqlWriter {
         let mut context = context.switch_fragment(Fragment::SqlCommentOnColumn);
         context.current.qualify_columns = true;
         for c in E::columns().iter().filter(|c| !c.comment.is_empty()) {
-            if !buff.is_empty() {
-                buff.push('\n');
-            }
             buff.push_str("\nCOMMENT ON COLUMN ");
             self.write_column_ref(&mut context.current, buff, c.into());
             buff.push_str(" IS ");

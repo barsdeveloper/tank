@@ -414,13 +414,50 @@ impl_as_value!(Interval, Value::Interval, |input: &mut &str| {
     } else {
         false
     };
-    if let Ok(time) =
-        <time::Time as AsValue>::extract(&mut value).map(|v| v.duration_since(time::Time::MIDNIGHT))
-    {
+    let mut time_interval = Interval::ZERO;
+    let (num, tail) = u64::from_radix_10(value.as_bytes());
+    if tail > 0 {
+        time_interval += Interval::from_hours(num as _);
+        value = &value[tail..];
+        if Some(':') == value.chars().next() {
+            value = &value[1..];
+            let (num, tail) = u64::from_radix_10(value.as_bytes());
+            if tail == 0 {
+                return Err(Error::msg(error));
+            }
+            value = &value[tail..];
+            time_interval += Interval::from_mins(num as _);
+            if Some(':') == value.chars().next() {
+                value = &value[1..];
+                let (num, tail) = u64::from_radix_10(value.as_bytes());
+                if tail == 0 {
+                    return Err(Error::msg(error));
+                }
+                value = &value[tail..];
+                time_interval += Interval::from_secs(num as _);
+                if Some('.') == value.chars().next() {
+                    value = &value[1..];
+                    let (mut num, mut tail) = i128::from_radix_10(value.as_bytes());
+                    if tail == 0 {
+                        return Err(Error::msg(error));
+                    }
+                    value = &value[tail..];
+                    tail -= 1;
+                    let magnitude = tail / 3;
+                    num *= 10_i128.pow(2 - tail as u32 % 3);
+                    match magnitude {
+                        0 => time_interval += Interval::from_millis(num),
+                        1 => time_interval += Interval::from_micros(num),
+                        2 => time_interval += Interval::from_nanos(num),
+                        _ => return Err(Error::msg(error)),
+                    }
+                }
+            }
+        }
         if neg {
-            interval -= time.into();
+            interval -= time_interval;
         } else {
-            interval += time.into();
+            interval += time_interval;
         }
     }
     if let Some(b) = boundary {
@@ -473,7 +510,7 @@ macro_rules! impl_as_value {
             }
             fn extract(value: &mut &str) -> Result<Self> {
                 for format in [$($formats,)+] {
-                    let format = parse_borrowed::<2>(format).expect("The format was not valid");
+                    let format = parse_borrowed::<2>(format)?;
                     let mut parsed = time::parsing::Parsed::new();
                     let remaining = parsed.parse_items(value.as_bytes(), &format);
                     if let Ok(remaining) = remaining {
