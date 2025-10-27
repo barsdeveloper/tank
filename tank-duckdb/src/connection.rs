@@ -19,7 +19,7 @@ use std::{
 };
 use tank_core::{
     Connection, Driver, Entity, Error, ErrorContext, Executor, Query, QueryResult, Result,
-    RowLabeled, RowsAffected, Value, as_c_string, printable_query, send_value,
+    RowLabeled, RowsAffected, Value, as_c_string, truncate_long, send_value,
     stream::{Stream, TryStreamExt},
 };
 use tokio::task::spawn_blocking;
@@ -221,7 +221,7 @@ impl Executor for DuckDBConnection {
         let connection = AtomicPtr::new(*self.connection);
         let context = format!(
             "While preparing the query:\n{}",
-            printable_query!(sql.as_str())
+            truncate_long!(sql.as_str())
         );
         let prepared = spawn_blocking(move || unsafe {
             let mut prepared = CBox::new(ptr::null_mut(), |mut p| duckdb_destroy_prepare(&mut p));

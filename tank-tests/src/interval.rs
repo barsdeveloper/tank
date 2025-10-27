@@ -1,8 +1,7 @@
 use crate::silent_logs;
 use std::{pin::pin, sync::LazyLock, time::Duration};
 use tank::{
-    Driver, Entity, Executor, Interval, QueryResult, Row, RowsAffected, SqlWriter,
-    stream::StreamExt,
+    Driver, Entity, Executor, Interval, QueryResult, RowsAffected, SqlWriter, stream::StreamExt,
 };
 use tokio::sync::Mutex;
 

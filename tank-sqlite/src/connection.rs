@@ -18,7 +18,7 @@ use tank_core::{
     Connection, Driver, Error, ErrorContext, Executor, Query, QueryResult, Result, RowLabeled,
     RowsAffected,
     future::Either,
-    printable_query,
+    truncate_long,
     stream::{Stream, StreamExt, TryStreamExt},
 };
 use tokio::task::spawn_blocking;
@@ -134,7 +134,7 @@ impl Executor for SqliteConnection {
         let connection = AtomicPtr::new(*self.connection);
         let context = format!(
             "While preparing the query:\n{}",
-            printable_query!(sql.as_str())
+            truncate_long!(sql.as_str())
         );
         let prepared = spawn_blocking(move || unsafe {
             let connection = connection.load(Ordering::Relaxed);

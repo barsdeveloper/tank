@@ -9,7 +9,7 @@ use std::{borrow::Cow, pin::pin, sync::Arc};
 use tank_core::{
     Connection, Driver, Error, ErrorContext, Executor, Query, QueryResult, Result, Transaction,
     future::Either,
-    printable_query,
+    truncate_long,
     stream::{Stream, StreamExt, TryStreamExt},
 };
 use tokio::spawn;
@@ -33,7 +33,7 @@ impl Executor for PostgresConnection {
             PostgresPrepared::new(self.client.prepare(&sql).await.map_err(|e| {
                 let e = Error::new(e).context(format!(
                     "While preparing the query:\n{}",
-                    printable_query!(sql)
+                    truncate_long!(sql)
                 ));
                 log::error!("{:#}", e);
                 e

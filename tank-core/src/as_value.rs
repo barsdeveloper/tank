@@ -1,4 +1,5 @@
-use crate::{Error, FixedDecimal, Interval, Passive, Result, Value, consume_while};
+use crate::{Error, FixedDecimal, Interval, Passive, Result, Value, consume_while, truncate_long};
+use anyhow::Context;
 use atoi::{FromRadix10, FromRadix10Signed};
 use fast_float::parse_partial;
 use rust_decimal::{Decimal, prelude::FromPrimitive, prelude::ToPrimitive};
@@ -326,7 +327,23 @@ impl_as_value!(
     Value::Char(Some(v), ..) => Ok(v.into()),
     Value::Unknown(Some(v), ..) => Ok(v),
 );
-impl_as_value!(Box<[u8]>, Value::Blob, |v| Err(Error::msg("")));
+impl_as_value!(Box<[u8]>, Value::Blob, |input: &mut &str| {
+    let mut value = *input;
+    if value[0..2].eq_ignore_ascii_case("\\x") {
+        value = &value[2..];
+    }
+    let hex = consume_while(
+        &mut value,
+        |v| matches!(*v, '0'..='9' | 'a'..='f' | 'A'..='F'),
+    );
+    let result = hex::decode(hex).map(Into::into).context(format!(
+        "While decoding `{}` as {}",
+        truncate_long!(input),
+        any::type_name::<Self>()
+    ))?;
+    *input = value;
+    Ok(result)
+});
 impl_as_value!(Interval, Value::Interval, |input: &mut &str| {
     let error = Arc::new(format!("Cannot extract interval from '{input}'"));
     let mut value = *input;

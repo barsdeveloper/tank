@@ -6,7 +6,7 @@ use std::{
     fmt::{self, Display},
     os::raw::{c_char, c_void},
 };
-use tank_core::{AsValue, Error, Prepared, Result, Value, printable_query};
+use tank_core::{AsValue, Error, Prepared, Result, Value, truncate_long};
 
 pub struct SqlitePrepared {
     pub(crate) statement: CBox<*mut sqlite3_stmt>,
@@ -193,7 +193,7 @@ impl Prepared for SqlitePrepared {
                     .context(format!(
                         "Cannot bind parameter {} to query:\n{}",
                         index,
-                        printable_query!(CStr::from_ptr(query).to_string_lossy())
+                        truncate_long!(CStr::from_ptr(query).to_string_lossy())
                     ));
                 log::error!("{:#}", error);
                 return Err(error);

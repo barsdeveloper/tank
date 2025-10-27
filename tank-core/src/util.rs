@@ -99,7 +99,7 @@ macro_rules! possibly_parenthesized {
 }
 
 #[macro_export]
-macro_rules! printable_query {
+macro_rules! truncate_long {
     ($query:expr) => {
         format_args!(
             "{}{}\n",

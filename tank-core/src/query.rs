@@ -1,7 +1,7 @@
 use crate::{
     Driver, Executor, Prepared, Result, Value,
     future::FutureExt,
-    printable_query,
+    truncate_long,
     stream::{Stream, StreamExt},
 };
 use std::{
@@ -63,7 +63,7 @@ where
 impl<D: Driver> Display for Query<D> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Query::Raw(query) => write!(f, "{}", printable_query!(query)),
+            Query::Raw(query) => write!(f, "{}", truncate_long!(query)),
             Query::Prepared(query) => query.fmt(f),
         }
     }
