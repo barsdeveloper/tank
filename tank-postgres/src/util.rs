@@ -85,11 +85,15 @@ where
             match entry {
                 SimpleQueryMessage::Row(row) => {
                     yield tank_core::QueryResult::Row(tank_core::RowLabeled {
-                        labels: labels.as_ref().filter(|v| v.len() == row.len()).ok_or(
-                            tank_core::Error::msg(
-                                "Row columns names does not match the row currently received",
-                            ),
-                        )?.clone(),
+                        labels: labels
+                            .as_ref()
+                            .filter(|v| v.len() == row.len())
+                            .ok_or_else(|| {
+                                tank_core::Error::msg(
+                                    "Row columns names does not match the row currently received",
+                                )
+                            })?
+                            .clone(),
                         values: simple_query_row_to_tank_row(row)?,
                     })
                     .into();
@@ -114,6 +118,9 @@ where
                             .map(|col| col.name().into())
                             .collect::<tank_core::RowNames>(),
                     );
+                    if columns.is_empty() {
+                        log::warn!("The row description contains no columns, this can be expected but it can also be symthon of a wrong query")
+                    }
                 }
                 _ => {}
             }

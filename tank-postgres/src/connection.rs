@@ -9,8 +9,8 @@ use std::{borrow::Cow, pin::pin, sync::Arc};
 use tank_core::{
     Connection, Driver, Error, ErrorContext, Executor, Query, QueryResult, Result, Transaction,
     future::Either,
-    truncate_long,
     stream::{Stream, StreamExt, TryStreamExt},
+    truncate_long,
 };
 use tokio::spawn;
 use tokio_postgres::NoTls;
@@ -48,34 +48,28 @@ impl Executor for PostgresConnection {
     ) -> impl Stream<Item = Result<QueryResult>> + Send {
         let context = Arc::new(format!("While running the query:\n{}", query));
         match query {
-            Query::Raw(sql) => Either::Left(
-                stream_postgres_simple_query_message_to_tank_query_result(async move || {
-                    self.client.simple_query_raw(&sql).await.map_err(move |e| {
-                        let e = Error::new(e).context(context.clone());
-                        log::error!("{:#}", e);
-                        e
-                    })
-                }),
-            ),
-            Query::Prepared(..) => Either::Right(
-                try_stream! {
-                    let mut transaction = self.begin().await?;
-                    {
-                        let stream = transaction.run(query);
-                        let mut stream = pin!(stream);
-                        while let Some(value) = stream.next().await.transpose()? {
-                            yield value;
-                        }
+            Query::Raw(sql) => {
+                Either::Left(stream_postgres_simple_query_message_to_tank_query_result(
+                    async move || self.client.simple_query_raw(&sql).await.map_err(Into::into),
+                ))
+            }
+            Query::Prepared(..) => Either::Right(try_stream! {
+                let mut transaction = self.begin().await?;
+                {
+                    let stream = transaction.run(query);
+                    let mut stream = pin!(stream);
+                    while let Some(value) = stream.next().await.transpose()? {
+                        yield value;
                     }
-                    transaction.commit().await?;
                 }
-                .map_err(move |e: Error| {
-                    let e = e.context(context.clone());
-                    log::error!("{:#}", e);
-                    e
-                }),
-            ),
+                transaction.commit().await?;
+            }),
         }
+        .map_err(move |e: Error| {
+            let e = e.context(context.clone());
+            log::error!("{:#}", e);
+            e
+        })
     }
 
     fn fetch<'s>(
