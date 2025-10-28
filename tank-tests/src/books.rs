@@ -358,7 +358,7 @@ pub async fn books<E: Executor>(executor: &mut E) {
         )
     }
 
-    // Specific books
+    // Multiple statements
     let mut query = String::new();
     let writer = executor.driver().sql_writer();
     writer.write_select(
@@ -392,7 +392,7 @@ pub async fn books<E: Executor>(executor: &mut E) {
         }
     );
     let Some(Ok(QueryResult::Row(row))) = stream.next().await else {
-        panic!("Could not get the first row")
+        panic!("Could not get the second row")
     };
     let book = Book::from_row(row).expect("Could not get the book from row");
     assert_eq!(
@@ -406,4 +406,8 @@ pub async fn books<E: Executor>(executor: &mut E) {
             year: 2007,
         }
     );
+    assert!(
+        stream.next().await.is_none(),
+        "The stream should return only two rows"
+    )
 }

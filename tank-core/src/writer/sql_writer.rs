@@ -58,7 +58,7 @@ pub trait SqlWriter {
 
     fn write_identifier_quoted(&self, context: &mut Context, buff: &mut String, value: &str) {
         buff.push('"');
-        self.write_escaped(context, buff, value, '"', r#""""#);
+        self.write_escaped(context, buff, value, '"', "\"\"");
         buff.push('"');
     }
 

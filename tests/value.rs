@@ -31,22 +31,44 @@ mod tests {
         let val = var.as_value();
         let var: bool = AsValue::try_from_value(val).unwrap();
         assert_eq!(var, true);
-        assert_eq!(bool::try_from_value((1 as i8).into()).unwrap(), true);
-        assert_eq!(bool::try_from_value((8 as i16).into()).unwrap(), true);
-        assert_eq!(bool::try_from_value((0 as i32).into()).unwrap(), false);
-        assert_eq!(bool::try_from_value((0 as i64).into()).unwrap(), false);
-        assert_eq!(bool::try_from_value((9 as i128).into()).unwrap(), true);
-        assert_eq!(bool::try_from_value((0 as u8).into()).unwrap(), false);
-        assert_eq!(bool::try_from_value((1 as u16).into()).unwrap(), true);
-        assert_eq!(bool::try_from_value((1 as u32).into()).unwrap(), true);
-        assert_eq!(bool::try_from_value((0 as u64).into()).unwrap(), false);
-        assert_eq!(bool::try_from_value((2 as u128).into()).unwrap(), true);
-        assert!(matches!(bool::try_from_value((0.5 as f32).into()), Err(..)));
+        assert_eq!(bool::try_from_value(1_i8.into()).unwrap(), true);
+        assert_eq!(bool::try_from_value(8_i16.into()).unwrap(), true);
+        assert_eq!(bool::try_from_value(0_i32.into()).unwrap(), false);
+        assert_eq!(bool::try_from_value(0_i64.into()).unwrap(), false);
+        assert_eq!(bool::try_from_value(9_i128.into()).unwrap(), true);
+        assert_eq!(bool::try_from_value(0_u8.into()).unwrap(), false);
+        assert_eq!(bool::try_from_value(1_u16.into()).unwrap(), true);
+        assert_eq!(bool::try_from_value(1_u32.into()).unwrap(), true);
+        assert_eq!(bool::try_from_value(0_u64.into()).unwrap(), false);
+        assert_eq!(bool::try_from_value(2_u128.into()).unwrap(), true);
+        assert!(bool::try_from_value(0.5_f32.into()).is_err());
+        assert_eq!(bool::parse("true").unwrap(), true);
+        assert_eq!(bool::parse("false").unwrap(), false);
+        assert!(bool::parse("false more").is_err());
+        assert!(bool::parse("hello").is_err());
+        let mut input = "false, next";
+        assert_eq!(
+            bool::extract(&mut input).expect("Could not extract a boolean"),
+            false
+        );
+        assert_eq!(input, ", next");
+        let mut input = "true, next";
+        assert_eq!(
+            bool::extract(&mut input).expect("Could not extract boolean"),
+            true
+        );
+        assert_eq!(input, ", next");
+        let mut input = "falseword, next";
+        assert!(bool::extract(&mut input).is_err());
+        assert_eq!(input, "falseword, next");
+        let mut input = "false_word, next";
+        assert!(bool::extract(&mut input).is_err());
+        assert_eq!(input, "false_word, next");
     }
 
     #[test]
     fn value_i8() {
-        let var = 127 as i8;
+        let var = 127_i8;
         let val: Value = var.into();
         assert_eq!(val, Value::Int8(Some(127)));
         assert_ne!(val, Value::Int8(Some(126)));
@@ -54,96 +76,120 @@ mod tests {
         let val = var.as_value();
         let var: i8 = AsValue::try_from_value(val).unwrap();
         assert_eq!(var, 127);
-        assert_eq!(i8::try_from_value((99 as u8).into()).unwrap(), 99);
-        assert!(matches!(i8::try_from_value((0.1 as f64).into()), Err(..)));
+        assert_eq!(i8::try_from_value(99_u8.into()).unwrap(), 99);
+        assert!(i8::try_from_value(0.1_f64.into()).is_err());
+        assert_eq!(i8::try_from_value((-128_i64).into()).unwrap(), -128);
+        assert_eq!(i8::try_from_value(12_i64.into()).unwrap(), 12);
+        assert_eq!(i8::try_from_value(127_i64.into()).unwrap(), 127);
+        assert!(i8::try_from_value(128_i64.into()).is_err());
+        assert!(i8::try_from_value(256_i64.into()).is_err());
+        assert_eq!(i8::parse("127").expect("Could not parse i8"), 127);
+        assert_eq!(i8::parse("-128").expect("Could not parse i8"), -128);
+        assert!(i8::parse("128").is_err());
+        assert!(i8::parse("-129").is_err());
+        let mut input = "54, next";
+        assert_eq!(i8::extract(&mut input).expect("Could not extract i8"), 54);
+        assert_eq!(input, ", next");
+        let mut input = "-128, next";
+        assert_eq!(i8::extract(&mut input).expect("Could not extract i8"), -128);
+        assert_eq!(input, ", next");
+        let mut input = "-129, next";
+        assert!(i8::extract(&mut input).is_err());
+        assert_eq!(input, "-129, next");
     }
 
     #[test]
     fn value_i16() {
-        let var = -32768 as i16;
+        let var = -32768_i16;
         let val: Value = var.into();
         assert_eq!(val, Value::Int16(Some(-32768)));
         assert_ne!(val, Value::Int32(Some(-32768)));
         let var: i16 = AsValue::try_from_value(val).unwrap();
         let val = var.as_value();
         let var: i16 = AsValue::try_from_value(val).unwrap();
-        assert_eq!(var, -32768 as i16);
-        assert_eq!(i16::try_from_value((29 as i8).into()).unwrap(), 29);
-        assert_eq!(i16::try_from_value((100 as u8).into()).unwrap(), 100);
-        assert_eq!(i16::try_from_value((5000 as u16).into()).unwrap(), 5000);
+        assert_eq!(var, -32768_i16);
+        assert_eq!(i16::try_from_value(29_i8.into()).unwrap(), 29);
+        assert_eq!(i16::try_from_value(100_u8.into()).unwrap(), 100);
+        assert_eq!(i16::try_from_value(5000_u16.into()).unwrap(), 5000);
+        assert!(i16::parse("hello").is_err())
     }
 
     #[test]
     fn value_i32() {
-        let var = -2147483648 as i32;
+        let var = -2147483648_i32;
         let val: Value = var.into();
         assert_eq!(val, Value::Int32(Some(-2147483648)));
         assert_ne!(val, Value::Null);
         let var: i32 = AsValue::try_from_value(val).unwrap();
         let val = var.as_value();
         let var: i32 = AsValue::try_from_value(val).unwrap();
-        assert_eq!(var, -2147483648 as i32);
-        assert_eq!(i32::try_from_value((-31 as i8).into()).unwrap(), -31);
-        assert_eq!(i32::try_from_value((-1 as i16).into()).unwrap(), -1);
-        assert_eq!(i32::try_from_value((77 as u8).into()).unwrap(), 77);
-        assert_eq!(i32::try_from_value((15 as u16).into()).unwrap(), 15);
-        assert_eq!(i32::try_from_value((1001 as u32).into()).unwrap(), 1001);
+        assert_eq!(var, -2147483648_i32);
+        assert_eq!(i32::try_from_value((-31_i8).into()).unwrap(), -31);
+        assert_eq!(i32::try_from_value((-1_i16).into()).unwrap(), -1);
+        assert_eq!(i32::try_from_value(77_u8.into()).unwrap(), 77);
+        assert_eq!(i32::try_from_value(15_u16.into()).unwrap(), 15);
+        assert_eq!(i32::try_from_value(1001_u32.into()).unwrap(), 1001);
+        assert_eq!(
+            i32::try_from_value(2147483647_i64.into()).unwrap(),
+            2147483647
+        );
+        assert_eq!(
+            i32::try_from_value((-2147483648_i64).into()).unwrap(),
+            -2147483648
+        );
     }
 
     #[test]
     fn value_i64() {
-        let var = 9223372036854775807 as i64;
+        let var = 9223372036854775807_i64;
         let val: Value = var.into();
         let var: i64 = AsValue::try_from_value(val).unwrap();
         let val = var.as_value();
         let var: i64 = AsValue::try_from_value(val).unwrap();
-        assert_eq!(var, 9223372036854775807 as i64);
-        assert_eq!(i64::try_from_value((-31 as i8).into()).unwrap(), -31);
-        assert_eq!(i64::try_from_value((-1234 as i16).into()).unwrap(), -1234);
-        assert_eq!(i64::try_from_value((-1 as i32).into()).unwrap(), -1);
-        assert_eq!(i64::try_from_value((77 as u8).into()).unwrap(), 77);
-        assert_eq!(i64::try_from_value((5555 as u16).into()).unwrap(), 5555);
-        assert_eq!(i64::try_from_value((123456 as u32).into()).unwrap(), 123456);
+        assert_eq!(var, 9223372036854775807_i64);
+        assert_eq!(i64::try_from_value((-31_i8).into()).unwrap(), -31);
+        assert_eq!(i64::try_from_value((-1234_i16).into()).unwrap(), -1234);
+        assert_eq!(i64::try_from_value((-1_i32).into()).unwrap(), -1);
+        assert_eq!(i64::try_from_value((77_u8).into()).unwrap(), 77);
+        assert_eq!(i64::try_from_value((5555_u16).into()).unwrap(), 5555);
+        assert_eq!(i64::try_from_value((123456_u32).into()).unwrap(), 123456);
         assert_eq!(
-            i64::try_from_value((12345678901234 as u64).into()).unwrap(),
+            i64::try_from_value((12345678901234_u64).into()).unwrap(),
             12345678901234
         );
     }
 
     #[test]
     fn value_i128() {
-        let var = -123456789101112131415 as i128;
+        let var = -123456789101112131415_i128;
         let val: Value = var.into();
         let var: i128 = AsValue::try_from_value(val).unwrap();
         let val = var.as_value();
         let var: i128 = AsValue::try_from_value(val).unwrap();
-        assert_eq!(var, -123456789101112131415 as i128);
-        assert_eq!(i128::try_from_value((-31 as i8).into()).unwrap(), -31);
-        assert_eq!(i128::try_from_value((-1234 as i16).into()).unwrap(), -1234);
-        assert_eq!(i128::try_from_value((-1 as i32).into()).unwrap(), -1);
+        assert_eq!(var, -123456789101112131415_i128);
+        assert_eq!(i128::try_from_value((-31_i8).into()).unwrap(), -31);
+        assert_eq!(i128::try_from_value((-1234_i16).into()).unwrap(), -1234);
+        assert_eq!(i128::try_from_value((-1_i32).into()).unwrap(), -1);
         assert_eq!(
-            i128::try_from_value((-12345678901234 as i64).into()).unwrap(),
+            i128::try_from_value((-12345678901234_i64).into()).unwrap(),
             -12345678901234
         );
-        assert_eq!(i128::try_from_value((77 as u8).into()).unwrap(), 77);
-        assert_eq!(i128::try_from_value((5555 as u16).into()).unwrap(), 5555);
+        assert_eq!(i128::try_from_value((77_u8).into()).unwrap(), 77);
+        assert_eq!(i128::try_from_value((5555_u16).into()).unwrap(), 5555);
+        assert_eq!(i128::try_from_value((123456_u32).into()).unwrap(), 123456);
         assert_eq!(
-            i128::try_from_value((123456 as u32).into()).unwrap(),
-            123456
-        );
-        assert_eq!(
-            i128::try_from_value((12345678901234 as u64).into()).unwrap(),
+            i128::try_from_value((12345678901234_u64).into()).unwrap(),
             12345678901234
         );
         assert_eq!(
-            i128::try_from_value((170141183460469231731687303715884105727 as u128).into()).unwrap(),
+            i128::try_from_value((170141183460469231731687303715884105727_u128).into()).unwrap(),
             170141183460469231731687303715884105727
         );
     }
 
     #[test]
     fn value_u8() {
-        let var = 255 as u8;
+        let var = 255_u8;
         let val: Value = var.into();
         let var: u8 = AsValue::try_from_value(val).unwrap();
         let val = var.as_value();
@@ -153,56 +199,53 @@ mod tests {
 
     #[test]
     fn value_u16() {
-        let var = 65535 as u16;
+        let var = 65535_u16;
         let val: Value = var.into();
         let var: u16 = AsValue::try_from_value(val).unwrap();
         let val = var.as_value();
         let var: u16 = AsValue::try_from_value(val).unwrap();
         assert_eq!(var, 65535);
-        assert_eq!(u16::try_from_value((123 as u8).into()).unwrap(), 123);
+        assert_eq!(u16::try_from_value((123_u8).into()).unwrap(), 123);
     }
 
     #[test]
     fn value_u32() {
-        let var = 4_000_000_000 as u32;
+        let var = 4_000_000_000_u32;
         let val: Value = var.into();
         let var: u32 = AsValue::try_from_value(val).unwrap();
         let val = var.as_value();
         let var: u32 = AsValue::try_from_value(val).unwrap();
         assert_eq!(var, 4_000_000_000);
-        assert_eq!(u32::try_from_value((12 as u8).into()).unwrap(), 12);
-        assert_eq!(u32::try_from_value((65535 as u16).into()).unwrap(), 65535);
+        assert_eq!(u32::try_from_value((12_u8).into()).unwrap(), 12);
+        assert_eq!(u32::try_from_value((65535_u16).into()).unwrap(), 65535);
     }
 
     #[test]
     fn value_u64() {
-        let var = 18_000_000_000_000_000_000 as u64;
+        let var = 18_000_000_000_000_000_000_u64;
         let val: Value = var.into();
         let var: u64 = AsValue::try_from_value(val).unwrap();
         let val = var.as_value();
         let var: u64 = AsValue::try_from_value(val).unwrap();
         assert_eq!(var, 18_000_000_000_000_000_000);
-        assert_eq!(u64::try_from_value((77 as u8).into()).unwrap(), 77);
-        assert_eq!(u64::try_from_value((1234 as u16).into()).unwrap(), 1234);
-        assert_eq!(u64::try_from_value((123456 as u32).into()).unwrap(), 123456);
+        assert_eq!(u64::try_from_value((77_u8).into()).unwrap(), 77);
+        assert_eq!(u64::try_from_value((1234_u16).into()).unwrap(), 1234);
+        assert_eq!(u64::try_from_value((123456_u32).into()).unwrap(), 123456);
     }
 
     #[test]
     fn value_u128() {
-        let var = 340_282_366_920_938_463_463_374_607_431_768_211_455 as u128;
+        let var = 340_282_366_920_938_463_463_374_607_431_768_211_455_u128;
         let val: Value = var.into();
         let var: u128 = AsValue::try_from_value(val).unwrap();
         let val = var.as_value();
         let var: u128 = AsValue::try_from_value(val).unwrap();
         assert_eq!(var, 340_282_366_920_938_463_463_374_607_431_768_211_455);
-        assert_eq!(u128::try_from_value((11 as u8).into()).unwrap(), 11);
-        assert_eq!(u128::try_from_value((222 as u16).into()).unwrap(), 222);
+        assert_eq!(u128::try_from_value((11_u8).into()).unwrap(), 11);
+        assert_eq!(u128::try_from_value((222_u16).into()).unwrap(), 222);
+        assert_eq!(u128::try_from_value((333_333_u32).into()).unwrap(), 333_333);
         assert_eq!(
-            u128::try_from_value((333_333 as u32).into()).unwrap(),
-            333_333
-        );
-        assert_eq!(
-            u128::try_from_value((444_444_444_444 as u64).into()).unwrap(),
+            u128::try_from_value((444_444_444_444_u64).into()).unwrap(),
             444_444_444_444
         );
     }
@@ -229,7 +272,7 @@ mod tests {
         let val = var.as_value();
         let var: f64 = AsValue::try_from_value(val).unwrap();
         assert!((var - 2.7182818284).abs() < f64::EPSILON);
-        assert_eq!(f64::try_from_value((3.5 as f32).into()).unwrap(), 3.5);
+        assert_eq!(f64::try_from_value((3.5_f32).into()).unwrap(), 3.5);
         assert_eq!(
             f64::try_from_value(Decimal::from_f64(2.25).into()).unwrap(),
             2.25
@@ -266,6 +309,15 @@ mod tests {
         assert_eq!(var, "Hello World!");
         assert_eq!(String::try_from_value('x'.into()).unwrap(), "x");
         assert_eq!(String::try_from_value("hello".into()).unwrap(), "hello");
+        assert_eq!(
+            String::parse("'hello'").expect("Could not parse string"),
+            "hello"
+        );
+        assert_eq!(
+            String::parse("'What''s up?'").expect("Could not parse string"),
+            "What's up?"
+        );
+        assert!(String::parse("'This string is not complete").is_err());
     }
 
     #[test]
@@ -610,51 +662,51 @@ mod tests {
         let var: Decimal = AsValue::try_from_value(val).unwrap();
         assert_eq!(var, Decimal::from_f64(123.45).unwrap());
         assert_eq!(
-            Decimal::try_from_value((127 as i8).as_value()).unwrap(),
+            Decimal::try_from_value(127_i8.as_value()).unwrap(),
             Decimal::from_f64(127.0).unwrap()
         );
         assert_ne!(
-            Decimal::try_from_value((126 as i8).as_value()).unwrap(),
+            Decimal::try_from_value(126_i8.as_value()).unwrap(),
             Decimal::from_f64(127.0).unwrap()
         );
         assert_eq!(
-            Decimal::try_from_value((0 as i16).as_value()).unwrap(),
+            Decimal::try_from_value(0_i16.as_value()).unwrap(),
             Decimal::from_f64(0.0).unwrap()
         );
         assert_eq!(
-            Decimal::try_from_value((-2147483648 as i32).as_value()).unwrap(),
+            Decimal::try_from_value((-2147483648_i32).as_value()).unwrap(),
             Decimal::from_f64(-2147483648.0).unwrap()
         );
         assert_eq!(
-            Decimal::try_from_value((82664 as i64).as_value()).unwrap(),
+            Decimal::try_from_value(82664_i64.as_value()).unwrap(),
             Decimal::from_f64(82664.0).unwrap()
         );
         assert_eq!(
-            Decimal::try_from_value((255 as u8).as_value()).unwrap(),
+            Decimal::try_from_value((255_u8).as_value()).unwrap(),
             Decimal::from_f64(255.0).unwrap()
         );
         assert_eq!(
-            Decimal::try_from_value((10000 as u16).as_value()).unwrap(),
+            Decimal::try_from_value((10000_u16).as_value()).unwrap(),
             Decimal::from_f64(10000.0).unwrap()
         );
         assert_eq!(
-            Decimal::try_from_value((777 as u32).as_value()).unwrap(),
+            Decimal::try_from_value((777_u32).as_value()).unwrap(),
             Decimal::from_f64(777.0).unwrap()
         );
         assert_eq!(
-            Decimal::try_from_value((2 as u32).as_value()).unwrap(),
+            Decimal::try_from_value((2_u32).as_value()).unwrap(),
             Decimal::from_f64(2.0).unwrap()
         );
         assert_eq!(
-            Decimal::try_from_value((0 as u64).as_value()).unwrap(),
+            Decimal::try_from_value((0_u64).as_value()).unwrap(),
             Decimal::ZERO
         );
         assert_eq!(
-            Decimal::try_from_value((4.25 as f32).as_value()).unwrap(),
+            Decimal::try_from_value((4.25_f32).as_value()).unwrap(),
             Decimal::from_f64(4.25).unwrap()
         );
         assert_eq!(
-            Decimal::try_from_value((-11.29 as f64).as_value()).unwrap(),
+            Decimal::try_from_value((-11.29_f64).as_value()).unwrap(),
             Decimal::from_f64(-11.29).unwrap()
         );
         Decimal::try_from_value("hello".into()).expect_err("Cannot convert a string to a decimal");
@@ -708,6 +760,44 @@ mod tests {
             <[char; 3]>::try_from_value(['x', 'y', 'z'].as_value())
                 .expect("Cannot convert the Value to array of 3 chars"),
             ['x', 'y', 'a']
+        );
+        assert_eq!(
+            <[[bool; 2]; 2]>::parse("[[true,false],[false,true]]")
+                .expect("Could not parse the array"),
+            [[true, false], [false, true]]
+        );
+        assert_eq!(
+            <[[[Box<Option<String>>; 3]; 1]; 2]>::parse(
+                r#"[
+                [[
+                    'a',
+                    'A string
+
+On Multiple Lines',
+                    'Beta3',
+                ]],
+                [[
+                    'A "string" with '' apostrophes'', interesting',
+                    'Another string',
+                    'Last',
+                ]]
+            ]"#
+            )
+            .expect("Could not parse the array"),
+            [
+                [[
+                    Box::new(Some("a".to_string())),
+                    Box::new(Some("A string\n\nOn Multiple Lines".to_string())),
+                    Box::new(Some("Beta3".to_string())),
+                ]],
+                [[
+                    Box::new(Some(
+                        "A \"string\" with ' apostrophes', interesting".to_string()
+                    )),
+                    Box::new(Some("Another string".to_string())),
+                    Box::new(Some("Last".to_string())),
+                ]]
+            ]
         );
     }
 

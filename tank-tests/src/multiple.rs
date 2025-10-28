@@ -24,42 +24,25 @@ pub async fn multiple<E: Executor>(executor: &mut E) {
     let _lock = MUTEX.lock().await;
 
     let mut sql = String::new();
+    let writer = executor.driver().sql_writer();
     sql.push_str("    \n\n  \n \n\t\t\n   \n    ");
     // 1
-    executor
-        .driver()
-        .sql_writer()
-        .write_drop_table::<One>(&mut sql, true);
+    writer.write_drop_table::<One>(&mut sql, true);
     sql.push_str("\t\t");
     // 2
-    executor
-        .driver()
-        .sql_writer()
-        .write_drop_table::<Two>(&mut sql, true);
+    writer.write_drop_table::<Two>(&mut sql, true);
     // 3
-    executor
-        .driver()
-        .sql_writer()
-        .write_drop_table::<Three>(&mut sql, true);
+    writer.write_drop_table::<Three>(&mut sql, true);
     // 4
-    executor
-        .driver()
-        .sql_writer()
-        .write_create_table::<One>(&mut sql, true);
+    writer.write_create_table::<One>(&mut sql, true);
     sql.push('\n');
     // 5
-    executor
-        .driver()
-        .sql_writer()
-        .write_create_table::<Two>(&mut sql, true);
+    writer.write_create_table::<Two>(&mut sql, true);
     // 6
-    executor
-        .driver()
-        .sql_writer()
-        .write_create_table::<Three>(&mut sql, true);
+    writer.write_create_table::<Three>(&mut sql, true);
     sql.push_str(" ");
     // 7
-    executor.driver().sql_writer().write_insert(
+    writer.write_insert(
         &mut sql,
         [
             &Two {
@@ -79,7 +62,7 @@ pub async fn multiple<E: Executor>(executor: &mut E) {
     );
     sql.push_str("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
     // 8
-    executor.driver().sql_writer().write_insert(
+    writer.write_insert(
         &mut sql,
         [
             &Three {
@@ -92,15 +75,9 @@ pub async fn multiple<E: Executor>(executor: &mut E) {
         false,
     );
     // 9
-    executor.driver().sql_writer().write_select(
-        &mut sql,
-        [Three::string],
-        Three::table(),
-        &true,
-        None,
-    );
+    writer.write_select(&mut sql, [Three::string], Three::table(), &true, None);
     // 10
-    executor.driver().sql_writer().write_insert(
+    writer.write_insert(
         &mut sql,
         [&One {
             a1: 11,
@@ -110,7 +87,7 @@ pub async fn multiple<E: Executor>(executor: &mut E) {
         false,
     );
     // 11
-    executor.driver().sql_writer().write_select(
+    writer.write_select(
         &mut sql,
         [One::a1, One::string, One::c1],
         One::table(),
@@ -118,13 +95,7 @@ pub async fn multiple<E: Executor>(executor: &mut E) {
         None,
     );
     // 12
-    executor.driver().sql_writer().write_select(
-        &mut sql,
-        [Two::a2, Two::string],
-        Two::table(),
-        &true,
-        None,
-    );
+    writer.write_select(&mut sql, [Two::a2, Two::string], Two::table(), &true, None);
     sql.push_str("            \t    \t\t  \n \n \n \t    \n\n\n ");
     let result = executor
         .run(sql.into())
