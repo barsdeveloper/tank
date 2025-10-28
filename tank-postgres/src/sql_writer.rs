@@ -30,7 +30,7 @@ impl SqlWriter for PostgresSqlWriter {
                     let _ = write!(buff, "({},{})", precision, scale);
                 }
             }
-            Value::Char(..) => buff.push_str("CHARACTER(1)"),
+            Value::Char(..) => buff.push_str("CHAR(1)"),
             Value::Varchar(..) => buff.push_str("TEXT"),
             Value::Blob(..) => buff.push_str("BYTEA"),
             Value::Date(..) => buff.push_str("DATE"),
