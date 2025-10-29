@@ -30,10 +30,9 @@ pub trait AsValue {
         let result = Self::extract(&mut value)?;
         if !value.is_empty() {
             return Err(Error::msg(format!(
-                "Value '{}' parsed correctly as {} but it did not consume all the input: '{}' (remaining: '{}')",
-                truncate_long!(value),
-                any::type_name::<Self>(),
+                "Value `{}` parsed correctly as {} but it did not consume all the input (remaining: `{}`)",
                 truncate_long!(input.as_ref()),
+                any::type_name::<Self>(),
                 truncate_long!(value),
             )));
         }
@@ -44,8 +43,7 @@ pub trait AsValue {
         Self: Sized,
     {
         Err(Error::msg(format!(
-            "Cannot parse '{}' as {}",
-            value,
+            "Cannot parse '{value}' as {}",
             any::type_name::<Self>()
         )))
     }
@@ -80,8 +78,7 @@ macro_rules! impl_as_value {
                     Value::Int64(Some(v), ..) => {
                         if (v as i128).clamp(<$source>::MIN as i128, <$source>::MAX as i128) != v as i128 {
                             return Err(Error::msg(format!(
-                                "Value {}: i64 is out of range for type {}",
-                                v,
+                                "Value {v}: i64 is out of range for type {}",
                                 any::type_name::<Self>(),
                             )));
                         }
@@ -89,26 +86,52 @@ macro_rules! impl_as_value {
                     }
                     Value::Unknown(Some(ref v), ..) => Self::parse(v),
                     _ => Err(Error::msg(format!(
-                        "Cannot convert {:?} to {}",
-                        value,
+                        "Cannot convert {value:?} to {}",
                         any::type_name::<Self>(),
                     ))),
                 }
             }
             fn extract(value: &mut &str) -> Result<Self> {
-                let (num, tail) = i128::from_radix_10_signed(value.as_bytes());
-                if tail == 0 {
-                    return Err(Error::msg(format!("Cannot extract {} from '{value}'", any::type_name::<Self>())))
+                macro_rules! do_extract {
+                    ($value:ident, $extractor:ident) => {{
+                        let (num, tail) = <$extractor>::from_radix_10_signed(value.as_bytes());
+                        if tail == 0 {
+                            return Err(Error::msg(format!(
+                                "Cannot extract {} from '{value}'",
+                                any::type_name::<Self>(),
+                            )))
+                        }
+                        if num < <$source>::MIN as _ || num > <$source>::MAX as _ {
+                            return Err(Error::msg(format!(
+                                "Parsed integer {} is out of range for type {}",
+                                value,
+                                any::type_name::<Self>(),
+                            )))
+                        }
+                        *value = &value[tail..];
+                        Ok(num as _)
+                    }
+                }}
+                let mut chars = value.chars();
+                const MAX_LEN: usize = 39;
+                #[allow(unused_comparisons)]
+                if <$source>::MIN < 0 {
+                    if chars.take_while(char::is_ascii_digit).count() > MAX_LEN {
+                        return Err(Error::msg(format!(
+                            "Value {value} is out of range for {}",
+                            any::type_name::<Self>(),
+                        )));
+                    }
+                    do_extract!(value, i128)
+                } else {
+                    if chars.next() == Some('-') {
+                        return Err(Error::msg(format!(
+                            "Cannot extract negative number into unsigned {}",
+                            any::type_name::<Self>(),
+                        )));
+                    }
+                    do_extract!(value, u128)
                 }
-                if num < <$source>::MIN as _ || num > <$source>::MAX as _ {
-                    return Err(Error::msg(format!(
-                        "Parsed integer {} is out of range for type {}",
-                        value,
-                        any::type_name::<Self>()
-                    )))
-                }
-                *value = &value[tail..];
-                Ok(num as _)
             }
         }
     };
@@ -120,7 +143,7 @@ impl_as_value!(
     Value::Int16(Some(v), ..) => {
         let result = v as i8;
         if result as i16 != v {
-            return Err(Error::msg(format!("Value {}: i16 is out of range for i8", v)));
+            return Err(Error::msg(format!("Value {v}: i16 is out of range for i8")));
         }
         Ok(result)
     },
@@ -141,7 +164,7 @@ impl_as_value!(
     Value::UInt16(Some(v), ..) => Ok(v as i32),
     Value::UInt8(Some(v), ..) => Ok(v as i32),
     Value::Decimal(Some(v), ..) => {
-        let error = Error::msg(format!("Value {}: Decimal does not fit into i32", v));
+        let error = Error::msg(format!("Value {v}: Decimal does not fit into i32"));
         if !v.is_integer() {
             return Err(error.context("The value is not a integer"));
         }
@@ -159,7 +182,7 @@ impl_as_value!(
     Value::UInt16(Some(v), ..) => Ok(v as i64),
     Value::UInt8(Some(v), ..) => Ok(v as i64),
     Value::Decimal(Some(v), ..) => {
-        let error = Error::msg(format!("Value {}: Decimal does not fit into i64", v));
+        let error = Error::msg(format!("Value {v}: Decimal does not fit into i64"));
         if !v.is_integer() {
             return Err(error.context("The value is not a integer"));
         }
@@ -179,7 +202,7 @@ impl_as_value!(
     Value::UInt16(Some(v), ..) => Ok(v as i128),
     Value::UInt8(Some(v), ..) => Ok(v as i128),
     Value::Decimal(Some(v), ..) => {
-        let error = Error::msg(format!("Value {}: Decimal does not fit into i128", v));
+        let error = Error::msg(format!("Value {v}: Decimal does not fit into i128"));
         if !v.is_integer() {
             return Err(error.context("The value is not a integer"));
         }
@@ -190,7 +213,7 @@ impl_as_value!(
     u8,
     Value::UInt8,
     Value::Int16(Some(v), ..) => {
-        v.to_u8().ok_or(Error::msg(format!("Value {}: i16 is out of range for u8", v)))
+        v.to_u8().ok_or(Error::msg(format!("Value {v}: i16 is out of range for u8")))
     }
 );
 impl_as_value!(
@@ -200,7 +223,7 @@ impl_as_value!(
     Value::Int32(Some(v), ..) => {
         let result = v as u16;
         if result as i32 != v {
-            return Err(Error::msg(format!("Value {}: i32 is out of range for u16", v)));
+            return Err(Error::msg(format!("Value {v}: i32 is out of range for u16")));
         }
         Ok(result)
     }
@@ -218,7 +241,7 @@ impl_as_value!(
     Value::UInt16(Some(v), ..) => Ok(v as u64),
     Value::UInt8(Some(v), ..) => Ok(v as u64),
     Value::Decimal(Some(v), ..) => {
-        let error = Error::msg(format!("Value {}: Decimal does not fit into u64", v));
+        let error = Error::msg(format!("Value {v}: Decimal does not fit into u64"));
         if !v.is_integer() {
             return Err(error.context("The value is not a integer"));
         }
@@ -233,7 +256,7 @@ impl_as_value!(
     Value::UInt16(Some(v), ..) => Ok(v as u128),
     Value::UInt8(Some(v), ..) => Ok(v as u128),
     Value::Decimal(Some(v), ..) => {
-        let error = Error::msg(format!("Value {}: Decimal does not fit into u128", v));
+        let error = Error::msg(format!("Value {v}: Decimal does not fit into u128"));
         if !v.is_integer() {
             return Err(error.context("The value is not a integer"));
         }
@@ -257,8 +280,7 @@ macro_rules! impl_as_value {
                     #[allow(unreachable_patterns)]
                     Value::Unknown(Some(ref v)) => <Self as AsValue>::parse(v),
                     _ => Err(Error::msg(format!(
-                        "Cannot convert {:?} to {}",
-                        value,
+                        "Cannot convert {value:?} to {}",
                         any::type_name::<Self>(),
                     ))),
                 }
@@ -336,33 +358,41 @@ impl_as_value!(
     Value::Varchar,
     |input: &mut &str| {
         let mut value = *input;
-        let delimiter = match value.chars().next() {
-            Some('\'') => '\'',
-            Some('"') => '"',
-            _ => return Err(Error::msg(format!(
-                "Cannot parse {} as string, expected delimiter (' or \")",
-                input
-            ))),
+        let delimiter = value.chars().next();
+        let delimiter = match delimiter {
+            Some('\'') | Some('"') => {
+                value = &value[1..];
+                delimiter
+            },
+            _ => None,
         };
-        value = &value[1..];
         let mut result = String::new();
-        let mut chars = value.char_indices();
-        while let Some((i, c)) = chars.next() {
-            if c == delimiter {
-                if let Some((_, next_c)) = chars.clone().next() {
-                    if next_c == delimiter {
-                        result.push(delimiter);
-                        chars.next();
-                        continue;
-                    }
+        let mut chars = value.chars().peekable();
+        let mut pos = 0;
+        while let Some(c) = chars.next() {
+            if Some(c) == delimiter {
+                if let Some(next_c) = chars.peek()
+                    && Some(*next_c) == delimiter {
+                    result.push_str(&value[..=pos]);
+                    value = &value[(pos + 2)..];
+                    pos = 0;
+                    chars.next();
+                    continue;
                 }
-                *input = &value[i + 1..];
+                result.push_str(&value[..pos]);
+                value = &value[(pos + 1)..];
+                *input = &value;
                 return Ok(result);
-            } else {
-                result.push(c);
             }
+            pos += 1;
         }
-        Err(Error::msg("Unterminated string literal"))
+        if delimiter.is_some() {
+            result = format!("{}{}", delimiter.unwrap(), result);
+        }
+        result.push_str(&value[..pos]);
+        value = &value[pos..];
+        *input = value;
+        Ok(result)
     },
     Value::Char(Some(v), ..) => Ok(v.into()),
 );
@@ -384,7 +414,11 @@ impl_as_value!(Box<[u8]>, Value::Blob, |input: &mut &str| {
     Ok(result)
 });
 impl_as_value!(Interval, Value::Interval, |input: &mut &str| {
-    let error = Arc::new(format!("Cannot extract interval from '{input}'"));
+    let error = || {
+        Err(Error::msg(format!(
+            "Cannot extract interval from '{input}'"
+        )))
+    };
     let mut value = *input;
     let boundary = match value.chars().next() {
         Some(v) if v == '"' || v == '\'' => {
@@ -460,7 +494,7 @@ impl_as_value!(Interval, Value::Interval, |input: &mut &str| {
             {
                 interval += Interval::from_nanos(count as _)
             }
-            _ => return Err(Error::msg(error)),
+            _ => return error(),
         }
         value = cur.trim_start();
     }
@@ -479,7 +513,7 @@ impl_as_value!(Interval, Value::Interval, |input: &mut &str| {
             value = &value[1..];
             let (num, tail) = u64::from_radix_10(value.as_bytes());
             if tail == 0 {
-                return Err(Error::msg(error));
+                return error();
             }
             value = &value[tail..];
             time_interval += Interval::from_mins(num as _);
@@ -487,7 +521,7 @@ impl_as_value!(Interval, Value::Interval, |input: &mut &str| {
                 value = &value[1..];
                 let (num, tail) = u64::from_radix_10(value.as_bytes());
                 if tail == 0 {
-                    return Err(Error::msg(error));
+                    return error();
                 }
                 value = &value[tail..];
                 time_interval += Interval::from_secs(num as _);
@@ -495,7 +529,7 @@ impl_as_value!(Interval, Value::Interval, |input: &mut &str| {
                     value = &value[1..];
                     let (mut num, mut tail) = i128::from_radix_10(value.as_bytes());
                     if tail == 0 {
-                        return Err(Error::msg(error));
+                        return error();
                     }
                     value = &value[tail..];
                     tail -= 1;
@@ -505,7 +539,7 @@ impl_as_value!(Interval, Value::Interval, |input: &mut &str| {
                         0 => time_interval += Interval::from_millis(num),
                         1 => time_interval += Interval::from_micros(num),
                         2 => time_interval += Interval::from_nanos(num),
-                        _ => return Err(Error::msg(error)),
+                        _ => return error(),
                     }
                 }
             }
@@ -518,7 +552,7 @@ impl_as_value!(Interval, Value::Interval, |input: &mut &str| {
     }
     if let Some(b) = boundary {
         if value.chars().next() != Some(b) {
-            return Err(Error::msg(error));
+            return error();
         }
         value = value[1..].trim_ascii_start();
     }
@@ -556,7 +590,7 @@ macro_rules! parse_time {
                 }
             }
             Err(Error::msg(format!(
-                "Cannot extract from '{}' as {}",
+                "Cannot extract from `{}` as {}",
                 $value,
                 any::type_name::<Self>()
             )))
@@ -603,8 +637,7 @@ macro_rules! impl_as_value {
                         <Self as AsValue>::parse(v)
                     }
                     _ => Err(Error::msg(format!(
-                        "Cannot convert {:?} to {}",
-                        value,
+                        "Cannot convert {value:?} to {}",
                         any::type_name::<Self>(),
                     ))),
                 }
@@ -620,11 +653,7 @@ macro_rules! impl_as_value {
                         return Ok(result);
                     }
                 }
-                Err(Error::msg(format!(
-                    "Cannot extract from '{}' as {}",
-                    value,
-                    any::type_name::<Self>()
-                )))
+                Err(Error::msg(format!("Cannot extract from '{value}' as {}", any::type_name::<Self>())))
             }
         }
     };
@@ -677,13 +706,11 @@ impl AsValue for Decimal {
             Value::UInt32(Some(v), ..) => Ok(Decimal::new(v as i64, 0)),
             Value::UInt64(Some(v), ..) => Ok(Decimal::new(v as i64, 0)),
             Value::Float32(Some(v), ..) => Ok(Decimal::from_f32(v)
-                .ok_or(Error::msg(format!("Cannot convert {:?} to Decimal", value)))?),
+                .ok_or(Error::msg(format!("Cannot convert {value:?} to Decimal")))?),
             Value::Float64(Some(v), ..) => Ok(Decimal::from_f64(v)
-                .ok_or(Error::msg(format!("Cannot convert {:?} to Decimal", value)))?),
+                .ok_or(Error::msg(format!("Cannot convert {value:?} to Decimal")))?),
             Value::Unknown(Some(v), ..) => Self::parse(&v),
-            _ => Err(Error::msg(
-                format!("Cannot convert {:?} to Decimal", value,),
-            )),
+            _ => Err(Error::msg(format!("Cannot convert {value:?} to Decimal"))),
         }
     }
     fn extract(input: &mut &str) -> Result<Self> {
@@ -752,8 +779,7 @@ impl<T: AsValue, const N: usize> AsValue for [T; N] {
             Value::Array(Some(v), ..) if v.len() == N => convert_iter(v.into()),
             Value::Unknown(Some(v)) => Self::parse(v),
             _ => Err(Error::msg(format!(
-                "Cannot convert {:?} to array {}",
-                value,
+                "Cannot convert {value:?} to array {}",
                 any::type_name::<Self>()
             ))),
         }
@@ -761,8 +787,8 @@ impl<T: AsValue, const N: usize> AsValue for [T; N] {
     fn extract(input: &mut &str) -> Result<Self> {
         let mut value = *input;
         let error = Arc::new(format!(
-            "Cannot extract '{}' as array {}",
-            value,
+            "Cannot extract `{}` as array {}",
+            truncate_long!(value),
             any::type_name::<Self>(),
         ));
         let closing = match value.chars().next() {
@@ -799,8 +825,9 @@ impl<T: AsValue, const N: usize> AsValue for [T; N] {
         }
         if Some(closing) != value.chars().next() {
             return Err(Error::msg(format!(
-                "Incorrect array format '{}', expected a '{}'",
-                value, closing
+                "Incorrect array `{}`, expected a `{}`",
+                truncate_long!(value),
+                closing
             )));
         };
         value = &value[1..].trim_ascii_start();
@@ -833,8 +860,7 @@ macro_rules! impl_as_value {
                         .map(|v| Ok::<_, Error>(<T as AsValue>::try_from_value(v)?))
                         .collect::<Result<_>>()?),
                     _ => Err(Error::msg(format!(
-                        "Cannot convert {:?} to {}",
-                        value,
+                        "Cannot convert {value:?} to {}",
                         any::type_name::<Self>(),
                     ))),
                 }
@@ -875,8 +901,7 @@ macro_rules! impl_as_value {
                         .collect::<Result<_>>()?)
                 } else {
                     Err(Error::msg(format!(
-                        "Cannot convert {:?} to {}",
-                        value,
+                        "Cannot convert {value:?} to {}",
                         any::type_name::<Self>(),
                     )))
                 }
@@ -976,6 +1001,7 @@ macro_rules! impl_as_value {
         }
     };
 }
+// impl_as_value!(Box);
 impl_as_value!(Cell);
 impl_as_value!(RefCell);
 

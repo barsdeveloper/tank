@@ -228,19 +228,19 @@ pub trait SqlWriter {
 
     fn write_value_string(&self, _context: &mut Context, buff: &mut String, value: &str) {
         buff.push('\'');
-        let mut position = 0;
+        let mut pos = 0;
         for (i, c) in value.char_indices() {
             if c == '\'' {
-                buff.push_str(&value[position..i]);
+                buff.push_str(&value[pos..i]);
                 buff.push_str("''");
-                position = i + 1;
+                pos = i + 1;
             } else if c == '\n' {
-                buff.push_str(&value[position..i]);
+                buff.push_str(&value[pos..i]);
                 buff.push_str("\\n");
-                position = i + 1;
+                pos = i + 1;
             }
         }
-        buff.push_str(&value[position..]);
+        buff.push_str(&value[pos..]);
         buff.push('\'');
     }
 
