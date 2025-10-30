@@ -91,47 +91,67 @@ macro_rules! impl_as_value {
                     ))),
                 }
             }
-            fn extract(value: &mut &str) -> Result<Self> {
+            fn extract(input: &mut &str) -> Result<Self> {
+                if input.is_empty() {
+                    return Err(Error::msg(format!(
+                        "Cannot extract {} from empty string",
+                        any::type_name::<Self>(),
+                    )));
+                }
+                let mut value = *input;
                 macro_rules! do_extract {
-                    ($value:ident, $extractor:ident) => {{
-                        let (num, tail) = <$extractor>::from_radix_10_signed(value.as_bytes());
-                        if tail == 0 {
-                            return Err(Error::msg(format!(
-                                "Cannot extract {} from '{value}'",
-                                any::type_name::<Self>(),
-                            )))
+                    ($parse:expr) => {{
+                        let (num, tail) = $parse();
+                        if tail > 0 {
+                            let min = <$source>::MIN;
+                            let max = <$source>::MAX;
+                            if num < min as _ || num > max as _ {
+                                return Err(Error::msg(format!(
+                                    "Parsed integer {} is out of range for {}",
+                                    value,
+                                    any::type_name::<Self>(),
+                                )))
+                            }
+                            value = &value[tail..];
+                            *input = value;
+                            return Ok(num as _);
                         }
-                        if num < <$source>::MIN as _ || num > <$source>::MAX as _ {
-                            return Err(Error::msg(format!(
-                                "Parsed integer {} is out of range for type {}",
-                                value,
-                                any::type_name::<Self>(),
-                            )))
-                        }
-                        *value = &value[tail..];
-                        Ok(num as _)
                     }
                 }}
-                let mut chars = value.chars();
-                const MAX_LEN: usize = 39;
-                #[allow(unused_comparisons)]
-                if <$source>::MIN < 0 {
-                    if chars.take_while(char::is_ascii_digit).count() > MAX_LEN {
-                        return Err(Error::msg(format!(
-                            "Value {value} is out of range for {}",
-                            any::type_name::<Self>(),
-                        )));
-                    }
-                    do_extract!(value, i128)
+                let mut v = value;
+                let is_negative = value.starts_with('-');
+                let first = if is_negative {
+                    v = &v[1..];
+                    1
                 } else {
-                    if chars.next() == Some('-') {
-                        return Err(Error::msg(format!(
-                            "Cannot extract negative number into unsigned {}",
-                            any::type_name::<Self>(),
-                        )));
-                    }
-                    do_extract!(value, u128)
+                    0
+                };
+                let v = &value[first..v.chars().take_while(char::is_ascii_digit).count()];
+                #[allow(unused_comparisons)]
+                let is_signed = <$source>::MIN < 0;
+                let lim = if is_negative {
+                    "170141183460469231731687303715884105728"
+                } else if is_signed {
+                    "170141183460469231731687303715884105727"
+                } else {
+                    "340282366920938463463374607431768211455"
+                };
+                // It's important to avoid overhead otherwise atoi panics
+                if v.len() > lim.len() || v.len() == lim.len() && v > lim {
+                    return Err(Error::msg(format!(
+                        "Value {value} is out of range for {}",
+                        any::type_name::<Self>(),
+                    )));
                 }
+                if is_signed {
+                    do_extract!(|| i128::from_radix_10_signed(value.as_bytes()));
+                } else {
+                    do_extract!(|| u128::from_radix_10(value.as_bytes()));
+                }
+                Err(Error::msg(format!(
+                    "Cannot extract {} from `{value}`",
+                    any::type_name::<Self>(),
+                )))
             }
         }
     };

@@ -77,7 +77,6 @@ mod tests {
         let var: i8 = AsValue::try_from_value(val).unwrap();
         assert_eq!(var, 127);
         assert_eq!(i8::try_from_value(99_u8.into()).unwrap(), 99);
-        assert!(i8::try_from_value(0.1_f64.into()).is_err());
         assert_eq!(i8::try_from_value((-128_i64).into()).unwrap(), -128);
         assert_eq!(i8::try_from_value(12_i64.into()).unwrap(), 12);
         assert_eq!(i8::try_from_value(127_i64.into()).unwrap(), 127);
@@ -96,6 +95,7 @@ mod tests {
         let mut input = "-129, next";
         assert!(i8::extract(&mut input).is_err());
         assert_eq!(input, "-129, next");
+        assert!(i8::try_from_value(0.1_f64.into()).is_err());
     }
 
     #[test]
@@ -134,6 +134,7 @@ mod tests {
         let mut input = "32768, next";
         assert!(i16::extract(&mut input).is_err());
         assert_eq!(input, "32768, next");
+        assert!(i16::try_from_value(0.1_f64.into()).is_err());
     }
 
     #[test]
@@ -184,6 +185,7 @@ mod tests {
         let mut input = "2147483648, next";
         assert!(i32::extract(&mut input).is_err());
         assert_eq!(input, "2147483648, next");
+        assert!(i32::try_from_value(0.1_f64.into()).is_err());
     }
 
     #[test]
@@ -206,11 +208,11 @@ mod tests {
         );
         assert_eq!(
             i64::parse("9223372036854775807").expect("Could not parse i64"),
-            9223372036854775807
+            i64::MAX,
         );
         assert_eq!(
             i64::parse("-9223372036854775808").expect("Could not parse i64"),
-            -9223372036854775808
+            i64::MIN,
         );
         assert!(i64::parse("9223372036854775808").is_err());
         assert!(i64::parse("-9223372036854775809").is_err());
@@ -229,6 +231,7 @@ mod tests {
         let mut input = "9223372036854775808, next";
         assert!(i64::extract(&mut input).is_err());
         assert_eq!(input, "9223372036854775808, next");
+        assert!(i64::try_from_value(0.1_f64.into()).is_err());
     }
 
     #[test]
@@ -254,8 +257,9 @@ mod tests {
             12345678901234
         );
         let i128_max = "170141183460469231731687303715884105727";
+        let i128_over = "170141183460469231731687303715884105728";
         let i128_min = "-170141183460469231731687303715884105728";
-        assert_eq!(i128::parse(i128_max).unwrap(), i128::MAX);
+        let i128_under = "170141183460469231731687303715884105729";
         assert_eq!(
             i128::parse(i128_max).expect("Could not parse i128 max"),
             i128::MAX
@@ -263,6 +267,14 @@ mod tests {
         assert_eq!(
             i128::parse(i128_min).expect("Could not parse i128 min"),
             i128::MIN
+        );
+        assert!(
+            i128::parse(i128_over).is_err(),
+            "Should not parse overflow i128"
+        );
+        assert!(
+            i128::parse(i128_under).is_err(),
+            "Should not parse underflow i128"
         );
         let input = format!("{}, next", i128_max);
         let mut input = input.as_str();
@@ -278,6 +290,7 @@ mod tests {
             i128::MIN
         );
         assert_eq!(input, ", next");
+        assert!(i128::try_from_value(0.1_f64.into()).is_err());
     }
 
     #[test]
@@ -300,6 +313,7 @@ mod tests {
         let mut input = "-1, next";
         assert!(u8::extract(&mut input).is_err());
         assert_eq!(input, "-1, next");
+        assert!(u8::try_from_value(0.1_f64.into()).is_err());
     }
 
     #[test]
@@ -323,6 +337,7 @@ mod tests {
         let mut input = "65536, next";
         assert!(u16::extract(&mut input).is_err());
         assert_eq!(input, "65536, next");
+        assert!(u16::try_from_value(0.1_f64.into()).is_err());
     }
 
     #[test]
@@ -350,6 +365,7 @@ mod tests {
         let mut input = "4294967296, next";
         assert!(u32::extract(&mut input).is_err());
         assert_eq!(input, "4294967296, next");
+        assert!(u32::try_from_value(0.1_f64.into()).is_err());
     }
 
     #[test]
@@ -365,19 +381,20 @@ mod tests {
         assert_eq!(u64::try_from_value((123456_u32).into()).unwrap(), 123456);
         assert_eq!(
             u64::parse("18446744073709551615").expect("Could not parse u64"),
-            18446744073709551615
+            u64::MAX,
         );
         assert!(u64::parse("18446744073709551616").is_err());
         assert!(u64::parse("-1").is_err());
         let mut input = "18446744073709551615, next";
         assert_eq!(
             u64::extract(&mut input).expect("Could not extract u64"),
-            18446744073709551615
+            u64::MAX,
         );
         assert_eq!(input, ", next");
         let mut input = "18446744073709551616, next";
         assert!(u64::extract(&mut input).is_err());
         assert_eq!(input, "18446744073709551616, next");
+        assert!(u64::try_from_value(0.1_f64.into()).is_err());
     }
 
     #[test]
@@ -400,6 +417,7 @@ mod tests {
             u128::parse(u128_max).expect("Could not parse u128"),
             u128::MAX
         );
+        assert!(u128::parse("340282366920938463463374607431768211456").is_err());
         assert!(u128::parse("-1").is_err());
         let input = format!("{}, next", u128_max);
         let mut input = input.as_str();
@@ -408,6 +426,7 @@ mod tests {
             u128::MAX
         );
         assert_eq!(input, ", next");
+        assert!(u128::try_from_value(0.1_f64.into()).is_err());
     }
 
     #[test]
@@ -451,10 +470,10 @@ mod tests {
             char::try_from_value(Value::Varchar(Some("t".into()))),
             Ok('t'),
         ));
-        assert!(matches!(
-            char::try_from_value(Value::Varchar(Some("long".into()))),
-            Err(..)
-        ));
+        assert!(char::try_from_value(Value::Varchar(Some("long".into()))).is_err());
+        assert!(char::try_from_value(Value::Varchar(Some("".into()))).is_err());
+        assert_eq!(char::parse("v").expect("Could not parse char"), 'v');
+        assert!(char::parse("").is_err());
     }
 
     #[test]
