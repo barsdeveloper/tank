@@ -1,5 +1,5 @@
 use crate::{
-    CBox, SqliteDriver, SqlitePrepared, SqliteTransaction, error_message_from_ptr,
+    CBox, SQLiteDriver, SQLitePrepared, SQLiteTransaction, error_message_from_ptr,
     extract::{extract_name, extract_value},
 };
 use async_stream::{stream, try_stream};
@@ -23,12 +23,12 @@ use tank_core::{
 };
 use tokio::task::spawn_blocking;
 
-pub struct SqliteConnection {
+pub struct SQLiteConnection {
     pub(crate) connection: CBox<*mut sqlite3>,
     pub(crate) _transaction: bool,
 }
 
-impl SqliteConnection {
+impl SQLiteConnection {
     pub(crate) fn run_prepared(
         &mut self,
         statement: CBox<*mut sqlite3_stmt>,
@@ -123,11 +123,11 @@ impl SqliteConnection {
     }
 }
 
-impl Executor for SqliteConnection {
-    type Driver = SqliteDriver;
+impl Executor for SQLiteConnection {
+    type Driver = SQLiteDriver;
 
     fn driver(&self) -> &Self::Driver {
-        &SqliteDriver {}
+        &SQLiteDriver {}
     }
 
     async fn prepare(&mut self, sql: String) -> Result<Query<Self::Driver>> {
@@ -170,7 +170,7 @@ impl Executor for SqliteConnection {
             Ok(statement)
         })
         .await?;
-        Ok(SqlitePrepared::new(prepared?).into())
+        Ok(SQLitePrepared::new(prepared?).into())
     }
 
     fn run(
@@ -190,13 +190,13 @@ impl Executor for SqliteConnection {
     }
 }
 
-impl Connection for SqliteConnection {
+impl Connection for SQLiteConnection {
     #[allow(refining_impl_trait)]
-    async fn connect(url: Cow<'static, str>) -> Result<SqliteConnection> {
+    async fn connect(url: Cow<'static, str>) -> Result<SQLiteConnection> {
         let prefix = format!("{}://", <Self::Driver as Driver>::NAME);
         if !url.starts_with(&prefix) {
             let error = Error::msg(format!(
-                "Sqlite connection url must start with `{}`",
+                "SQLite connection url must start with `{}`",
                 &prefix
             ));
             log::error!("{:#}", error);
@@ -235,7 +235,7 @@ impl Connection for SqliteConnection {
     }
 
     #[allow(refining_impl_trait)]
-    fn begin(&mut self) -> impl Future<Output = Result<SqliteTransaction<'_>>> {
-        SqliteTransaction::new(self)
+    fn begin(&mut self) -> impl Future<Output = Result<SQLiteTransaction<'_>>> {
+        SQLiteTransaction::new(self)
     }
 }

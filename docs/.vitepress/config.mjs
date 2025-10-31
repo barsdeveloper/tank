@@ -25,8 +25,10 @@ export default defineConfig({
         items: [
           { text: 'Introduction', link: '/1-introduction' },
           { text: 'Getting started', link: '/2-getting-started' },
-          { text: 'Entity definition', link: '/3-entity-definition' },
-          { text: 'Entity operations', link: '/4-entity-operations' },
+          { text: 'Connection', link: '/3-connection' },
+          { text: 'Entity definition', link: '/4-entity-definition' },
+          { text: 'Entity operations', link: '/5-entity-operations' },
+          { text: 'Types', link: '/6-types' },
         ],
       },
 

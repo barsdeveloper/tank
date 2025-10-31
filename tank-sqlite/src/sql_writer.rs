@@ -1,9 +1,9 @@
 use std::fmt::Write;
 use tank_core::{ColumnRef, Context, Entity, SqlWriter, TableRef, Value};
 
-pub struct SqliteSqlWriter {}
+pub struct SQLiteSqlWriter {}
 
-impl SqlWriter for SqliteSqlWriter {
+impl SqlWriter for SQLiteSqlWriter {
     fn as_dyn(&self) -> &dyn SqlWriter {
         self
     }
@@ -64,7 +64,7 @@ impl SqlWriter for SqliteSqlWriter {
             Value::TimestampWithTimezone(..) => buff.push_str("TEXT"),
             Value::Uuid(..) => buff.push_str("TEXT"),
             _ => log::error!(
-                "Unexpected tank::Value, Sqlite does not support {:?}",
+                "Unexpected tank::Value, SQLite does not support {:?}",
                 value
             ),
         };
@@ -78,7 +78,7 @@ impl SqlWriter for SqliteSqlWriter {
     }
 
     fn write_value_nan(&self, context: &mut Context, buff: &mut String) {
-        log::warn!("Sqlite does not support float NaN values, will write NULL instead");
+        log::warn!("SQLite does not support float NaN values, will write NULL instead");
         self.write_value(context, buff, &Value::Null);
     }
 
@@ -95,7 +95,7 @@ impl SqlWriter for SqliteSqlWriter {
         Self: Sized,
         E: Entity,
     {
-        // Sqlite does not support schema
+        // SQLite does not support schema
     }
 
     fn write_drop_schema<E>(&self, _buff: &mut String, _if_exists: bool)
@@ -103,7 +103,7 @@ impl SqlWriter for SqliteSqlWriter {
         Self: Sized,
         E: Entity,
     {
-        // Sqlite does not support schema
+        // SQLite does not support schema
     }
 
     fn write_column_comments<E>(&self, _context: &mut Context, _buff: &mut String)

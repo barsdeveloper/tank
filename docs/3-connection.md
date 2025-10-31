@@ -32,10 +32,10 @@ SQLite is your trusty sidearm: lightweight, reliable, zero configuration. Deploy
 
 ```rust
 use tank::Driver;
-use tank_sqlite::{SqliteConnection, SqliteDriver};
+use tank_sqlite::{SQLiteConnection, SQLiteDriver};
 
-async fn establish_sqlite_connection() -> Result<SqliteConnection> {
-    let driver = SqliteDriver::new();
+async fn establish_sqlite_connection() -> Result<SQLiteConnection> {
+    let driver = SQLiteDriver::new();
     let connection = driver
         .connect("sqlite://../target/debug/operations.sqlite?mode=rwc".into())
         .await?;

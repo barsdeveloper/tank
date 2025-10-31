@@ -3,7 +3,7 @@
 
 Tank brings a full type arsenal to the field. The `Entity` derive macro identifies the type you’re using by inspecting its final path segment, the “trailer.” For example, `std::collections::VecDeque`, `collections::VecDeque`, or simply `VecDeque` all resolve to the same list type. No matter how you call in your reinforcements, Tank recognizes the formation.
 
-| Rust                       | DuckDB       | Sqlite  | Postgres     | MySQL                |
+| Rust                       | DuckDB       | SQLite  | Postgres     | MySQL                |
 | -------------------------- | ------------ | ------- | ------------ | -------------------- |
 | `bool`                     | BOOLEAN      | INTEGER | BOOLEAN      | BOOLEAN              |
 | `i8`                       | TINYINT      | INTEGER | SMALLINT     | TINYINT              |

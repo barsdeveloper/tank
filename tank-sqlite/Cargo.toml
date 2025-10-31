@@ -1,6 +1,6 @@
 [package]
 name = "tank-sqlite"
-description = "Sqlite driver implementation for Tank: the Rust data layer"
+description = "SQLite driver implementation for Tank: the Rust data layer"
 version.workspace = true
 authors.workspace = true
 license.workspace = true
