@@ -1,5 +1,5 @@
 # Types
-###### *Field Manual Section 6* - Type Conversion Schematics
+###### *Field Manual Section 4* - Type Conversion Schematics
 
 Tank brings a full type arsenal to the field. The `Entity` derive macro identifies the type you're using by inspecting its final path segment (the "trailer"). For example, `std::collections::VecDeque`, `collections::VecDeque`, or simply `VecDeque` all resolve to the same list type.
 
