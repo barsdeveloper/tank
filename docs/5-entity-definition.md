@@ -1,14 +1,14 @@
 # Entity Definition
-###### *Field Manual Section 4* - Unit Schematics
+###### *Field Manual Section 5* - Unit Schematics
 Lock and load, soldier! In Tank's war machine, the "Entity" is your frontline fighter. A Rust struct rigged with the `#[derive(Entity)]` macro that maps straight to a database table and gives you convenient functions to access and modify the data. Tank automatically handles the heavy lifting of converting Rust values to database columns and back.
 
-Before you can deploy entities, you must have an operational connection (see [Section 3 - Supply Lines](3-connection.md#connect)). All entity operations execute through either a live connection or a locked transaction; without a supply line, your units can't move.
+Before you can deploy entities, you must have an operational connection (see [*Field Manual Section 3 - Supply Lines*](3-connection.md#connect)). All entity operations execute through either a live connection or a locked transaction; without a supply line, your units can't move.
 
 ## Mission Briefing
 Zero boilerplate. Define a struct, tag it, deploy. Tank matches your Rust field types to the closest database type for each driver. Unified arsenal, same blueprint across all battlefields.
 
 ## Entity
-Start with a plain Rust struct and derive the `tank::Entity` trait.
+Start with a plain Rust struct and derive the `tank::Entity` trait. The fields can have any of the types supported (see [*Field Manual Section 4* - Type Conversion Schematics](4-types.md))
 ```rust
 #[derive(Entity)]
 #[tank(schema = "ops", name = "missions", primary_key = (Self::code_name, Self::start_time))]
