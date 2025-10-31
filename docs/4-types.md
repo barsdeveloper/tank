@@ -5,6 +5,7 @@ Tank brings a full type arsenal to the field. The `Entity` derive macro identifi
 
 Below is the standard mapping of Rust types to each driver's column type. `:x:` indicates no native support at this time. Collection types may be emulated in some drivers using generic JSON/text representations.
 
+## Column Types
 | Rust                       | DuckDB       | SQLite  | Postgres     | MySQL                |
 | -------------------------- | ------------ | ------- | ------------ | -------------------- |
 | `bool`                     | BOOLEAN      | INTEGER | BOOLEAN      | BOOLEAN              |
@@ -43,7 +44,7 @@ Below is the standard mapping of Rust types to each driver's column type. `:x:` 
 > [!NOTE]
 > When a type falls back to a generic representation (e.g. `TEXT` or `JSON`), Tank encodes it predictably so equality / ordering comparisons (where meaningful) behave as expected. Advanced indexing or operator support may vary by driver.
 
-### Wrapper Values
+## Wrapper Types
 Beyond the standard munitions listed above, Tank supports a range of wrapper types you can deploy directly in your entities. The resulting SQL type is inferred from the inner payload your wrapper carries into battle.
 
 Supported wrappers:
