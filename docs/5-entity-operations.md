@@ -63,3 +63,5 @@ CREATE TABLE IF NOT EXISTS operations.radio_log (
     rssi TINYINT NOT NULL);"
 ```
 :::
+
+*Lock, commit, advance. Dismissed.*

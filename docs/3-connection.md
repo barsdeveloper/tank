@@ -1,12 +1,14 @@
 # Connection
 ###### *Field Manual Section 3* - Supply Lines
 
-Welcome to the heavy metal parade, commander. Before you can unleash Tank's firepower, you have to secure your supply lines. Open a **Connection** to your database, and when the mission escalates, lock operations inside a **Transaction**. No connection, no combat. It's that simple.
+Welcome to the armored convoy, commander. Before you can unleash Tank's firepower, you have to secure your supply lines. Open a **Connection** to your database, and when the mission escalates, lock operations inside a **Transaction**. No connection, no combat. It's that simple.
 
-## Connection: Opening the Channel
-Every database connection abstraction implements the `Connection` trait. This is your communication link to the database server. You call `connect()` with a URL, and Tank establishes the line. Every driver is its own crate. Load only what you need for the operation. Check the [equipment](1-introduction.md#equipment) to see the available connections.
+## Connect
+Every database connection abstraction implements the [`Connection`](https://docs.rs/tank/latest/tank/trait.Connection.html) trait. This is your communication link to the database server. Call [`connect("dbms://...")`](https://docs.rs/tank/latest/tank/trait.Connection.html#tymethod.connect) with a URL, and Tank establishes the line. Every driver is its own crate. Load only what you need for the operation. Check the [equipment](1-introduction.md#equipment) to see the available connections.
 
-### DuckDB
+Once the line is open, the connection exposes both the [`Connection`](https://docs.rs/tank/latest/tank/trait.Connection.html) and [`Executor`](https://docs.rs/tank/latest/tank/trait.Executor.html) interfaces, enabling you to prepare statements, run multiple queries, execute commands, fetch rows and orchestrate transactions.
+
+#### DuckDB
 DuckDB is your embedded artillery piece: fast, local, and always ready. Perfect for rapid deployment scenarios and testing under fire.
 
 ```rust
@@ -27,7 +29,7 @@ async fn establish_duckdb_connection() -> Result<DuckDBConnection> {
 - `mode=rwc`: Create if not exists
 - In-memory combat zone: `duckdb://:memory:`
 
-### SQLite
+#### SQLite
 SQLite is your trusty sidearm: lightweight, reliable, zero configuration. Deploy anywhere, anytime.
 
 ```rust
@@ -47,8 +49,8 @@ async fn establish_sqlite_connection() -> Result<SQLiteConnection> {
 - Same mode flags as DuckDB
 - In-memory operations: `sqlite://:memory:`
 
-### PostgreSQL
-PostgreSQL is your heavy artillery: powerful, networked, built for sustained campaigns with multiple units coordinating strikes.
+#### Postgres
+Postgres is your heavy artillery: powerful, networked, built for sustained campaigns with multiple units coordinating strikes.
 
 ```rust
 use tank_postgres::PostgresConnection;
@@ -68,180 +70,35 @@ async fn establish_postgres_connection() -> Result<PostgresConnection> {
 - Supports all libpq parameters
 - Connection pooling handled automatically
 
-## Transaction: Coordinated Strikes
+## Operations Briefing
+- [`prepare("SELECT * FROM ...*".into())`](https://docs.rs/tank/latest/tank/trait.Executor.html#tymethod.prepare):
+  Compiles a raw SQL string into a reusable [`Query<Driver>`](https://docs.rs/tank/latest/tank/enum.Query.html) object without firing it. Use when the same statement will be dispatched multiple times.
 
-Sometimes you need to execute multiple operations as a single atomic mission—all or nothing. That's where **Transactions** come in. You begin a transaction, execute your operations, then either **commit** (mission success) or **rollback** (abort and retreat).
+- [`run(query.into())`](https://docs.rs/tank/latest/tank/trait.Executor.html#tymethod.run):
+  Streams a mixed feed of [`QueryResult`](https://docs.rs/tank/latest/tank/enum.QueryResult.html) values (`Row` or `Affected`). Use when you want to run multiple statements (e.g. INSERT INTO followed by SELECT), or you are not sure what result type you might receive.
 
-Transactions ensure that if any operation fails mid-mission, the entire operation is aborted and the database returns to its pre-mission state. No partial victories, no collateral damage to data integrity.
+- [`fetch(query.into())`](https://docs.rs/tank/latest/tank/trait.Executor.html#method.fetch):
+  Precise extraction. Wraps `run` and streams only row results (`QueryResult::Row`), executing all statements while filtering out counts.
 
-### Basic Transaction Flow
+- [`execute(query.into())`](https://docs.rs/tank/latest/tank/trait.Executor.html#method.execute):
+  Complement to `fetch` for impact reports: awaits the stream and aggregates all `QueryResult::Affected` values into a single `RowsAffected` total (INSERT / UPDATE / DELETE). Row payloads are ignored.
 
-```rust
-use tank::{Connection, Entity, Transaction};
+- [`append(query.into())`](https://docs.rs/tank/latest/tank/trait.Executor.html#method.append):
+  Convenience bulk insert for an iterator of entities. Builds an INSERT (or driver-optimized append if supported) and returns `RowsAffected`. Use when staging large batches into a table.
 
-#[derive(Entity)]
-struct Deployment {
-    #[tank(primary_key)]
-    unit_id: i32,
-    location: String,
-    status: String,
-}
+- [`begin()`](https://docs.rs/tank/latest/tank/trait.Connection.html#tymethod.begin):
+  Launch a coordinated operation. Borrow the connection and yield a transactional executor. Issue any of the above ops against it, then `commit` (secure ground) or `rollback` (tactical retreat). Uncommitted drop triggers a rollback and gives back the connection.
 
-async fn execute_coordinated_strike<C: Connection>(connection: &mut C) -> Result<()> {
-    // Initiate the operation
-    let mut transaction = connection
-        .begin()
-        .await
-        .expect("Failed to begin transaction");
+## Transaction
+Sometimes you need to execute multiple operations as a single atomic mission - all or nothing. That's where **Transactions** come in. You [`begin()`](https://docs.rs/tank/latest/tank/trait.Connection.html#tymethod.begin) a transaction, execute your operations, then either [`commit()`](https://docs.rs/tank/latest/tank/trait.Transaction.html#tymethod.commit) (mission success) or [`rollback()`](https://docs.rs/tank/latest/tank/trait.Transaction.html#tymethod.rollback) (abort and retreat). Uncommitted drop triggers a rollback and gives back the connection.
 
-    // Execute the mission plan
-    Deployment::insert_many(
-        &mut transaction,
-        &[
-            Deployment {
-                unit_id: 1,
-                location: "Sector Alpha".into(),
-                status: "Active".into(),
-            },
-            Deployment {
-                unit_id: 2,
-                location: "Sector Bravo".into(),
-                status: "Standby".into(),
-            },
-        ],
-    )
-    .await
-    .expect("Failed to deploy units");
+Transactions support depends on the specific driver and database capabilities. This is a thin layer over the database's native transaction concept. For databases without transaction support, `begin` should return an error.
 
-    // Mission accomplished—lock it in
-    transaction
-        .commit()
-        .await
-        .expect("Failed to commit transaction");
+## Connection Lifecycle
+1. **Establish**: Call [`Connection::connect("dbms://...").await?`](https://docs.rs/tank/latest/tank/trait.Connection.html#tymethod.connect) with your database URL.
+2. **Deploy**: Use the connection for queries, inserts, updates, and deletes.
+3. **Lock (optional)**: Start a transaction with `connection.begin().await?`. This exclusively borrows the connection. Issue all statements through the transaction handle. On `commit()` (or `rollback()`) and get back the connection.
+4. **Maintain**: Connection pooling is handled automatically by the driver.
+5. **Terminate**: Connections close automatically when dropped.
 
-    Ok(())
-}
-```
-
-### Rollback: Tactical Retreat
-
-When things go sideways on the battlefield, you need to abort the mission and pull back. The `rollback()` method does exactly that—it cancels all operations performed within the transaction.
-
-```rust
-async fn abort_on_failure<C: Connection>(connection: &mut C) -> Result<()> {
-    let mut transaction = connection
-        .begin()
-        .await
-        .expect("Failed to begin transaction");
-
-    // Initial strikes
-    Deployment::insert_one(
-        &mut transaction,
-        &Deployment {
-            unit_id: 99,
-            location: "Hot Zone".into(),
-            status: "Infiltrating".into(),
-        },
-    )
-    .await
-    .expect("Failed to insert deployment");
-
-    // Mission compromised! Abort! Abort!
-    transaction
-        .rollback()
-        .await
-        .expect("Failed to rollback transaction");
-
-    // All operations cancelled—database unchanged
-    Ok(())
-}
-```
-
-### Multi-Stage Operations
-
-Real combat involves multiple phases. Transactions let you coordinate complex operations across different entities and stages.
-
-```rust
-#[derive(Entity)]
-struct Arsenal {
-    #[tank(primary_key)]
-    weapon_id: String,
-    ammunition: i32,
-}
-
-#[derive(Entity)]
-struct Mission {
-    #[tank(primary_key)]
-    mission_code: String,
-    weapon_assigned: String,
-}
-
-async fn complex_operation<C: Connection>(connection: &mut C) -> Result<()> {
-    let mut transaction = connection.begin().await?;
-
-    // Phase 1: Prepare the arsenal
-    Arsenal::drop_table(&mut transaction, true, false).await?;
-    Arsenal::create_table(&mut transaction, true, true).await?;
-
-    Arsenal::insert_many(
-        &mut transaction,
-        &[
-            Arsenal {
-                weapon_id: "M4A1".into(),
-                ammunition: 210,
-            },
-            Arsenal {
-                weapon_id: "M249".into(),
-                ammunition: 600,
-            },
-        ],
-    )
-    .await?;
-
-    // Phase 2: Assign missions
-    Mission::drop_table(&mut transaction, true, false).await?;
-    Mission::create_table(&mut transaction, true, true).await?;
-
-    Mission::insert_one(
-        &mut transaction,
-        &Mission {
-            mission_code: "OP-THUNDER".into(),
-            weapon_assigned: "M4A1".into(),
-        },
-    )
-    .await?;
-
-    // All phases complete—commit the entire operation
-    transaction.commit().await?;
-
-    Ok(())
-}
-```
-
-## Battle Protocols
-
-### Connection Lifecycle
-- **Establish**: Call `connect()` with your database URL
-- **Deploy**: Use the connection for queries, inserts, updates, and deletes
-- **Maintain**: Connection pooling is handled automatically by the driver
-- **Terminate**: Connections close automatically when dropped
-
-### Transaction Discipline
-- **Begin**: Start a transaction with `connection.begin()`
-- **Execute**: Perform all operations on the transaction handle
-- **Decide**: Either `commit()` for success or `rollback()` for abort
-- **Never abandon**: Always explicitly commit or rollback—Tank will panic on drop of an uncommitted transaction to prevent silent data corruption
-
-### Mission-Critical Rules
-1. **One mission, one transaction**: Keep transaction scope focused and tight
-2. **Fail fast**: Don't let errors linger—handle them immediately
-3. **Never nest**: Transactions don't nest—complete one before starting another
-4. **Check your six**: Always verify connection strings before deployment
-
-## Next Objectives
-
-Now that your supply lines are secure and you know how to coordinate multi-phase operations, it's time to define your combat units. Move out to [Field Manual Section 4 - Unit Schematics](4-entity-definition.md) to learn how to blueprint your entities and deploy them into battle.
-
-Remember soldier: A connection without a transaction is like a rifle on semi-auto—each shot fires independently. A transaction is full-auto suppressive fire—all rounds count as one engagement. Choose your weapon wisely.
-
-**Stay frosty. Stay connected. Tank out.**
+*Lock, commit, advance. Dismissed*

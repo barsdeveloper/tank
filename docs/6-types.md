@@ -1,7 +1,9 @@
 # Types
 ###### *Field Manual Section 6* - Type Conversion Schematics
 
-Tank brings a full type arsenal to the field. The `Entity` derive macro identifies the type you’re using by inspecting its final path segment, the “trailer.” For example, `std::collections::VecDeque`, `collections::VecDeque`, or simply `VecDeque` all resolve to the same list type. No matter how you call in your reinforcements, Tank recognizes the formation.
+Tank brings a full type arsenal to the field. The `Entity` derive macro identifies the type you're using by inspecting its final path segment (the "trailer"). For example, `std::collections::VecDeque`, `collections::VecDeque`, or simply `VecDeque` all resolve to the same list type.
+
+Below is the standard mapping of Rust types to each driver's column type. `:x:` indicates no native support at this time. Collection types may be emulated in some drivers using generic JSON/text representations.
 
 | Rust                       | DuckDB       | SQLite  | Postgres     | MySQL                |
 | -------------------------- | ------------ | ------- | ------------ | -------------------- |
@@ -39,17 +41,19 @@ Tank brings a full type arsenal to the field. The `Entity` derive macro identifi
 | `BTreeMap<K, V>`           | MAP(K,V)     | :x:     | :x:          | JSON                 |
 
 > [!NOTE]
-> If a type is not supported directly but uses the general `TEXT` type, it is generally also rendered in a way to support comparison operators like equals, less than etc.
+> When a type falls back to a generic representation (e.g. `TEXT` or `JSON`), Tank encodes it predictably so equality / ordering comparisons (where meaningful) behave as expected. Advanced indexing or operator support may vary by driver.
 
-### Wrapper values
-Beyond the standard munitions listed above, Tank supports a range of wrapper types you can deploy directly in your entities. The resulting SQL type is automatically inferred from the inner payload, the value your wrapper carries into battle. Here are the supported types:
-* `tank::Passive<T>`
-* `Option<T>`
-* `Box<T>`
-* `Cell<T>`
-* `RefCell<T>`
-* `RwLock<T>`
-* `Arc<T>`
-* `Rc<T>`
+### Wrapper Values
+Beyond the standard munitions listed above, Tank supports a range of wrapper types you can deploy directly in your entities. The resulting SQL type is inferred from the inner payload your wrapper carries into battle.
 
-*Mission Complete: With these mappings in your arsenal, your entities will never misfire on deployment.*
+Supported wrappers:
+- `tank::Passive<T>`: Omit on update / allow default generation on insert.
+- `Option<T>`: Nullable column.
+- `Box<T>`
+- `Cell<T>`
+- `RefCell<T>`
+- `RwLock<T>`
+- `Arc<T>`
+- `Rc<T>`
+
+*Mission complete. With these mappings in your arsenal, your entities will never misfire on deployment.*

@@ -29,3 +29,5 @@ It keeps the learning curve low, just a handful of clear concepts. It stays deli
 Because its scope is tight, Tank can deploy on many fronts, from classic SQL databases to non-SQL theaters. At the same time, it doesn't limit your capabilities: Tank never tries to hide SQL behind a heavy query builder: you can write plain SQL whenever you need and still benefit from its rich type-conversion features. In this way, it's similar in spirit to [SQLx](https://crates.io/crates/sqlx) but unlike SQLx, Tank does not perform compile-time SQL validation. It prioritizes runtime flexibility and multi-database support over static checking.
 
 Tank also provides convenient methods to set up tables and get database communication running in just a few lines of code, all through a unified API that works the same regardless of the backend. Perfect to setup testing very quickly.
+
+*Hold the line. Maintain discipline. Tank out.*

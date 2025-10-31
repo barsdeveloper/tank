@@ -140,3 +140,5 @@ async fn data() -> Result<()> {
     Ok(())
 }
 ```
+
+*Rustaceans don't hide behind ORMs, they drive Tanks.*
