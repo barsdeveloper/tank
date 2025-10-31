@@ -1,15 +1,15 @@
-use crate::{SqliteConnection, SqliteDriver};
+use crate::{SQLiteConnection, SQLiteDriver};
 use tank_core::{
     Driver, Executor, Query, QueryResult, Result, RowLabeled, SqlWriter, Transaction,
     future::TryFutureExt, stream::Stream,
 };
 
-pub struct SqliteTransaction<'c> {
-    connection: &'c mut SqliteConnection,
+pub struct SQLiteTransaction<'c> {
+    connection: &'c mut SQLiteConnection,
 }
 
-impl<'c> SqliteTransaction<'c> {
-    pub async fn new(connection: &'c mut SqliteConnection) -> Result<Self> {
+impl<'c> SQLiteTransaction<'c> {
+    pub async fn new(connection: &'c mut SQLiteConnection) -> Result<Self> {
         let result = Self { connection };
         let mut sql = String::new();
         result
@@ -22,17 +22,17 @@ impl<'c> SqliteTransaction<'c> {
     }
 }
 
-impl<'c> Executor for SqliteTransaction<'c> {
-    type Driver = SqliteDriver;
+impl<'c> Executor for SQLiteTransaction<'c> {
+    type Driver = SQLiteDriver;
 
-    fn driver(&self) -> &SqliteDriver {
+    fn driver(&self) -> &SQLiteDriver {
         self.connection.driver()
     }
 
     fn prepare(
         &mut self,
         query: String,
-    ) -> impl Future<Output = Result<Query<SqliteDriver>>> + Send {
+    ) -> impl Future<Output = Result<Query<SQLiteDriver>>> + Send {
         self.connection.prepare(query)
     }
 
@@ -45,7 +45,7 @@ impl<'c> Executor for SqliteTransaction<'c> {
 
     fn fetch<'s>(
         &'s mut self,
-        query: Query<SqliteDriver>,
+        query: Query<SQLiteDriver>,
     ) -> impl Stream<Item = Result<RowLabeled>> + Send + 's {
         self.connection.fetch(query)
     }
@@ -69,7 +69,7 @@ impl<'c> Executor for SqliteTransaction<'c> {
     }
 }
 
-impl<'c> Transaction<'c> for SqliteTransaction<'c> {
+impl<'c> Transaction<'c> for SQLiteTransaction<'c> {
     fn commit(self) -> impl Future<Output = Result<()>> {
         let mut sql = String::new();
         self.driver()

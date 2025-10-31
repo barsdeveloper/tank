@@ -15,9 +15,9 @@ Welcome to the Tank field manual. This is the quick-and-mean guide for developer
 ## Equipment
 - [**tank**](https://crates.io/crates/tank): The command vehicle, rallying the core arsenal and procedural macro firepower for seamless battlefield operations.
 - [**tank-duckdb**](https://crates.io/crates/tank-duckdb): DuckDB driver.
-- [**tank-sqlite**](https://crates.io/crates/tank-sqlite): Sqlite driver.
+- [**tank-sqlite**](https://crates.io/crates/tank-sqlite): SQLite driver.
 - [**tank-postgres**](https://crates.io/crates/tank-postgres): Postgres driver.
-- [**tank-mysql**](https://crates.io/crates/tank-mysql): Mysql driver.
+- [**tank-mysql**](https://crates.io/crates/tank-mysql): MySQL driver.
 - [**tank-core**](https://crates.io/crates/tank-core): All the heavy machinery that makes the Tank move.
 - [**tank-macros**](https://crates.io/crates/tank-macros): Because Rust requires procedural macros to live in a separate silo, this crate houses the derive magic.
 - [**tank-tests**](https://crates.io/crates/tank-tests): The proving ground. Shared integration tests used by every driver to ensure that when the shooting starts, nothing jams.

@@ -3,7 +3,7 @@ mod tests {
     use std::path::Path;
     use std::sync::Mutex;
     use tank_core::Driver;
-    use tank_sqlite::SqliteDriver;
+    use tank_sqlite::SQLiteDriver;
     use tank_tests::{execute_tests, init_logs};
     use tokio::fs;
 
@@ -23,7 +23,7 @@ mod tests {
             !Path::new(DB_PATH).exists(),
             "Database file should not exist before test"
         );
-        let driver = SqliteDriver::new();
+        let driver = SQLiteDriver::new();
         let connection = driver
             .connect(format!("sqlite://{}?mode=rwc", DB_PATH).into())
             .await

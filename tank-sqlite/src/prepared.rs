@@ -8,12 +8,12 @@ use std::{
 };
 use tank_core::{AsValue, Error, Prepared, Result, Value, truncate_long};
 
-pub struct SqlitePrepared {
+pub struct SQLitePrepared {
     pub(crate) statement: CBox<*mut sqlite3_stmt>,
     pub(crate) index: u64,
 }
 
-impl SqlitePrepared {
+impl SQLitePrepared {
     pub(crate) fn new(prepared: CBox<*mut sqlite3_stmt>) -> Self {
         unsafe {
             sqlite3_clear_bindings(*prepared);
@@ -25,7 +25,7 @@ impl SqlitePrepared {
     }
 }
 
-impl Prepared for SqlitePrepared {
+impl Prepared for SQLitePrepared {
     fn bind<V: AsValue>(&mut self, value: V) -> Result<&mut Self> {
         self.bind_index(value, self.index)
     }
@@ -204,7 +204,7 @@ impl Prepared for SqlitePrepared {
     }
 }
 
-impl Display for SqlitePrepared {
+impl Display for SQLitePrepared {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{:p}", *self.statement)
     }
