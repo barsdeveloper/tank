@@ -45,8 +45,7 @@ async fn data() -> Result<()> {
     let driver = DuckDBDriver::new();
     let connection = driver
         .connect("duckdb://../target/debug/tests.duckdb?mode=rw".into())
-        .await
-        .expect("Could not open the database");
+        .await?;
 
     let my_tank = Tank {
         name: "Tiger I".into(),
@@ -61,8 +60,7 @@ async fn data() -> Result<()> {
      * DROP TABLE IF EXISTS "army"."tank";
      */
     Tank::drop_table(connection, true, false)
-        .await
-        .expect("Failed to drop Tank table");
+        .await?;
 
     /*
      * CREATE SCHEMA IF NOT EXISTS "army";
@@ -75,8 +73,7 @@ async fn data() -> Result<()> {
      *     "units_produced" UINTEGER);
      */
     Tank::create_table(connection, true, true)
-        .await
-        .expect("Failed to create Tank table");
+        .await?;
 
     /*
      * INSERT INTO "army"."tank" ("name", "country", "caliber", "speed", "is_operational", "units_produced") VALUES
