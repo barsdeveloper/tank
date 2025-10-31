@@ -1,5 +1,6 @@
 # Types
-###### *Field Manual Section 4* - Type Conversion Schematics
+###### *Field Manual Section 6* - Type Conversion Schematics
+
 Tank brings a full type arsenal to the field. The `Entity` derive macro identifies the type you’re using by inspecting its final path segment, the “trailer.” For example, `std::collections::VecDeque`, `collections::VecDeque`, or simply `VecDeque` all resolve to the same list type. No matter how you call in your reinforcements, Tank recognizes the formation.
 
 | Rust                       | DuckDB       | Sqlite  | Postgres     | MySQL                |
@@ -38,7 +39,7 @@ Tank brings a full type arsenal to the field. The `Entity` derive macro identifi
 | `BTreeMap<K, V>`           | MAP(K,V)     | :x:     | :x:          | JSON                 |
 
 > [!NOTE]
-> If a type is not supported directly but uses the general `TEXT` type, it is generally also rendered in a way to support comparison operators like equals, less then etc.
+> If a type is not supported directly but uses the general `TEXT` type, it is generally also rendered in a way to support comparison operators like equals, less than etc.
 
 ### Wrapper values
 Beyond the standard munitions listed above, Tank supports a range of wrapper types you can deploy directly in your entities. The resulting SQL type is automatically inferred from the inner payload, the value your wrapper carries into battle. Here are the supported types:

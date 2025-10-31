@@ -1,13 +1,14 @@
 # Introduction
 ###### *Field Manual Section 1* - Mission Briefing
+
 Welcome to the Tank field manual. This is the quick-and-mean guide for developers who want to drive, fight and survive with Tank (Table Abstraction & Navigation Kit): the Rust data layer.
 
 ## Mission objectives
 - **Async operations** - fire and forget.
 - **Simple workflow** - every query is visible on your tactical map.
 - **Extensible driver system** - swap databases like changing magazines mid-battle.
-- **SQL and NoSQL support**: one Tank, all terrains.
-- **Transactional strikes**: commit on success or rollback the mission if the plan goes sideways.
+- **SQL and NoSQL support** - one Tank, all terrains.
+- **Transactional strikes** - commit on success or rollback the mission if the plan goes sideways.
 - **Rich type arsenal** with automatic conversions between Rust and database types.
 - **Optional appender API** for high caliber bulk inserts.
 
@@ -23,8 +24,8 @@ Welcome to the Tank field manual. This is the quick-and-mean guide for developer
 
 ## Why Tank?
 Tank is a thin, battle-ready layer over your database workflow.
-It keeps the learning curve low, just a handful of clear concepts. It stays deliberately lean so you can maneuver fast and stay flexible.
+It keeps the learning curve low, just a handful of clear concepts. It stays deliberately lean and essential, few moving parts, fast maneuvers.
 
-Because its scope is tight, Tank can deploy on many fronts, from classic SQL databases to non-SQL theaters. At the same time, it doesn’t limit your capabilities: Tank never tries to hide SQL behind a heavy query builder: you can write plain SQL whenever you need and still benefit from its rich type-conversion features. In this way, it’s similar in spirit to [SQLx](https://crates.io/crates/sqlx) but unlike SQLx, Tank does not perform compile-time SQL validation. It prioritizes runtime flexibility and multi-database support over static checking.
+Because its scope is tight, Tank can deploy on many fronts, from classic SQL databases to non-SQL theaters. At the same time, it doesn't limit your capabilities: Tank never tries to hide SQL behind a heavy query builder: you can write plain SQL whenever you need and still benefit from its rich type-conversion features. In this way, it's similar in spirit to [SQLx](https://crates.io/crates/sqlx) but unlike SQLx, Tank does not perform compile-time SQL validation. It prioritizes runtime flexibility and multi-database support over static checking.
 
 Tank also provides convenient methods to set up tables and get database communication running in just a few lines of code, all through a unified API that works the same regardless of the backend. Perfect to setup testing very quickly.

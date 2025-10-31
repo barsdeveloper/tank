@@ -1,6 +1,7 @@
 # Getting Started
 ###### *Field Manual Section 2* - Deployment Orders
-What follows is just a visit to the shooting range, not the full campaign. This minimal example shows Tank in action: connecting, defining a unit, and executing basic maneuvers. Just enough to get mud on your boots and feel the recoil. For full tactical exercises including transactions, complex queries, and multi-driver deployments, proceed to the [Field Manual Section 3 - Units Schematics](3-entity-definition.md).
+
+What follows is just a visit to the shooting range, not the full campaign. This minimal example shows Tank in action: connecting, defining a unit, and executing basic maneuvers. Just enough to get mud on your boots and feel the recoil. For full tactical exercises including transactions, complex queries, and multi-driver deployments, proceed to the [Field Manual Section 4 - Unit Schematics](4-entity-definition.md).
 1) Arm your cargo
 ```sh
 cargo add tank
@@ -35,6 +36,7 @@ pub struct Tank {
 
 4) Fire for effect
 ```rust
+use std::collections::HashSet;
 use tank::Driver;
 use tank_duckdb::DuckDBDriver;
 
@@ -89,7 +91,7 @@ async fn data() -> Result<()> {
     my_tank.save(connection).await?;
 
     /*
-     * In the case of Duckdb, it uses the appender API, in other cases the resulting query is:
+     * In the case of DuckDB, it uses the appender API, in other cases the resulting query is:
      * INSERT INTO "army"."tank" ("name", "country", "caliber", "speed", "is_operational", "units_produced") VALUES
      *     ('T-34/85', 'Soviet Union', 85, 53.0, false, 49200),
      *     ('M1 Abrams', 'USA', 120, 72.0, true, NULL);

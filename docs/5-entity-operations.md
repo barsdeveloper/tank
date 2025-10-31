@@ -1,6 +1,6 @@
 # Entity Operations
 ###### *Field Manual Section 5* - Front-Line Extraction
-The Entity is your combat unity, a Rust struct mapped one-to-one with a database table. This section traines you on the basic maneuvers every unit must master: insertions, updates, and extractions.
+The Entity is your combat unit, a Rust struct mapped one-to-one with a database table. This section trains you on the basic maneuvers every unit must master: insertions, updates, and extractions.
 
 ## Mission Scope
 * `Entity::create_table()`: establish operating base
@@ -41,7 +41,7 @@ pub struct RadioLog {
     pub message: String,
     pub unit_callsign: String,
     #[tank(name = "tx_time")]
-    pub transmissione_time: OffsetDateTime,
+    pub transmission_time: OffsetDateTime,
     #[tank(name = "rssi")]
     pub signal_strength: i8,
 }
