@@ -86,6 +86,7 @@ mod tests {
         assert_eq!(i8::parse("-128").expect("Could not parse i8"), -128);
         assert!(i8::parse("128").is_err());
         assert!(i8::parse("-129").is_err());
+        assert!(i8::parse("").is_err());
         let mut input = "54, next";
         assert_eq!(i8::extract(&mut input).expect("Could not extract i8"), 54);
         assert_eq!(input, ", next");
@@ -116,6 +117,7 @@ mod tests {
         assert_eq!(i16::parse("-32768").expect("Could not parse i16"), -32768);
         assert!(i16::parse("32768").is_err());
         assert!(i16::parse("-32769").is_err());
+        assert!(i16::parse("").is_err());
         let mut input = "12345, next";
         assert_eq!(
             i16::extract(&mut input).expect("Could not extract i16"),
@@ -154,22 +156,23 @@ mod tests {
         assert_eq!(i32::try_from_value(1001_u32.into()).unwrap(), 1001);
         assert_eq!(
             i32::try_from_value(2147483647_i64.into()).unwrap(),
-            2147483647
+            i32::MAX,
         );
         assert_eq!(
             i32::try_from_value((-2147483648_i64).into()).unwrap(),
-            -2147483648
+            i32::MIN,
         );
         assert_eq!(
             i32::parse("2147483647").expect("Could not parse i32"),
-            2147483647
+            i32::MAX,
         );
         assert_eq!(
             i32::parse("-2147483648").expect("Could not parse i32"),
-            -2147483648
+            i32::MIN,
         );
         assert!(i32::parse("2147483648").is_err());
         assert!(i32::parse("-2147483649").is_err());
+        assert!(i32::parse("").is_err());
         let mut input = "2147483647, next";
         assert_eq!(
             i32::extract(&mut input).expect("Could not extract i32"),
@@ -216,16 +219,17 @@ mod tests {
         );
         assert!(i64::parse("9223372036854775808").is_err());
         assert!(i64::parse("-9223372036854775809").is_err());
+        assert!(i64::parse("").is_err());
         let mut input = "9223372036854775807, next";
         assert_eq!(
             i64::extract(&mut input).expect("Could not extract i64"),
-            9223372036854775807
+            i64::MAX,
         );
         assert_eq!(input, ", next");
         let mut input = "-9223372036854775808, next";
         assert_eq!(
             i64::extract(&mut input).expect("Could not extract i64"),
-            -9223372036854775808
+            i64::MIN,
         );
         assert_eq!(input, ", next");
         let mut input = "9223372036854775808, next";
@@ -268,14 +272,10 @@ mod tests {
             i128::parse(i128_min).expect("Could not parse i128 min"),
             i128::MIN
         );
-        assert!(
-            i128::parse(i128_over).is_err(),
-            "Should not parse overflow i128"
-        );
-        assert!(
-            i128::parse(i128_under).is_err(),
-            "Should not parse underflow i128"
-        );
+        assert!(i128::parse(i128_over).is_err());
+        assert!(i128::parse(i128_under).is_err());
+        assert!(i128::parse("").is_err());
+        assert!(i128::parse("10000000000000000000000000000000000000000000000000000000").is_err());
         let input = format!("{}, next", i128_max);
         let mut input = input.as_str();
         assert_eq!(
@@ -304,6 +304,7 @@ mod tests {
         assert_eq!(u8::parse("255").expect("Could not parse u8"), 255);
         assert!(u8::parse("256").is_err());
         assert!(u8::parse("-1").is_err());
+        assert!(u8::parse("").is_err());
         let mut input = "255, next";
         assert_eq!(u8::extract(&mut input).expect("Could not extract u8"), 255);
         assert_eq!(input, ", next");
@@ -328,6 +329,7 @@ mod tests {
         assert_eq!(u16::parse("65535").expect("Could not parse u16"), 65535);
         assert!(u16::parse("65536").is_err());
         assert!(u16::parse("-1").is_err());
+        assert!(u16::parse("").is_err());
         let mut input = "65535, next";
         assert_eq!(
             u16::extract(&mut input).expect("Could not extract u16"),
@@ -352,14 +354,15 @@ mod tests {
         assert_eq!(u32::try_from_value((65535_u16).into()).unwrap(), 65535);
         assert_eq!(
             u32::parse("4294967295").expect("Could not parse u32"),
-            4294967295
+            u32::MAX,
         );
         assert!(u32::parse("4294967296").is_err());
         assert!(u32::parse("-1").is_err());
+        assert!(u32::parse("").is_err());
         let mut input = "4294967295, next";
         assert_eq!(
             u32::extract(&mut input).expect("Could not extract u32"),
-            4294967295
+            u32::MAX,
         );
         assert_eq!(input, ", next");
         let mut input = "4294967296, next";
@@ -385,6 +388,7 @@ mod tests {
         );
         assert!(u64::parse("18446744073709551616").is_err());
         assert!(u64::parse("-1").is_err());
+        assert!(u64::parse("").is_err());
         let mut input = "18446744073709551615, next";
         assert_eq!(
             u64::extract(&mut input).expect("Could not extract u64"),
@@ -419,6 +423,7 @@ mod tests {
         );
         assert!(u128::parse("340282366920938463463374607431768211456").is_err());
         assert!(u128::parse("-1").is_err());
+        assert!(u128::parse("").is_err());
         let input = format!("{}, next", u128_max);
         let mut input = input.as_str();
         assert_eq!(
@@ -747,11 +752,38 @@ mod tests {
         assert_eq!(val, Interval::from_months(4).as_value());
         assert_ne!(val, Interval::from_months(3).as_value());
         assert_ne!(val, Interval::from_days(28).as_value());
-
         let var: Interval = AsValue::try_from_value(val).unwrap();
         let val = var.as_value();
         let var: Interval = AsValue::try_from_value(val).unwrap();
         assert_eq!(var, Interval::from_months(4));
+        let mut input = "1 year 2 mons, 60 seconds";
+        assert_eq!(
+            Interval::extract(&mut input).expect("Could not parse the interval"),
+            Interval::from_years(1) + Interval::from_months(2),
+        );
+        assert_eq!(input, ", 60 seconds");
+        input = &input[2..];
+        assert_eq!(
+            Interval::extract(&mut input).expect("Could not parse the interval"),
+            Interval::from_mins(1),
+        );
+        assert!(input.is_empty());
+        let mut input = "-100 year -12 mons +3 days -04:05:06, 2years 60days";
+        assert_eq!(
+            Interval::extract(&mut input).expect("Could not parse the interval"),
+            Interval::from_years(-101)
+                + Interval::from_days(3)
+                + Interval::from_hours(-4)
+                + Interval::from_mins(-5)
+                + Interval::from_secs(-6),
+        );
+        assert_eq!(input, ", 2years 60days");
+        input = &input[2..];
+        assert_eq!(
+            Interval::extract(&mut input).expect("Could not parse the interval"),
+            Interval::from_years(2) + Interval::from_days(60),
+        );
+        assert!(input.is_empty());
     }
 
     #[test]

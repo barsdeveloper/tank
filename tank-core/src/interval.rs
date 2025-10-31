@@ -241,7 +241,7 @@ macro_rules! sum_intervals {
         let days_total = $lhs.days as i128 $op $rhs.days as i128
             + $lhs.nanos / Interval::NANOS_IN_DAY $op $rhs.nanos / Interval::NANOS_IN_DAY;
         let days = days_total.clamp(i64::MIN as _, i64::MAX as _);
-        let mut nanos = $lhs.nanos % Interval::NANOS_IN_DAY + $rhs.nanos % Interval::NANOS_IN_DAY;
+        let mut nanos = $lhs.nanos % Interval::NANOS_IN_DAY $op $rhs.nanos % Interval::NANOS_IN_DAY;
         if days != days_total {
             nanos += (days_total - days) * Interval::NANOS_IN_DAY;
         }
