@@ -117,6 +117,9 @@
     --vp-custom-block-tip-code-bg: var(--vp-c-brand-soft);
 }
 
+p {
+    text-align: justify;
+}
 h1 {
     font-family: RobotoSlab-Bold;
 }
