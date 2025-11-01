@@ -43,10 +43,10 @@ impl<L: DataSet, R: DataSet, E: Expression> DataSet for Join<L, R, E> {
     {
         true
     }
-    fn write_query(&self, writer: &dyn SqlWriter, context: &mut Context, buff: &mut String) {
+    fn write_query(&self, writer: &dyn SqlWriter, context: &mut Context, out: &mut String) {
         writer.write_join(
             context,
-            buff,
+            out,
             &Join {
                 join: self.join,
                 lhs: &self.lhs,

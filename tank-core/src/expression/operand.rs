@@ -27,8 +27,8 @@ impl OpPrecedence for Operand<'_> {
 }
 
 impl Expression for Operand<'_> {
-    fn write_query(&self, writer: &dyn SqlWriter, context: &mut Context, buff: &mut String) {
-        writer.write_expression_operand(context, buff, self)
+    fn write_query(&self, writer: &dyn SqlWriter, context: &mut Context, out: &mut String) {
+        writer.write_expression_operand(context, out, self)
     }
 }
 

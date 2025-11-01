@@ -78,8 +78,8 @@ impl SQLiteConnection {
     ) -> impl Stream<Item = Result<QueryResult>> {
         try_stream! {
             let mut len = sql.trim_end().len();
-            let buff = sql.into_bytes();
-            let mut it = CBox::new(buff.as_ptr() as *const c_char, |_| {});
+            let bytes = sql.into_bytes();
+            let mut it = CBox::new(bytes.as_ptr() as *const c_char, |_| {});
             loop {
                 let connection = CBox::new(*self.connection, |_| {});
                 let sql = CBox::new(*it, |_| {});

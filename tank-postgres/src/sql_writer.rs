@@ -9,43 +9,43 @@ impl SqlWriter for PostgresSqlWriter {
         self
     }
 
-    fn write_column_type(&self, context: &mut Context, buff: &mut String, value: &Value) {
+    fn write_column_type(&self, context: &mut Context, out: &mut String, value: &Value) {
         match value {
-            Value::Boolean(..) => buff.push_str("BOOLEAN"),
-            Value::Int8(..) => buff.push_str("SMALLINT"),
-            Value::Int16(..) => buff.push_str("SMALLINT"),
-            Value::Int32(..) => buff.push_str("INTEGER"),
-            Value::Int64(..) => buff.push_str("BIGINT"),
-            Value::Int128(..) => buff.push_str("NUMERIC(38)"),
-            Value::UInt8(..) => buff.push_str("SMALLINT"),
-            Value::UInt16(..) => buff.push_str("INTEGER"),
-            Value::UInt32(..) => buff.push_str("BIGINT"),
-            Value::UInt64(..) => buff.push_str("NUMERIC(19)"),
-            Value::UInt128(..) => buff.push_str("NUMERIC(38)"),
-            Value::Float32(..) => buff.push_str("FLOAT4"),
-            Value::Float64(..) => buff.push_str("FLOAT8"),
+            Value::Boolean(..) => out.push_str("BOOLEAN"),
+            Value::Int8(..) => out.push_str("SMALLINT"),
+            Value::Int16(..) => out.push_str("SMALLINT"),
+            Value::Int32(..) => out.push_str("INTEGER"),
+            Value::Int64(..) => out.push_str("BIGINT"),
+            Value::Int128(..) => out.push_str("NUMERIC(38)"),
+            Value::UInt8(..) => out.push_str("SMALLINT"),
+            Value::UInt16(..) => out.push_str("INTEGER"),
+            Value::UInt32(..) => out.push_str("BIGINT"),
+            Value::UInt64(..) => out.push_str("NUMERIC(19)"),
+            Value::UInt128(..) => out.push_str("NUMERIC(38)"),
+            Value::Float32(..) => out.push_str("FLOAT4"),
+            Value::Float64(..) => out.push_str("FLOAT8"),
             Value::Decimal(.., precision, scale) => {
-                buff.push_str("NUMERIC");
+                out.push_str("NUMERIC");
                 if (precision, scale) != (&0, &0) {
-                    let _ = write!(buff, "({},{})", precision, scale);
+                    let _ = write!(out, "({},{})", precision, scale);
                 }
             }
-            Value::Char(..) => buff.push_str("CHAR(1)"),
-            Value::Varchar(..) => buff.push_str("TEXT"),
-            Value::Blob(..) => buff.push_str("BYTEA"),
-            Value::Date(..) => buff.push_str("DATE"),
-            Value::Time(..) => buff.push_str("TIME"),
-            Value::Timestamp(..) => buff.push_str("TIMESTAMP"),
-            Value::TimestampWithTimezone(..) => buff.push_str("TIMESTAMP WITH TIME ZONE"),
-            Value::Interval(..) => buff.push_str("INTERVAL"),
-            Value::Uuid(..) => buff.push_str("UUID"),
+            Value::Char(..) => out.push_str("CHAR(1)"),
+            Value::Varchar(..) => out.push_str("TEXT"),
+            Value::Blob(..) => out.push_str("BYTEA"),
+            Value::Date(..) => out.push_str("DATE"),
+            Value::Time(..) => out.push_str("TIME"),
+            Value::Timestamp(..) => out.push_str("TIMESTAMP"),
+            Value::TimestampWithTimezone(..) => out.push_str("TIMESTAMP WITH TIME ZONE"),
+            Value::Interval(..) => out.push_str("INTERVAL"),
+            Value::Uuid(..) => out.push_str("UUID"),
             Value::Array(.., inner, size) => {
-                self.write_column_type(context, buff, inner);
-                let _ = write!(buff, "[{}]", size);
+                self.write_column_type(context, out, inner);
+                let _ = write!(out, "[{}]", size);
             }
             Value::List(.., inner) => {
-                self.write_column_type(context, buff, inner);
-                buff.push_str("[]");
+                self.write_column_type(context, out, inner);
+                out.push_str("[]");
             }
             _ => log::error!(
                 "Unexpected tank::Value, variant {:?} is not supported",
@@ -54,18 +54,18 @@ impl SqlWriter for PostgresSqlWriter {
         };
     }
 
-    fn write_value_blob(&self, _context: &mut Context, buff: &mut String, value: &[u8]) {
-        buff.push_str("'\\x");
+    fn write_value_blob(&self, _context: &mut Context, out: &mut String, value: &[u8]) {
+        out.push_str("'\\x");
         for b in value {
-            let _ = write!(buff, "{:X}", b);
+            let _ = write!(out, "{:X}", b);
         }
-        buff.push('\'');
+        out.push('\'');
     }
 
     fn write_value_date(
         &self,
         _context: &mut Context,
-        buff: &mut String,
+    out: &mut String,
         value: &Date,
         timestamp: bool,
     ) {
@@ -81,7 +81,7 @@ impl SqlWriter for PostgresSqlWriter {
             (value.year(), "")
         };
         let _ = write!(
-            buff,
+            out,
             "{l}{:04}-{:02}-{:02}{suffix}{r}",
             year,
             value.month() as u8,
@@ -92,7 +92,7 @@ impl SqlWriter for PostgresSqlWriter {
     fn write_value_time(
         &self,
         _context: &mut Context,
-        buff: &mut String,
+    out: &mut String,
         value: &Time,
         timestamp: bool,
     ) {
@@ -108,7 +108,7 @@ impl SqlWriter for PostgresSqlWriter {
             ("'", "'::TIME")
         };
         let _ = write!(
-            buff,
+            out,
             "{l}{:02}:{:02}:{:02}.{:0width$}{r}",
             value.hour(),
             value.minute(),
@@ -120,44 +120,44 @@ impl SqlWriter for PostgresSqlWriter {
     fn write_value_timestamp(
         &self,
         context: &mut Context,
-        buff: &mut String,
+    out: &mut String,
         value: &PrimitiveDateTime,
     ) {
-        buff.push('\'');
-        self.write_value_date(context, buff, &value.date(), true);
-        buff.push('T');
-        self.write_value_time(context, buff, &value.time(), true);
+        out.push('\'');
+        self.write_value_date(context, out, &value.date(), true);
+        out.push('T');
+        self.write_value_time(context, out, &value.time(), true);
         if value.date().year() <= 0 {
-            buff.push_str(" BC");
+            out.push_str(" BC");
         }
-        buff.push_str("'::TIMESTAMP");
+        out.push_str("'::TIMESTAMP");
     }
 
     fn write_value_list<'a>(
         &self,
         context: &mut Context,
-        buff: &mut String,
+    out: &mut String,
         value: Either<&Box<[Value]>, &Vec<Value>>,
         ty: &Value,
     ) {
-        buff.push_str("ARRAY[");
+        out.push_str("ARRAY[");
         separated_by(
-            buff,
+            out,
             match value {
                 Either::Left(v) => v.iter(),
                 Either::Right(v) => v.iter(),
             },
-            |buff, v| {
-                self.write_value(context, buff, v);
+            |out, v| {
+                self.write_value(context, out, v);
             },
             ",",
         );
-        buff.push_str("]::");
-        self.write_column_type(context, buff, ty);
+        out.push_str("]::");
+        self.write_column_type(context, out, ty);
     }
 
-    fn write_expression_operand_question_mark(&self, context: &mut Context, buff: &mut String) {
+    fn write_expression_operand_question_mark(&self, context: &mut Context, out: &mut String) {
         context.counter += 1;
-        let _ = write!(buff, "${}", context.counter);
+        let _ = write!(out, "${}", context.counter);
     }
 }

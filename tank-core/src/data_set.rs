@@ -15,8 +15,8 @@ pub trait DataSet {
     fn qualified_columns() -> bool
     where
         Self: Sized;
-    /// Emit the textual representation into `buff` using the given writer.
-    fn write_query(&self, writer: &dyn SqlWriter, context: &mut Context, buff: &mut String);
+    /// Emit the textual representation into `out` using the given writer.
+    fn write_query(&self, writer: &dyn SqlWriter, context: &mut Context, out: &mut String);
     /// Execute a SELECT, streaming labeled rows.
     fn select<'s, Exec, Item, Cols, Expr>(
         &'s self,
@@ -70,7 +70,7 @@ impl DataSet for &dyn DataSet {
     {
         unreachable!("Cannot call static qualified_columns on a dyn object directly");
     }
-    fn write_query(&self, writer: &dyn SqlWriter, context: &mut Context, buff: &mut String) {
-        (*self).write_query(writer, context, buff)
+    fn write_query(&self, writer: &dyn SqlWriter, context: &mut Context, out: &mut String) {
+        (*self).write_query(writer, context, out)
     }
 }

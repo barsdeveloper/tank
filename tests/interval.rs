@@ -15,9 +15,9 @@ mod tests {
     fn sql() {
         macro_rules! test_interval {
             ($interval:expr, $expected:literal) => {{
-                let mut buff = String::new();
-                WRITER.write_value(&mut Default::default(), &mut buff, &$interval.into());
-                assert_eq!(buff, $expected);
+                let mut out = String::new();
+                WRITER.write_value(&mut Default::default(), &mut out, &$interval.into());
+                assert_eq!(out, $expected);
             }};
         }
 

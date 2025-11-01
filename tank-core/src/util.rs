@@ -94,11 +94,11 @@ pub fn consume_while<'s>(input: &mut &'s str, predicate: impl FnMut(&char) -> bo
 
 #[macro_export]
 macro_rules! possibly_parenthesized {
-    ($buff:ident, $cond:expr, $v:expr) => {
+    ($out:ident, $cond:expr, $v:expr) => {
         if $cond {
-            $buff.push('(');
+            $out.push('(');
             $v;
-            $buff.push(')');
+            $out.push(')');
         } else {
             $v;
         }

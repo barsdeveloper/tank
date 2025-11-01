@@ -45,8 +45,8 @@ impl DataSet for TableRef {
     {
         false
     }
-    fn write_query(&self, writer: &dyn SqlWriter, context: &mut Context, buff: &mut String) {
-        writer.write_table_ref(context, buff, self)
+    fn write_query(&self, writer: &dyn SqlWriter, context: &mut Context, out: &mut String) {
+        writer.write_table_ref(context, out, self)
     }
 }
 
@@ -57,8 +57,8 @@ impl DataSet for &TableRef {
     {
         false
     }
-    fn write_query(&self, writer: &dyn SqlWriter, context: &mut Context, buff: &mut String) {
-        (*writer).write_table_ref(context, buff, self)
+    fn write_query(&self, writer: &dyn SqlWriter, context: &mut Context, out: &mut String) {
+        (*writer).write_table_ref(context, out, self)
     }
 }
 
@@ -88,8 +88,8 @@ impl DataSet for DeclareTableRef {
     {
         false
     }
-    fn write_query(&self, writer: &dyn SqlWriter, context: &mut Context, buff: &mut String) {
-        writer.write_table_ref(context, buff, &self.0)
+    fn write_query(&self, writer: &dyn SqlWriter, context: &mut Context, out: &mut String) {
+        writer.write_table_ref(context, out, &self.0)
     }
 }
 

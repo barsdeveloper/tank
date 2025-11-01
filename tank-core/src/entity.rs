@@ -245,8 +245,8 @@ impl<E: Entity> DataSet for E {
         false
     }
 
-    /// Writes the table reference into the query buffer.
-    fn write_query(&self, writer: &dyn SqlWriter, context: &mut Context, buff: &mut String) {
-        Self::table().write_query(writer, context, buff);
+    /// Writes the table reference into the query string.
+    fn write_query(&self, writer: &dyn SqlWriter, context: &mut Context, out: &mut String) {
+        Self::table().write_query(writer, context, out);
     }
 }
