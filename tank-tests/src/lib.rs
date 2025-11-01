@@ -3,7 +3,7 @@ mod arrays1;
 mod arrays2;
 mod books;
 mod complex;
-mod documentation;
+mod operations;
 mod full1;
 mod insane;
 mod interval;
@@ -18,7 +18,7 @@ mod user;
 use crate::{
     books::books,
     complex::complex,
-    documentation::documentation,
+    operations::operations,
     insane::insane,
     limits::limits,
     multiple::multiple,
@@ -72,7 +72,7 @@ pub async fn execute_tests<C: Connection>(mut connection: C) {
     #[cfg(not(feature = "disable-arrays"))]
     arrays2(&mut connection).await;
     drop(readme(&mut connection).await);
-    documentation(&mut connection).await;
+    operations(&mut connection).await;
 }
 
 #[macro_export]
