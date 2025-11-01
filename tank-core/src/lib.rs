@@ -141,3 +141,5 @@ pub use ::futures::sink;
 pub type Result<T> = anyhow::Result<T>;
 /// Crate-wide error alias using `anyhow`.
 pub type Error = anyhow::Error;
+
+pub use ::indoc;

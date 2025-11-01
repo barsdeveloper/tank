@@ -47,7 +47,7 @@ impl DuckDBConnection {
         &**DATABASE_CACHE
     }
 
-    pub(crate) fn run<F>(execute: F, tx: Sender<Result<QueryResult>>)
+    pub(crate) fn do_run<F>(execute: F, tx: Sender<Result<QueryResult>>)
     where
         F: FnOnce(*mut duckdb_result) -> u32,
     {
@@ -84,7 +84,7 @@ impl DuckDBConnection {
         }
     }
 
-    pub(crate) fn run_unprepared(
+    pub(crate) fn do_run_unprepared(
         connection: duckdb_connection,
         sql: CString,
         tx: Sender<Result<QueryResult>>,
@@ -117,14 +117,14 @@ impl DuckDBConnection {
                     );
                     return;
                 }
-                Self::run_prepared(statement.into(), tx.clone());
+                Self::do_run_prepared(statement.into(), tx.clone());
             }
         }
     }
 
-    pub(crate) fn run_prepared(prepared: DuckDBPrepared, tx: Sender<Result<QueryResult>>) {
+    pub(crate) fn do_run_prepared(prepared: DuckDBPrepared, tx: Sender<Result<QueryResult>>) {
         let tx2 = tx.clone();
-        Self::run(
+        Self::do_run(
             |result| unsafe {
                 let rc = duckdb_execute_prepared_streaming(*prepared.statement, result);
                 if rc != duckdb_state_DuckDBSuccess {
@@ -268,9 +268,9 @@ impl Executor for DuckDBConnection {
         spawn_blocking(move || match query {
             Query::Raw(query) => {
                 let query = unsafe { CString::from_vec_unchecked(query.into_bytes()) };
-                Self::run_unprepared(connection.load(Ordering::Relaxed), query, tx)
+                Self::do_run_unprepared(connection.load(Ordering::Relaxed), query, tx)
             }
-            Query::Prepared(query) => Self::run_prepared(query, tx),
+            Query::Prepared(query) => Self::do_run_prepared(query, tx),
         });
         stream
     }

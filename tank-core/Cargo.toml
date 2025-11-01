@@ -15,6 +15,7 @@ atoi = "2.0.0"
 fast-float = "0.2.0"
 futures.workspace = true
 hex = "0.4.3"
+indoc.workspace = true
 itoa = "1.0.15"
 log.workspace = true
 proc-macro2.workspace = true

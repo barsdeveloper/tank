@@ -2446,6 +2446,7 @@ dependencies = [
  "fast-float",
  "futures",
  "hex",
+ "indoc",
  "itoa",
  "log",
  "proc-macro2",
