@@ -4,6 +4,7 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
   title: "Tank",
   description: "Table Abstraction and Navigation Kit",
+  base: "/tank/",
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
     search: {
