@@ -8,19 +8,20 @@ Welcome to the Tank field manual. This is the quick-and-mean guide for developer
 - **Simple workflow** - every query is visible on your tactical map.
 - **Extensible driver system** - swap databases like changing magazines mid-battle.
 - **SQL and NoSQL support** - one Tank, all terrains.
-- **Transactional strikes** - commit on success or rollback the mission if the plan goes sideways.
+- **Transactional strikes** - commit on success or rollback and retreat.
 - **Rich type arsenal** with automatic conversions between Rust and database types.
 - **Optional appender API** for high caliber bulk inserts.
 
 ## Equipment
 - [**tank**](https://crates.io/crates/tank): The command vehicle, rallying the core arsenal and procedural macro firepower for seamless battlefield operations.
-- [**tank-duckdb**](https://crates.io/crates/tank-duckdb): DuckDB driver.
-- [**tank-sqlite**](https://crates.io/crates/tank-sqlite): SQLite driver.
-- [**tank-postgres**](https://crates.io/crates/tank-postgres): Postgres driver.
-- [**tank-mysql**](https://crates.io/crates/tank-mysql): MySQL driver.
 - [**tank-core**](https://crates.io/crates/tank-core): All the heavy machinery that makes the Tank move.
 - [**tank-macros**](https://crates.io/crates/tank-macros): Because Rust requires procedural macros to live in a separate silo, this crate houses the derive magic.
 - [**tank-tests**](https://crates.io/crates/tank-tests): The proving ground. Shared integration tests used by every driver to ensure that when the shooting starts, nothing jams.
+###### Drivers
+- [**tank-duckdb**](https://crates.io/crates/tank-duckdb): DuckDB.
+- [**tank-sqlite**](https://crates.io/crates/tank-sqlite): SQLite.
+- [**tank-postgres**](https://crates.io/crates/tank-postgres): Postgres.
+- [**tank-mysql**](https://crates.io/crates/tank-mysql): MySQL.
 
 ## Why Tank?
 Tank is a thin, battle-ready layer over your database workflow.

@@ -24,7 +24,7 @@ https://crates.io/crates/tank
 - Simple workflow - every query is visible on your tactical map.
 - Extensible driver system - swap databases like changing magazines mid-battle.
 - SQL and NoSQL support: one Tank, all terrains.
-- Transactional strikes: commit on success or rollback the mission if the plan goes sideways.
+- Transactional strikes: commit on success or rollback and retreat.
 - Rich type arsenal with automatic conversions.
 - Optional appender API for high caliber bulk inserts.
 
@@ -66,11 +66,11 @@ pub struct Tank {
 
 4) Fire for effect
 ```rust
-use tank::Driver;
+use std::{borrow::Cow, collections::HashSet, sync::LazyLock};
+use tank::{Entity, Executor, Result, expr, stream::TryStreamExt};
 use tank_duckdb::DuckDBDriver;
 
 async fn data() -> Result<()> {
-
     let driver = DuckDBDriver::new();
     let connection = driver
         .connect("duckdb://../target/debug/tests.duckdb?mode=rw".into())

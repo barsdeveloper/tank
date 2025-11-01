@@ -1,5 +1,6 @@
 # Entity Definition
 ###### *Field Manual Section 5* - Unit Schematics
+
 Lock and load, soldier! In Tank's war machine, the "Entity" is your frontline fighter. A Rust struct rigged with the `#[derive(Entity)]` macro that maps straight to a database table and gives you convenient functions to access and modify the data. Tank automatically handles the heavy lifting of converting Rust values to database columns and back.
 
 Before you can deploy entities, you must have an operational connection (see [*Field Manual Section 3 - Supply Lines*](3-connection.md#connect)). All entity operations execute through either a live connection or a locked transaction; without a supply line, your units can't move.
@@ -41,4 +42,4 @@ Tank's `#[tank(...)]` attributes are your weapon mods, fine-tuning structs for p
 - <Badge type="tip" text="field" /> `ignore`: Excludes field from table and from row materialization.
 - <Badge type="tip" text="field" /> `type = "RAW_DB_TYPE"`: Override column type in DDL (driver-portability risk).
 
-*Mission parameters confirmed. Return to staging or proceed to joins. Tank out.*
+*All units accounted for. Stand by.*

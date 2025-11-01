@@ -12,7 +12,7 @@ hero:
   actions:
     - theme: brand
       text: Getting started
-      link: /getting-started
+      link: /2-getting-started
 
 features:
   - title: Async operations

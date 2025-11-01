@@ -57,4 +57,4 @@ Supported wrappers:
 - `Arc<T>`
 - `Rc<T>`
 
-*Mission complete. With these mappings in your arsenal, your entities will never misfire on deployment.*
+*With this arsenal, your entities hit every target, every time.*

@@ -12,6 +12,7 @@ use std::{
     ffi::{CStr, CString, c_char, c_void},
     fmt::{self, Debug, Formatter},
     mem, ptr,
+    str::FromStr,
     sync::{
         Arc, LazyLock,
         atomic::{AtomicPtr, Ordering},
@@ -478,7 +479,7 @@ impl Connection for DuckDBConnection {
             .ok_or(Error::msg(format!("Invalid database url `{}`", url,)))?;
         let params = parts.next().unwrap_or_default();
         let context = || format!("Invalid database url: `{}`", url);
-        let path = decode(path)
+        let mut path = decode(path)
             .with_context(context)
             .and_then(|v| CString::new(&*v).with_context(context))?;
         let mut config: CBox<duckdb_config> = CBox::new(ptr::null_mut(), |mut p| unsafe {
@@ -496,20 +497,26 @@ impl Connection for DuckDBConnection {
         for (key, value) in form_urlencoded::parse(params.as_bytes()) {
             let rc = unsafe {
                 match &*key {
-                    "mode" => duckdb_set_config(
-                        *config,
-                        c"access_mode".as_ptr(),
-                        match &*value {
-                            "ro" => c"READ_ONLY",
-                            "rw" => c"READ_WRITE",
-                            _ => {
-                                let error = Error::msg("Unknown value {value:?} for `mode`, expected one of: `ro`, `rw`");
-                                log::warn!("{:#}", error);
-                                return Err(error);
-                            }
+                    "mode" => {
+                        if value == "memory" {
+                            path = CString::from_str(":memory:")?;
+                            continue;
                         }
-                        .as_ptr(),
-                    ),
+                        duckdb_set_config(
+                            *config,
+                            c"access_mode".as_ptr(),
+                            match &*value {
+                                "ro" => c"READ_ONLY",
+                                "rw" | "rwc" => c"READ_WRITE",
+                                _ => {
+                                    let error = Error::msg("Unknown value {value:?} for `mode`, expected one of: `ro`, `rw`, `rwc`, `memory`");
+                                    log::warn!("{:#}", error);
+                                    return Err(error);
+                                }
+                            }
+                            .as_ptr(),
+                        )
+                    }
                     _ => duckdb_set_config(
                         *config,
                         as_c_string(&*key).as_ptr(),

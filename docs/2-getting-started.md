@@ -1,7 +1,7 @@
 # Getting Started
 ###### *Field Manual Section 2* - Deployment Orders
 
-What follows is just a visit to the shooting range, not the full campaign. This minimal example shows Tank in action: connecting, defining a unit, and executing basic maneuvers. Just enough to get mud on your boots and feel the recoil. For full tactical exercises including transactions, complex queries, and multi-driver deployments, proceed to the [*Field Manual Section 5 - Unit Schematics*](5-entity-definition.md).
+What follows is just a visit to the shooting range, not the full campaign. This minimal example shows Tank in action: connecting, defining a unit, and executing basic maneuvers. Just enough to get mud on your boots and feel the recoil. For full tactical exercises including transactions, complex queries, and multi-driver deployments, proceed to the [*Field Manual Section 3* - Supply Lines](3-connection.md).
 1) Arm your cargo
 ```sh
 cargo add tank
@@ -9,7 +9,7 @@ cargo add tank
 
 2) Choose your battlefield
 
-Check the [equipment](1-introduction.md#equipment) to see what driver is available.
+Check the [drivers list](1-introduction.md#drivers) and select one that matches your terrain.
 ```sh
 cargo add tank-duckdb
 ```
@@ -41,7 +41,6 @@ use tank::Driver;
 use tank_duckdb::DuckDBDriver;
 
 async fn data() -> Result<()> {
-
     let driver = DuckDBDriver::new();
     let connection = driver
         .connect("duckdb://../target/debug/tests.duckdb?mode=rw".into())
@@ -59,8 +58,7 @@ async fn data() -> Result<()> {
     /*
      * DROP TABLE IF EXISTS "army"."tank";
      */
-    Tank::drop_table(connection, true, false)
-        .await?;
+    Tank::drop_table(connection, true, false).await?;
 
     /*
      * CREATE SCHEMA IF NOT EXISTS "army";
@@ -72,8 +70,7 @@ async fn data() -> Result<()> {
      *     "is_operational" BOOLEAN NOT NULL,
      *     "units_produced" UINTEGER);
      */
-    Tank::create_table(connection, true, true)
-        .await?;
+    Tank::create_table(connection, true, true).await?;
 
     /*
      * INSERT INTO "army"."tank" ("name", "country", "caliber", "speed", "is_operational", "units_produced") VALUES
