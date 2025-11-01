@@ -446,14 +446,15 @@ mod tests {
             f32::try_from_value(Decimal::from_f64(2.125).into()).unwrap(),
             2.125
         );
-        let pos_inf = f32::INFINITY;
-        let neg_inf = f32::NEG_INFINITY;
-        let v_pos_inf: Value = pos_inf.as_value();
-        let v_neg_inf: Value = neg_inf.as_value();
+        let v_pos_inf: Value = f32::INFINITY.as_value();
+        let v_neg_inf: Value = f32::NEG_INFINITY.as_value();
+        assert_ne!(v_pos_inf, v_neg_inf);
         assert_eq!(f32::try_from_value(v_pos_inf).unwrap(), f32::INFINITY);
         assert_eq!(f32::try_from_value(v_neg_inf).unwrap(), f32::NEG_INFINITY);
-        assert_ne!(v_pos_inf, v_neg_inf);
-        assert_eq!(f32::try_from_value((12.5_f64).as_value()).unwrap(), 12.5_f32);
+        assert_eq!(
+            f32::try_from_value((12.5_f64).as_value()).unwrap(),
+            12.5_f32
+        );
         let d = Decimal::from_f64(99.125).unwrap();
         assert_eq!(f32::try_from_value(d.as_value()).unwrap(), 99.125_f32);
         assert_eq!(f32::parse("3.14").unwrap(), 3.14_f32);
@@ -485,8 +486,14 @@ mod tests {
         );
         let pos_inf = f64::INFINITY;
         let neg_inf = f64::NEG_INFINITY;
-        assert_eq!(f64::try_from_value(pos_inf.as_value()).unwrap(), f64::INFINITY);
-        assert_eq!(f64::try_from_value(neg_inf.as_value()).unwrap(), f64::NEG_INFINITY);
+        assert_eq!(
+            f64::try_from_value(pos_inf.as_value()).unwrap(),
+            f64::INFINITY
+        );
+        assert_eq!(
+            f64::try_from_value(neg_inf.as_value()).unwrap(),
+            f64::NEG_INFINITY
+        );
         assert_ne!(pos_inf.as_value(), neg_inf.as_value());
         let d = Decimal::from_f32(7.0625).unwrap();
         assert_eq!(f64::try_from_value(d.as_value()).unwrap(), 7.0625_f64);
@@ -872,7 +879,8 @@ mod tests {
         );
         assert!(input.is_empty());
 
-        let mut input = "3 years 4 months 5 days 6 hours 7 minutes 8 seconds 9 microseconds 10 nanoseconds";
+        let mut input =
+            "3 years 4 months 5 days 6 hours 7 minutes 8 seconds 9 microseconds 10 nanoseconds";
         assert_eq!(
             Interval::extract(&mut input).unwrap(),
             Interval::from_years(3)
@@ -1246,7 +1254,11 @@ On Multiple Lines',
 
     #[test]
     fn value_shared_wrappers_arc_rc_cell_refcell() {
-        use std::{cell::{Cell, RefCell}, rc::Rc, sync::Arc};
+        use std::{
+            cell::{Cell, RefCell},
+            rc::Rc,
+            sync::Arc,
+        };
         let arc_v: Value = Arc::new(5_u8).as_value();
         assert_eq!(arc_v, Value::UInt8(Some(5)));
         let rc_v: Value = Rc::new(7_u16).as_value();
@@ -1261,13 +1273,14 @@ On Multiple Lines',
         assert_eq!(*rc_out, 2);
         let cell_out: Cell<i32> = Cell::try_from_value(Cell::new(3_i32).as_value()).unwrap();
         assert_eq!(cell_out.get(), 3);
-        let refcell_out: RefCell<i64> = RefCell::try_from_value(RefCell::new(4_i64).as_value()).unwrap();
+        let refcell_out: RefCell<i64> =
+            RefCell::try_from_value(RefCell::new(4_i64).as_value()).unwrap();
         assert_eq!(*refcell_out.borrow(), 4);
     }
 
     #[test]
     fn value_map_semantics() {
-        use std::collections::{HashMap, BTreeMap};
+        use std::collections::{BTreeMap, HashMap};
         let mut m1: HashMap<String, i32> = HashMap::new();
         m1.insert("a".into(), 1);
         let mut m2: HashMap<String, i32> = HashMap::new();
@@ -1290,17 +1303,26 @@ On Multiple Lines',
 
     #[test]
     fn value_struct_placeholder() {
-        let s = Value::Struct(Some(vec![("id".into(), 1_i32.as_value())]), vec![("id".into(), i32::as_empty_value())]);
+        let s = Value::Struct(
+            Some(vec![("id".into(), 1_i32.as_value())]),
+            vec![("id".into(), i32::as_empty_value())],
+        );
         let s_same = s.clone();
-        assert_ne!(s, s_same, "Struct equality currently not implemented; expected inequality");
-        let s_diff = Value::Struct(Some(vec![("id".into(), 2_i32.as_value())]), vec![("id".into(), i32::as_empty_value())]);
+        assert_ne!(
+            s, s_same,
+            "Struct equality currently not implemented; expected inequality"
+        );
+        let s_diff = Value::Struct(
+            Some(vec![("id".into(), 2_i32.as_value())]),
+            vec![("id".into(), i32::as_empty_value())],
+        );
         assert_ne!(s, s_diff);
     }
 
     #[test]
     fn value_array_curly_braces_parse() {
-        let parsed: [[bool; 2]; 2] = <[[bool; 2]; 2]>::parse("{{true,false},{false,true}}").unwrap();
+        let parsed: [[bool; 2]; 2] =
+            <[[bool; 2]; 2]>::parse("{{true,false},{false,true}}").unwrap();
         assert_eq!(parsed, [[true, false], [false, true]]);
     }
-}
 }

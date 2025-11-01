@@ -9,7 +9,9 @@ mod tests {
 
     struct Writer;
     impl SqlWriter for Writer {
-        fn as_dyn(&self) -> &dyn SqlWriter { self }
+        fn as_dyn(&self) -> &dyn SqlWriter {
+            self
+        }
     }
     const WRITER: Writer = Writer {};
 
@@ -35,7 +37,8 @@ mod tests {
                     "special_column" VARCHAR,
                     "second_column" DOUBLE NOT NULL,
                     "third_column" INTEGER PRIMARY KEY);
-                "#}.trim()
+                "#}
+                .trim()
             );
         }
         // DROP TABLE IF EXISTS
@@ -60,7 +63,8 @@ mod tests {
                     SELECT "special_column", "second_column", "third_column"
                     FROM "my_table"
                     WHERE "second_column" < 100 AND "special_column" = 'OK';
-                "#}.trim()
+                "#}
+                .trim()
             );
         }
         // INSERT single
@@ -125,7 +129,8 @@ mod tests {
                     "items" UUID[] NOT NULL,
                     "is_active" BOOLEAN NOT NULL,
                     "total_price" DECIMAL NOT NULL);
-                "#}.trim()
+                "#}
+                .trim()
             );
         }
         // DROP TABLE
@@ -151,7 +156,8 @@ mod tests {
                     FROM "cart"
                     WHERE "is_active" = true AND "total_price" > 100
                     LIMIT 1000;
-                "#}.trim()
+                "#}
+                .trim()
             );
         }
         // INSERT single

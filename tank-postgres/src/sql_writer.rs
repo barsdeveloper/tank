@@ -65,7 +65,7 @@ impl SqlWriter for PostgresSqlWriter {
     fn write_value_date(
         &self,
         _context: &mut Context,
-    out: &mut String,
+        out: &mut String,
         value: &Date,
         timestamp: bool,
     ) {
@@ -92,7 +92,7 @@ impl SqlWriter for PostgresSqlWriter {
     fn write_value_time(
         &self,
         _context: &mut Context,
-    out: &mut String,
+        out: &mut String,
         value: &Time,
         timestamp: bool,
     ) {
@@ -120,7 +120,7 @@ impl SqlWriter for PostgresSqlWriter {
     fn write_value_timestamp(
         &self,
         context: &mut Context,
-    out: &mut String,
+        out: &mut String,
         value: &PrimitiveDateTime,
     ) {
         out.push('\'');
@@ -136,7 +136,7 @@ impl SqlWriter for PostgresSqlWriter {
     fn write_value_list<'a>(
         &self,
         context: &mut Context,
-    out: &mut String,
+        out: &mut String,
         value: Either<&Box<[Value]>, &Vec<Value>>,
         ty: &Value,
     ) {

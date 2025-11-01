@@ -176,9 +176,9 @@ mod tests {
                 ..
             },
         ));
-    let mut out = String::new();
-    join.write_query(&WRITER, &mut Default::default(), &mut out);
-    assert_eq!(out, r#""my_data"."alpha" CROSS "bravo""#);
+        let mut out = String::new();
+        join.write_query(&WRITER, &mut Default::default(), &mut out);
+        assert_eq!(out, r#""my_data"."alpha" CROSS "bravo""#);
 
         let join = join!(Alpha NATURAL JOIN Bravo);
         assert!(matches!(
@@ -189,9 +189,9 @@ mod tests {
                 ..
             },
         ));
-    let mut out = String::new();
-    join.write_query(&WRITER, &mut Default::default(), &mut out);
-    assert_eq!(out, r#""my_data"."alpha" NATURAL JOIN "bravo""#);
+        let mut out = String::new();
+        join.write_query(&WRITER, &mut Default::default(), &mut out);
+        assert_eq!(out, r#""my_data"."alpha" NATURAL JOIN "bravo""#);
     }
 
     #[test]

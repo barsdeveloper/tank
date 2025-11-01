@@ -53,7 +53,7 @@ pub trait Entity {
     ///
     /// Each inner iterator represents one unique composite constraint.
     fn unique_defs()
-        -> impl ExactSizeIterator<Item = impl ExactSizeIterator<Item = &'static ColumnDef>>;
+    -> impl ExactSizeIterator<Item = impl ExactSizeIterator<Item = &'static ColumnDef>>;
 
     /// Returns a filtered mapping of column name to value, typically excluding
     /// auto-generated or default-only columns.

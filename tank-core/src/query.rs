@@ -1,8 +1,8 @@
 use crate::{
     Driver, Executor, Prepared, Result, Value,
     future::FutureExt,
-    truncate_long,
     stream::{Stream, StreamExt},
+    truncate_long,
 };
 use std::{
     fmt::{self, Display},

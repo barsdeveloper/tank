@@ -19,8 +19,9 @@ use std::{
 };
 use tank_core::{
     Connection, Driver, Entity, Error, ErrorContext, Executor, Query, QueryResult, Result,
-    RowLabeled, RowsAffected, Value, as_c_string, truncate_long, send_value,
+    RowLabeled, RowsAffected, Value, as_c_string, send_value,
     stream::{Stream, TryStreamExt},
+    truncate_long,
 };
 use tokio::task::spawn_blocking;
 use url::form_urlencoded;

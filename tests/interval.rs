@@ -11,7 +11,6 @@ mod tests {
     }
     const WRITER: Writer = Writer {};
 
-
     macro_rules! test_interval {
         ($interval:expr, $expected:literal) => {{
             let mut out = String::new();
@@ -121,10 +120,16 @@ mod tests {
         test_interval!(Interval::from_months(5), "INTERVAL '5 MONTHS'");
 
         test_interval!(Interval::from_days(-5), "INTERVAL '-5 DAYS'");
-        test_interval!(Interval::from_months(-12), "INTERVAL '-1 YEAR'");
+        test_interval!(Interval::from_months(-12), "INTERVAL '-1 YEARS'");
         test_interval!(Interval::from_months(-13), "INTERVAL '-13 MONTHS'");
-        test_interval!(Interval::from_years(1) - Interval::from_days(3), "INTERVAL '1 YEAR -3 DAYS'");
-        test_interval!(Interval::from_days(3) - Interval::from_months(1), "INTERVAL '-1 MONTH 3 DAYS'");
+        test_interval!(
+            Interval::from_years(1) - Interval::from_days(3),
+            "INTERVAL '1 YEAR -3 DAYS'"
+        );
+        test_interval!(
+            Interval::from_days(3) - Interval::from_months(1),
+            "INTERVAL '-1 MONTHS 3 DAYS'"
+        );
 
         test_interval!(
             Interval {

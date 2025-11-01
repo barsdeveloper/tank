@@ -31,7 +31,7 @@ impl SqlWriter for DuckDBSqlWriter {
     fn write_value_map(
         &self,
         context: &mut Context,
-    out: &mut String,
+        out: &mut String,
         value: &HashMap<Value, Value>,
     ) {
         out.push_str("MAP{");

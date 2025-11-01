@@ -18,8 +18,8 @@ use tank_core::{
     Connection, Driver, Error, ErrorContext, Executor, Query, QueryResult, Result, RowLabeled,
     RowsAffected,
     future::Either,
-    truncate_long,
     stream::{Stream, StreamExt, TryStreamExt},
+    truncate_long,
 };
 use tokio::task::spawn_blocking;
 

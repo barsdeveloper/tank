@@ -270,7 +270,7 @@ pub trait SqlWriter {
     fn write_value_date(
         &self,
         _context: &mut Context,
-    out: &mut String,
+        out: &mut String,
         value: &Date,
         timestamp: bool,
     ) {
@@ -288,7 +288,7 @@ pub trait SqlWriter {
     fn write_value_time(
         &self,
         _context: &mut Context,
-    out: &mut String,
+        out: &mut String,
         value: &Time,
         timestamp: bool,
     ) {
@@ -313,7 +313,7 @@ pub trait SqlWriter {
     fn write_value_timestamp(
         &self,
         context: &mut Context,
-    out: &mut String,
+        out: &mut String,
         value: &PrimitiveDateTime,
     ) {
         out.push('\'');
@@ -327,7 +327,7 @@ pub trait SqlWriter {
     fn write_value_timestamptz(
         &self,
         context: &mut Context,
-    out: &mut String,
+        out: &mut String,
         value: &OffsetDateTime,
     ) {
         out.push('\'');
@@ -412,7 +412,7 @@ pub trait SqlWriter {
     fn write_value_list<'a>(
         &self,
         context: &mut Context,
-    out: &mut String,
+        out: &mut String,
         value: Either<&Box<[Value]>, &Vec<Value>>,
         _ty: &Value,
     ) {
@@ -435,7 +435,7 @@ pub trait SqlWriter {
     fn write_value_map(
         &self,
         context: &mut Context,
-    out: &mut String,
+        out: &mut String,
         value: &HashMap<Value, Value>,
     ) {
         out.push('{');
@@ -456,7 +456,7 @@ pub trait SqlWriter {
     fn write_value_struct(
         &self,
         context: &mut Context,
-    out: &mut String,
+        out: &mut String,
         value: &Vec<(String, Value)>,
     ) {
         out.push('{');
@@ -566,7 +566,7 @@ pub trait SqlWriter {
     fn write_expression_unary_op(
         &self,
         context: &mut Context,
-    out: &mut String,
+        out: &mut String,
         value: &UnaryOp<&dyn Expression>,
     ) {
         match value.op {
@@ -584,7 +584,7 @@ pub trait SqlWriter {
     fn write_expression_binary_op(
         &self,
         context: &mut Context,
-    out: &mut String,
+        out: &mut String,
         value: &BinaryOp<&dyn Expression, &dyn Expression>,
     ) {
         let (prefix, infix, suffix, lhs_parenthesized, rhs_parenthesized) = match value.op {
@@ -646,7 +646,7 @@ pub trait SqlWriter {
     fn write_expression_ordered(
         &self,
         context: &mut Context,
-    out: &mut String,
+        out: &mut String,
         value: &Ordered<&dyn Expression>,
     ) {
         value.expression.write_query(self.as_dyn(), context, out);
@@ -679,7 +679,7 @@ pub trait SqlWriter {
     fn write_join(
         &self,
         context: &mut Context,
-    out: &mut String,
+        out: &mut String,
         join: &Join<&dyn DataSet, &dyn DataSet, &dyn Expression>,
     ) {
         let mut context = context.switch_fragment(Fragment::SqlJoin);
