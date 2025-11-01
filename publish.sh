@@ -1,3 +1,4 @@
+# Remember to increase the version first
 cd tank-core/ &&
 cargo publish &&
 cd ../ &&
