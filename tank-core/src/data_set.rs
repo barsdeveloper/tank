@@ -4,12 +4,20 @@ use crate::{
     writer::{Context, SqlWriter},
 };
 
+/// A selectable data source (table, join tree).
+///
+/// Implementors know how to render themselves inside a FROM clause and whether
+/// column references should be qualified with schema/table.
+///
+/// Provided helpers construct SELECT statements for convenience.
 pub trait DataSet {
-    /// Must qualify the column names with the table name
+    /// Whether columns should be qualified (`schema.table.column`).
     fn qualified_columns() -> bool
     where
         Self: Sized;
+    /// Emit the textual representation into `buff` using the given writer.
     fn write_query(&self, writer: &dyn SqlWriter, context: &mut Context, buff: &mut String);
+    /// Execute a SELECT, streaming labeled rows.
     fn select<'s, Exec, Item, Cols, Expr>(
         &'s self,
         executor: &'s mut Exec,
@@ -31,6 +39,7 @@ pub trait DataSet {
             .write_select(&mut query, columns, self, condition, limit);
         executor.fetch(query.into())
     }
+    /// Prepare (but do not yet run) a SQL statement.
     fn prepare<Item, Cols, Exec, Expr>(
         &self,
         columns: Cols,

@@ -6,10 +6,14 @@ use proc_macro2::TokenStream;
 use quote::{ToTokens, TokenStreamExt, quote};
 use std::borrow::Cow;
 
+/// Reference to a table (schema-qualified + optional alias).
 #[derive(Default, Clone, PartialEq, Eq, Debug)]
 pub struct TableRef {
+    /// Table name.
     pub name: &'static str,
+    /// Schema name.
     pub schema: &'static str,
+    /// Optional alias used when rendering.
     pub alias: Cow<'static, str>,
 }
 
@@ -73,6 +77,7 @@ impl ToTokens for TableRef {
     }
 }
 
+/// Wrapper used when declaring table references in generated macros.
 #[derive(Default, Clone, PartialEq, Eq, Debug)]
 pub struct DeclareTableRef(pub TableRef);
 

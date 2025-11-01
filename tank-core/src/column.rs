@@ -2,15 +2,22 @@ use crate::{Expression, OpPrecedence, TableRef, Value, writer::Context};
 use proc_macro2::TokenStream;
 use quote::{ToTokens, TokenStreamExt, quote};
 
+/// Helper trait for types that expose an underlying column definition and reference.
 pub trait ColumnTrait {
+    /// Logical definition (column metadata).
     fn column_def(&self) -> &ColumnDef;
+    /// Reference used in expressions.
     fn column_ref(&self) -> &ColumnRef;
 }
 
+/// Fully-ì-qualified reference to a table column.
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ColumnRef {
+    /// Column name.
     pub name: &'static str,
+    /// Table name.
     pub table: &'static str,
+    /// Schema name (may be empty).
     pub schema: &'static str,
 }
 
@@ -24,10 +31,14 @@ impl ColumnRef {
     }
 }
 
+/// Indicates how (or if) a column participates in the primary key.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum PrimaryKeyType {
+    /// Single-column primary key.
     PrimaryKey,
+    /// Member of a composite primary key.
     PartOfPrimaryKey,
+    /// Not part of the primary key.
     #[default]
     None,
 }
@@ -43,13 +54,19 @@ impl ToTokens for PrimaryKeyType {
     }
 }
 
+/// Referential action for foreign key updates / deletes.
 #[derive(Default, Debug, PartialEq, Eq)]
 pub enum Action {
+    /// No special action.
     #[default]
     NoAction,
+    /// Reject the operation.
     Restrict,
+    /// Propagate delete/update.
     Cascade,
+    /// Set referencing columns to NULL.
     SetNull,
+    /// Apply column DEFAULT.
     SetDefault,
 }
 
@@ -65,19 +82,32 @@ impl ToTokens for Action {
     }
 }
 
+/// Declarative specification of a table column.
 #[derive(Default, Debug)]
 pub struct ColumnDef {
+    /// Column identity.
     pub column_ref: ColumnRef,
+    /// Explicit SQL type override (empty => infer from `value`).
     pub column_type: &'static str,
+    /// `Value` describing column type and shape (arrays/maps/decimal precision).
     pub value: Value,
+    /// Nullability flag.
     pub nullable: bool,
+    /// Default value (expression rendered by `SqlWriter`).
     pub default: Option<Box<dyn Expression>>,
+    /// Primary key participation.
     pub primary_key: PrimaryKeyType,
+    /// Unique constraint (single column only, composite handled in the `TableDef`).
     pub unique: bool,
+    /// Foreign key target column.
     pub references: Option<ColumnRef>,
+    /// Action for deletes.
     pub on_delete: Option<Action>,
+    /// Action for updates.
     pub on_update: Option<Action>,
+    /// Passive columns are skipped when generating `INSERT` value lists (DEFAULT used).
     pub passive: bool,
+    /// Optional human-readable comment.
     pub comment: &'static str,
 }
 

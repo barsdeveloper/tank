@@ -4,6 +4,7 @@ use std::{borrow::Cow, cmp::min, ffi::CString};
 use syn::Path;
 
 #[derive(Clone)]
+/// Polymorphic iterator adapter returning items from either variant.
 pub enum EitherIterator<A, B>
 where
     A: Iterator,
@@ -26,6 +27,7 @@ where
     }
 }
 
+/// Quote a `Cow<T>` preserving borrowed vs owned status for generated code.
 pub fn quote_cow<T: ToOwned + ToTokens + ?Sized>(value: &Cow<T>) -> TokenStream
 where
     <T as ToOwned>::Owned: ToTokens,
@@ -36,6 +38,7 @@ where
     }
 }
 
+/// Quote an `Option<T>` into tokens.
 pub fn quote_option<T: ToTokens>(value: &Option<T>) -> TokenStream {
     match value {
         None => quote! { None },
@@ -43,6 +46,7 @@ pub fn quote_option<T: ToTokens>(value: &Option<T>) -> TokenStream {
     }
 }
 
+/// Determine if the trailing segments of a `syn::Path` match the expected identifiers.
 pub fn matches_path(path: &Path, expect: &[&str]) -> bool {
     let len = min(path.segments.len(), expect.len());
     path.segments
@@ -53,6 +57,7 @@ pub fn matches_path(path: &Path, expect: &[&str]) -> bool {
         .eq(expect.iter().rev().take(len))
 }
 
+/// Write an iterator of items separated by a delimiter into a string.
 pub fn separated_by<T, F>(
     out: &mut String,
     values: impl IntoIterator<Item = T>,
@@ -71,10 +76,12 @@ pub fn separated_by<T, F>(
     }
 }
 
+/// Convenience wrapper converting into a `CString`, panicking on interior NUL.
 pub fn as_c_string<S: Into<Vec<u8>>>(str: S) -> CString {
     CString::new(str.into()).expect("Expected a valid C string")
 }
 
+/// Consume a prefix of `input` while the predicate returns true, returning that slice.
 pub fn consume_while<'s>(input: &mut &'s str, predicate: impl FnMut(&char) -> bool) -> &'s str {
     let len = input.chars().take_while(predicate).count();
     if len == 0 {
@@ -119,9 +126,10 @@ macro_rules! send_value {
     }};
 }
 
-/// Accumulates the tokens until a parser matches.
+/// Accumulates tokens until one of the supplied parsers succeeds.
 ///
-/// It returns the accumulated `TokenStream` as well as the result of the match (if any).
+/// Returns `(accumulated_tokens, (parser1_result, parser2_result, ...))` where each
+/// parser result is `Some(parsed)` for the parser that matched, or `None` otherwise.
 #[macro_export]
 macro_rules! take_until {
     ($original:expr, $($parser:expr),+ $(,)?) => {{

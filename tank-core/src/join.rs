@@ -9,16 +9,23 @@ use syn::{
     parse::{Parse, ParseStream},
 };
 
+/// Binary join of two datasets with optional ON predicate.
 #[derive(Debug)]
 pub struct Join<L: DataSet, R: DataSet, E: Expression> {
+    /// Join kind.
     pub join: JoinType,
+    /// Left-hand data set.
     pub lhs: L,
+    /// Right-hand data set.
     pub rhs: R,
+    /// Optional ON expression.
     pub on: Option<E>,
 }
 
+/// Supported SQL join variants.
 #[derive(Default, Clone, Copy, Debug)]
 pub enum JoinType {
+    /// Plain `JOIN` (backend default semantics, often INNER).
     #[default]
     Default,
     Inner,

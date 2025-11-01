@@ -10,19 +10,27 @@ use std::{
     sync::Arc,
 };
 
+/// A query ready to be executed by an [`Executor`].
+///
+/// Represents either raw SQL (`Raw`) or a backend prepared statement
+/// (`Prepared`) carrying driver-specific caching / parsing state.
 #[derive(Clone)]
 pub enum Query<D: Driver> {
+    /// Unprepared SQL text.
     Raw(String),
+    /// Driver prepared handle.
     Prepared(D::Prepared),
 }
 
 impl<D: Driver> Query<D> {
+    /// Execute the query streaming heterogeneous [`QueryResult`] items.
     pub fn run<'e, Exec: Executor<Driver = D>>(
         self,
         executor: &mut Exec,
     ) -> impl Stream<Item = Result<QueryResult>> + Send {
         executor.run(self)
     }
+    /// Fetch at most one labeled row.
     pub fn fetch_one<Exec: Executor<Driver = D>>(
         self,
         executor: &mut Exec,
@@ -30,6 +38,7 @@ impl<D: Driver> Query<D> {
         let stream = executor.fetch(self);
         async move { pin!(stream).into_future().map(|(v, _)| v).await.transpose() }
     }
+    /// Stream all labeled rows.
     pub fn fetch_many<Exec: Executor<Driver = D>>(
         self,
         executor: &mut Exec,
@@ -69,18 +78,26 @@ impl<D: Driver> Display for Query<D> {
     }
 }
 
+/// Metadata about modify operations (INSERT/UPDATE/DELETE).
 #[derive(Default, Debug, Clone, Copy)]
 pub struct RowsAffected {
+    /// Total number of rows impacted.
     pub rows_affected: u64,
+    /// Backend-specific last inserted / affected identifier when available.
     pub last_affected_id: Option<i64>,
 }
 
+/// Shared reference-counted column name list.
 pub type RowNames = Arc<[String]>;
+/// Owned row value slice matching `RowNames` length.
 pub type Row = Box<[Value]>;
 
+/// A result row with its corresponding column labels.
 #[derive(Debug, Clone)]
 pub struct RowLabeled {
+    /// Column names.
     pub labels: RowNames,
+    /// Data values (aligned by index with `labels`).
     pub values: Row,
 }
 
@@ -105,9 +122,12 @@ impl RowLabeled {
     }
 }
 
+/// Heterogeneous items emitted by `Executor::run` combining rows and modify results.
 #[derive(Debug)]
 pub enum QueryResult {
+    /// A labeled row.
     Row(RowLabeled),
+    /// A modify effect aggregation.
     Affected(RowsAffected),
 }
 

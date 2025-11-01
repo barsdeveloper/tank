@@ -27,9 +27,11 @@ macro_rules! write_float {
     }};
 }
 
+/// Dialect printer converting semantic constructs into concrete SQL strings.
 pub trait SqlWriter {
     fn as_dyn(&self) -> &dyn SqlWriter;
 
+    /// Whether the current fragment context allows alias declaration.
     fn alias_declaration(&self, context: &mut Context) -> bool {
         match context.fragment {
             Fragment::SqlSelectFrom | Fragment::SqlJoin => true,
@@ -37,6 +39,7 @@ pub trait SqlWriter {
         }
     }
 
+    /// Escape occurrences of `search` char with `replace` while copying into buffer.
     fn write_escaped(
         &self,
         _context: &mut Context,
@@ -56,12 +59,14 @@ pub trait SqlWriter {
         buff.push_str(&value[position..]);
     }
 
+    /// Quote identifiers ("name") doubling inner quotes.
     fn write_identifier_quoted(&self, context: &mut Context, buff: &mut String, value: &str) {
         buff.push('"');
         self.write_escaped(context, buff, value, '"', "\"\"");
         buff.push('"');
     }
 
+    /// Render a table reference with optional alias.
     fn write_table_ref(&self, context: &mut Context, buff: &mut String, value: &TableRef) {
         if self.alias_declaration(context) || value.alias.is_empty() {
             if !value.schema.is_empty() {
@@ -75,6 +80,7 @@ pub trait SqlWriter {
         }
     }
 
+    /// Render a column reference optionally qualifying with schema/table.
     fn write_column_ref(&self, context: &mut Context, buff: &mut String, value: &ColumnRef) {
         if context.qualify_columns && !value.table.is_empty() {
             if !value.schema.is_empty() {
@@ -87,6 +93,7 @@ pub trait SqlWriter {
         self.write_identifier_quoted(context, buff, &value.name);
     }
 
+    /// Render the SQL type for a `Value` prototype.
     fn write_column_type(&self, context: &mut Context, buff: &mut String, value: &Value) {
         match value {
             Value::Boolean(..) => buff.push_str("BOOLEAN"),
@@ -139,6 +146,7 @@ pub trait SqlWriter {
         };
     }
 
+    /// Render a concrete value (including proper quoting / escaping).
     fn write_value(&self, context: &mut Context, buff: &mut String, value: &Value) {
         match value {
             v if v.is_null() => self.write_value_none(context, buff),
@@ -188,14 +196,17 @@ pub trait SqlWriter {
         };
     }
 
+    /// Render NULL literal.
     fn write_value_none(&self, _context: &mut Context, buff: &mut String) {
         buff.push_str("NULL");
     }
 
+    /// Render boolean literal.
     fn write_value_bool(&self, _context: &mut Context, buff: &mut String, value: bool) {
         buff.push_str(["false", "true"][value as usize]);
     }
 
+    /// Render +/- INF via CAST for dialect portability.
     fn write_value_infinity(&self, context: &mut Context, buff: &mut String, negative: bool) {
         let mut buffer = ryu::Buffer::new();
         self.write_expression_binary_op(
@@ -213,6 +224,7 @@ pub trait SqlWriter {
         );
     }
 
+    /// Render NaN via CAST for dialect portability.
     fn write_value_nan(&self, context: &mut Context, buff: &mut String) {
         let mut buffer = ryu::Buffer::new();
         self.write_expression_binary_op(
@@ -226,6 +238,7 @@ pub trait SqlWriter {
         );
     }
 
+    /// Render and escape a string literal using single quotes.
     fn write_value_string(&self, _context: &mut Context, buff: &mut String, value: &str) {
         buff.push('\'');
         let mut pos = 0;
@@ -244,6 +257,7 @@ pub trait SqlWriter {
         buff.push('\'');
     }
 
+    /// Render a blob literal using hex escapes.
     fn write_value_blob(&self, _context: &mut Context, buff: &mut String, value: &[u8]) {
         buff.push('\'');
         for b in value {
@@ -252,6 +266,7 @@ pub trait SqlWriter {
         buff.push('\'');
     }
 
+    /// Render a DATE literal (optionally as part of TIMESTAMP composition).
     fn write_value_date(
         &self,
         _context: &mut Context,
@@ -269,6 +284,7 @@ pub trait SqlWriter {
         );
     }
 
+    /// Render a TIME literal (optionally as part of TIMESTAMP composition).
     fn write_value_time(
         &self,
         _context: &mut Context,
@@ -293,6 +309,7 @@ pub trait SqlWriter {
         );
     }
 
+    /// Render a TIMESTAMP literal.
     fn write_value_timestamp(
         &self,
         context: &mut Context,
@@ -306,6 +323,7 @@ pub trait SqlWriter {
         buff.push('\'');
     }
 
+    /// Render a TIMESTAMPTZ literal.
     fn write_value_timestamptz(
         &self,
         context: &mut Context,
@@ -328,6 +346,7 @@ pub trait SqlWriter {
         buff.push_str("'::TIMESTAMPTZ");
     }
 
+    /// Ordered units used to decompose intervals.
     fn value_interval_units(&self) -> &[(&str, i128)] {
         static UNITS: &[(&str, i128)] = &[
             ("DAY", Interval::NANOS_IN_DAY),
@@ -340,6 +359,7 @@ pub trait SqlWriter {
         UNITS
     }
 
+    /// Render INTERVAL literal using largest representative units.
     fn write_value_interval(&self, _context: &mut Context, buff: &mut String, value: &Interval) {
         buff.push_str("INTERVAL '");
         if value.is_zero() {
@@ -388,6 +408,7 @@ pub trait SqlWriter {
         buff.push('\'');
     }
 
+    /// Render list/array literal.
     fn write_value_list<'a>(
         &self,
         context: &mut Context,
@@ -410,6 +431,7 @@ pub trait SqlWriter {
         buff.push(']');
     }
 
+    /// Render map literal.
     fn write_value_map(
         &self,
         context: &mut Context,
@@ -430,6 +452,7 @@ pub trait SqlWriter {
         buff.push('}');
     }
 
+    /// Render struct literal.
     fn write_value_struct(
         &self,
         context: &mut Context,
@@ -450,6 +473,7 @@ pub trait SqlWriter {
         buff.push('}');
     }
 
+    /// Precedence table for unary operators.
     fn expression_unary_op_precedence<'a>(&self, value: &UnaryOpType) -> i32 {
         match value {
             UnaryOpType::Negative => 1250,
@@ -457,6 +481,7 @@ pub trait SqlWriter {
         }
     }
 
+    /// Precedence table for binary operators.
     fn expression_binary_op_precedence<'a>(&self, value: &BinaryOpType) -> i32 {
         match value {
             BinaryOpType::Or => 100,
@@ -490,6 +515,7 @@ pub trait SqlWriter {
         }
     }
 
+    /// Render an operand (literal / variable / nested expression).
     fn write_expression_operand(&self, context: &mut Context, buff: &mut String, value: &Operand) {
         match value {
             Operand::LitBool(v) => self.write_value_bool(context, buff, *v),
@@ -531,10 +557,12 @@ pub trait SqlWriter {
         };
     }
 
+    /// Render parameter placeholder (dialect may override).
     fn write_expression_operand_question_mark(&self, _context: &mut Context, buff: &mut String) {
         buff.push('?');
     }
 
+    /// Render unary operator expression.
     fn write_expression_unary_op(
         &self,
         context: &mut Context,
@@ -552,6 +580,7 @@ pub trait SqlWriter {
         );
     }
 
+    /// Render binary operator expression handling precedence / parenthesis.
     fn write_expression_binary_op(
         &self,
         context: &mut Context,
@@ -613,6 +642,7 @@ pub trait SqlWriter {
         buff.push_str(suffix);
     }
 
+    /// Render ordered expression inside ORDER BY.
     fn write_expression_ordered(
         &self,
         context: &mut Context,
@@ -632,6 +662,7 @@ pub trait SqlWriter {
         }
     }
 
+    /// Render join keyword(s) for the given join type.
     fn write_join_type(&self, _context: &mut Context, buff: &mut String, join_type: &JoinType) {
         buff.push_str(match &join_type {
             JoinType::Default => "JOIN",
@@ -644,6 +675,7 @@ pub trait SqlWriter {
         });
     }
 
+    /// Render a JOIN clause.
     fn write_join(
         &self,
         context: &mut Context,
@@ -665,18 +697,22 @@ pub trait SqlWriter {
         }
     }
 
+    /// Emit BEGIN statement.
     fn write_transaction_begin(&self, buff: &mut String) {
         buff.push_str("BEGIN;");
     }
 
+    /// Emit COMMIT statement.
     fn write_transaction_commit(&self, buff: &mut String) {
         buff.push_str("COMMIT;");
     }
 
+    /// Emit ROLLBACK statement.
     fn write_transaction_rollback(&self, buff: &mut String) {
         buff.push_str("ROLLBACK;");
     }
 
+    /// Emit CREATE SCHEMA.
     fn write_create_schema<E>(&self, buff: &mut String, if_not_exists: bool)
     where
         Self: Sized,
@@ -694,6 +730,7 @@ pub trait SqlWriter {
         buff.push(';');
     }
 
+    /// Emit DROP SCHEMA.
     fn write_drop_schema<E>(&self, buff: &mut String, if_exists: bool)
     where
         Self: Sized,
@@ -711,6 +748,7 @@ pub trait SqlWriter {
         buff.push(';');
     }
 
+    /// Emit CREATE TABLE with columns, constraints & comments.
     fn write_create_table<E>(&self, buff: &mut String, if_not_exists: bool)
     where
         Self: Sized,
@@ -777,6 +815,7 @@ pub trait SqlWriter {
         self.write_column_comments::<E>(&mut context, buff);
     }
 
+    /// Emit COMMENT ON COLUMN statements for columns carrying comments.
     fn write_column_comments<E>(&self, context: &mut Context, buff: &mut String)
     where
         Self: Sized,
@@ -793,6 +832,7 @@ pub trait SqlWriter {
         }
     }
 
+    /// Emit single column definition fragment.
     fn write_create_table_column_fragment(
         &self,
         context: &mut Context,
@@ -839,6 +879,7 @@ pub trait SqlWriter {
         }
     }
 
+    /// Emit referential action keyword.
     fn write_create_table_references_action(
         &self,
         _context: &mut Context,
@@ -854,6 +895,7 @@ pub trait SqlWriter {
         });
     }
 
+    /// Emit DROP TABLE statement.
     fn write_drop_table<E>(&self, buff: &mut String, if_exists: bool)
     where
         Self: Sized,
@@ -871,6 +913,7 @@ pub trait SqlWriter {
         buff.push(';');
     }
 
+    /// Emit SELECT statement (projection, FROM, WHERE, ORDER, LIMIT).
     fn write_select<Item, Cols, Data, Cond>(
         &self,
         buff: &mut String,
@@ -928,6 +971,7 @@ pub trait SqlWriter {
         buff.push(';');
     }
 
+    /// Emit INSERT (single/multi-row) optionally with ON CONFLICT DO UPDATE.
     fn write_insert<'b, E, It>(&self, buff: &mut String, entities: It, update: bool)
     where
         Self: Sized,
@@ -1030,6 +1074,7 @@ pub trait SqlWriter {
         buff.push(';');
     }
 
+    /// Emit ON CONFLICT DO UPDATE fragment for upsert.
     fn write_insert_update_fragment<'a, E, It>(
         &self,
         context: &mut Context,
@@ -1071,6 +1116,7 @@ pub trait SqlWriter {
         );
     }
 
+    /// Emit DELETE statement with WHERE clause.
     fn write_delete<E>(&self, buff: &mut String, condition: &impl Expression)
     where
         Self: Sized,
@@ -1094,8 +1140,10 @@ pub trait SqlWriter {
     }
 }
 
+/// Fallback generic SQL writer (closest to PostgreSQL / DuckDB conventions).
 pub struct GenericSqlWriter;
 impl GenericSqlWriter {
+    /// Construct a new generic writer.
     pub fn new() -> Self {
         Self {}
     }

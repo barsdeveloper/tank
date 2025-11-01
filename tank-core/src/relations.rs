@@ -2,6 +2,7 @@ use crate::{AsValue, ColumnDef, Entity, TableRef};
 use rust_decimal::Decimal;
 use std::{marker::PhantomData, mem};
 
+/// Decimal wrapper enforcing compile-time width/scale.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FixedDecimal<const WIDTH: u8, const SCALE: u8>(pub Decimal);
 
@@ -17,9 +18,12 @@ impl<const W: u8, const S: u8> From<FixedDecimal<W, S>> for Decimal {
     }
 }
 
+/// Wrapper marking whether a column should be considered set or skipped (passive) on INSERT.
 #[derive(Debug, Default)]
 pub enum Passive<T: AsValue> {
+    /// Active value.
     Set(T),
+    /// Skip during value emission (DEFAULT used by `SqlWriter`).
     #[default]
     NotSet,
 }
@@ -66,6 +70,7 @@ impl<T: AsValue> From<T> for Passive<T> {
     }
 }
 
+/// Foreign key reference to another Entity's columns.
 pub struct References<T: Entity> {
     entity: PhantomData<T>,
     columns: Box<[ColumnDef]>,

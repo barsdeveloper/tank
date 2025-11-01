@@ -6,8 +6,14 @@ use std::{collections::HashMap, hash::Hash, mem::discriminant};
 use time::{Date, OffsetDateTime, PrimitiveDateTime, Time};
 use uuid::Uuid;
 
+/// Strongly-typed, nullable SQL value representation used across Tank.
+///
+/// Variants wrap `Option<T>` – `None` signifies SQL NULL (except `Null` which
+/// unconditionally represents a NULL of unknown type). Complex variants carry
+/// additional shape metadata (element type, length, precision, etc.).
 #[derive(Default, Debug, Clone)]
 pub enum Value {
+    /// Untyped NULL placeholder.
     #[default]
     Null,
     Boolean(Option<bool>),
@@ -23,6 +29,7 @@ pub enum Value {
     UInt128(Option<u128>),
     Float32(Option<f32>),
     Float64(Option<f64>),
+    /// Arbitrary precision decimal with width/scale hints.
     Decimal(Option<Decimal>, /* width: */ u8, /* scale: */ u8),
     Char(Option<char>),
     Varchar(Option<String>),
@@ -33,21 +40,26 @@ pub enum Value {
     TimestampWithTimezone(Option<OffsetDateTime>),
     Interval(Option<Interval>),
     Uuid(Option<Uuid>),
+    /// Fixed-size homogeneous array.
     Array(
         Option<Box<[Value]>>,
         /* type: */ Box<Value>,
         /* len: */ u32,
     ),
+    /// Variable length homogeneous list.
     List(Option<Vec<Value>>, /* type: */ Box<Value>),
+    /// Map with homogeneous key/value types.
     Map(
         Option<HashMap<Value, Value>>,
         /* key: */ Box<Value>,
         /* value: */ Box<Value>,
     ),
+    /// Struct with named fields and their types.
     Struct(
         Option<Vec<(String, Value)>>,
         /* type: */ Vec<(String, Value)>,
     ),
+    /// Parsing fallback / unknown driver-provided type.
     Unknown(Option<String>),
 }
 
@@ -309,10 +321,14 @@ impl Hash for Value {
     }
 }
 
+/// Intermediate decoded type information used by derive macros.
 #[derive(Default)]
 pub struct TypeDecoded {
+    /// Representative value establishing variant & metadata.
     pub value: Value,
+    /// Nullability indicator.
     pub nullable: bool,
+    /// Passive flag (exclude from INSERT column/value list).
     pub passive: bool,
 }
 

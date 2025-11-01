@@ -4,8 +4,11 @@ use crate::{
 };
 use std::fmt::Debug;
 
+/// A renderable SQL expression node.
 pub trait Expression: OpPrecedence + Send + Sync + Debug {
+    /// Serialize the expression into the buffer using the dialect writer.
     fn write_query(&self, writer: &dyn SqlWriter, context: &mut Context, buff: &mut String);
+    /// Whether this expression carries ordering (ASC/DESC) information.
     fn is_ordered(&self) -> bool {
         false
     }
