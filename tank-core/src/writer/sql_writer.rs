@@ -599,7 +599,7 @@ pub trait SqlWriter {
             BinaryOpType::ShiftRight => ("", " >> ", "", false, false),
             BinaryOpType::BitwiseAnd => ("", " & ", "", false, false),
             BinaryOpType::BitwiseOr => ("", " | ", "", false, false),
-            BinaryOpType::Is => ("", " Is ", "", false, false),
+            BinaryOpType::Is => ("", " IS ", "", false, false),
             BinaryOpType::IsNot => ("", " IS NOT ", "", false, false),
             BinaryOpType::Like => ("", " LIKE ", "", false, false),
             BinaryOpType::NotLike => ("", " NOT LIKE ", "", false, false),
@@ -718,6 +718,7 @@ pub trait SqlWriter {
         Self: Sized,
         E: Entity,
     {
+        out.reserve(32 + E::table().schema.len());
         if !out.is_empty() {
             out.push('\n');
         }
@@ -736,6 +737,7 @@ pub trait SqlWriter {
         Self: Sized,
         E: Entity,
     {
+        out.reserve(24 + E::table().schema.len());
         if !out.is_empty() {
             out.push('\n');
         }
@@ -755,6 +757,8 @@ pub trait SqlWriter {
         E: Entity,
     {
         let mut context = Context::new(Fragment::SqlCreateTable, E::qualified_columns());
+        let estimated = 128 + E::columns().len() * 64 + E::primary_key_def().len() * 24;
+        out.reserve(estimated);
         if !out.is_empty() {
             out.push('\n');
         }
@@ -901,6 +905,7 @@ pub trait SqlWriter {
         Self: Sized,
         E: Entity,
     {
+        out.reserve(24 + E::table().schema.len() + E::table().name.len());
         if !out.is_empty() {
             out.push('\n');
         }
@@ -928,6 +933,8 @@ pub trait SqlWriter {
         Data: DataSet,
         Cond: Expression,
     {
+        let cols = columns.clone().into_iter().count();
+        out.reserve(128 + cols * 32);
         if !out.is_empty() {
             out.push('\n');
         }
@@ -957,13 +964,15 @@ pub trait SqlWriter {
         );
         if has_order_by {
             out.push_str("\nORDER BY ");
-            for col in columns.into_iter().filter(Expression::is_ordered) {
-                col.write_query(
-                    self,
-                    &mut context.switch_fragment(Fragment::SqlSelectOrderBy).current,
-                    out,
-                );
-            }
+            let mut order_context = context.switch_fragment(Fragment::SqlSelectOrderBy);
+            separated_by(
+                out,
+                columns.into_iter().filter(Expression::is_ordered),
+                |out, col| {
+                    col.write_query(self, &mut order_context.current, out);
+                },
+                ", ",
+            );
         }
         if let Some(limit) = limit {
             let _ = write!(out, "\nLIMIT {}", limit);
@@ -982,6 +991,8 @@ pub trait SqlWriter {
         let Some(mut row) = rows.next() else {
             return;
         };
+        let cols = E::columns().len();
+        out.reserve(128 + cols * 48);
         if !out.is_empty() {
             out.push('\n');
         }
@@ -1002,7 +1013,6 @@ pub trait SqlWriter {
                 ", ",
             );
         } else {
-            // Inserting more rows will list all columns, Passive::NotSet columns will result in DEFAULT value
             separated_by(
                 out,
                 columns.clone(),
@@ -1122,6 +1132,7 @@ pub trait SqlWriter {
         Self: Sized,
         E: Entity,
     {
+        out.reserve(128 + E::table().schema.len() + E::table().name.len());
         if !out.is_empty() {
             out.push('\n');
         }
