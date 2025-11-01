@@ -190,12 +190,10 @@ impl Interval {
         }
         let nanos = self.nanos + self.days as i128 * Interval::NANOS_IN_DAY;
         if nanos != 0 {
-            let units = self.units_and_factors().iter().skip(2).enumerate();
-            let len = units.len();
-            for (i, &(_, factor)) in units {
+            for (i, &(_, factor)) in self.units_and_factors().iter().skip(2).enumerate() {
                 if nanos % factor == 0 {
-                    let offset = i - len;
-                    mask |= 1 << offset;
+                    let shift = 5 - i; // i:0..5
+                    mask |= 1 << shift;
                     break;
                 }
             }

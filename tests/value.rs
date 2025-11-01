@@ -446,6 +446,28 @@ mod tests {
             f32::try_from_value(Decimal::from_f64(2.125).into()).unwrap(),
             2.125
         );
+        let pos_inf = f32::INFINITY;
+        let neg_inf = f32::NEG_INFINITY;
+        let v_pos_inf: Value = pos_inf.as_value();
+        let v_neg_inf: Value = neg_inf.as_value();
+        assert_eq!(f32::try_from_value(v_pos_inf).unwrap(), f32::INFINITY);
+        assert_eq!(f32::try_from_value(v_neg_inf).unwrap(), f32::NEG_INFINITY);
+        assert_ne!(v_pos_inf, v_neg_inf);
+        assert_eq!(f32::try_from_value((12.5_f64).as_value()).unwrap(), 12.5_f32);
+        let d = Decimal::from_f64(99.125).unwrap();
+        assert_eq!(f32::try_from_value(d.as_value()).unwrap(), 99.125_f32);
+        assert_eq!(f32::parse("3.14").unwrap(), 3.14_f32);
+        assert_eq!(f32::parse("3.14e2").unwrap(), 314.0_f32);
+        let huge_pos = f32::parse("1e100").unwrap();
+        assert!(huge_pos.is_infinite() && huge_pos.is_sign_positive());
+        let huge_neg = f32::parse("-1e100").unwrap();
+        assert!(huge_neg.is_infinite() && huge_neg.is_sign_negative());
+        assert!(f32::parse("abc").is_err());
+        assert!(f32::parse("1.0 trailing").is_err());
+        let mut input = "2.5rest";
+        let extracted = f32::extract(&mut input).unwrap();
+        assert!((extracted - 2.5).abs() < f32::EPSILON);
+        assert_eq!(input, "rest");
     }
 
     #[test]
@@ -461,6 +483,23 @@ mod tests {
             f64::try_from_value(Decimal::from_f64(2.25).into()).unwrap(),
             2.25
         );
+        let pos_inf = f64::INFINITY;
+        let neg_inf = f64::NEG_INFINITY;
+        assert_eq!(f64::try_from_value(pos_inf.as_value()).unwrap(), f64::INFINITY);
+        assert_eq!(f64::try_from_value(neg_inf.as_value()).unwrap(), f64::NEG_INFINITY);
+        assert_ne!(pos_inf.as_value(), neg_inf.as_value());
+        let d = Decimal::from_f32(7.0625).unwrap();
+        assert_eq!(f64::try_from_value(d.as_value()).unwrap(), 7.0625_f64);
+        assert_eq!(f64::parse("6.022e23").unwrap(), 6.022e23_f64);
+        let huge_pos = f64::parse("1e1000").unwrap();
+        assert!(huge_pos.is_infinite() && huge_pos.is_sign_positive());
+        let huge_neg = f64::parse("-1e1000").unwrap();
+        assert!(huge_neg.is_infinite() && huge_neg.is_sign_negative());
+        assert!(f64::parse("not_a_number").is_err());
+        let mut input = "1.2345xyz";
+        let extracted = f64::extract(&mut input).unwrap();
+        assert!((extracted - 1.2345).abs() < f64::EPSILON);
+        assert_eq!(input, "xyz");
     }
 
     #[test]
@@ -784,6 +823,120 @@ mod tests {
             Interval::from_years(2) + Interval::from_days(60),
         );
         assert!(input.is_empty());
+
+        let mut input = "'1 year 2 mons 3 days 04:05:06.789'";
+        assert_eq!(
+            Interval::extract(&mut input).unwrap(),
+            Interval::from_years(1)
+                + Interval::from_months(2)
+                + Interval::from_days(3)
+                + Interval::from_hours(4)
+                + Interval::from_mins(5)
+                + Interval::from_secs(6)
+                + Interval::from_micros(789_000)
+        );
+        assert!(input.is_empty());
+
+        let mut input = "'2 years 1 mon 5 days 12:00:00.000000123'";
+        assert_eq!(
+            Interval::extract(&mut input).unwrap(),
+            Interval::from_years(2)
+                + Interval::from_months(1)
+                + Interval::from_days(5)
+                + Interval::from_hours(12)
+                + Interval::from_nanos(123)
+        );
+        assert!(input.is_empty());
+
+        let mut input = "'-1 year 2 mons -3 days 04:05:06.001002003'";
+        assert_eq!(
+            Interval::extract(&mut input).unwrap(),
+            Interval::from_years(-1)
+                + Interval::from_months(2)
+                + Interval::from_days(-3)
+                + Interval::from_hours(4)
+                + Interval::from_mins(5)
+                + Interval::from_secs(6)
+                + Interval::from_micros(1_002)
+                + Interval::from_nanos(3)
+        );
+        assert!(input.is_empty());
+
+        let mut input = "-04:05:06.000123";
+        assert_eq!(
+            Interval::extract(&mut input).unwrap(),
+            Interval::from_hours(-4)
+                + Interval::from_mins(-5)
+                + Interval::from_secs(-6)
+                + Interval::from_micros(-123)
+        );
+        assert!(input.is_empty());
+
+        let mut input = "3 years 4 months 5 days 6 hours 7 minutes 8 seconds 9 microseconds 10 nanoseconds";
+        assert_eq!(
+            Interval::extract(&mut input).unwrap(),
+            Interval::from_years(3)
+                + Interval::from_months(4)
+                + Interval::from_days(5)
+                + Interval::from_hours(6)
+                + Interval::from_mins(7)
+                + Interval::from_secs(8)
+                + Interval::from_micros(9)
+                + Interval::from_nanos(10)
+        );
+        assert!(input.is_empty());
+
+        let mut input = "2 Y 3 MONS 4 d 5 H 6 MIN 7 S 8 MICRO 9 NS";
+        assert_eq!(
+            Interval::extract(&mut input).unwrap(),
+            Interval::from_years(2)
+                + Interval::from_months(3)
+                + Interval::from_days(4)
+                + Interval::from_hours(5)
+                + Interval::from_mins(6)
+                + Interval::from_secs(7)
+                + Interval::from_micros(8)
+                + Interval::from_nanos(9)
+        );
+        assert!(input.is_empty());
+
+        let mut input = "10:11:12.123456789";
+        assert_eq!(
+            Interval::extract(&mut input).unwrap(),
+            Interval::from_hours(10)
+                + Interval::from_mins(11)
+                + Interval::from_secs(12)
+                + Interval::from_micros(123_456)
+                + Interval::from_nanos(789)
+        );
+        assert!(input.is_empty());
+
+        let mut input = "1 year 12 months";
+        assert_eq!(
+            Interval::extract(&mut input).unwrap(),
+            Interval::from_years(2)
+        );
+        assert!(input.is_empty());
+
+        let mut input = "04:05:";
+        assert!(Interval::extract(&mut input).is_err());
+        assert_eq!(input, "04:05:");
+
+        let mut input = "04:05:06.";
+        assert!(Interval::extract(&mut input).is_err());
+        assert_eq!(input, "04:05:06.");
+
+        let mut input = "'2 days 01:02:03.004005006'   more";
+        assert_eq!(
+            Interval::extract(&mut input).unwrap(),
+            Interval::from_days(2)
+                + Interval::from_hours(1)
+                + Interval::from_mins(2)
+                + Interval::from_secs(3)
+                + Interval::from_micros(4_005)
+                + Interval::from_nanos(6)
+        );
+        assert_eq!(input, "more");
     }
 
     #[test]
@@ -793,7 +946,6 @@ mod tests {
         assert_eq!(val, Interval::from_days(14).as_value());
         assert_ne!(val, Interval::from_days(15).as_value());
         assert_ne!(val, Interval::from_secs(1).as_value());
-
         let var: time::Duration = AsValue::try_from_value(val).unwrap();
         let val = var.as_value();
         let var: time::Duration = AsValue::try_from_value(val).unwrap();
@@ -969,7 +1121,7 @@ mod tests {
             [
                 Decimal::from_f32(12.50).unwrap(),
                 Decimal::from_f32(13.3).unwrap(),
-                Decimal::from_f32(-6.11).unwrap(), // Difference here
+                Decimal::from_f32(-6.11).unwrap(),
                 Decimal::from_f32(0.0).unwrap(),
                 Decimal::from_f32(-3.34).unwrap(),
             ]
@@ -1075,4 +1227,80 @@ On Multiple Lines',
             Vec::new()
         );
     }
+
+    #[test]
+    fn value_option_and_box_wrappers() {
+        let none_val: Value = (None::<i32>).as_value();
+        assert_eq!(none_val, Value::Int32(None));
+        let some_val: Value = Some(42_i32).as_value();
+        assert_eq!(some_val, Value::Int32(Some(42)));
+        let round: Option<i32> = Option::try_from_value(some_val).unwrap();
+        assert_eq!(round, Some(42));
+        let round_none: Option<i32> = Option::try_from_value(none_val).unwrap();
+        assert_eq!(round_none, None);
+        let boxed: Value = Box::new(11_i16).as_value();
+        assert_eq!(boxed, Value::Int16(Some(11)));
+        let unboxed: Box<i16> = Box::<i16>::try_from_value(boxed).unwrap();
+        assert_eq!(*unboxed, 11);
+    }
+
+    #[test]
+    fn value_shared_wrappers_arc_rc_cell_refcell() {
+        use std::{cell::{Cell, RefCell}, rc::Rc, sync::Arc};
+        let arc_v: Value = Arc::new(5_u8).as_value();
+        assert_eq!(arc_v, Value::UInt8(Some(5)));
+        let rc_v: Value = Rc::new(7_u16).as_value();
+        assert_eq!(rc_v, Value::UInt16(Some(7)));
+        let cell_v: Value = Cell::new(9_i32).as_value();
+        assert_eq!(cell_v, Value::Int32(Some(9)));
+        let refcell_v: Value = RefCell::new(13_i64).as_value();
+        assert_eq!(refcell_v, Value::Int64(Some(13)));
+        let arc_out: Arc<i8> = Arc::try_from_value(Arc::new(1_i8).as_value()).unwrap();
+        assert_eq!(*arc_out, 1);
+        let rc_out: Rc<i16> = Rc::try_from_value(Rc::new(2_i16).as_value()).unwrap();
+        assert_eq!(*rc_out, 2);
+        let cell_out: Cell<i32> = Cell::try_from_value(Cell::new(3_i32).as_value()).unwrap();
+        assert_eq!(cell_out.get(), 3);
+        let refcell_out: RefCell<i64> = RefCell::try_from_value(RefCell::new(4_i64).as_value()).unwrap();
+        assert_eq!(*refcell_out.borrow(), 4);
+    }
+
+    #[test]
+    fn value_map_semantics() {
+        use std::collections::{HashMap, BTreeMap};
+        let mut m1: HashMap<String, i32> = HashMap::new();
+        m1.insert("a".into(), 1);
+        let mut m2: HashMap<String, i32> = HashMap::new();
+        m2.insert("b".into(), 2);
+        let v1 = m1.clone().as_value();
+        let v2 = m2.clone().as_value();
+        assert_eq!(v1, v2, "Map Value equality only considers emptiness + type");
+        let empty_map_v = HashMap::<String, i32>::new().as_value();
+        assert_ne!(v1, empty_map_v);
+        let round1: HashMap<String, i32> = HashMap::try_from_value(v1).unwrap();
+        assert_eq!(round1.len(), 1);
+        let round_empty: HashMap<String, i32> = HashMap::try_from_value(empty_map_v).unwrap();
+        assert!(round_empty.is_empty());
+        let mut bt: BTreeMap<String, bool> = BTreeMap::new();
+        bt.insert("x".into(), true);
+        let bt_v = bt.clone().as_value();
+        let bt_rt: BTreeMap<String, bool> = BTreeMap::try_from_value(bt_v).unwrap();
+        assert_eq!(bt_rt.get("x"), Some(&true));
+    }
+
+    #[test]
+    fn value_struct_placeholder() {
+        let s = Value::Struct(Some(vec![("id".into(), 1_i32.as_value())]), vec![("id".into(), i32::as_empty_value())]);
+        let s_same = s.clone();
+        assert_ne!(s, s_same, "Struct equality currently not implemented; expected inequality");
+        let s_diff = Value::Struct(Some(vec![("id".into(), 2_i32.as_value())]), vec![("id".into(), i32::as_empty_value())]);
+        assert_ne!(s, s_diff);
+    }
+
+    #[test]
+    fn value_array_curly_braces_parse() {
+        let parsed: [[bool; 2]; 2] = <[[bool; 2]; 2]>::parse("{{true,false},{false,true}}").unwrap();
+        assert_eq!(parsed, [[true, false], [false, true]]);
+    }
+}
 }
