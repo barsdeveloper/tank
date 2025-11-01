@@ -17,10 +17,10 @@ hero:
 features:
   - title: Async operations
     details: Your queries run async like artillery, load fast, return fire later.
-  - title: Simple workflow
+  - title: Tactical simplicity
     details: Fire raw queries when you need precision strikes, use the abstractions for standard sorties.
-  - title: Adapts to any battlefield
+  - title: Battlefield adaptability
     details: Plug new backends in like changing magazines. Designed from day one to be extensible.
   - title: Rich type arsenal
-    details: Define your units and let Tank take care or conversions
+    details: Define your units and let Tank take care or conversions.
 ---

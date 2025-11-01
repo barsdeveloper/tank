@@ -9,7 +9,7 @@ Before you can deploy entities, you must have an operational connection (see [*F
 Zero boilerplate. Define a struct, tag it, deploy. Tank matches your Rust field types to the closest database type for each driver. Unified arsenal, same blueprint across all battlefields.
 
 ## Entity
-Start with a plain Rust struct and derive the `tank::Entity` trait. The fields can have any of the types supported (see [*Field Manual Section 4* - Type Conversion Schematics](4-types.md))
+Start with a plain Rust struct and derive the `tank::Entity` trait. The fields can have any of the types supported (see [*Field Manual Section 4* - Payload Specs](4-types.md))
 ```rust
 #[derive(Entity)]
 #[tank(schema = "ops", name = "missions", primary_key = (Self::code_name, Self::start_time))]

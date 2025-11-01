@@ -51,12 +51,18 @@ async fn establish_sqlite_connection() -> Result<SQLiteConnection> {
     Ok(connection)
 }
 ```
-  
+
 **URL Format**:
 - File: `sqlite://path/to/database.sqlite?mode=rwc`
-- Memory: 
-- Same mode flags as DuckDB
-- In-memory operations: `sqlite://:memory:`
+- Memory: `sqlite://:memory:`
+
+Modes:
+- `mode=ro`: read-only access (fails if the database doesn’t exist)
+- `mode=rw`: read-write access (fails if the database doesn’t exist)
+- `mode=rwc`: read-write access (creates the database if it doesn’t exist)
+- `mode=memory`: in-memory access (creates a temporary database that lives only for the duration of the connection)
+
+Additional URL parameters are passed directly to the DuckDB C API. See the full list of supported options on the [SQLite website](https://sqlite.org/uri.html#recognized_query_parameters)
 
 #### Postgres
 Postgres is your heavy artillery: powerful, networked, built for sustained campaigns with multiple units coordinating strikes.
