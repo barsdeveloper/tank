@@ -13,7 +13,7 @@ use std::{
     rc::Rc,
     sync::{Arc, RwLock},
 };
-use time::format_description::parse_borrowed;
+use time::{PrimitiveDateTime, format_description::parse_borrowed};
 use uuid::Uuid;
 
 pub trait AsValue {
@@ -75,10 +75,20 @@ macro_rules! impl_as_value {
                     $destination(Some(v), ..) => Ok(v),
                     $($pat_rest => $expr_rest,)*
                     #[allow(unreachable_patterns)]
-                    Value::Int64(Some(v), ..) => {
-                        if (v as i128).clamp(<$source>::MIN as i128, <$source>::MAX as i128) != v as i128 {
+                    Value::Int32(Some(v), ..) => {
+                        if (v as i128).clamp(<$source>::MIN as _, <$source>::MAX as _) != v as i128 {
                             return Err(Error::msg(format!(
-                                "Value {v}: i64 is out of range for type {}",
+                                "Value {v}: i32 is out of range for {}",
+                                any::type_name::<Self>(),
+                            )));
+                        }
+                        Ok(v as $source)
+                    },
+                    #[allow(unreachable_patterns)]
+                    Value::Int64(Some(v), ..) => {
+                        if (v as i128).clamp(<$source>::MIN as _, <$source>::MAX as _) != v as i128 {
+                            return Err(Error::msg(format!(
+                                "Value {v}: i64 is out of range for {}",
                                 any::type_name::<Self>(),
                             )));
                         }
@@ -641,70 +651,62 @@ impl_as_value!(
     Value::Varchar(Some(v), ..) => <Self as AsValue>::parse(v),
 );
 
-macro_rules! impl_as_value {
-    ($source:ty, $destination:path $(, $formats:literal)+ $(,)?) => {
-        impl AsValue for $source {
-            fn as_empty_value() -> Value {
-                $destination(None)
-            }
-            fn as_value(self) -> Value {
-                $destination(Some(self.into()))
-            }
-            fn try_from_value(value: Value) -> Result<Self> {
-                match value {
-                    $destination(Some(v), ..) => Ok(v.into()),
-                    Value::Varchar(Some(v), ..) | Value::Unknown(Some(v), ..) => {
-                        <Self as AsValue>::parse(v)
-                    }
-                    _ => Err(Error::msg(format!(
-                        "Cannot convert {value:?} to {}",
-                        any::type_name::<Self>(),
-                    ))),
-                }
-            }
-            fn extract(value: &mut &str) -> Result<Self> {
-                for format in [$($formats,)+] {
-                    let format = parse_borrowed::<2>(format)?;
-                    let mut parsed = time::parsing::Parsed::new();
-                    let remaining = parsed.parse_items(value.as_bytes(), &format);
-                    if let Ok(remaining) = remaining {
-                        let result = parsed.try_into()?;
-                        *value = &value[(value.len() - remaining.len())..];
-                        return Ok(result);
-                    }
-                }
-                Err(Error::msg(format!("Cannot extract from '{value}' as {}", any::type_name::<Self>())))
-            }
-        }
-    };
-}
-
 impl_as_value!(
     time::Time,
     Value::Time,
-    "[hour]:[minute]:[second].[subsecond]",
-    "[hour]:[minute]:[second]",
-    "[hour]:[minute]",
+    |v: &mut &str| {
+        let result: time::Time = parse_time!(
+            v,
+            "[hour]:[minute]:[second].[subsecond]",
+            "[hour]:[minute]:[second]",
+            "[hour]:[minute]",
+        )?;
+        Ok(result)
+    },
+    Value::Varchar(Some(v), ..) => <Self as AsValue>::parse(v),
 );
+
 impl_as_value!(
     time::PrimitiveDateTime,
     Value::Timestamp,
-    "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond]",
-    "[year]-[month]-[day]T[hour]:[minute]:[second]",
-    "[year]-[month]-[day]T[hour]:[minute]",
-    "[year]-[month]-[day] [hour]:[minute]:[second].[subsecond]",
-    "[year]-[month]-[day] [hour]:[minute]:[second]",
-    "[year]-[month]-[day] [hour]:[minute]",
+    |v: &mut &str| {
+        let result: time::PrimitiveDateTime = parse_time!(
+            v,
+            "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond]",
+            "[year]-[month]-[day]T[hour]:[minute]:[second]",
+            "[year]-[month]-[day]T[hour]:[minute]",
+            "[year]-[month]-[day] [hour]:[minute]:[second].[subsecond]",
+            "[year]-[month]-[day] [hour]:[minute]:[second]",
+            "[year]-[month]-[day] [hour]:[minute]",
+        )?;
+        Ok(result)
+    },
+    Value::Varchar(Some(v), ..) => <Self as AsValue>::parse(v),
 );
+
 impl_as_value!(
     time::OffsetDateTime,
     Value::TimestampWithTimezone,
-    "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond][offset_hour sign:mandatory]:[offset_minute]",
-    "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond][offset_hour sign:mandatory]",
-    "[year]-[month]-[day]T[hour]:[minute]:[second][offset_hour sign:mandatory]:[offset_minute]",
-    "[year]-[month]-[day]T[hour]:[minute]:[second][offset_hour sign:mandatory]",
-    "[year]-[month]-[day]T[hour]:[minute][offset_hour sign:mandatory]:[offset_minute]",
-    "[year]-[month]-[day]T[hour]:[minute][offset_hour sign:mandatory]",
+    |v: &mut &str| {
+        let result: time::OffsetDateTime = parse_time!(
+            v,
+            "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond][offset_hour sign:mandatory]:[offset_minute]",
+            "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond][offset_hour sign:mandatory]",
+            "[year]-[month]-[day]T[hour]:[minute]:[second][offset_hour sign:mandatory]:[offset_minute]",
+            "[year]-[month]-[day]T[hour]:[minute]:[second][offset_hour sign:mandatory]",
+            "[year]-[month]-[day]T[hour]:[minute][offset_hour sign:mandatory]:[offset_minute]",
+            "[year]-[month]-[day]T[hour]:[minute][offset_hour sign:mandatory]",
+            "[year]-[month]-[day] [hour]:[minute]:[second].[subsecond][offset_hour sign:mandatory]:[offset_minute]",
+            "[year]-[month]-[day] [hour]:[minute]:[second].[subsecond][offset_hour sign:mandatory]",
+            "[year]-[month]-[day] [hour]:[minute]:[second][offset_hour sign:mandatory]:[offset_minute]",
+            "[year]-[month]-[day] [hour]:[minute]:[second][offset_hour sign:mandatory]",
+            "[year]-[month]-[day] [hour]:[minute][offset_hour sign:mandatory]:[offset_minute]",
+            "[year]-[month]-[day] [hour]:[minute][offset_hour sign:mandatory]",
+        ).or(<PrimitiveDateTime as AsValue>::extract(v).map(|v| v.assume_utc()))?;
+        Ok(result)
+    },
+    Value::Timestamp(Some(timestamp), ..) => Ok(timestamp.assume_utc()),
+    Value::Varchar(Some(v), ..) => <Self as AsValue>::parse(v),
 );
 
 impl AsValue for Decimal {

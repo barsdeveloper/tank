@@ -5,17 +5,17 @@ The Entity is your combat unit, a Rust struct mapped one-to-one with a database 
 
 ## Mission Scope
 List of every tactical primitive you execute against an `Entity`. Each item maps to a single, clear action. Almost all higher-level patterns are just combinations of these fundamentals.
-* `Entity::create_table()`: establish operating base
-* `Entity::drop_table()`: break camp
-* `Entity::insert_one()`: deploy a single unit
-* `Entity::insert_many()`: bulk deployment
-* `Entity::find_pk()`: identify the target
-* `Entity::find_one()`: silent recon
-* `Entity::find_many()`: wide-area sweep
-* `Entity::delete_one()`: precision strike
-* `Entity::delete_many()`: scorched-earth withdrawal
-* `entity.save()`: resupply and hold the position
-* `entity.delete()`: stand-down order
+* [`Entity::create_table()`](https://docs.rs/tank/latest/tank/trait.Entity.html#tymethod.create_table): establish operating base
+* [`Entity::drop_table()`](https://docs.rs/tank/latest/tank/trait.Entity.html#tymethod.drop_table): break camp
+* [`Entity::insert_one()`](https://docs.rs/tank/latest/tank/trait.Entity.html#tymethod.insert_one): deploy a single unit
+* [`Entity::insert_many()`](https://docs.rs/tank/latest/tank/trait.Entity.html#tymethod.insert_many): bulk deployment
+* [`Entity::find_pk()`](https://docs.rs/tank/latest/tank/trait.Entity.html#tymethod.find_pk): identify the target
+* [`Entity::find_one()`](https://docs.rs/tank/latest/tank/trait.Entity.html#method.find_one): silent recon
+* [`Entity::find_many()`](https://docs.rs/tank/latest/tank/trait.Entity.html#tymethod.find_many): wide-area sweep
+* [`Entity::delete_one()`](https://docs.rs/tank/latest/tank/trait.Entity.html#tymethod.delete_one): precision strike
+* [`Entity::delete_many()`](https://docs.rs/tank/latest/tank/trait.Entity.html#tymethod.delete_many): scorched-earth withdrawal
+* [`entity.save()`](https://docs.rs/tank/latest/tank/trait.Entity.html#method.save): resupply and hold the position
+* [`entity.delete()`](https://docs.rs/tank/latest/tank/trait.Entity.html#method.delete): stand-down order
 
 ## Forward Operations Schema
 This is the schema we will use for every operation example that follows. All CRUD, streaming, prepared, and batching demonstrations below act on these two tables so you can focus on behavior instead of switching contexts. `Operator` is the identity table, `RadioLog` references an operator (foreign key) to record transmissions.
@@ -70,11 +70,11 @@ CREATE TABLE IF NOT EXISTS operations.radio_log (
 ## Deployment
 Deployment is the initial insertion of your units into the theater: creating tables (and schema) before any data flows, and tearing them down when the operation ends.
 ```rust
-Operator::create_table(&mut executor, true, true).await?;
-RadioLog::create_table(&mut executor, true, false).await?;
-
-RadioLog::drop_table(&mut executor, true, false).await?;
-Operator::drop_table(&mut executor, true, false).await?;
+Operator::create_table(executor, true, true).await?;
+RadioLog::create_table(executor, true, false).await?;
+// ...
+RadioLog::drop_table(executor, true, false).await?;
+Operator::drop_table(executor, true, false).await?;
 ```
 
 Key points:
@@ -92,21 +92,23 @@ let operator = Operator {
     enlisted: date!(2022 - 03 - 14),
     is_certified: true,
 };
-Operator::insert_one(&mut executor, &operator).await?;
+Operator::insert_one(executor, &operator).await?;
 ```
 
 Bulk deployment of logs:
 ```rust
 let op_id = operator.id;
-let logs: Vec<RadioLog> = (0..5).map(|i| RadioLog {
-    id: Uuid::new_v4(),
-    operator: op_id,
-    message: format!("Ping #{i}"),
-    unit_callsign: "Alpha-1".into(),
-    transmission_time: OffsetDateTime::now_utc(),
-    signal_strength: 42,
-}).collect();
-RadioLog::insert_many(&mut executor, &logs).await?;
+let logs: Vec<RadioLog> = (0..5)
+    .map(|i| RadioLog {
+        id: Uuid::new_v4(),
+        operator: op_id,
+        message: format!("Ping #{i}"),
+        unit_callsign: "Alpha-1".into(),
+        transmission_time: OffsetDateTime::now_utc(),
+        signal_strength: 42,
+    })
+    .collect();
+RadioLog::insert_many(executor, &logs).await?;
 ```
 
 ## Recon
@@ -118,20 +120,24 @@ if let Some(op) = found { /* confirm identity */ }
 
 First matching row:
 ```rust
-let maybe = RadioLog::find_one(&mut executor, &expr!(RadioLog::unit_callsign == "Alpha-1"))
-    .await?;
+let found = Operator::find_pk(executor, &operator.primary_key()).await?;
+if let Some(op) = found {
+    log::debug!("Found operator: {:?}", op.callsign);
+}
 ```
 
 All matching transmissions with limit:
 ```rust
-let mut stream = RadioLog::find_many(
-    &mut executor,
-    &expr!(RadioLog::signal_strength >= 40),
-    Some(100)
-);
-let mut log;
-while let Some(row) = stream.next().await {
-    log = row?;
+{
+    let mut stream = pin!(RadioLog::find_many(
+        executor,
+        &expr!(RadioLog::signal_strength >= 40),
+        Some(100)
+    ));
+    while let Some(radio_log) = stream.try_next().await? {
+        log::debug!("Found radio log: {:?}", radio_log.id);
+    }
+    // Executor is released from the stream at the end of the scope
 }
 ```
 
@@ -142,16 +148,16 @@ Under the hood: `find_one` is just `find_many` with a limit of 1.
 ```rust
 let mut operator = operator;
 operator.callsign = "SteelHammerX".into();
-operator.save(&mut executor).await?;
+operator.save(executor).await?;
 ```
 
 RadioLog also has a primary key, so editing a message:
 ```rust
-let mut log = RadioLog::find_one(&mut executor, &expr!(RadioLog::message == "Ping #2"))
+let mut log = RadioLog::find_one(executor, &expr!(RadioLog::message == "Ping #2"))
     .await?
     .expect("Missing log");
 log.message = "Ping #2 ACK".into();
-log.save(&mut executor).await?;
+log.save(executor).await?;
 ```
 
 If a table has no primary key, `save()` returns an error, use `insert_one` instead.
@@ -159,30 +165,29 @@ If a table has no primary key, `save()` returns an error, use `insert_one` inste
 ## Deletion Maneuvers
 Precision strike:
 ```rust
-RadioLog::delete_one(&mut executor, log.id).await?;
+RadioLog::delete_one(executor, log.primary_key()).await?;
 ```
 
 Scorched earth pattern:
 ```rust
-RadioLog::delete_many(&mut executor, &expr!(RadioLog::operator == operator.id)).await?;
+RadioLog::delete_many(executor, &expr!(RadioLog::operator == #operator_id)).await?;
 ```
 
 Instance form (validates exactly one row):
 ```rust
-operator.delete(&mut executor).await?;
+operator.delete(executor).await?;
 ```
 
 ## Prepared Recon
 Filter transmissions after a threshold:
 ```rust
-let mut query = RadioLog::table()
-    .prepare([RadioLog::message], &mut executor, &expr!(RadioLog::signal_strength > ?), None)
-    .await?;
+let mut query =
+    RadioLog::prepare_find(executor, &expr!(RadioLog::signal_strength > ?), None).await?;
 if let Query::Prepared(p) = &mut query {
     p.bind(40)?;
 }
 let messages: Vec<_> = query
-    .fetch_many(&mut executor)
+    .fetch_many(executor)
     .map_ok(|row| row.values[0].clone())
     .try_collect()
     .await?;
@@ -194,19 +199,40 @@ Combine delete + insert + select in one roundtrip:
 let writer = executor.driver().sql_writer();
 let mut sql = String::new();
 writer.write_delete::<RadioLog>(&mut sql, &expr!(RadioLog::signal_strength < 10));
-writer.write_insert(&mut sql, [&RadioLog {
-    id: Uuid::new_v4(),
-    operator: operator.id,
-    message: "Status report".into(),
-    unit_callsign: "Alpha-1".into(),
-    transmission_time: OffsetDateTime::now_utc(),
-    signal_strength: 55,
-}], false);
-writer.write_select(&mut sql, RadioLog::columns(), RadioLog::table(), &expr!(true), Some(50));
-let mut stream = executor.run(sql.into());
+writer.write_insert(&mut sql, [&operator], false);
+writer.write_insert(
+    &mut sql,
+    [&RadioLog {
+        id: Uuid::new_v4(),
+        operator: operator.id,
+        message: "Status report".into(),
+        unit_callsign: "Alpha-1".into(),
+        transmission_time: OffsetDateTime::now_utc(),
+        signal_strength: 55,
+    }],
+    false,
+);
+writer.write_select(
+    &mut sql,
+    RadioLog::columns(),
+    RadioLog::table(),
+    &expr!(true),
+    Some(50),
+);
+{
+    let mut stream = pin!(executor.run(sql.into()));
+    while let Some(result) = stream.try_next().await? {
+        match result {
+            QueryResult::Row(row) => log::debug!("Row: {row:?}"),
+            QueryResult::Affected(RowsAffected { rows_affected, .. }) => {
+                log::debug!("Affected rows: {rows_affected:?}")
+            }
+        }
+    }
+}
 ```
 
-Process `QueryResult::Affected` then `Row` items sequentially.
+Process `QueryResult::Affected` then `QueryResult::Row` items sequentially.
 
 ## Error Signals & Edge Cases
 - `save()` / `delete()` on entities without PK result in immediate error.

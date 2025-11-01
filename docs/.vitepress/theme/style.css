@@ -47,7 +47,7 @@
 @font-face {
     font-family: RobotoSlab-Bold;
     /* set name */
-    src: url(RobotoSlab-Bold.woff2);
+    src: url(assets/RobotoSlab-Bold.woff2);
     /* url of the font */
 }
 
@@ -120,6 +120,7 @@
 p {
     text-align: justify;
 }
+
 h1 {
     font-family: RobotoSlab-Bold;
 }

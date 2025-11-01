@@ -1,6 +1,6 @@
 use std::fmt::Write;
 use tank_core::{Context, SqlWriter, Value, future::Either, separated_by};
-use time::{Date, PrimitiveDateTime, Time};
+use time::{Date, OffsetDateTime, PrimitiveDateTime, Time};
 
 pub struct PostgresSqlWriter {}
 
@@ -131,6 +131,28 @@ impl SqlWriter for PostgresSqlWriter {
             out.push_str(" BC");
         }
         out.push_str("'::TIMESTAMP");
+    }
+
+    fn write_value_timestamptz(
+        &self,
+        context: &mut Context,
+        out: &mut String,
+        value: &OffsetDateTime,
+    ) {
+        out.push('\'');
+        self.write_value_date(context, out, &value.date(), true);
+        out.push('T');
+        self.write_value_time(context, out, &value.time(), true);
+        let _ = write!(
+            out,
+            "{:+02}:{:02}",
+            value.offset().whole_hours(),
+            value.offset().whole_minutes()
+        );
+        if value.date().year() <= 0 {
+            out.push_str(" BC");
+        }
+        out.push_str("'::TIMESTAMPTZ");
     }
 
     fn write_value_list<'a>(

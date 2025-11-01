@@ -1,6 +1,6 @@
 use crate::{
-    ColumnDef, Context, DataSet, Driver, Error, Executor, Expression, Result, Row, RowLabeled,
-    RowsAffected, TableRef, Value, future::Either, stream::Stream, writer::SqlWriter,
+    ColumnDef, Context, DataSet, Driver, Error, Executor, Expression, Query, Result, Row,
+    RowLabeled, RowsAffected, TableRef, Value, future::Either, stream::Stream, writer::SqlWriter,
 };
 use futures::{FutureExt, StreamExt, TryFutureExt};
 use log::Level;
@@ -110,6 +110,17 @@ pub trait Entity {
         Self: 'a,
         Exec: Executor,
         It: IntoIterator<Item = &'a Self> + Send;
+
+    /// Prepare (but do not yet run) a SQL select query.
+    ///
+    /// Returns the prepared statement.
+    fn prepare_find<Exec: Executor, Expr: Expression>(
+        executor: &mut Exec,
+        condition: &Expr,
+        limit: Option<u32>,
+    ) -> impl Future<Output = Result<Query<Exec::Driver>>> {
+        Self::table().prepare(Self::columns(), executor, condition, limit)
+    }
 
     /// Finds an entity by primary key.
     ///

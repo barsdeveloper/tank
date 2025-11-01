@@ -330,20 +330,12 @@ pub trait SqlWriter {
         out: &mut String,
         value: &OffsetDateTime,
     ) {
-        out.push('\'');
-        self.write_value_date(context, out, &value.date(), true);
-        out.push('T');
-        self.write_value_time(context, out, &value.time(), true);
-        let _ = write!(
+        let date_time = value.to_utc();
+        self.write_value_timestamp(
+            context,
             out,
-            "{:+02}:{:02}",
-            value.offset().whole_hours(),
-            value.offset().whole_minutes()
+            &PrimitiveDateTime::new(date_time.date(), date_time.time()),
         );
-        if value.date().year() <= 0 {
-            out.push_str(" BC");
-        }
-        out.push_str("'::TIMESTAMPTZ");
     }
 
     /// Ordered units used to decompose intervals.

@@ -926,6 +926,14 @@ mod tests {
         );
         assert!(input.is_empty());
 
+        let mut input = "5 HORS";
+        assert!(Interval::extract(&mut input).is_err());
+        assert_eq!(input, "5 HORS");
+
+        let mut input = "04:";
+        assert!(Interval::extract(&mut input).is_err());
+        assert_eq!(input, "04:");
+
         let mut input = "04:05:";
         assert!(Interval::extract(&mut input).is_err());
         assert_eq!(input, "04:05:");
@@ -933,6 +941,18 @@ mod tests {
         let mut input = "04:05:06.";
         assert!(Interval::extract(&mut input).is_err());
         assert_eq!(input, "04:05:06.");
+
+        let mut input = "'2 days 01:02:03.0040050068473'   more";
+        assert!(Interval::extract(&mut input).is_err());
+        assert_eq!(input, "'2 days 01:02:03.0040050068473'   more");
+
+        let mut input = "'2 days\"";
+        assert!(Interval::extract(&mut input).is_err());
+        assert_eq!(input, "'2 days\"");
+
+        let mut input = "'2 days 01:02:03.0\"";
+        assert!(Interval::extract(&mut input).is_err());
+        assert_eq!(input, "'2 days 01:02:03.0\"");
 
         let mut input = "'2 days 01:02:03.004005006'   more";
         assert_eq!(

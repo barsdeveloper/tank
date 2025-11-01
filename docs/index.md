@@ -7,7 +7,7 @@ hero:
   text: "Table Abstraction & Navigation Kit"
   tagline: The Rust data layer
   image:
-    src: /logo.png
+    src: assets/logo.png
     alt: Tank logo
   actions:
     - theme: brand

@@ -3,12 +3,12 @@ mod arrays1;
 mod arrays2;
 mod books;
 mod complex;
-mod operations;
 mod full1;
 mod insane;
 mod interval;
 mod limits;
 mod multiple;
+mod operations;
 mod readme;
 mod simple;
 mod trade;
@@ -18,10 +18,10 @@ mod user;
 use crate::{
     books::books,
     complex::complex,
-    operations::operations,
     insane::insane,
     limits::limits,
     multiple::multiple,
+    operations::operations,
     simple::simple,
     trade::{trade_multiple, trade_simple},
     transaction1::transaction1,
@@ -71,8 +71,12 @@ pub async fn execute_tests<C: Connection>(mut connection: C) {
     arrays1(&mut connection).await;
     #[cfg(not(feature = "disable-arrays"))]
     arrays2(&mut connection).await;
-    drop(readme(&mut connection).await);
-    operations(&mut connection).await;
+    readme(&mut connection)
+        .await
+        .expect("Readme examples test did not succeed");
+    operations(&mut connection)
+        .await
+        .expect("Operations examples test did not succeed");
 }
 
 #[macro_export]

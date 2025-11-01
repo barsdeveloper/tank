@@ -39,7 +39,7 @@ pub trait DataSet {
             .write_select(&mut query, columns, self, condition, limit);
         executor.fetch(query.into())
     }
-    /// Prepare (but do not yet run) a SQL statement.
+    /// Prepare (but do not yet run) a SQL select query.
     fn prepare<Item, Cols, Exec, Expr>(
         &self,
         columns: Cols,
