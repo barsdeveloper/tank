@@ -1,6 +1,7 @@
 use crate::{CheckPassive, TypeDecoded, Value, matches_path};
 use proc_macro2::TokenStream;
 use quote::{ToTokens, quote};
+use std::mem;
 use syn::{
     Expr, ExprLit, GenericArgument, Lit, PathArguments, Type, TypeArray, TypePath, TypeSlice,
 };
@@ -34,6 +35,18 @@ pub fn decode_type(ty: &Type) -> (TypeDecoded, Option<CheckPassive>) {
                     break 'data_type Value::UInt64(None);
                 } else if ident == "u128" {
                     break 'data_type Value::UInt128(None);
+                } else if ident == "isize" {
+                    break 'data_type if mem::size_of::<isize>() == mem::size_of::<i32>() {
+                        Value::Int32(None)
+                    } else {
+                        Value::Int64(None)
+                    };
+                } else if ident == "usize" {
+                    break 'data_type if mem::size_of::<usize>() == mem::size_of::<u32>() {
+                        Value::UInt32(None)
+                    } else {
+                        Value::UInt64(None)
+                    };
                 } else if ident == "f32" {
                     break 'data_type Value::Float32(None);
                 } else if ident == "f64" {

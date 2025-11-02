@@ -68,11 +68,11 @@ macro_rules! impl_as_value {
                 $destination(None)
             }
             fn as_value(self) -> Value {
-                $destination(Some(self.into()))
+                $destination(Some(self as _))
             }
             fn try_from_value(value: Value) -> Result<Self> {
                 match value {
-                    $destination(Some(v), ..) => Ok(v),
+                    $destination(Some(v), ..) => Ok(v as _),
                     $($pat_rest => $expr_rest,)*
                     #[allow(unreachable_patterns)]
                     Value::Int32(Some(v), ..) => {
@@ -169,7 +169,7 @@ macro_rules! impl_as_value {
 impl_as_value!(
     i8,
     Value::Int8,
-    Value::UInt8(Some(v), ..) => Ok(v as i8),
+    Value::UInt8(Some(v), ..) => Ok(v as _),
     Value::Int16(Some(v), ..) => {
         let result = v as i8;
         if result as i16 != v {
@@ -181,18 +181,18 @@ impl_as_value!(
 impl_as_value!(
     i16,
     Value::Int16,
-    Value::Int8(Some(v), ..) => Ok(v as i16),
-    Value::UInt16(Some(v), ..) => Ok(v as i16),
-    Value::UInt8(Some(v), ..) => Ok(v as i16),
+    Value::Int8(Some(v), ..) => Ok(v as _),
+    Value::UInt16(Some(v), ..) => Ok(v as _),
+    Value::UInt8(Some(v), ..) => Ok(v as _),
 );
 impl_as_value!(
     i32,
     Value::Int32,
-    Value::Int16(Some(v), ..) => Ok(v as i32),
-    Value::Int8(Some(v), ..) => Ok(v as i32),
-    Value::UInt32(Some(v), ..) => Ok(v as i32),
-    Value::UInt16(Some(v), ..) => Ok(v as i32),
-    Value::UInt8(Some(v), ..) => Ok(v as i32),
+    Value::Int16(Some(v), ..) => Ok(v as _),
+    Value::Int8(Some(v), ..) => Ok(v as _),
+    Value::UInt32(Some(v), ..) => Ok(v as _),
+    Value::UInt16(Some(v), ..) => Ok(v as _),
+    Value::UInt8(Some(v), ..) => Ok(v as _),
     Value::Decimal(Some(v), ..) => {
         let error = Error::msg(format!("Value {v}: Decimal does not fit into i32"));
         if !v.is_integer() {
@@ -204,13 +204,13 @@ impl_as_value!(
 impl_as_value!(
     i64,
     Value::Int64,
-    Value::Int32(Some(v), ..) => Ok(v as i64),
-    Value::Int16(Some(v), ..) => Ok(v as i64),
-    Value::Int8(Some(v), ..) => Ok(v as i64),
-    Value::UInt64(Some(v), ..) => Ok(v as i64),
-    Value::UInt32(Some(v), ..) => Ok(v as i64),
-    Value::UInt16(Some(v), ..) => Ok(v as i64),
-    Value::UInt8(Some(v), ..) => Ok(v as i64),
+    Value::Int32(Some(v), ..) => Ok(v as _),
+    Value::Int16(Some(v), ..) => Ok(v as _),
+    Value::Int8(Some(v), ..) => Ok(v as _),
+    Value::UInt64(Some(v), ..) => Ok(v as _),
+    Value::UInt32(Some(v), ..) => Ok(v as _),
+    Value::UInt16(Some(v), ..) => Ok(v as _),
+    Value::UInt8(Some(v), ..) => Ok(v as _),
     Value::Decimal(Some(v), ..) => {
         let error = Error::msg(format!("Value {v}: Decimal does not fit into i64"));
         if !v.is_integer() {
@@ -222,21 +222,39 @@ impl_as_value!(
 impl_as_value!(
     i128,
     Value::Int128,
-    Value::Int64(Some(v), ..) => Ok(v as i128),
-    Value::Int32(Some(v), ..) => Ok(v as i128),
-    Value::Int16(Some(v), ..) => Ok(v as i128),
-    Value::Int8(Some(v), ..) => Ok(v as i128),
-    Value::UInt128(Some(v), ..) => Ok(v as i128),
-    Value::UInt64(Some(v), ..) => Ok(v as i128),
-    Value::UInt32(Some(v), ..) => Ok(v as i128),
-    Value::UInt16(Some(v), ..) => Ok(v as i128),
-    Value::UInt8(Some(v), ..) => Ok(v as i128),
+    Value::Int64(Some(v), ..) => Ok(v as _),
+    Value::Int32(Some(v), ..) => Ok(v as _),
+    Value::Int16(Some(v), ..) => Ok(v as _),
+    Value::Int8(Some(v), ..) => Ok(v as _),
+    Value::UInt128(Some(v), ..) => Ok(v as _),
+    Value::UInt64(Some(v), ..) => Ok(v as _),
+    Value::UInt32(Some(v), ..) => Ok(v as _),
+    Value::UInt16(Some(v), ..) => Ok(v as _),
+    Value::UInt8(Some(v), ..) => Ok(v as _),
     Value::Decimal(Some(v), ..) => {
         let error = Error::msg(format!("Value {v}: Decimal does not fit into i128"));
         if !v.is_integer() {
             return Err(error.context("The value is not a integer"));
         }
         v.to_i128().ok_or(error)
+    }
+);
+impl_as_value!(
+    isize,
+    Value::Int64,
+    Value::Int32(Some(v), ..) => Ok(v as _),
+    Value::Int16(Some(v), ..) => Ok(v as _),
+    Value::Int8(Some(v), ..) => Ok(v as _),
+    Value::UInt64(Some(v), ..) => Ok(v as _),
+    Value::UInt32(Some(v), ..) => Ok(v as _),
+    Value::UInt16(Some(v), ..) => Ok(v as _),
+    Value::UInt8(Some(v), ..) => Ok(v as _),
+    Value::Decimal(Some(v), ..) => {
+        let error = Error::msg(format!("Value {v}: Decimal does not fit into i64"));
+        if !v.is_integer() {
+            return Err(error.context("The value is not a integer"));
+        }
+        v.to_isize().ok_or(error)
     }
 );
 impl_as_value!(
@@ -249,7 +267,7 @@ impl_as_value!(
 impl_as_value!(
     u16,
     Value::UInt16,
-    Value::UInt8(Some(v), ..) => Ok(v as u16),
+    Value::UInt8(Some(v), ..) => Ok(v as _),
     Value::Int32(Some(v), ..) => {
         let result = v as u16;
         if result as i32 != v {
@@ -261,15 +279,15 @@ impl_as_value!(
 impl_as_value!(
     u32,
     Value::UInt32,
-    Value::UInt16(Some(v), ..) => Ok(v as u32),
-    Value::UInt8(Some(v), ..) => Ok(v as u32),
+    Value::UInt16(Some(v), ..) => Ok(v as _),
+    Value::UInt8(Some(v), ..) => Ok(v as _),
 );
 impl_as_value!(
     u64,
     Value::UInt64,
-    Value::UInt32(Some(v), ..) => Ok(v as u64),
-    Value::UInt16(Some(v), ..) => Ok(v as u64),
-    Value::UInt8(Some(v), ..) => Ok(v as u64),
+    Value::UInt32(Some(v), ..) => Ok(v as _),
+    Value::UInt16(Some(v), ..) => Ok(v as _),
+    Value::UInt8(Some(v), ..) => Ok(v as _),
     Value::Decimal(Some(v), ..) => {
         let error = Error::msg(format!("Value {v}: Decimal does not fit into u64"));
         if !v.is_integer() {
@@ -281,16 +299,30 @@ impl_as_value!(
 impl_as_value!(
     u128,
     Value::UInt128,
-    Value::UInt64(Some(v), ..) => Ok(v as u128),
-    Value::UInt32(Some(v), ..) => Ok(v as u128),
-    Value::UInt16(Some(v), ..) => Ok(v as u128),
-    Value::UInt8(Some(v), ..) => Ok(v as u128),
+    Value::UInt64(Some(v), ..) => Ok(v as _),
+    Value::UInt32(Some(v), ..) => Ok(v as _),
+    Value::UInt16(Some(v), ..) => Ok(v as _),
+    Value::UInt8(Some(v), ..) => Ok(v as _),
     Value::Decimal(Some(v), ..) => {
         let error = Error::msg(format!("Value {v}: Decimal does not fit into u128"));
         if !v.is_integer() {
             return Err(error.context("The value is not a integer"));
         }
         v.to_u128().ok_or(error)
+    }
+);
+impl_as_value!(
+    usize,
+    Value::UInt64,
+    Value::UInt32(Some(v), ..) => Ok(v as _),
+    Value::UInt16(Some(v), ..) => Ok(v as _),
+    Value::UInt8(Some(v), ..) => Ok(v as _),
+    Value::Decimal(Some(v), ..) => {
+        let error = Error::msg(format!("Value {v}: Decimal does not fit into u64"));
+        if !v.is_integer() {
+            return Err(error.context("The value is not a integer"));
+        }
+        v.to_usize().ok_or(error)
     }
 );
 
@@ -354,7 +386,7 @@ impl_as_value!(
         *v = &v[tail..];
         Ok(num)
     },
-    Value::Float64(Some(v), ..) => Ok(v as f32),
+    Value::Float64(Some(v), ..) => Ok(v as _),
     Value::Decimal(Some(v), ..) => Ok(v.try_into()?),
 );
 impl_as_value!(
@@ -365,7 +397,7 @@ impl_as_value!(
         *v = &v[tail..];
         Ok(num)
     },
-    Value::Float32(Some(v), ..) => Ok(v as f64),
+    Value::Float32(Some(v), ..) => Ok(v as _),
     Value::Decimal(Some(v), ..) => Ok(v.try_into()?),
 );
 impl_as_value!(

@@ -378,11 +378,15 @@ impl Executor for DuckDBConnection {
                         ),
                         Value::List(Some(ref v), ty) => {
                             let logical_type = tank_value_to_duckdb_logical_type(&ty);
-                            let values = v.iter().map(|v| tank_value_to_duckdb_value(v));
+                            let values = v
+                                .iter()
+                                .map(|v| tank_value_to_duckdb_value(v))
+                                .collect::<Vec<_>>();
+                            let mut values = values.iter().map(|v| **v).collect::<Vec<_>>();
                             let value = CBox::new(
                                 duckdb_create_list_value(
                                     *logical_type,
-                                    values.map(|v| *v).collect::<Vec<_>>().as_mut_ptr(),
+                                    values.as_mut_ptr(),
                                     v.len() as u64,
                                 ),
                                 |mut p| duckdb_destroy_value(&mut p),
