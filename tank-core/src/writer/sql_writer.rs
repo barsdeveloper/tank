@@ -607,7 +607,13 @@ pub trait SqlWriter {
             BinaryOpType::GreaterEqual => ("", " >= ", "", false, false),
             BinaryOpType::And => ("", " AND ", "", false, false),
             BinaryOpType::Or => ("", " OR ", "", false, false),
-            BinaryOpType::Alias => ("", " AS ", "", false, false),
+            BinaryOpType::Alias => {
+                if context.fragment == Fragment::SqlSelectOrderBy {
+                    return value.lhs.write_query(self.as_dyn(), context, out);
+                } else {
+                    ("", " AS ", "", false, false)
+                }
+            }
         };
         let mut context = context.switch_fragment(if value.op == BinaryOpType::Cast {
             Fragment::Casting

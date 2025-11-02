@@ -355,7 +355,7 @@ pub fn cols(input: TokenStream) -> TokenStream {
                 quote! {
                     ::tank::Ordered {
                         order: #order,
-                        expression: #expr,
+                        expression: ::tank::expr!(#expr),
                     }
                 }
             }

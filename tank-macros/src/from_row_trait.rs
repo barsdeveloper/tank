@@ -99,7 +99,7 @@ pub(crate) fn from_row_trait(table: &TableMetadata) -> (Ident, TokenStream) {
                         #field_assignment_holder
                     }
                     let __make_error__ = |name: &str| ::tank::Error::msg(format!(
-                        "Column `{name}` does not exist in the row provided ({} implement `Default` or get all the columns)",
+                        "Column `{name}` does not exist in the row provided (implement `Default` for {} or get all the columns)",
                         stringify!(#struct_name),
                     ));
                     Ok(#create_result)
