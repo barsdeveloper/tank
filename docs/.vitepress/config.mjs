@@ -30,6 +30,7 @@ export default defineConfig({
           { text: 'Types', link: '/4-types' },
           { text: 'Entity definition', link: '/5-entity-definition' },
           { text: 'Entity operations', link: '/6-entity-operations' },
+          { text: 'Advanced operations', link: '/7-advanced-operations' },
         ],
       },
 

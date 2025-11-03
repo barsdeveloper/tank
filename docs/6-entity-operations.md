@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS operations.radio_log (
     message VARCHAR NOT NULL,
     unit_callsign VARCHAR NOT NULL,
     tx_time TIMESTAMP WITH TIME ZONE NOT NULL,
-    rssi TINYINT NOT NULL);"
+    rssi TINYINT NOT NULL);
 ```
 :::
 
@@ -114,13 +114,16 @@ RadioLog::insert_many(executor, &logs).await?;
 ## Recon
 Find by primary key:
 ```rust
-let found = Operator::find_pk(&mut executor, &operator.id).await?;
+let found = Operator::find_pk(&mut executor, &operator.primary_key()).await?;
 if let Some(op) = found { /* confirm identity */ }
 ```
 
-First matching row:
+First matching row (use a predicate with `find_one`):
 ```rust
-let found = Operator::find_pk(executor, &operator.primary_key()).await?;
+let found = Operator::find_one(
+    executor,
+    &expr!(Operator::callsign == "SteelHammer")
+).await?;
 if let Some(op) = found {
     log::debug!("Found operator: {:?}", op.callsign);
 }
@@ -144,7 +147,7 @@ All matching transmissions with limit:
 Under the hood: `find_one` is just `find_many` with a limit of 1.
 
 ## Updating
-`save()` attempts insert or update if the driver supports conflict clauses.
+`save()` attempts insert or update (UPSERT) if the driver supports conflict clauses (e.g. Postgres, DuckDB). Otherwise it falls back to an insert and may error if the row already exists.
 ```rust
 let mut operator = operator;
 operator.callsign = "SteelHammerX".into();

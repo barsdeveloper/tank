@@ -3,6 +3,8 @@
 
 Welcome to the Tank field manual. This is the quick-and-mean guide for developers who want to drive, fight and survive with Tank (Table Abstraction & Navigation Kit): the Rust data layer.
 
+In plain terms: Tank is a lightweight, multi-database abstraction that lets you define entities, run async queries, and mix raw SQL with ergonomic helpers without locking you into an all-or-nothing ORM worldview.
+
 ## Mission objectives
 - **Async operations** - fire and forget.
 - **Simple workflow** - every query is visible on your tactical map.
@@ -29,6 +31,6 @@ It keeps the learning curve low, just a handful of clear concepts. It stays deli
 
 Because its scope is tight, Tank can deploy on many fronts, from classic SQL databases to non-SQL theaters. At the same time, it doesn't limit your capabilities: Tank never tries to hide SQL behind a heavy query builder: you can write plain SQL whenever you need and still benefit from its rich type-conversion features. In this way, it's similar in spirit to [SQLx](https://crates.io/crates/sqlx) but unlike SQLx, Tank does not perform compile-time SQL validation. It prioritizes runtime flexibility and multi-database support over static checking.
 
-Tank also provides convenient methods to set up tables and get database communication running in just a few lines of code, all through a unified API that works the same regardless of the backend. Perfect to setup testing very quickly.
+Tank also provides convenient methods to set up tables and get database communication running in just a few lines of code, all through a unified API that works the same regardless of the backend. Perfect for spinning up tests and prototypes rapidly while still scaling to production backends.
 
 *Hold the line. Maintain discipline. Tank out.*

@@ -4,7 +4,7 @@
 Welcome to the armored convoy, commander. Before you can unleash Tank's firepower, you have to secure your supply lines. Open a **Connection** to your database, and when the mission escalates, lock operations inside a **Transaction**. No connection, no combat. It's that simple.
 
 ## Connect
-Every database connection abstraction implements the [`Connection`](https://docs.rs/tank/latest/tank/trait.Connection.html) trait. This is your communication link to the database server. Call [`connect("dbms://...")`](https://docs.rs/tank/latest/tank/trait.Connection.html#tymethod.connect) with a URL let Tank establish the line. Every driver is its own crate. Load only what you need for the operation. Check the [drivers](1-introduction.md#drivers) to see the available connections.
+Every database connection abstraction implements the [`Connection`](https://docs.rs/tank/latest/tank/trait.Connection.html) trait. This is your communication link to the database server. Call [`connect("dbms://...")`](https://docs.rs/tank/latest/tank/trait.Connection.html#tymethod.connect) with a URL to let Tank establish the line. Every driver is its own crate. Load only what you need for the operation. Check the [drivers](1-introduction.md#drivers) to see the available connections.
 
 Once the line is open, the connection exposes both the [`Connection`](https://docs.rs/tank/latest/tank/trait.Connection.html) and [`Executor`](https://docs.rs/tank/latest/tank/trait.Executor.html) interfaces, enabling you to prepare statements, run multiple queries, execute commands, fetch rows and orchestrate transactions.
 
@@ -34,7 +34,7 @@ Modes:
 - `mode=rwc`: alias for `rw`
 - `mode=memory`: in-memory access (creates a temporary database that lives only for the duration of the connection)
 
-The `mode` parameter provides a common syntax for specifying connection access, similar to SQLite. The values map respectively to `access_mode=READ_ONLY`, `access_mode=READ_WRITE`, `access_mode=READ_WRITE` and the special `duckdb://:memory:` path. Additional URL parameters are passed directly to the DuckDB C API. See the full list of supported options on the [DuckDB website](https://duckdb.org/docs/stable/configuration/overview#global-configuration-options)
+The `mode` parameter provides a common syntax for specifying connection access, similar to SQLite. The values map respectively to `access_mode=READ_ONLY`, `access_mode=READ_WRITE`, `access_mode=READ_WRITE` and the special `duckdb://:memory:` path. Additional URL parameters are passed directly to the DuckDB C API. See the full list of supported options on the [DuckDB website](https://duckdb.org/docs/stable/configuration/overview#global-configuration-options).
 
 #### SQLite
 SQLite is your trusty sidearm: lightweight, reliable, zero configuration. Deploy anywhere, anytime.
@@ -62,7 +62,7 @@ Modes:
 - `mode=rwc`: read-write access (creates the database if it doesn’t exist)
 - `mode=memory`: in-memory access (creates a temporary database that lives only for the duration of the connection)
 
-Additional URL parameters are passed directly to the DuckDB C API. See the full list of supported options on the [SQLite website](https://sqlite.org/uri.html#recognized_query_parameters)
+Additional URL parameters are passed directly to the SQLite API. See the full list of supported options on the [SQLite website](https://sqlite.org/uri.html#recognized_query_parameters).
 
 #### Postgres
 Postgres is your heavy artillery: powerful, networked, built for sustained campaigns with multiple units coordinating strikes.
@@ -116,4 +116,4 @@ Transactions support depends on the specific driver and database capabilities. T
 4. **Maintain**: Connection pooling is handled automatically by the driver.
 5. **Terminate**: Connections close automatically when dropped.
 
-*Lock, commit, advance. Dismissed*
+*Lock, commit, advance. Dismissed.*
