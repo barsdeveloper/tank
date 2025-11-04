@@ -2,10 +2,10 @@
 ###### *Field Manual Section 7* - Tactical Coordination
 
 In the field, isolated units rarely win the battle. Coordination is key. Joins let you link data across tables like synchronized squads advancing under fire.
-In Tank, a join is a first class `DataSet`, just like a `TableRef`. That means you can call `select()` and then, filter, map, reduce, etc, using the same clean, composable [Stream API](https://docs.rs/futures/latest/futures/prelude/trait.Stream.html) you already know.
+In Tank, a join is a first class `DataSet`, just like a `TableRef`. That means you can call `select()` and then, filter, map, reduce, etc, using the same composable [Stream API](https://docs.rs/futures/latest/futures/prelude/trait.Stream.html) you already know.
 
 ## Schema In Play
-Continuing with the `Operator` and `RadioLog` schema introduce earlier. Think of the join as a temporary tactical net: it composes existing tables into a streaming view you shape on demand.
+Continuing with the `Operator` and `RadioLog` schema introduce earlier. The following examples show more advanced query capabilities, something that go beyour simple CRUD operations shown earlier but still without revolving to raw sql.
 ::: code-group
 ```rust [Rust]
 #[derive(Entity)]
@@ -54,76 +54,66 @@ CREATE TABLE IF NOT EXISTS operations.radio_log (
 ```
 :::
 
+### Data
+**Operators:**
+| callsign    | rank  | enlisted   | is_certified |
+| ----------- | ----- | ---------- | ------------ |
+| SteelHammer | Major | 2015-06-20 | ✅ true      |
+| Viper       | Sgt   | 2019-11-01 | ✅ true      |
+| Rook        | Pvt   | 2023-01-15 | ❌ false     |
+
+**Radio logs:**
+| operator (UUID) | message                                  | unit_callsign | transmission_time (UTC±) | signal_strength |
+| --------------- | ---------------------------------------- | ------------- | ------------------------ | --------------- |
+| `uuid-1`        | Radio check, channel 3. How copy?        | Alpha-1       | 2025-11-04 19:45:21 +01  | −42 dBm         |
+| `uuid-1`        | Target acquired. Requesting coordinates. | Alpha-1       | 2025-11-04 19:54:12 +01  | −55 dBm         |
+| `uuid-1`        | Heavy armor spotted, grid 4C.            | Alpha-1       | 2025-11-04 19:51:09 +01  | −52 dBm         |
+| `uuid-2`        | Perimeter secure. All clear.             | Bravo-2       | 2025-11-04 19:51:09 +01  | −68 dBm         |
+| `uuid-3`        | Radio check, grid 1A. Over.              | Charlie-3     | 2025-11-04 18:59:11 +02  | −41 dBm         |
+| `uuid-1`        | Affirmative, engaging.                   | Alpha-1       | 2025-11-03 23:11:54 +00  | −54 dBm         |
+
 ## Selecting & Ordering
-You almost never need “all columns”. Projecting only `callsign`, `signal_strength`, and `message` cuts I/O and decoding. Column-level ordering keeps intent local (no detached `ORDER BY` to mentally reconcile).
-
-Minimal example (strongest certified transmissions):
+Here is a minimal example illustrating the use of [`tank::cols`](https://docs.rs/tank/0.8.0/tank/macro.cols.html) which supports aliasing and ordering. Strongest certified transmissions:
 ```rust
-let ds = join!(Operator JOIN RadioLog ON Operator::id == RadioLog::operator);
-let rows = ds
-    .select(
-        executor,
-        cols!(RadioLog::signal_strength as strength DESC, Operator::callsign ASC, RadioLog::message),
-        &expr!(Operator::is_certified == true && RadioLog::message NOT LINE "Ping %"),
-        Some(100)
-    );
+let messages = join!(
+    Operator JOIN RadioLog ON Operator::id == RadioLog::operator
+)
+.select(
+    executor,
+    cols!(
+        RadioLog::signal_strength as strength DESC,
+        Operator::callsign ASC,
+        RadioLog::message,
+    ),
+    &expr!(Operator::is_certified && RadioLog::message != "Radio check%" as LIKE),
+    Some(100),
+)
+.map(|row| {
+    row.and_then(|row| {
+        #[derive(Entity)]
+        struct Row {
+            message: String,
+            callsign: String,
+        }
+        Row::from_row(row).and_then(|row| Ok((row.message, row.callsign)))
+    })
+})
+.try_collect::<Vec<_>>()
+.await?;
+assert!(
+    messages.iter().map(|(a, b)| (a.as_str(), b.as_str())).eq([
+        ("Heavy armor spotted, grid 4C.", "SteelHammer"),
+        ("Affirmative, engaging.", "SteelHammer"),
+        ("Target acquired. Requesting coordinates.", "SteelHammer"),
+        ("Perimeter secure. All clear.", "Viper"),
+    ]
+    .into_iter())
+);
 ```
 
-## Aliasing
-Aliases are not just cosmetics, they stabilize downstream decoding when underlying DB column names differ (`service_rank` vs `rank`) or when two tables export the same column name (`id`).
+## Cols
 
-Example (rank + message):
-```rust
-cols!(Operator::service_rank as rank, RadioLog::message as msg)
-```
-
-## Custom Hydration (Just Enough Structure)
-Define custom entities to read from join results or just a subset of a table.
-
-```rust
-#[derive(Entity, Debug)]
-struct Transmission {
-    callsign: String,
-    signal_strength: i8,
-}
-
-let transmissions: Vec<Transmission> = ds
-    .select(
-        executor,
-        cols!(Operator::callsign, RadioLog::signal_strength DESC),
-        &expr!(RadioLog::signal_strength >= 40),
-        None
-    )
-    .map_ok(Transmission::from_row)
-    .map(Result::flatten)
-    .try_collect()
-    .await?;
-```
-
-## Prepared Joins
-
-
-## Aggregation (Client-Side When Light)
-Until server aggregates are wrapped, lightweight reductions happen in-stream:
-```rust
-let (sum, n) = ds
-  .select(executor, cols!(RadioLog::signal_strength), &expr!(true), None)
-  .map_ok(|r| r.values[0].clone().try_into().unwrap() as i64)
-  .try_fold((0,0), |(s,c), v| async move { Ok((s+v, c+1)) })
-  .await?;
-```
-If `n` is large or you only need a simple aggregate, consider pushing logic server-side once API support lands; for now this is pragmatic and clear.
-
-## Partial Reads (Skim What You Need)
-Grabbing only messages:
-```rust
-let messages: Vec<String> = ds
-  .select(executor, cols!(RadioLog::message ASC), &expr!(true), Some(50))
-  .map_ok(|r| r.values[0].clone().try_into().unwrap())
-  .try_collect()
-  .await?;
-```
-Do this instead of hydrating full entities when only one column drives a decision.
+## Expr
 
 ## Performance Notes
 - Request only the necessary columns.

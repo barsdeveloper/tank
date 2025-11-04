@@ -56,8 +56,7 @@ impl Executor for PostgresConnection {
             Query::Prepared(..) => Either::Right(try_stream! {
                 let mut transaction = self.begin().await?;
                 {
-                    let stream = transaction.run(query);
-                    let mut stream = pin!(stream);
+                    let mut stream = pin!(transaction.run(query));
                     while let Some(value) = stream.next().await.transpose()? {
                         yield value;
                     }
@@ -92,8 +91,7 @@ impl Executor for PostgresConnection {
                 try_stream! {
                     let mut transaction = self.begin().await?;
                     {
-                        let stream = transaction.fetch(query);
-                        let mut stream = pin!(stream);
+                        let mut stream = pin!(transaction.fetch(query));
                         while let Some(value) = stream.next().await.transpose()? {
                             yield value;
                         }

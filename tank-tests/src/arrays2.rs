@@ -46,7 +46,7 @@ pub async fn arrays2<E: Executor>(executor: &mut E) {
         })
     }));
     let rows = rows
-        .map(|v| v.map(|row| Container::from_row(row)).flatten())
+        .map(|v| v.and_then(Container::from_row))
         .try_collect::<Vec<_>>()
         .await
         .expect("Coult not execute the query");

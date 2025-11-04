@@ -1,9 +1,10 @@
 use std::{pin::pin, sync::LazyLock};
 use tank::{
-    Driver, Entity, Executor, Prepared, Query, QueryResult, Result, RowsAffected, SqlWriter, expr,
-    stream::TryStreamExt,
+    DataSet, Driver, Entity, Executor, Prepared, Query, QueryResult, Result, RowsAffected,
+    SqlWriter, cols, expr, join,
+    stream::{StreamExt, TryStreamExt},
 };
-use time::{Date, OffsetDateTime, macros::date};
+use time::{Date, Month, OffsetDateTime, Time, UtcOffset, macros::date};
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
@@ -39,16 +40,19 @@ static MUTEX: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
 pub async fn operations<E: Executor>(executor: &mut E) -> Result<()> {
     let _lock = MUTEX.lock().await;
 
-    // Deployment
-    Operator::create_table(executor, true, true).await?;
-    RadioLog::create_table(executor, true, false).await?;
+    // Setup
+    RadioLog::drop_table(executor, true, false).await?;
+    Operator::drop_table(executor, true, false).await?;
 
-    // Insertion Tactics
+    Operator::create_table(executor, false, true).await?;
+    RadioLog::create_table(executor, false, false).await?;
+
+    // Insert
     let operator = Operator {
         id: Uuid::new_v4(),
         callsign: "SteelHammer".into(),
-        service_rank: "Lt".into(),
-        enlisted: date!(2022 - 03 - 14),
+        service_rank: "Major".into(),
+        enlisted: date!(2015 - 06 - 20),
         is_certified: true,
     };
     Operator::insert_one(executor, &operator).await?;
@@ -66,7 +70,7 @@ pub async fn operations<E: Executor>(executor: &mut E) -> Result<()> {
         .collect();
     RadioLog::insert_many(executor, &logs).await?;
 
-    // Recon
+    // Find
     let found = Operator::find_pk(executor, &operator.primary_key()).await?;
     if let Some(op) = found {
         log::debug!("Found operator: {:?}", op.callsign);
@@ -90,7 +94,7 @@ pub async fn operations<E: Executor>(executor: &mut E) -> Result<()> {
         // Executor is released from the stream at the end of the scope
     }
 
-    // Updating
+    // Save
     let mut operator = operator;
     operator.callsign = "SteelHammerX".into();
     operator.save(executor).await?;
@@ -101,7 +105,7 @@ pub async fn operations<E: Executor>(executor: &mut E) -> Result<()> {
     log.message = "Ping #2 ACK".into();
     log.save(executor).await?;
 
-    // Deletion Maneuvers
+    // Delete
     RadioLog::delete_one(executor, log.primary_key()).await?;
 
     let operator_id = operator.id;
@@ -109,7 +113,7 @@ pub async fn operations<E: Executor>(executor: &mut E) -> Result<()> {
 
     operator.delete(executor).await?;
 
-    // Prepared Recon
+    // Prepare
     let mut query =
         RadioLog::prepare_find(executor, &expr!(RadioLog::signal_strength > ?), None).await?;
     if let Query::Prepared(p) = &mut query {
@@ -121,7 +125,7 @@ pub async fn operations<E: Executor>(executor: &mut E) -> Result<()> {
         .try_collect()
         .await?;
 
-    // Multi-Statement Burst
+    // Multi-Statement
     let writer = executor.driver().sql_writer();
     let mut sql = String::new();
     writer.write_delete::<RadioLog>(&mut sql, &expr!(RadioLog::signal_strength < 10));
@@ -157,8 +161,155 @@ pub async fn operations<E: Executor>(executor: &mut E) -> Result<()> {
         }
     }
 
+    Ok(())
+}
+
+pub async fn advanced_operations<E: Executor>(executor: &mut E) -> Result<()> {
+    let _lock = MUTEX.lock().await;
+
     RadioLog::drop_table(executor, true, false).await?;
     Operator::drop_table(executor, true, false).await?;
 
+    Operator::create_table(executor, false, true).await?;
+    RadioLog::create_table(executor, false, false).await?;
+
+    let operators = vec![
+        Operator {
+            id: Uuid::new_v4(),
+            callsign: "SteelHammer".into(),
+            service_rank: "Major".into(),
+            enlisted: date!(2015 - 06 - 20),
+            is_certified: true,
+        },
+        Operator {
+            id: Uuid::new_v4(),
+            callsign: "Viper".into(),
+            service_rank: "Sgt".into(),
+            enlisted: date!(2019 - 11 - 01),
+            is_certified: true,
+        },
+        Operator {
+            id: Uuid::new_v4(),
+            callsign: "Rook".into(),
+            service_rank: "Pvt".into(),
+            enlisted: date!(2023 - 01 - 15),
+            is_certified: false,
+        },
+    ];
+    let radio_logs = vec![
+        RadioLog {
+            id: Uuid::new_v4(),
+            operator: operators[0].id,
+            message: "Radio check, channel 3. How copy?".into(),
+            unit_callsign: "Alpha-1".into(),
+            transmission_time: OffsetDateTime::new_in_offset(
+                Date::from_calendar_date(2025, Month::November, 4).unwrap(),
+                Time::from_hms(19, 45, 21).unwrap(),
+                UtcOffset::from_hms(1, 0, 0).unwrap(),
+            ),
+            signal_strength: -42,
+        },
+        RadioLog {
+            id: Uuid::new_v4(),
+            operator: operators[0].id,
+            message: "Target acquired. Requesting coordinates.".into(),
+            unit_callsign: "Alpha-1".into(),
+            transmission_time: OffsetDateTime::new_in_offset(
+                Date::from_calendar_date(2025, Month::November, 4).unwrap(),
+                Time::from_hms(19, 54, 12).unwrap(),
+                UtcOffset::from_hms(1, 0, 0).unwrap(),
+            ),
+            signal_strength: -55,
+        },
+        RadioLog {
+            id: Uuid::new_v4(),
+            operator: operators[0].id,
+            message: "Heavy armor spotted, grid 4C.".into(),
+            unit_callsign: "Alpha-1".into(),
+            transmission_time: OffsetDateTime::new_in_offset(
+                Date::from_calendar_date(2025, Month::November, 4).unwrap(),
+                Time::from_hms(19, 51, 9).unwrap(),
+                UtcOffset::from_hms(1, 0, 0).unwrap(),
+            ),
+            signal_strength: -52,
+        },
+        RadioLog {
+            id: Uuid::new_v4(),
+            operator: operators[1].id,
+            message: "Perimeter secure. All clear.".into(),
+            unit_callsign: "Bravo-2".into(),
+            transmission_time: OffsetDateTime::new_in_offset(
+                Date::from_calendar_date(2025, Month::November, 4).unwrap(),
+                Time::from_hms(19, 51, 9).unwrap(),
+                UtcOffset::from_hms(1, 0, 0).unwrap(),
+            ),
+            signal_strength: -68,
+        },
+        RadioLog {
+            id: Uuid::new_v4(),
+            operator: operators[2].id,
+            message: "Radio check, grid 1A. Over.".into(),
+            unit_callsign: "Charlie-3".into(),
+            transmission_time: OffsetDateTime::new_in_offset(
+                Date::from_calendar_date(2025, Month::November, 4).unwrap(),
+                Time::from_hms(18, 59, 11).unwrap(),
+                UtcOffset::from_hms(2, 0, 0).unwrap(),
+            ),
+            signal_strength: -41,
+        },
+        RadioLog {
+            id: Uuid::new_v4(),
+            operator: operators[0].id,
+            message: "Affirmative, engaging.".into(),
+            unit_callsign: "Alpha-1".into(),
+            transmission_time: OffsetDateTime::new_in_offset(
+                Date::from_calendar_date(2025, Month::November, 3).unwrap(),
+                Time::from_hms(23, 11, 54).unwrap(),
+                UtcOffset::from_hms(0, 0, 0).unwrap(),
+            ),
+            signal_strength: -54,
+        },
+    ];
+    Operator::insert_many(executor, &operators)
+        .await
+        .expect("Could not insert operators");
+    RadioLog::insert_many(executor, &radio_logs)
+        .await
+        .expect("Could not insert radio logs");
+
+    let messages = join!(
+        Operator JOIN RadioLog ON Operator::id == RadioLog::operator
+    )
+    .select(
+        executor,
+        cols!(
+            RadioLog::signal_strength as strength DESC,
+            Operator::callsign ASC,
+            RadioLog::message,
+        ),
+        &expr!(Operator::is_certified && RadioLog::message != "Radio check%" as LIKE),
+        Some(100),
+    )
+    .map(|row| {
+        row.and_then(|row| {
+            #[derive(Entity)]
+            struct Row {
+                message: String,
+                callsign: String,
+            }
+            Row::from_row(row).and_then(|row| Ok((row.message, row.callsign)))
+        })
+    })
+    .try_collect::<Vec<_>>()
+    .await?;
+    assert!(
+        messages.iter().map(|(a, b)| (a.as_str(), b.as_str())).eq([
+            ("Heavy armor spotted, grid 4C.", "SteelHammer"),
+            ("Affirmative, engaging.", "SteelHammer"),
+            ("Target acquired. Requesting coordinates.", "SteelHammer"),
+            ("Perimeter secure. All clear.", "Viper"),
+        ]
+        .into_iter())
+    );
     Ok(())
 }

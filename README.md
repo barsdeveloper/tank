@@ -1,5 +1,5 @@
 <div align="center">
-    <img width="300" height="300" src="https://github.com/barsdeveloper/tank/blob/master/docs/public/logo.png?raw=true" alt="Tank: Table Abstraction & Navigation Kit logo featuring a green tank with a gear background and stacked database cylinders" />
+    <img width="300" height="300" src="docs/public/logo.png" alt="Tank: Table Abstraction & Navigation Kit logo featuring a green tank with a gear background and stacked database cylinders" />
 </div>
 
 # Tank
@@ -7,9 +7,9 @@ Tank (Table Abstraction & Navigation Kit): the Rust data layer.
 
 Simple and flexible ORM that manages in a unified way data from different sources.
 
-https://github.com/barsdeveloper/tank ⭐
-
 https://barsdeveloper.github.io/tank/
+
+https://github.com/barsdeveloper/tank ⭐
 
 https://crates.io/crates/tank
 

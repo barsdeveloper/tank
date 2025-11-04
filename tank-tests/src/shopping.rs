@@ -1,8 +1,9 @@
 use rust_decimal::Decimal;
+use std::pin::pin;
 #[allow(unused_imports)]
 use std::{str::FromStr, sync::Arc, sync::LazyLock};
 use tank::{
-    DataSet, Entity, Executor, FixedDecimal, cols, expr, join,
+    AsValue, DataSet, Entity, Executor, FixedDecimal, cols, expr, join,
     stream::{StreamExt, TryStreamExt},
 };
 use time::{Date, Month, PrimitiveDateTime, Time};
@@ -102,12 +103,11 @@ pub async fn shopping<E: Executor>(executor: &mut E) {
         .select(
             executor,
             cols!(Product::id, Product::name, Product::price ASC),
-            &expr!(shopping.product.stock > 0),
+            &expr!(Product::stock > 0),
             None,
         )
-        .map_ok(Product::from_row)
-        .map(Result::flatten)
-        .try_collect::<Vec<_>>()
+        .map(|r| r.and_then(Product::from_row))
+        .try_collect::<Vec<Product>>()
         .await
         .expect("Could not get the products ordered by increasing price");
     assert!(
@@ -155,6 +155,12 @@ pub async fn shopping<E: Executor>(executor: &mut E) {
     User::insert_many(executor, &users)
         .await
         .expect("Could not insert the users");
+    let row = pin!(User::table().select(executor, cols!(COUNT(*)), &true, Some(1)))
+        .try_next()
+        .await
+        .expect("Failed to query for count")
+        .expect("Did not return some value");
+    assert_eq!(i64::try_from_value(row.values[0].clone()).unwrap(), 2);
 
     // Cart
     Cart::drop_table(executor, true, false)

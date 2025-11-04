@@ -21,7 +21,7 @@ use crate::{
     insane::insane,
     limits::limits,
     multiple::multiple,
-    operations::operations,
+    operations::{advanced_operations, operations},
     shopping::shopping,
     simple::simple,
     trade::{trade_multiple, trade_simple},
@@ -79,6 +79,9 @@ pub async fn execute_tests<C: Connection>(mut connection: C) {
     operations(&mut connection)
         .await
         .expect("Operations examples test did not succeed");
+    advanced_operations(&mut connection)
+        .await
+        .expect("Advanced operations examples test did not succeed")
 }
 
 #[macro_export]

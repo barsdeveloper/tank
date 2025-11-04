@@ -17,7 +17,7 @@ List of every tactical primitive you execute against an `Entity`. Each item maps
 * [`entity.save()`](https://docs.rs/tank/latest/tank/trait.Entity.html#method.save): resupply and hold the position
 * [`entity.delete()`](https://docs.rs/tank/latest/tank/trait.Entity.html#method.delete): stand-down order
 
-## Forward Operations Schema
+## Operations Schema
 This is the schema we will use for every operation example that follows. All CRUD, streaming, prepared, and batching demonstrations below act on these two tables so you can focus on behavior instead of switching contexts. `Operator` is the identity table, `RadioLog` references an operator (foreign key) to record transmissions.
 ::: code-group
 ```rust [Rust]
@@ -67,14 +67,14 @@ CREATE TABLE IF NOT EXISTS operations.radio_log (
 ```
 :::
 
-## Deployment
+## Setup
 Deployment is the initial insertion of your units into the theater: creating tables (and schema) before any data flows, and tearing them down when the operation ends.
 ```rust
-Operator::create_table(executor, true, true).await?;
-RadioLog::create_table(executor, true, false).await?;
-// ...
 RadioLog::drop_table(executor, true, false).await?;
 Operator::drop_table(executor, true, false).await?;
+
+Operator::create_table(executor, false, true).await?;
+RadioLog::create_table(executor, false, false).await?;
 ```
 
 Key points:
@@ -82,16 +82,16 @@ Key points:
 - Schema creation runs before the table when requested.
 - Foreign key in `RadioLog.operator` enforces referential discipline.
 
-## Insertion Tactics
+## Insert
 Single unit insertion:
 ```rust
-let operator = Operator {
-    id: Uuid::new_v4(),
+Operator {
+    id: operator_1_id,
     callsign: "SteelHammer".into(),
-    service_rank: "Lt".into(),
-    enlisted: date!(2022 - 03 - 14),
+    service_rank: "Major".into(),
+    enlisted: date!(2015 - 06 - 20),
     is_certified: true,
-};
+},
 Operator::insert_one(executor, &operator).await?;
 ```
 
@@ -111,7 +111,7 @@ let logs: Vec<RadioLog> = (0..5)
 RadioLog::insert_many(executor, &logs).await?;
 ```
 
-## Recon
+## Find
 Find by primary key:
 ```rust
 let found = Operator::find_pk(&mut executor, &operator.primary_key()).await?;
@@ -120,14 +120,14 @@ if let Some(op) = found { /* confirm identity */ }
 
 First matching row (use a predicate with `find_one`):
 ```rust
-let found = Operator::find_one(
-    executor,
-    &expr!(Operator::callsign == "SteelHammer")
-).await?;
-if let Some(op) = found {
-    log::debug!("Found operator: {:?}", op.callsign);
+if let Some(radio_log) =
+    RadioLog::find_one(executor, &expr!(RadioLog::unit_callsign == "Alpha-1")).await?
+{
+    log::debug!("Found radio log: {:?}", radio_log.id);
 }
 ```
+
+Under the hood: `find_one` is just `find_many` with a limit of 1.
 
 All matching transmissions with limit:
 ```rust
@@ -143,11 +143,10 @@ All matching transmissions with limit:
     // Executor is released from the stream at the end of the scope
 }
 ```
+The stream needs to be pinned using the [`std::pin::pin`](https://doc.rust-lang.org/std/pin/macro.pin.html) macro before being able to get the results. This is needed to prevent the stream object from being moved while async operations refer on it.
 
-Under the hood: `find_one` is just `find_many` with a limit of 1.
-
-## Updating
-`save()` attempts insert or update (UPSERT) if the driver supports conflict clauses (e.g. Postgres, DuckDB). Otherwise it falls back to an insert and may error if the row already exists.
+## Save
+`save()` attempts insert or update (UPSERT) if the driver supports conflict clauses. Otherwise it falls back to an insert and may error if the row already exists.
 ```rust
 let mut operator = operator;
 operator.callsign = "SteelHammerX".into();
@@ -165,7 +164,7 @@ log.save(executor).await?;
 
 If a table has no primary key, `save()` returns an error, use `insert_one` instead.
 
-## Deletion Maneuvers
+## Delete
 Precision strike:
 ```rust
 RadioLog::delete_one(executor, log.primary_key()).await?;
@@ -181,7 +180,7 @@ Instance form (validates exactly one row):
 operator.delete(executor).await?;
 ```
 
-## Prepared Recon
+## Prepared
 Filter transmissions after a threshold:
 ```rust
 let mut query =
@@ -196,7 +195,7 @@ let messages: Vec<_> = query
     .await?;
 ```
 
-## Multi-Statement Burst
+## Multi-Statement
 Combine delete + insert + select in one roundtrip:
 ```rust
 let writer = executor.driver().sql_writer();
@@ -234,13 +233,14 @@ writer.write_select(
     }
 }
 ```
+While the returned stream is still in scope, the executor is tied to it and cannot be used, this can be resolved by having the pinned stream in a smaller scope that when cleared releases the executor.
 
 Process `QueryResult::Affected` then `QueryResult::Row` items sequentially.
 
 ## Error Signals & Edge Cases
 - `save()` / `delete()` on entities without PK result in immediate error.
-- `delete()` with affected rows != 1 logs diagnostic messages.
-- Prepared binds validate conversion; failure returns `Result::Err`.
+- `delete()` with affected rows not one will result in error.
+- Prepared binds validate conversion, failure returns `Result::Err`.
 
 ## Performance Hints (Radio Theater)
 - Group logs with `insert_many` (thousands per statement) to cut network overhead.

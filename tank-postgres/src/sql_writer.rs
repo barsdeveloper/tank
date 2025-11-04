@@ -145,9 +145,9 @@ impl SqlWriter for PostgresSqlWriter {
         self.write_value_time(context, out, &value.time(), true);
         let _ = write!(
             out,
-            "{:+02}:{:02}",
+            "{:+03}:{:02}",
             value.offset().whole_hours(),
-            value.offset().whole_minutes()
+            value.offset().whole_minutes() % 60
         );
         if value.date().year() <= 0 {
             out.push_str(" BC");
