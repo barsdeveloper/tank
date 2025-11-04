@@ -63,17 +63,17 @@ CREATE TABLE IF NOT EXISTS operations.radio_log (
 | Rook        | Pvt   | 2023-01-15 | ❌ false     |
 
 **Radio logs:**
-| operator (UUID) | message                                  | unit_callsign | transmission_time (UTC±) | signal_strength |
-| --------------- | ---------------------------------------- | ------------- | ------------------------ | --------------- |
-| `uuid-1`        | Radio check, channel 3. How copy?        | Alpha-1       | 2025-11-04 19:45:21 +01  | −42 dBm         |
-| `uuid-1`        | Target acquired. Requesting coordinates. | Alpha-1       | 2025-11-04 19:54:12 +01  | −55 dBm         |
-| `uuid-1`        | Heavy armor spotted, grid 4C.            | Alpha-1       | 2025-11-04 19:51:09 +01  | −52 dBm         |
-| `uuid-2`        | Perimeter secure. All clear.             | Bravo-2       | 2025-11-04 19:51:09 +01  | −68 dBm         |
-| `uuid-3`        | Radio check, grid 1A. Over.              | Charlie-3     | 2025-11-04 18:59:11 +02  | −41 dBm         |
-| `uuid-1`        | Affirmative, engaging.                   | Alpha-1       | 2025-11-03 23:11:54 +00  | −54 dBm         |
+| message                                  | unit_callsign | tx_time                | rssi |
+| ---------------------------------------- | ------------- | ---------------------- | ---- |
+| Radio check, channel 3. How copy?        | Alpha-1       | 2025-11-04T19:45:21+01 | −42  |
+| Target acquired. Requesting coordinates. | Alpha-1       | 2025-11-04T19:54:12+01 | −55  |
+| Heavy armor spotted, grid 4C.            | Alpha-1       | 2025-11-04T19:51:09+01 | −52  |
+| Perimeter secure. All clear.             | Bravo-2       | 2025-11-04T19:51:09+01 | −68  |
+| Radio check, grid 1A. Over.              | Charlie-3     | 2025-11-04T18:59:11+02 | −41  |
+| Affirmative, engaging.                   | Alpha-1       | 2025-11-03T23:11:54+00 | −54  |
 
 ## Selecting & Ordering
-Here is a minimal example illustrating the use of [`tank::cols`](https://docs.rs/tank/0.8.0/tank/macro.cols.html) which supports aliasing and ordering. Strongest certified transmissions:
+Here is a minimal example illustrating the use of [`tank::cols!()`](https://docs.rs/tank/0.8.0/tank/macro.cols.html) which supports aliasing and ordering, alternatively if those features are not used, a more terse syntax is possible: `[RadioLog::signal_strength, Operator::callsign, RadioLog::message]` or `Entity::columns()`. Strongest certified transmissions:
 ```rust
 let messages = join!(
     Operator JOIN RadioLog ON Operator::id == RadioLog::operator
@@ -111,9 +111,21 @@ assert!(
 );
 ```
 
-## Cols
-
 ## Expr
+
+
+## Cols
+[`tank::cols!(col, ...)`](https://docs.rs/tank/0.8.0/tank/macro.cols.html) macro is more expressive syntax to select columns in a query, it supports:
+- `Entity::column`
+- `Entity::column as name` (aliasing)
+- `Entity::column + 1` (expressions)
+- `SUM(Entity::column)` (function calls)
+- `COUNT(*)` (function calls)
+- `*` (wildcard)
+- `COUNT(*)` (function calls)
+- `schema.table.column`
+- `Entity::column DESC` (ordering)
+- `SUM(Entity::column + table.column) as total DESC` (a combination)
 
 ## Performance Notes
 - Request only the necessary columns.
