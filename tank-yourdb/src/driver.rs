@@ -13,13 +13,10 @@ impl Driver for YourDBDriver {
     type Connection = YourDBConnection;
     type SqlWriter = YourDBSqlWriter;
     type Prepared = YourDBPrepared;
+    type Transaction<'c> = YourDBTransaction<'c>;
+
     const NAME: &'static str = "yourdb";
     fn sql_writer(&self) -> Self::SqlWriter {
         YourDBSqlWriter::default()
     }
 }
-
-// If transactions are supported
-// impl DriverTransactional for YourDBDriver {
-//     type Transaction<'c> = YourDBTransaction<'c>;
-// }

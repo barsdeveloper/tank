@@ -5,22 +5,20 @@ You want to open a new battlefront. That means forging a fresh **Driver**: the a
 
 ## Mission Objectives
 - Stand up a new `tank-<backend>` crate
-- Implement the core traits: `Driver`, `Connection`, `Executor`, `Prepared`, `SqlWriter`
-- (Optional) Provide transactional support via `DriverTransactional` + `Transaction`
-- Specialize dialect printing (DDL / DML / literals / parameters)
+- Implement the core trait: `Driver`, that is the starting point, keep expanding from there
+- Specialize dialect printing (specific query language syntax can be implemented by overriding the default methods from `SqlWriter`)
 - Integrate with the shared test suite, gating unsupported munitions with feature flags
-- Ship a lean, consistent `Cargo.toml` matching existing armor plating
+- Ship a lean, consistent crate matching existing armor plating
 
 ## Battlefield Topography
 A driver is a thin composite of five moving parts:
-| Trait                 | Purpose                                                                             |
-| --------------------- | ----------------------------------------------------------------------------------- |
-| `Driver`              | Public entry point: builds connections and hands out a dialect writer               |
-| `DriverTransactional` | optional `Driver` variant supporting scoped atomic operations: commit and rollback  |
-| `Executor`            | Core query interface: prepares statements, runs queries, streams results, ...       |
-| `Connection`          | Live session implementing `Executor`, may start transactional scopes with `begin()` |
-| `Prepared`            | Owns a compiled statement, binds positional parameters                              |
-| `SqlWriter`           | Converts Tank's operations and semantic AST fragments into backend query  language  |
+| Trait                 | Purpose                                                                            |
+| --------------------- | ---------------------------------------------------------------------------------- |
+| `Driver`              | Public entry point for all the database abstractions                               |
+| `Connection`          | Live session running queries and possibly starting a transaction                   |
+| `Transaction`         | Abstraction over transactional database capabilities, borrows mutably a connection |
+| `Prepared`            | Owns a compiled statement, binds positional parameters                             |
+| `SqlWriter`           | Converts Tank's operations and semantic AST fragments into backend query language  |
 
 All other machinery (entities, expressions, joins) already speak through these interfaces.
 
@@ -67,7 +65,7 @@ Tip: Start from `tank-core`'s `GenericSqlWriter` implementation; copy then trim.
 ### 5. Transactions
 - Implement a `YourDBTransaction<'c>` type holding a mutable borrow of the connection.
 - Provide `commit()` and `rollback()` on methods, ensure resource release.
-- Expose via `DriverTransactional` associated `Transaction<'c>` type
+- Expose via `Driver` associated `Transaction<'c>` type
 
 If not supported, return relevant error messages in related functions and enable `disable-transactions` in `tank-tests`.
 

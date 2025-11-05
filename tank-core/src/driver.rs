@@ -22,6 +22,8 @@ pub trait Driver {
     type SqlWriter: SqlWriter;
     /// Prepared statement wrapper binding values.
     type Prepared: Prepared;
+    /// Concrete transaction type, parameterized by connection borrow lifetime.
+    type Transaction<'c>: Transaction<'c>;
 
     /// Human-readable backend name.
     const NAME: &'static str;
@@ -33,13 +35,4 @@ pub trait Driver {
 
     /// Obtain a SQL writer object (cheap to construct).
     fn sql_writer(&self) -> Self::SqlWriter;
-}
-
-/// Extension trait for drivers supporting transactions.
-///
-/// Separates transactional capabilities so drivers can avoid the complexity
-/// when transactions are not supported.
-pub trait DriverTransactional: Driver {
-    /// Concrete transaction type, parameterized by connection borrow lifetime.
-    type Transaction<'c>: Transaction<'c>;
 }
