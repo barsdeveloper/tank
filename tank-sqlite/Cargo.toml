@@ -9,8 +9,8 @@ repository.workspace = true
 categories.workspace = true
 
 [dependencies]
-async-stream = "0.3.6"
-libsqlite3-sys = { version = "0.35.0", features = ["bundled"] }
+async-stream = "0"
+libsqlite3-sys = { version = "0", features = ["bundled"] }
 log.workspace = true
 rust_decimal.workspace = true
 tank-core.workspace = true

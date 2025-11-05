@@ -12,8 +12,8 @@ categories.workspace = true
 proc-macro = true
 
 [dependencies]
-convert_case = "0.7.1"
-proc-macro2 = "1.0.101"
-quote = "1.0.41"
-syn = { version = "2.0.106", features = ["full"] }
+convert_case = "0"
+proc-macro2 = "1"
+quote = "1"
+syn = { version = "2", features = ["full"] }
 tank-core.workspace = true

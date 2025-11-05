@@ -13,14 +13,14 @@ default = ["bundled"]
 bundled = ["libduckdb-sys/bundled"]
 
 [dependencies]
-flume = "0.11.1"
-libduckdb-sys = "1.4.1"
+flume = "0"
+libduckdb-sys = "1"
 log.workspace = true
 rust_decimal.workspace = true
 tank-core.workspace = true
-time = "0.3.44"
+time = "0"
 tokio.workspace = true
-url = "2.5.7"
+url = "2"
 urlencoding.workspace = true
 uuid.workspace = true
 
