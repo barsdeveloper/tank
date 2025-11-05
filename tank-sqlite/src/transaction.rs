@@ -32,7 +32,7 @@ impl<'c> Executor for SQLiteTransaction<'c> {
     fn prepare(
         &mut self,
         query: String,
-    ) -> impl Future<Output = Result<Query<SQLiteDriver>>> + Send {
+    ) -> impl Future<Output = Result<Query<Self::Driver>>> + Send {
         self.connection.prepare(query)
     }
 

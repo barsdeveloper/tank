@@ -27,7 +27,9 @@ impl SQLitePrepared {
 
 impl Prepared for SQLitePrepared {
     fn bind<V: AsValue>(&mut self, value: V) -> Result<&mut Self> {
-        self.bind_index(value, self.index)
+        let index = self.index;
+        self.index += 1;
+        self.bind_index(value, index)
     }
     fn bind_index<V: AsValue>(&mut self, v: V, index: u64) -> Result<&mut Self> {
         let index = index as c_int;

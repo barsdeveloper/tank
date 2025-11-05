@@ -166,3 +166,61 @@ macro_rules! take_until {
         macro_local_result
     }};
 }
+
+#[macro_export]
+macro_rules! impl_executor_transaction {
+    ($driver:ty, $transaction:ident, $connection:ident) => {
+        impl<'c> ::tank_core::Executor for $transaction<'c> {
+            type Driver = $driver;
+
+            fn driver(&self) -> &Self::Driver {
+                self.$connection.driver()
+            }
+
+            fn prepare(
+                &mut self,
+                query: String,
+            ) -> impl Future<Output = ::tank_core::Result<::tank_core::Query<Self::Driver>>> + Send
+            {
+                self.$connection.prepare(query)
+            }
+
+            fn run(
+                &mut self,
+                query: ::tank_core::Query<Self::Driver>,
+            ) -> impl ::tank_core::stream::Stream<
+                Item = ::tank_core::Result<::tank_core::QueryResult>,
+            > + Send {
+                self.$connection.run(query)
+            }
+
+            fn fetch<'s>(
+                &'s mut self,
+                query: ::tank_core::Query<Self::Driver>,
+            ) -> impl ::tank_core::stream::Stream<
+                Item = ::tank_core::Result<::tank_core::RowLabeled>,
+            > + Send
+            + 's {
+                self.$connection.fetch(query)
+            }
+
+            fn execute(
+                &mut self,
+                query: ::tank_core::Query<Self::Driver>,
+            ) -> impl Future<Output = ::tank_core::Result<::tank_core::RowsAffected>> + Send {
+                self.$connection.execute(query)
+            }
+
+            fn append<'a, E, It>(
+                &mut self,
+                entities: It,
+            ) -> impl Future<Output = ::tank_core::Result<::tank_core::RowsAffected>> + Send
+            where
+                E: ::tank_core::Entity + 'a,
+                It: IntoIterator<Item = &'a E> + Send,
+            {
+                self.$connection.append(entities)
+            }
+        }
+    };
+}

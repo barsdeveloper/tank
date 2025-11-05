@@ -1,0 +1,26 @@
+[package]
+name = "tank-yourdb"
+description = "YourDB driver implementation for Tank: the Rust data layer"
+version = "0.1.0"
+authors = ["your_name <email@address.com>"]
+license = "Apache-2.0"
+edition = "2024"
+repository = "https://github.com/your_name/tank-yourdb"
+categories = ["database"]
+
+[features]
+# Example: default = ["bundled"]
+# Add backend-specific toggles; keep minimal.
+
+[dependencies]
+log = "0"
+rust_decimal = "1"
+tank-core = "0"
+time = "0" # if supported
+url = "2"
+uuid = "1"
+# yourdb-sys = "1"
+
+[dev-dependencies]
+tank-tests = { version = "0", features = ["disable-transactions"] }
+tokio = "1"
