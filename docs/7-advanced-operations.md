@@ -114,16 +114,23 @@ assert!(
 ```
 
 ## Expr
-The [`expr!()`](https://docs.rs/tank/latest/tank/macro.expr.html) macro encodes predicates and inline arithmetic in a readable, chain‑safe form. Think of it as the rules of engagement – concise, declarative, no hidden artillery.
+[`expr!(...)`](https://docs.rs/tank/latest/tank/macro.expr.html) macro builds predicates and computed values:
+- `42`, `1.2`, `"Alpha"`, `true`, `NULL` (literal values)
+- `RadioLog::signal_strength` (column reference)
+- `Operator::id == #some_uuid` (comparison: `==`, `!=`, `>`, `>=`. `<`, `<=`)
+- `Operator::is_certified && RadioLog::signal_strength > -20` (logical: `&&`, `||`, `!`)
+- `(a + b) * (c - d)` (operations: `+`, `-`, `*`, `/`, `%`)
+- `(flags >> 1) & 3` (bitwise: `|`, `&`, `<<`, `>>`)
+- `[1, 2, 3][0]` (array literal and indexing)
+- `#threshold + 2 == #target` (variable capture)
+- `alpha == ? && beta > ?` (parameters)
+- `value != "ab%" as LIKE` (`NULL`, `LIKE`, `REGEXP`, `GLOB`)
+- `COUNT(*)`, `SUM(RadioLog::signal_strength)` (function calls / aggregates)
+- `1 as u128` (casting)
+- `PI` (identifiers)
+- `-(-PI) + 2 * (5 % (2 + 1)) == 7 && !(4 < 2)` (combination of the previous)
 
-Supported targeting patterns (illustrative):
-- Equality / inequality: `Operator::id == #some_uuid` (parameter hash for bind substitution).
-- Boolean composition: `Operator::is_certified && RadioLog::signal_strength > 30`.
-- Pattern scans: `RadioLog::message != "Radio check%" as LIKE` (negated LIKE pattern, avoids routine chatter).
-- Parameterized thresholds: `RadioLog::signal_strength > ?` then bind in a prepared statement for hot paths.
-- Constant truth / fallback: `true` when you need a neutral filter while assembling dynamic clauses.
-
-Edge signals are raised early (compile‑time macro expansion or construction) when referencing non‑joined columns so you discover scope violations before execution.
+Ultimately, the drivers decide if and how these expressions are translated into the specific query language.
 
 ## Cols
 [`tank::cols!(col, ...)`](https://docs.rs/tank/0.8.0/tank/macro.cols.html) macro is more expressive syntax to select columns in a query, it supports:
@@ -135,7 +142,7 @@ Edge signals are raised early (compile‑time macro expansion or construction) w
 - `COUNT(*)` (counting)
 - `operations.radio_log.signal_strength.rssi` (raw database identifier)
 - `Operator::enlisted DESC` (ordering)
-- `AVG(ABS(Operator::enlisted - operations.radio_log.transmission_time)) as difference DESC` (a combination)
+- `AVG(ABS(Operator::enlisted - operations.radio_log.transmission_time)) as difference DESC` (combination of the previous)
 
 ## Performance notes
 - Request only the necessary columns.
