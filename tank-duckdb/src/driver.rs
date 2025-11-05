@@ -19,7 +19,6 @@ impl Driver for DuckDBDriver {
     type Transaction<'c> = DuckDBTransaction<'c>;
 
     const NAME: &'static str = "duckdb";
-
     fn sql_writer(&self) -> Self::SqlWriter {
         DuckDBSqlWriter::default()
     }

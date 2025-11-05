@@ -16,7 +16,6 @@ impl Driver for SQLiteDriver {
     type Transaction<'c> = SQLiteTransaction<'c>;
 
     const NAME: &'static str = "sqlite";
-
     fn sql_writer(&self) -> SQLiteSqlWriter {
         SQLiteSqlWriter {}
     }

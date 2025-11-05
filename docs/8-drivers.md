@@ -106,18 +106,4 @@ Return early with rich context:
 - Prepare failure: attach truncated query text (`truncate_long!` style) to context
 - Bind failure: specify parameter index and offending value type
 
-## Example Dev Dependency Evolution
-Start
-```toml
-tank-tests = { path = "../tank-tests", features = ["disable-arrays", "disable-intervals", "disable-large-integers", "disable-lists", "disable-maps", "disable-transactions"] }
-```
-After adding arrays + transactions
-```toml
-tank-tests = { path = "../tank-tests", features = ["disable-intervals", "disable-large-integers", "disable-maps"] }
-```
-Final (fully armed)
-```toml
-tank-tests = { path = "../tank-tests" }
-```
-
 *Fabricate the engine. Fuel the advance. Tank out.*

@@ -51,8 +51,8 @@ mod tests {
     }
     const WRITER: GenericSqlWriter = GenericSqlWriter {};
 
-    #[tokio::test]
-    async fn test_employee() {
+    #[test]
+    fn test_employee() {
         assert!(matches!(
             Employee::table(),
             TableRef {

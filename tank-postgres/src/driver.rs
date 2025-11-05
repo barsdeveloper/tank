@@ -16,7 +16,6 @@ impl Driver for PostgresDriver {
     type Transaction<'c> = PostgresTransaction<'c>;
 
     const NAME: &'static str = "postgres";
-
     fn sql_writer(&self) -> PostgresSqlWriter {
         PostgresSqlWriter {}
     }

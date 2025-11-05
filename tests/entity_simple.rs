@@ -27,8 +27,8 @@ mod tests {
     }
     const WRITER: GenericSqlWriter = GenericSqlWriter {};
 
-    #[tokio::test]
-    async fn test_simple_entity() {
+    #[test]
+    fn test_simple_entity() {
         assert!(matches!(
             SomeSimpleEntity::table(),
             TableRef {

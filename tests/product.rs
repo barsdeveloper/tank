@@ -35,8 +35,8 @@ mod tests {
     }
     const WRITER: GenericSqlWriter = GenericSqlWriter {};
 
-    #[tokio::test]
-    async fn test_product() {
+    #[test]
+    fn test_product() {
         assert!(matches!(
             Product::table(),
             TableRef {
@@ -127,8 +127,8 @@ mod tests {
         assert_eq!(columns[5].passive, false);
     }
 
-    #[tokio::test]
-    async fn test_product_create_table() {
+    #[test]
+    fn test_product_create_table() {
         let mut query = String::new();
         WRITER.write_create_table::<Product>(&mut query, false);
         assert_eq!(
@@ -146,8 +146,8 @@ mod tests {
         );
     }
 
-    #[tokio::test]
-    async fn test_product_insert() {
+    #[test]
+    fn test_product_insert() {
         let mut query = String::new();
         WRITER.write_insert(&mut query, [&Product::sample()], false);
         assert_eq!(
@@ -160,8 +160,8 @@ mod tests {
         );
     }
 
-    #[tokio::test]
-    async fn test_product_insert_multiple() {
+    #[test]
+    fn test_product_insert_multiple() {
         let mut query = String::new();
         WRITER.write_insert(
             &mut query,

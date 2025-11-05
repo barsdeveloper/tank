@@ -60,8 +60,8 @@ mod tests {
     }
     const WRITER: GenericSqlWriter = GenericSqlWriter {};
 
-    #[tokio::test]
-    async fn test_trade() {
+    #[test]
+    fn test_trade() {
         assert!(matches!(
             Trade::table(),
             TableRef {

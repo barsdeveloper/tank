@@ -39,8 +39,9 @@ export default defineConfig({
 
     socialLinks: [
       { icon: 'github', link: 'https://github.com/barsdeveloper/tank' },
-    ]
+    ],
   },
+
   markdown: {
     config(md) {
     },
