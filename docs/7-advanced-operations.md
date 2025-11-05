@@ -73,7 +73,9 @@ CREATE TABLE IF NOT EXISTS operations.radio_log (
 | Affirmative, engaging.                   | Alpha-1       | 2025-11-03T23:11:54+00 | −54  |
 
 ## Selecting & Ordering
-Here is a minimal example illustrating the use of [`tank::cols!()`](https://docs.rs/tank/0.8.0/tank/macro.cols.html) which supports aliasing and ordering, alternatively if those features are not used, a more terse syntax is possible: `[RadioLog::signal_strength, Operator::callsign, RadioLog::message]` or `Entity::columns()`. Strongest certified transmissions:
+The [`tank::cols!()`](https://docs.rs/tank/latest/tank/macro.cols.html) supports aliasing and ordering. When you only need raw columns prefer the terse array `[Operator::callsign, Operator::service_rank, Operator::enlisted]` or `Operator::columns()` syntax.
+
+Objective: strongest certified transmissions excluding routine radio checks.
 ```rust
 let messages = join!(
     Operator JOIN RadioLog ON Operator::id == RadioLog::operator
@@ -112,33 +114,31 @@ assert!(
 ```
 
 ## Expr
+The [`expr!()`](https://docs.rs/tank/latest/tank/macro.expr.html) macro encodes predicates and inline arithmetic in a readable, chain‑safe form. Think of it as the rules of engagement – concise, declarative, no hidden artillery.
 
+Supported targeting patterns (illustrative):
+- Equality / inequality: `Operator::id == #some_uuid` (parameter hash for bind substitution).
+- Boolean composition: `Operator::is_certified && RadioLog::signal_strength > 30`.
+- Pattern scans: `RadioLog::message != "Radio check%" as LIKE` (negated LIKE pattern, avoids routine chatter).
+- Parameterized thresholds: `RadioLog::signal_strength > ?` then bind in a prepared statement for hot paths.
+- Constant truth / fallback: `true` when you need a neutral filter while assembling dynamic clauses.
+
+Edge signals are raised early (compile‑time macro expansion or construction) when referencing non‑joined columns so you discover scope violations before execution.
 
 ## Cols
 [`tank::cols!(col, ...)`](https://docs.rs/tank/0.8.0/tank/macro.cols.html) macro is more expressive syntax to select columns in a query, it supports:
-- `Entity::column`
-- `Entity::column as name` (aliasing)
-- `Entity::column + 1` (expressions)
-- `SUM(Entity::column)` (function calls)
-- `COUNT(*)` (function calls)
+- `RadioLog::transmission_time`
+- `Operator::service_rank as rank` (aliasing)
+- `RadioLog::signal_strength + 10` (expressions)
+- `AVG(RadioLog::signal_strength)` (function calls)
 - `*` (wildcard)
-- `COUNT(*)` (function calls)
-- `schema.table.column`
-- `Entity::column DESC` (ordering)
-- `SUM(Entity::column + table.column) as total DESC` (a combination)
+- `COUNT(*)` (counting)
+- `operations.radio_log.signal_strength.rssi` (raw database identifier)
+- `Operator::enlisted DESC` (ordering)
+- `AVG(ABS(Operator::enlisted - operations.radio_log.transmission_time)) as difference DESC` (a combination)
 
-## Performance Notes
+## Performance notes
 - Request only the necessary columns.
-- Stream + early break for threshold scans (do not SELECT COUNT then SELECT data).
-- Prepared joins: stabilize SQL for hot loops.
-- Alias recurrent long names (micro but accumulative in tight loops).
-- Prefer limits (`Some(n)`) when you are sampling or confirming existence.
-
-## Edge / Failure Signals
-- Referencing a non-joined table column: immediate construction error (fast feedback).
-- Duplicate alias: conflict error (prevents silent shadowing).
-- LEFT join + non-Option decode on NULL: conversion error (fix by making field optional).
-- Type mismatch in `from_row`: bubbles as `Err`, surface early in tests.
-- Unused prepared parameter (bind count mismatch): error before execution.
+- Always prefer set a `limit` on the query when it makes sense.
 
 *Units in position. Advance. Tank out.*
