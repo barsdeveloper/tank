@@ -4,7 +4,7 @@
 The Entity is your combat unit, a Rust struct mapped one-to-one with a database table. This section trains you on the basic maneuvers every unit must master: insertions, deletions, and extractions.
 
 ## Mission Scope
-List of every tactical primitive you execute against an `Entity`. Each item maps to a single, clear action. Almost all higher-level patterns are just combinations of these fundamentals.
+Every tactical primitive you can execute against an `Entity`. Each item maps to a single, unambiguous action. Almost all higher-level patterns are just compositions of these fundamentals.
 * [`Entity::create_table()`](https://docs.rs/tank/latest/tank/trait.Entity.html#tymethod.create_table): establish operating base
 * [`Entity::drop_table()`](https://docs.rs/tank/latest/tank/trait.Entity.html#tymethod.drop_table): break camp
 * [`Entity::insert_one()`](https://docs.rs/tank/latest/tank/trait.Entity.html#tymethod.insert_one): deploy a single unit
@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS operations.radio_log (
 :::
 
 ## Setup
-Deployment is the initial insertion of your units into the theater: creating tables (and schema) before any data flows, and tearing them down when the operation ends.
+Deployment is initial insertion of your units into the theater: create tables (and schema) before any data flows, tear them down when the operation ends.
 ```rust
 RadioLog::drop_table(executor, true, false).await?;
 Operator::drop_table(executor, true, false).await?;
@@ -143,7 +143,7 @@ All matching transmissions with limit:
     // Executor is released from the stream at the end of the scope
 }
 ```
-The stream needs to be pinned using the [`std::pin::pin`](https://doc.rust-lang.org/std/pin/macro.pin.html) macro before being able to get the results. This is needed to prevent the stream object from being moved while async operations refer on it.
+The stream must be pinned with [`std::pin::pin`](https://doc.rust-lang.org/std/pin/macro.pin.html) so the async machinery can safely borrow it without relocation mid‑flight.
 
 ## Save
 `save()` attempts insert or update (UPSERT) if the driver supports conflict clauses. Otherwise it falls back to an insert and may error if the row already exists.
@@ -181,7 +181,7 @@ operator.delete(executor).await?;
 ```
 
 ## Prepared
-Filter transmissions after a threshold:
+Filter transmissions above a strength threshold:
 ```rust
 let mut query =
     RadioLog::prepare_find(executor, &expr!(RadioLog::signal_strength > ?), None).await?;
@@ -233,17 +233,16 @@ writer.write_select(
     }
 }
 ```
-While the returned stream is still in scope, the executor is tied to it and cannot be used, this can be resolved by having the pinned stream in a smaller scope that when cleared releases the executor.
+While the returned stream is in scope the executor is locked to it and cannot service other maneuvers, contain the pinned stream in a tight block so dropping it releases the executor promptly.
 
 Process `QueryResult::Affected` then `QueryResult::Row` items sequentially.
 
 ## Error Signals & Edge Cases
 - `save()` / `delete()` on entities without PK result in immediate error.
-- `delete()` with affected rows not one will result in error.
+- `delete()` with affected rows not exactly one results in error.
 - Prepared binds validate conversion, failure returns `Result::Err`.
 
 ## Performance Hints (Radio Theater)
-- Group logs with `insert_many` (thousands per statement) to cut network overhead.
 - Use prepared statements for hot paths (changing only parameters).
 - Limit streaming scans with a numeric `limit` to avoid unbounded pulls.
 
