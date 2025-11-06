@@ -18,7 +18,6 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync"] }
 uuid = { workspace = true, features = ["v4"] }
 
 [features]
-default = ["disable-large-integers"]
 disable-arrays = []
 disable-intervals = []
 disable-large-integers = []
