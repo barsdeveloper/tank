@@ -31,7 +31,8 @@ export default defineConfig({
           { text: 'Entity definition', link: '/5-entity-definition' },
           { text: 'Entity operations', link: '/6-entity-operations' },
           { text: 'Advanced operations', link: '/7-advanced-operations' },
-          { text: 'Drivers', link: '/8-drivers' },
+          { text: 'Raw SQL', link: '/8-raw-sql' },
+          { text: 'Drivers', link: '/9-drivers' },
         ],
       },
 

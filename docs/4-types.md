@@ -19,8 +19,8 @@ Tank maps ordinary Rust types (numbers, strings, times, collections) to the clos
 | `u32`                      | UINTEGER     | INTEGER | BIGINT       | INTEGER UNSIGNED     |
 | `u64`                      | UBIGINT      | INTEGER | NUMERIC(19)  | BIGINT UNSIGNED      |
 | `u128`                     | UHUGEINT     | ❌      | NUMERIC(38)  | NUMERIC(38) UNSIGNED |
-| `isize`                    | BIGINT ⚠️    | INTEGER | NUMERIC(38)  | BIGINT ⚠️            |
-| `usize`                    | UBIGINT ⚠️   | INTEGER | NUMERIC(38)  | BIGINT UNSIGNED ⚠️   |
+| `isize`                    | BIGINT ⚠️    | INTEGER | NUMERIC(38)  | BIGINT ⚠️           |
+| `usize`                    | UBIGINT ⚠️   | INTEGER | NUMERIC(38)  | BIGINT UNSIGNED ⚠️  |
 | `f32`                      | FLOAT        | REAL    | REAL         | FLOAT                |
 | `f64`                      | DOUBLE       | REAL    | DOUBLE       | DOUBLE               |
 | `rust_decimal::Decimal`    | DECIMAL      | REAL    | NUMERIC      | NUMERIC              |
@@ -32,21 +32,21 @@ Tank maps ordinary Rust types (numbers, strings, times, collections) to the clos
 | `time::Time`               | TIME         | TEXT ⚠️ | TIME         | TIME                 |
 | `time::PrimitiveDateTime`  | TIMESTAMP    | TEXT ⚠️ | TIMESTAMP    | DATETIME             |
 | `time::OffsetDateTime`     | TIMESTAMPTZ  | TEXT ⚠️ | TIMESTAMPTZ  | TIMESTAMP            |
-| `std::time::Duration`      | INTERVAL     | ❌      | INTERVAL     | ❌                   |
-| `time::Duration`           | INTERVAL     | ❌      | INTERVAL     | ❌                   |
-| `tank::Interval`           | INTERVAL     | ❌      | INTERVAL     | ❌                   |
+| `std::time::Duration`      | INTERVAL     | ❌      | INTERVAL     | ❌                  |
+| `time::Duration`           | INTERVAL     | ❌      | INTERVAL     | ❌                  |
+| `tank::Interval`           | INTERVAL     | ❌      | INTERVAL     | ❌                  |
 | `uuid::Uuid`               | UUID         | TEXT    | UUID         | CHAR(36)             |
 | `[T; N]`                   | T[N]         | ❌      | T[N]         | JSON                 |
 | `Vec<T>`                   | T[]          | ❌      | T[]          | JSON                 |
 | `VecDeque<T>`              | T[]          | ❌      | T[]          | JSON                 |
 | `LinkedList<T>`            | T[]          | ❌      | T[]          | JSON                 |
-| `HashMap<K, V>`            | MAP(K,V)     | ❌      | ❌           | JSON                 |
-| `BTreeMap<K, V>`           | MAP(K,V)     | ❌      | ❌           | JSON                 |
+| `HashMap<K, V>`            | MAP(K,V)     | ❌      | ❌          | JSON                 |
+| `BTreeMap<K, V>`           | MAP(K,V)     | ❌      | ❌          | JSON                 |
 
 > [!WARNING]
 > When a type falls back to a generic representation (e.g. `TEXT` or `JSON`), Tank encodes it predictably so equality / ordering comparisons (where meaningful) behave as expected. Advanced indexing or operator support may vary by driver.
 >
-> The special `size` types maps to the corresponding 64 bits integer or 32 bits integer depending on the size.
+> The special `isize` / `usize` types map to the native pointer-width integer (64‑bit on 64‑bit targets, 32‑bit on 32‑bit targets). For cross‑database portability prefer explicit `i64` / `u64` unless you truly need platform width.
 
 ## Wrapper Types
 Beyond the standard munitions listed above, Tank supports a range of wrapper types you can deploy directly in your entities. The resulting SQL type is inferred from the inner payload your wrapper carries into battle.

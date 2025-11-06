@@ -5,7 +5,7 @@ In the field, isolated units rarely win the battle. Coordination is key. Joins l
 In Tank, a join is a first class `DataSet`, just like a `TableRef`. That means you can call `select()` and then, filter, map, reduce, etc, using the same composable [Stream API](https://docs.rs/futures/latest/futures/prelude/trait.Stream.html) you already know.
 
 ## Schema In Play
-Continuing with the `Operator` and `RadioLog` schema introduce earlier. The following examples show more advanced query capabilities, something that go beyour simple CRUD operations shown earlier but still without revolving to raw sql.
+Continuing with the `Operator` and `RadioLog` schema introduced earlier. The following examples show more advanced query capabilities-operations that go beyond simple CRUD while still avoiding resorting to raw SQL.
 ::: code-group
 ```rust [Rust]
 #[derive(Entity)]
