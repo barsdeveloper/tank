@@ -1,26 +1,57 @@
+<div align="center">
+    <img width="300" height="300" src="../docs/public/logo.png" alt="Tank: Table Abstraction & Navigation Kit logo featuring a green tank with a gear background and stacked database cylinders" />
+</div>
+
 # tank-postgres
-Postgres driver implementation for [Tank](https://crates.io/crates/tank): the Rust data layer
+
+Postgres driver implementation for [Tank](https://crates.io/crates/tank): the Rust data layer.
+
+Implements Tank’s `Driver` and related traits for Postgres, mapping Tank operations and queries into direct Postgres commands. It does not replace the main [`tank`](https://crates.io/crates/tank) crate. you still use it to define entities, manage schemas, and build queries.
+
+https://barsdeveloper.github.io/tank/
+
+https://github.com/barsdeveloper/tank ⭐
+
+https://crates.io/crates/tank
+
+## Overview
+Features:
+- Async connection & execution via `tokio-postgres`
+- Rich type mapping (including `uuid`, `interval`, `time`, `rust_decimal`)
+
+## Install
+```sh
+cargo add tank
+cargo add tank-postgres
+```
+
+## Quick Start
+```rust
+use tank_postgres::PostgresConnection;
+
+let connection = PostgresConnection::connect("postgres://user:pass@localhost:5432/dbname".into()).await?;
+```
 
 ## Running Tests
-Running the tests requires an instance of Postgre. You can provide the connection URL using the environment variable `TANK_POSTGRES_TEST`. If this variable is not set, a containerized Postgres instance will automatically be launched using [testcontainers-modules](https://crates.io/crates/testcontainers-modules). 
-1. Make sure docker is running:
+Tests need a Postgres instance. Provide a connection URL via `TANK_POSTGRES_TEST`. If absent, a containerized PostgreSQL will be launched automatically using [testcontainers-modules](https://crates.io/crates/testcontainers-modules).
+
+1. Ensure Docker is running:
 ```sh
 systemctl status docker
 ```
-2. Add your user to the Docker group (so you can run Docker without sudo):
+2. (Linux) Add your user to the `docker` group if needed.
 ```sh
 sudo usermod -aG docker $USER
 ```
-You might need to log out and back in for this change to take effect.
 
 > [!CAUTION]
-> When running tests using the Postgres instance from testcontainers, never stop or kill the test abruptly (e.g., while at a breakpoint), as the container may not be cleaned up properly. Repeatedly starting and killing tests can leave multiple Postgres containers running, quickly consuming system resources..
-> 
-> To inspect running containers:
+> Avoid aborting tests mid‑run (e.g. killing the process at a breakpoint). Containers might be left running and consume resources.
+
+> List containers:
 > ```sh
 > docker ps
 > ```
-> To stop a specific container:
+> Stop container:
 > ```sh
-> docker kill <container_name>
+> docker kill <container_id_or_name>
 > ```
