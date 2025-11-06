@@ -12,14 +12,15 @@ pub(crate) fn row_to_tank_row(row: tokio_postgres::Row) -> tank_core::Result<tan
     (0..row.len())
         .map(|i| match row.try_get::<_, ValueWrap>(i) {
             Ok(v) => Ok(v.0),
-            Err(..) => {
+            Err(e) => {
                 let col = &row.columns()[i];
                 Err(tank_core::Error::msg(format!(
                     "Unknown column type {} `{}`({})",
                     col.type_(),
                     col.name(),
                     i,
-                )))
+                ))
+                .context(e))
             }
         })
         .collect::<tank_core::Result<tank_core::Row>>()

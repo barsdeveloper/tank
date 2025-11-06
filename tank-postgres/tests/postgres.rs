@@ -16,7 +16,7 @@ mod tests {
     async fn postgres() {
         init_logs();
         let _guard = MUTEX.lock().unwrap();
-        let (url, _container) = init().await;
+        let (url, _container) = init(false).await;
         let error_msg = format!("Could not connect to `{url}`");
         let connection = PostgresConnection::connect(url.into())
             .await

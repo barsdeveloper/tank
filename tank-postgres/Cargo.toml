@@ -24,6 +24,6 @@ urlencoding.workspace = true
 uuid.workspace = true
 
 [dev-dependencies]
-tank-tests = { path = "../tank-tests", features = ["disable-lists", "disable-maps"] }
+tank-tests = { path = "../tank-tests", features = ["disable-large-integers", "disable-lists", "disable-maps"] }
 testcontainers-modules = { version = "0", features = ["postgres"] }
 tokio.workspace = true

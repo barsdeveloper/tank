@@ -27,52 +27,75 @@ impl<'a> FromSql<'a> for ValueWrap {
         ty: &Type,
         raw: Option<&'a [u8]>,
     ) -> Result<Self, Box<dyn Error + Sync + Send>> {
-        macro_rules! to_value {
-            ($ty_var:ident, $raw:ident, $($($ty:path)|+ => ( $value:path, $source:ty $(, $additional:expr)* ) ,)+) => {
-                match *$ty_var {
-                    $($($ty)|+ => $value(if let Some($raw) = $raw { Some(<$source>::from_sql($ty_var, $raw)?.into()) } else { None } $(, $additional)*),)+
-                    _ => {
-                        if let Some(mut raw) = $raw {
-                            let mut buf = String::new();
-                            let _ = raw.read_to_string(&mut buf);
-                            return Err(tank_core::Error::msg(format!("Cannot decode sql type: `{}`, value: `{}`", $ty_var, buf)).into());
-                        }
-                        Value::Null
-                    }
-                }
-            };
+        fn convert<'a, T: FromSql<'a>>(
+            ty: &Type,
+            raw: Option<&'a [u8]>,
+        ) -> Result<Option<T>, Box<dyn Error + Sync + Send>> {
+            Ok(match raw {
+                Some(raw) => Some(T::from_sql(ty, raw)?),
+                None => None,
+            })
         }
-        let value = to_value!(ty, raw,
-            Type::BOOL => (Value::Boolean, bool),
-            Type::CHAR => (Value::Int8, i8),
-            Type::INT2 => (Value::Int16, i16),
-            Type::INT4 => (Value::Int32, i32),
-            Type::INT8 => (Value::Int64, i64),
-            Type::FLOAT4 => (Value::Float32, f32),
-            Type::FLOAT8 => (Value::Float64, f64),
-            Type::NUMERIC => (Value::Decimal, Decimal, 0, 0),
-            Type::OID => (Value::UInt32, u32),
-            Type::VARCHAR
-            | Type::TEXT
-            | Type::NAME
-            | Type::BPCHAR
-            | Type::JSON
-            | Type::XML => (Value::Varchar, String),
-            Type::BYTEA => (Value::Blob, Vec<u8>),
-            Type::DATE => (Value::Date, Date),
-            Type::TIME => (Value::Time, Time),
-            Type::TIMESTAMP => (Value::Timestamp, PrimitiveDateTime),
-            Type::TIMESTAMPTZ => (Value::TimestampWithTimezone, OffsetDateTime),
-            Type::INTERVAL =>(Value::Interval, IntervalWrap),
-            Type::UUID => (Value::Uuid, Uuid),
-            Type::INT2_ARRAY => (Value::List, VecWrap<ValueWrap>, Box::new(Value::Int16(None))),
-            Type::INT4_ARRAY => (Value::List, VecWrap<ValueWrap>, Box::new(Value::Int32(None))),
-            Type::INT8_ARRAY => (Value::List, VecWrap<ValueWrap>, Box::new(Value::Int64(None))),
-            Type::FLOAT4_ARRAY => (Value::List, VecWrap<ValueWrap>, Box::new(Value::Float32(None))),
-            Type::FLOAT8_ARRAY => (Value::List, VecWrap<ValueWrap>, Box::new(Value::Float64(None))),
-            Type::BPCHAR_ARRAY => (Value::List, VecWrap<ValueWrap>, Box::new(Value::Varchar(None))),
-            Type::UNKNOWN => (Value::Unknown, String),
-        );
+        let value = match *ty {
+            Type::BOOL => Value::Boolean(convert::<bool>(ty, raw)?),
+            Type::CHAR => Value::Int8(convert::<i8>(ty, raw)?),
+            Type::INT2 => Value::Int16(convert::<i16>(ty, raw)?),
+            Type::INT4 => Value::Int32(convert::<i32>(ty, raw)?),
+            Type::INT8 => Value::Int64(convert::<i64>(ty, raw)?),
+            Type::FLOAT4 => Value::Float32(convert::<f32>(ty, raw)?),
+            Type::FLOAT8 => Value::Float64(convert::<f64>(ty, raw)?),
+            Type::NUMERIC => Value::Decimal(convert::<Decimal>(ty, raw)?, 0, 0),
+            Type::OID => Value::UInt32(convert::<u32>(ty, raw)?),
+            Type::VARCHAR | Type::TEXT | Type::NAME | Type::BPCHAR | Type::JSON | Type::XML => {
+                Value::Varchar(convert::<String>(ty, raw)?)
+            }
+            Type::BYTEA => Value::Blob(convert::<Vec<u8>>(ty, raw)?.map(Into::into)),
+            Type::DATE => Value::Date(convert::<Date>(ty, raw)?),
+            Type::TIME => Value::Time(convert::<Time>(ty, raw)?),
+            Type::TIMESTAMP => Value::Timestamp(convert::<PrimitiveDateTime>(ty, raw)?),
+            Type::TIMESTAMPTZ => Value::TimestampWithTimezone(convert::<OffsetDateTime>(ty, raw)?),
+            Type::INTERVAL => Value::Interval(convert::<IntervalWrap>(ty, raw)?.map(Into::into)),
+            Type::UUID => Value::Uuid(convert::<Uuid>(ty, raw)?),
+
+            Type::INT2_ARRAY => Value::List(
+                convert::<VecWrap<ValueWrap>>(ty, raw)?.map(Into::into),
+                Box::new(Value::Int16(None)),
+            ),
+            Type::INT4_ARRAY => Value::List(
+                convert::<VecWrap<ValueWrap>>(ty, raw)?.map(Into::into),
+                Box::new(Value::Int32(None)),
+            ),
+            Type::INT8_ARRAY => Value::List(
+                convert::<VecWrap<ValueWrap>>(ty, raw)?.map(Into::into),
+                Box::new(Value::Int64(None)),
+            ),
+            Type::FLOAT4_ARRAY => Value::List(
+                convert::<VecWrap<ValueWrap>>(ty, raw)?.map(Into::into),
+                Box::new(Value::Float32(None)),
+            ),
+            Type::FLOAT8_ARRAY => Value::List(
+                convert::<VecWrap<ValueWrap>>(ty, raw)?.map(Into::into),
+                Box::new(Value::Float64(None)),
+            ),
+            Type::BPCHAR_ARRAY => Value::List(
+                convert::<VecWrap<ValueWrap>>(ty, raw)?.map(Into::into),
+                Box::new(Value::Varchar(None)),
+            ),
+
+            Type::UNKNOWN => Value::Unknown(convert::<String>(ty, raw)?),
+            _ => {
+                if let Some(mut raw) = raw {
+                    let mut buf = String::new();
+                    let _ = raw.read_to_string(&mut buf);
+                    return Err(tank_core::Error::msg(format!(
+                        "Cannot decode sql type: `{}`, value: `{}`",
+                        ty, buf
+                    ))
+                    .into());
+                }
+                Value::Null
+            }
+        };
         Ok(value.into())
     }
 
