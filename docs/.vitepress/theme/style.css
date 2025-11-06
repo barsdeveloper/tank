@@ -46,7 +46,7 @@
 
 @font-face {
     font-family: RobotoSlab-Bold;
-    src: url('fonts/RobotoSlab-Bold.woff2') format('woff2');
+    src: url('/fonts/RobotoSlab-Bold.woff2') format('woff2');
 }
 
 :root {
