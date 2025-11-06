@@ -15,6 +15,7 @@ In plain terms: Tank is a lightweight, multi-database abstraction that lets you 
 - **Optional appender API** for high caliber bulk inserts.
 
 ## Equipment
+###### Core Arsenal
 - [**tank**](https://crates.io/crates/tank): The command vehicle, rallying the core arsenal and procedural macro firepower for seamless battlefield operations.
 - [**tank-core**](https://crates.io/crates/tank-core): All the heavy machinery that makes the Tank move.
 - [**tank-macros**](https://crates.io/crates/tank-macros): Because Rust requires procedural macros to live in a separate silo, this crate houses the derive magic.
@@ -24,6 +25,8 @@ In plain terms: Tank is a lightweight, multi-database abstraction that lets you 
 - [**tank-sqlite**](https://crates.io/crates/tank-sqlite): SQLite.
 - [**tank-postgres**](https://crates.io/crates/tank-postgres): Postgres.
 - [**tank-mysql**](https://crates.io/crates/tank-mysql): MySQL.
+
+All the crates in this workspace share the same version.
 
 ## Why Tank?
 Tank is a thin, battle-ready layer over your database workflow.
