@@ -1,14 +1,14 @@
 # Driver Creation
 ###### *Field Manual Section 8* - Armored Engineering
 
-You want to open a new battlefront. That means forging a fresh **Driver**: the armored bridge between Tank's high‑level abstractions and a new database engine's trenches (type mapping, prepared semantics, transaction doctrine). This section walks you through building a crate from zero to live fire, then certifying it on the shared proving ground (`tank-tests`).
+Opening a new battlefront means forging a fresh **Driver** — the armored bridge between Tank's high‑level abstractions and a database engine's trenches (type mapping, prepared semantics, transaction doctrine). This section boots a driver crate from cold steel to live fire, then certifies it on the proving ground (`tank-tests`).
 
 ## Mission Objectives
 - Stand up a new `tank-<backend>` crate
-- Implement the core trait: `Driver`, that is the starting point, keep expanding from there
-- Specialize dialect printing (specific query language syntax can be implemented by overriding the default methods from `SqlWriter`)
-- Integrate with the shared test suite, gating unsupported munitions with feature flags
-- Ship a lean, consistent crate matching existing armor plating
+- Implement core traits: `Driver`, `Connection` + `Executor`, `Transaction` + `Executor`, `Prepared`, `SqlWriter`
+- Specialize dialect printing (override only what diverges from the default functions)
+- Integrate with shared test suite (`tank-tests`), gate unsupported munitions with feature flags
+- Ship a lean, consistent crate aligned with existing armor plating
 
 ## Battlefield Topography
 A driver is a thin composite of five moving parts:
@@ -81,7 +81,7 @@ Enable feature flags to disable specific functionality until green.
 - `disable-arrays`, `disable-lists`, `disable-maps`: collections not implemented
 - `disable-intervals`: interval types absent
 - `disable-large-integers`: `i128`, `u128` unsupported
-- `disable-ordering`: yourdb does not support result ordering
+- `disable-ordering`: yourdb cannot order result sets
 - `disable-references`: foreign keys not enforced
 - `disable-transactions`: no transactional support
 
@@ -106,4 +106,4 @@ Return early with rich context:
 - Prepare failure: attach truncated query text (`truncate_long!` style) to context
 - Bind failure: specify parameter index and offending value type
 
-*Fabricate the engine. Fuel the advance. Tank out.*
+*Forge the chassis. Calibrate the barrel. Roll new armor onto the field.*

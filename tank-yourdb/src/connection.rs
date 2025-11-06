@@ -43,6 +43,6 @@ impl Connection for YourDBConnection {
 
     #[allow(refining_impl_trait)]
     async fn begin(&mut self) -> Result<YourDBTransaction<'_>> {
-        Err(Error::msg("Transations are not supported by YourDB"))
+        Err(Error::msg("Transactions are not supported by YourDB"))
     }
 }
