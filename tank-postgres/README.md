@@ -14,10 +14,9 @@ https://github.com/barsdeveloper/tank ⭐
 
 https://crates.io/crates/tank
 
-## Overview
-Features:
-- Async connection & execution via `tokio-postgres`
-- Rich type mapping (including `uuid`, `interval`, `time`, `rust_decimal`)
+## Features
+- Async connection and execution via [`tokio-postgres`](https://crates.io/crates/tokio-postgres)
+- Fast bulk inserts using the COPY binary protocol
 
 ## Install
 ```sh
@@ -27,26 +26,30 @@ cargo add tank-postgres
 
 ## Quick Start
 ```rust
-use tank_postgres::PostgresConnection;
+use tank::{Connection, Driver, Executor};
+use tank_postgres::PostgresDriver;
 
-let connection = PostgresConnection::connect("postgres://user:pass@localhost:5432/dbname".into()).await?;
+let driver = PostgresDriver::new();
+let connection = driver
+    .connect("postgres://user:pass@hostname:5432/database".into())
+    .await?;
 ```
 
 ## Running Tests
-Tests need a Postgres instance. Provide a connection URL via `TANK_POSTGRES_TEST`. If absent, a containerized PostgreSQL will be launched automatically using [testcontainers-modules](https://crates.io/crates/testcontainers-modules).
+Tests need a Postgres instance. Provide a connection URL via `TANK_POSTGRES_TEST`. If absent, a containerized Postgres will be launched automatically using [testcontainers-modules](https://crates.io/crates/testcontainers-modules).
 
-1. Ensure Docker is running:
+1. Ensure Docker is running (linux):
 ```sh
 systemctl status docker
 ```
-2. (Linux) Add your user to the `docker` group if needed.
+2. Add your user to the `docker` group if needed (linux):
 ```sh
 sudo usermod -aG docker $USER
 ```
 
 > [!CAUTION]
 > Avoid aborting tests mid‑run (e.g. killing the process at a breakpoint). Containers might be left running and consume resources.
-
+> 
 > List containers:
 > ```sh
 > docker ps

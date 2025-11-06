@@ -68,22 +68,21 @@ Additional URL parameters are passed directly to the SQLite API. See the full li
 Postgres is your heavy artillery: powerful, networked, built for sustained campaigns with multiple units coordinating strikes.
 
 ```rust
-use tank_postgres::PostgresConnection;
-use tank::Connection;
+use tank::Driver;
+use tank_postgres::{PostgresConnection, PostgresDriver};
 
 async fn establish_postgres_connection() -> Result<PostgresConnection> {
-    let connection = PostgresConnection::connect(
-        "postgres://tank-user:armored@127.0.0.1:5432/military".into()
-    )
-    .await?;
+    let driver = PostgresDriver::new();
+    let connection = driver
+		.connect("postgres://tank-user:armored@127.0.0.1:5432/military".into())
+    	.await?;
     Ok(connection)
 }
 ```
 
-**URL Format**: `postgres://user:password@host:port/database`
-- Standard PostgreSQL connection string
+**URL Format**: `postgres://user:pass@hostname:5432/database`
+- Standard Postgres connection string
 - Supports all libpq parameters
-- Connection pooling handled automatically
 
 ## Operations Briefing
 - [`prepare("SELECT * FROM ...*".into())`](https://docs.rs/tank/latest/tank/trait.Executor.html#tymethod.prepare):

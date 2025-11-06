@@ -35,9 +35,11 @@ cargo add tank-duckdb --no-default-features
 
 ## Connect
 ```rust
+use tank::{Connection, Driver, Executor};
 use tank_duckdb::DuckDBDriver;
 
-let connection = DuckDBDriver::new()
+let driver = DuckDBDriver::new();
+let connection = driver
     .connect("duckdb://path/to/database.duckdb?mode=rw".into())
     .await?;
 ```

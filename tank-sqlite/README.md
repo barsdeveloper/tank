@@ -26,9 +26,11 @@ cargo add tank-sqlite
 
 ## Connect
 ```rust
-use tank_sqlite::SQLiteConnection;
+use tank::{Connection, Driver, Executor};
+use tank_sqlite::SQLiteDriver;
 
-let connection = SQLiteConnection::connect(
-    "sqlite://path/to/database.duckdb?mode=rw".into()
-).await?;
+let driver = SQLiteDriver::new();
+let connection = driver
+    .connect("sqlite://path/to/database.sqlite?mode=rw".into())
+    .await?;
 ```
