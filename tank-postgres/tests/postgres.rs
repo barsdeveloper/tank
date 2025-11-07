@@ -16,12 +16,24 @@ mod tests {
     async fn postgres() {
         init_logs();
         let _guard = MUTEX.lock().unwrap();
-        let (url, _container) = init(false).await;
+
+        // Unencrypted
+        let (url, container) = init(false).await;
         let error_msg = format!("Could not connect to `{url}`");
         let connection = PostgresConnection::connect(url.into())
             .await
             .expect(&error_msg);
         execute_tests(connection).await;
+        drop(container);
+
+        // SSL
+        let (url, container) = init(true).await;
+        let error_msg = format!("Could not connect to `{url}`");
+        let connection = PostgresConnection::connect(url.into())
+            .await
+            .expect(&error_msg);
+        execute_tests(connection).await;
+        drop(container);
     }
 
     #[tokio::test]

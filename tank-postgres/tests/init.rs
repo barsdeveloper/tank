@@ -1,4 +1,4 @@
-use std::{env, path::Path, process::Command, time::Duration};
+use std::{env, path::PathBuf, process::Command, time::Duration};
 use testcontainers_modules::{
     postgres::Postgres,
     testcontainers::{ContainerAsync, ImageExt, runners::AsyncRunner},
@@ -23,9 +23,20 @@ pub async fn init(ssl: bool) -> (String, Option<ContainerAsync<Postgres>>) {
         .with_db_name("military")
         .with_startup_timeout(Duration::from_secs(10));
     if ssl {
+        let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         container = container
-            .with_copy_to("./server.crt", Path::new("/var/lib/postgresql/server.crt"))
-            .with_copy_to("./server.key", Path::new("/var/lib/postgresql/server.key"))
+            .with_copy_to(
+                "/var/lib/postgresql/server.crt",
+                manifest_dir.join("tests/assets/server.crt"),
+            )
+            .with_copy_to(
+                "/var/lib/postgresql/server.key",
+                manifest_dir.join("tests/assets/server.key"),
+            )
+            .with_copy_to(
+                "/docker-entrypoint-initdb.d/ssl-setup.sh",
+                manifest_dir.join("tests/assets/00-ssl-setup.sh"),
+            )
             .with_cmd([
                 "-c",
                 "ssl=on",
@@ -38,13 +49,16 @@ pub async fn init(ssl: bool) -> (String, Option<ContainerAsync<Postgres>>) {
     let container = container
         .start()
         .await
-        .expect("Failed to start Postgres container, most likely docker is not running.");
+        .expect("Could not start the container");
     let port = container
         .get_host_port_ipv4(5432)
         .await
         .expect("Cannot get the port of Postgres");
     (
-        format!("postgres://tank-user:armored@127.0.0.1:{port}/military"),
+        format!(
+            "postgres://tank-user:armored@127.0.0.1:{port}/military{}",
+            if ssl { "?sslmode=require" } else { "" }
+        ),
         Some(container),
     )
 }
