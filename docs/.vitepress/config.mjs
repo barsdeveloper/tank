@@ -41,6 +41,10 @@ export default defineConfig({
     socialLinks: [
       { icon: 'github', link: 'https://github.com/barsdeveloper/tank' },
     ],
+
+    footer: {
+      message: 'Released under the Apache-2.0 license.',
+    }
   },
 
   markdown: {
