@@ -13,6 +13,8 @@ async-stream = "0"
 byteorder = "1"
 bytes = "1"
 log.workspace = true
+native-tls = "0.2.14"
+postgres-native-tls = "0.5.2"
 postgres-types = "0"
 rust_decimal = { workspace = true, features = ["db-tokio-postgres"] }
 tank-core.workspace = true
@@ -24,6 +26,8 @@ urlencoding.workspace = true
 uuid.workspace = true
 
 [dev-dependencies]
+rcgen = "0.14.5"
 tank-tests = { path = "../tank-tests", features = ["disable-large-integers", "disable-lists", "disable-maps"] }
+testcontainers = "0.25.2"
 testcontainers-modules = { version = "0", features = ["postgres"] }
 tokio.workspace = true

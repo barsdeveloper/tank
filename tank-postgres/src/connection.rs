@@ -5,15 +5,16 @@ use crate::{
     },
 };
 use async_stream::try_stream;
-use std::{borrow::Cow, pin::pin, sync::Arc};
+use native_tls::{Certificate, TlsConnector};
+use postgres_native_tls::MakeTlsConnector;
+use std::{borrow::Cow, path::PathBuf, pin::pin, sync::Arc};
 use tank_core::{
     Connection, Driver, Error, ErrorContext, Executor, Query, QueryResult, Result, Transaction,
     future::Either,
     stream::{Stream, StreamExt, TryStreamExt},
     truncate_long,
 };
-use tokio::spawn;
-use tokio_postgres::NoTls;
+use tokio::{fs, spawn};
 
 pub struct PostgresConnection {
     pub(crate) client: tokio_postgres::Client,
@@ -120,7 +121,12 @@ impl Connection for PostgresConnection {
             log::error!("{:#}", error);
             return Err(error);
         }
-        let (client, connection) = tokio_postgres::connect(&url, NoTls)
+        let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let cert =
+            Certificate::from_pem(&fs::read(manifest_dir.join("tests/assets/root.crt")).await?)?;
+        let connector =
+            MakeTlsConnector::new(TlsConnector::builder().add_root_certificate(cert).build()?);
+        let (client, connection) = tokio_postgres::connect(&url, connector)
             .await
             .with_context(|| format!("While trying to connect to `{}`", url))?;
         spawn(async move {

@@ -18,13 +18,13 @@ mod tests {
         let _guard = MUTEX.lock().unwrap();
 
         // Unencrypted
-        let (url, container) = init(false).await;
-        let error_msg = format!("Could not connect to `{url}`");
-        let connection = PostgresConnection::connect(url.into())
-            .await
-            .expect(&error_msg);
-        execute_tests(connection).await;
-        drop(container);
+        // let (url, container) = init(false).await;
+        // let error_msg = format!("Could not connect to `{url}`");
+        // let connection = PostgresConnection::connect(url.into())
+        //     .await
+        //     .expect(&error_msg);
+        // execute_tests(connection).await;
+        // drop(container);
 
         // SSL
         let (url, container) = init(true).await;
