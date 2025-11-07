@@ -1,4 +1,4 @@
-# Raw SQL & Multi-Statement Batches
+# Raw SQL
 ###### *Field Manual Section 8* - Precision Fire
 
 Sometimes you need to drop the abstractions and put steel directly on target. Tank lets you fire raw SQL or multi‑statement batches while still decoding rows into typed entities. This section covers: building raw statements, executing mixed result streams, and converting rows back into your structs.
@@ -10,9 +10,9 @@ Three firing modes:
 - `executor.execute(sql.into())`: Damage report only. Aggregates all `RowsAffected` counts across the batch and returns a single total. Rows (if any) are discarded.
 
 ## Composing SQL With `SqlWriter`
-Every driver exposes a `SqlWriter` that prints dialect-correct fragments. You can concatenate multiple prints into one `String` and then fire them in one go. Writers normalize spacing and append necessary separators (`;`) so you can be liberal with whitespace.
+Every driver exposes a `SqlWriter` that produces dialect-correct fragments. You can concatenate multiple statements into one `String` and then fire them in one go. Writers normalize spacing and append necessary separators (`;`) so you can be liberal with whitespace.
 
-Example building 8 statements (1 *CREATE SCHEMA*, 2 *CREATE TABLE*, 3 *INSERT INTO*, 2 *SELECT*):
+Example building 8 statements (one *CREATE SCHEMA* (as part of the *CREATE TABLE*), two *CREATE TABLE*, threee *INSERT INTO* and two *SELECT*):
 ```rust
 let writer = executor.driver().sql_writer();
 let mut sql = String::new();
@@ -30,7 +30,10 @@ let results = executor.run(sql.into()).try_collect::<Vec<_>>().await?;
 ### Mixed Results
 In a composite batch, each statement yields either an `Affected` count or one or more `Row` values. Aggregate the stream, then filter as needed:
 ```rust
-let mut rows = results.into_iter().filter_map(|r| match r { QueryResult::Row(row) => Some(row), _ => None }).collect::<Vec<_>>();
+let mut rows = results
+    .into_iter()
+    .filter_map(|r| if let QueryResult::Row(row) = r { Some(row) } else { None })
+    .collect::<Vec<_>>();
 ```
 
 ## Decoding Rows Into Entities
