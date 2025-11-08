@@ -3,7 +3,8 @@ use rcgen::{
     KeyUsagePurpose, SanType,
 };
 use std::{
-    env, future, net::IpAddr, path::PathBuf, process::Command, str::FromStr, time::Duration,
+    borrow::Cow, env, future, net::IpAddr, path::PathBuf, process::Command, str::FromStr,
+    time::Duration,
 };
 use tank_core::{
     Result,
@@ -19,15 +20,14 @@ use tokio::fs;
 struct TestcontainersLogConsumer;
 impl LogConsumer for TestcontainersLogConsumer {
     fn accept<'a>(&'a self, record: &'a LogFrame) -> BoxFuture<'a, ()> {
-        future::ready(match record {
-            LogFrame::StdOut(bytes) => log::warn!(
-                "{:?}",
-                str::from_utf8(bytes.trim_ascii()).unwrap_or("Invalid error message")
-            ),
-            LogFrame::StdErr(bytes) => log::warn!(
-                "{:?}",
-                str::from_utf8(bytes.trim_ascii()).unwrap_or("Invalid error message")
-            ),
+        let log = str::from_utf8(record.bytes())
+            .unwrap_or("Invalid error message")
+            .trim();
+        future::ready(if !log.is_empty() {
+            match record {
+                LogFrame::StdOut(..) => log::trace!("{log}",),
+                LogFrame::StdErr(..) => log::debug!("{log}"),
+            }
         })
         .boxed()
     }
@@ -106,18 +106,17 @@ pub async fn init(ssl: bool) -> (String, Option<ContainerAsync<Postgres>>) {
     {
         log::error!("Cannot access docker");
     }
-    // let CONTAINER: OnceCell<ContainerAsync<Postgres>> = OnceCell::const_new();
     let mut container = Postgres::default()
         .with_db_name("military")
         .with_user("tank-user")
         .with_password("armored")
         .with_startup_timeout(Duration::from_secs(10))
         .with_log_consumer(TestcontainersLogConsumer);
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     if ssl {
         generate_postgres_ssl_files()
             .await
             .expect("Could not create the certificate files for ssl session");
-        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         container = container
             .with_copy_to(
                 "/docker-entrypoint-initdb.d/pg_hba.conf",
@@ -151,7 +150,16 @@ pub async fn init(ssl: bool) -> (String, Option<ContainerAsync<Postgres>>) {
     (
         format!(
             "postgres://tank-user:armored@127.0.0.1:{port}/military{}",
-            if ssl { "?sslmode=require" } else { "" }
+            if ssl {
+                Cow::Owned(format!(
+                    "?sslmode=require&sslrootcert={}&sslcert={}&sslkey={}",
+                    path.join("tests/assets/ca.crt").to_str().unwrap(),
+                    path.join("tests/assets/client.crt").to_str().unwrap(),
+                    path.join("tests/assets/client.key").to_str().unwrap(),
+                ))
+            } else {
+                Cow::Borrowed("")
+            }
         ),
         Some(container),
     )
