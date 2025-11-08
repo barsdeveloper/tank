@@ -14,7 +14,7 @@ mod tests {
 
     #[tokio::test]
     async fn postgres() {
-        init_logs();
+        init_logs(); 
         let _guard = MUTEX.lock().unwrap();
 
         // Unencrypted

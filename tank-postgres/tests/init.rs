@@ -1,6 +1,6 @@
 use rcgen::{
-    BasicConstraints, Certificate, CertificateParams, IsCa, KeyPair, SanType,
-    generate_simple_self_signed,
+    BasicConstraints, CertificateParams, DnType, ExtendedKeyUsagePurpose, IsCa, Issuer, KeyPair,
+    KeyUsagePurpose, SanType,
 };
 use std::{
     env, future, net::IpAddr, path::PathBuf, process::Command, str::FromStr, time::Duration,
@@ -34,31 +34,62 @@ impl LogConsumer for TestcontainersLogConsumer {
 }
 
 async fn generate_postgres_ssl_files() -> Result<()> {
-    let mut ca_params = CertificateParams::new(vec!["tank_postgres".to_string()])?;
-    ca_params.is_ca = IsCa::Ca(BasicConstraints::Unconstrained);
-    let signing_key = KeyPair::generate()?;
-    let ca_cert = ca_params.self_signed(&signing_key)?;
-
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    fs::write(path.join("tests/assets/root.crt"), ca_cert.pem()).await?;
 
+    let mut ca_params = CertificateParams::new(vec!["root".to_string()])?;
+    ca_params.is_ca = IsCa::Ca(BasicConstraints::Unconstrained);
+    ca_params.key_usages.push(KeyUsagePurpose::KeyCertSign);
+    ca_params.key_usages.push(KeyUsagePurpose::CrlSign);
+    ca_params.use_authority_key_identifier_extension = true;
+    let ca_key = KeyPair::generate()?;
+    let ca_cert = ca_params.self_signed(&ca_key)?;
+    fs::write(path.join("tests/assets/ca.crt"), ca_cert.pem()).await?;
+    let issuer = Issuer::new(ca_params, ca_key);
+
+    let server_key = KeyPair::generate()?;
     let mut server_params = CertificateParams::new(["localhost".to_string()])?;
+    server_params.use_authority_key_identifier_extension = true;
+    server_params
+        .key_usages
+        .push(KeyUsagePurpose::DigitalSignature);
+    server_params
+        .extended_key_usages
+        .push(ExtendedKeyUsagePurpose::ServerAuth);
     server_params.subject_alt_names = vec![
         SanType::DnsName("localhost".try_into().unwrap()),
         SanType::IpAddress(IpAddr::from_str("127.0.0.1").unwrap()),
     ];
-    server_params.is_ca = IsCa::Ca(BasicConstraints::Unconstrained);
-    let server_cert = server_params.self_signed(&signing_key)?;
+    server_params
+        .distinguished_name
+        .push(DnType::CommonName, "127.0.0.1");
+
+    let server_cert = server_params.signed_by(&server_key, &issuer)?;
     fs::write(path.join("tests/assets/server.crt"), server_cert.pem()).await?;
     fs::write(
         path.join("tests/assets/server.key"),
-        signing_key.serialize_pem(),
+        server_key.serialize_pem(),
     )
     .await?;
 
-    let client_params = CertificateParams::new(vec!["tank-user".to_string()])?;
-    let client_cert = client_params.self_signed(&signing_key)?;
-    fs::write(path.join("tests/assets/root.crt"), client_cert.pem()).await?;
+    let client_key = KeyPair::generate()?;
+    let mut client_params = CertificateParams::new([])?;
+    client_params
+        .distinguished_name
+        .push(DnType::CommonName, "tank-user");
+    client_params.is_ca = IsCa::NoCa;
+    client_params
+        .key_usages
+        .push(KeyUsagePurpose::DigitalSignature);
+    client_params
+        .extended_key_usages
+        .push(ExtendedKeyUsagePurpose::ClientAuth);
+    let client_cert = client_params.signed_by(&client_key, &issuer)?;
+    fs::write(path.join("tests/assets/client.crt"), client_cert.pem()).await?;
+    fs::write(
+        path.join("tests/assets/client.key"),
+        client_key.serialize_pem(),
+    )
+    .await?;
 
     Ok(())
 }
@@ -93,8 +124,8 @@ pub async fn init(ssl: bool) -> (String, Option<ContainerAsync<Postgres>>) {
                 path.join("tests/assets/pg_hba.conf"),
             )
             .with_copy_to(
-                "/docker-entrypoint-initdb.d/root.crt",
-                path.join("tests/assets/root.crt"),
+                "/docker-entrypoint-initdb.d/ca.crt",
+                path.join("tests/assets/ca.crt"),
             )
             .with_copy_to(
                 "/docker-entrypoint-initdb.d/server.crt",

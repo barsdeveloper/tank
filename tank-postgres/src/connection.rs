@@ -6,7 +6,8 @@ use crate::{
 };
 use async_stream::try_stream;
 use native_tls::{Certificate, TlsConnector};
-use postgres_native_tls::MakeTlsConnector;
+use openssl::ssl::{SslConnector, SslFiletype, SslMethod};
+use postgres_openssl::MakeTlsConnector;
 use std::{borrow::Cow, path::PathBuf, pin::pin, sync::Arc};
 use tank_core::{
     Connection, Driver, Error, ErrorContext, Executor, Query, QueryResult, Result, Transaction,
@@ -122,10 +123,14 @@ impl Connection for PostgresConnection {
             return Err(error);
         }
         let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        let cert =
-            Certificate::from_pem(&fs::read(manifest_dir.join("tests/assets/root.crt")).await?)?;
-        let connector =
-            MakeTlsConnector::new(TlsConnector::builder().add_root_certificate(cert).build()?);
+        let mut builder = SslConnector::builder(SslMethod::tls())?;
+        builder.set_ca_file(manifest_dir.join("tests/assets/ca.crt"))?;
+        builder.set_certificate_chain_file(manifest_dir.join("tests/assets/client.crt"))?;
+        builder.set_private_key_file(
+            manifest_dir.join("tests/assets/client.key"),
+            SslFiletype::PEM,
+        )?;
+        let connector = MakeTlsConnector::new(builder.build());
         let (client, connection) = tokio_postgres::connect(&url, connector)
             .await
             .with_context(|| format!("While trying to connect to `{}`", url))?;
