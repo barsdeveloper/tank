@@ -152,7 +152,7 @@ pub async fn init(ssl: bool) -> (String, Option<ContainerAsync<Postgres>>) {
             "postgres://tank-user:armored@127.0.0.1:{port}/military{}",
             if ssl {
                 Cow::Owned(format!(
-                    "?sslmode=verify-full&sslrootcert={}&sslcert={}&sslkey={}",
+                    "?sslmode=require&sslrootcert={}&sslcert={}&sslkey={}",
                     path.join("tests/assets/root.crt").to_str().unwrap(),
                     path.join("tests/assets/client.crt").to_str().unwrap(),
                     path.join("tests/assets/client.key").to_str().unwrap(),

@@ -83,16 +83,13 @@ async fn establish_postgres_connection() -> Result<PostgresConnection> {
 **URL Format**: `postgres://user:pass@host:5432/database`
 
 Parameters:
-- **sslmode**: How a secure SSL TCP/IP connection will be negotiated with the server. Otherwise the environment variable **PGSSLMODE** will be used. Otherwise: **disable**. Possible values (descreasing security):
-    - **disable**
-    - **allow**
-    - **prefer**
-    - **require**
-    - **verify-ca**
-    - **verify-full**
-- **sslrootcert**: Path to the file containing SSL certificate authority (CA) certificate. Otherwise the environment variable **PGSSLROOTCERT** will be used. Otherwise the default path `~/.postgresql/root.crt` will be used.
-- **sslcert**: Path to the file containing SSL certificate authority (CA) certificate. Otherwise the environment variable **PGSSLCERT** will be used. Otherwise the default path `~/.postgresql/postgresql.crt` will be used.
-- **sslkey**: Path to the file containing SSL certificate authority (CA) certificate. Otherwise the environment variable **PGSSLKEY** will be used. Otherwise the default path `~/.postgresql/postgresql.key` will be used.
+- `sslmode`: How a secure SSL TCP/IP connection will be negotiated with the server. Otherwise the environment variable `PGSSLMODE` will be used. Otherwise: `disable`. This parameter is passed to `tokio_postgres`, for this reason only the following alternatives are supported:
+    - `disable`
+    - `prefer`
+    - `require`
+- `sslrootcert`: Path to the file containing SSL certificate authority (CA) certificate. Otherwise the environment variable `PGSSLROOTCERT*` will be used. Otherwise the default path `~/.postgresql/root.crt` will be used.
+- `sslcert`: Path to the file containing SSL certificate authority (CA) certificate. Otherwise the environment variable `PGSSLCERT` will be used. Otherwise the default path `~/.postgresql/postgresql.crt` will be used.
+- `sslkey`: Path to the file containing SSL certificate authority (CA) certificate. Otherwise the environment variable `PGSSLKEY` will be used. Otherwise the default path `~/.postgresql/postgresql.key` will be used.
 
 The previous parameters will be removed the the URL provided to `tokio_postgres::connect`, any other parameter will passed directly.
 

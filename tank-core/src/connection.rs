@@ -1,5 +1,8 @@
 use crate::{Driver, Executor, Result, Transaction};
-use std::{borrow::Cow, future::Future};
+use std::{
+    borrow::Cow,
+    future::{self, Future},
+};
 
 /// A live database handle capable of executing queries and spawning transactions.
 ///
@@ -24,4 +27,8 @@ pub trait Connection: Executor {
 
     /// Begin a transaction scope tied to the current connection.
     fn begin(&mut self) -> impl Future<Output = Result<impl Transaction<'_>>>;
+
+    fn disconnect(self) -> impl Future<Output = Result<()>> {
+        future::ready(Ok(()))
+    }
 }

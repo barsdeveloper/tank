@@ -16,6 +16,7 @@ https://crates.io/crates/tank
 
 ## Features
 - Async connection and execution via [`tokio-postgres`](https://crates.io/crates/tokio-postgres)
+- TLS via [`postgres-openssl`](https://crates.io/crates/postgres-openssl)
 - Fast bulk inserts using the COPY binary protocol
 
 ## Install
@@ -31,7 +32,7 @@ use tank_postgres::PostgresDriver;
 
 let driver = PostgresDriver::new();
 let connection = driver
-    .connect("postgres://user:pass@hostname:5432/database".into())
+    .connect("postgres://user:pass@hostname:5432/database?sslmode=require&sslrootcert=/path/to/root.crt&sslcert=/path/to/client.crt&sslkey=/path/to/client.key".into())
     .await?;
 ```
 
