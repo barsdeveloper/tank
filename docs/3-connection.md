@@ -74,15 +74,27 @@ use tank_postgres::{PostgresConnection, PostgresDriver};
 async fn establish_postgres_connection() -> Result<PostgresConnection> {
     let driver = PostgresDriver::new();
     let connection = driver
-		.connect("postgres://tank-user:armored@127.0.0.1:5432/military".into())
+		.connect("postgres://tank-user:armored@127.0.0.1:32790/military?sslmode=require&sslrootcert=/path/to/root.crt&sslcert=/path/to/client.crt&sslkey=/path/to/client.key".into())
     	.await?;
     Ok(connection)
 }
 ```
 
-**URL Format**: `postgres://user:pass@hostname:5432/database`
-- Standard Postgres connection string
-- Supports all libpq parameters
+**URL Format**: `postgres://user:pass@host:5432/database`
+
+Parameters:
+- **sslmode**: How a secure SSL TCP/IP connection will be negotiated with the server. Otherwise the environment variable **PGSSLMODE** will be used. Otherwise: **disable**. Possible values (descreasing security):
+    - **disable**
+    - **allow**
+    - **prefer**
+    - **require**
+    - **verify-ca**
+    - **verify-full**
+- **sslrootcert**: Path to the file containing SSL certificate authority (CA) certificate. Otherwise the environment variable **PGSSLROOTCERT** will be used. Otherwise the default path `~/.postgresql/root.crt` will be used.
+- **sslcert**: Path to the file containing SSL certificate authority (CA) certificate. Otherwise the environment variable **PGSSLCERT** will be used. Otherwise the default path `~/.postgresql/postgresql.crt` will be used.
+- **sslkey**: Path to the file containing SSL certificate authority (CA) certificate. Otherwise the environment variable **PGSSLKEY** will be used. Otherwise the default path `~/.postgresql/postgresql.key` will be used.
+
+The previous parameters will be removed the the URL provided to `tokio_postgres::connect`, any other parameter will passed directly.
 
 ## Operations Briefing
 - [`prepare("SELECT * FROM ...*".into())`](https://docs.rs/tank/latest/tank/trait.Executor.html#tymethod.prepare):

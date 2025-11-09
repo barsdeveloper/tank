@@ -2,5 +2,5 @@ docs/node_modules/
 docs/.vitepress/cache/
 docs/.vitepress/dist/
 target/
-*.crs
+*.crt
 *.key

@@ -43,7 +43,7 @@ async fn generate_postgres_ssl_files() -> Result<()> {
     ca_params.use_authority_key_identifier_extension = true;
     let ca_key = KeyPair::generate()?;
     let ca_cert = ca_params.self_signed(&ca_key)?;
-    fs::write(path.join("tests/assets/ca.crt"), ca_cert.pem()).await?;
+    fs::write(path.join("tests/assets/root.crt"), ca_cert.pem()).await?;
     let issuer = Issuer::new(ca_params, ca_key);
 
     let server_key = KeyPair::generate()?;
@@ -123,8 +123,8 @@ pub async fn init(ssl: bool) -> (String, Option<ContainerAsync<Postgres>>) {
                 path.join("tests/assets/pg_hba.conf"),
             )
             .with_copy_to(
-                "/docker-entrypoint-initdb.d/ca.crt",
-                path.join("tests/assets/ca.crt"),
+                "/docker-entrypoint-initdb.d/root.crt",
+                path.join("tests/assets/root.crt"),
             )
             .with_copy_to(
                 "/docker-entrypoint-initdb.d/server.crt",
@@ -152,8 +152,8 @@ pub async fn init(ssl: bool) -> (String, Option<ContainerAsync<Postgres>>) {
             "postgres://tank-user:armored@127.0.0.1:{port}/military{}",
             if ssl {
                 Cow::Owned(format!(
-                    "?sslmode=require&sslrootcert={}&sslcert={}&sslkey={}",
-                    path.join("tests/assets/ca.crt").to_str().unwrap(),
+                    "?sslmode=verify-full&sslrootcert={}&sslcert={}&sslkey={}",
+                    path.join("tests/assets/root.crt").to_str().unwrap(),
                     path.join("tests/assets/client.crt").to_str().unwrap(),
                     path.join("tests/assets/client.key").to_str().unwrap(),
                 ))

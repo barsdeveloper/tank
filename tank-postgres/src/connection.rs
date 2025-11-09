@@ -7,7 +7,7 @@ use crate::{
 use async_stream::try_stream;
 use openssl::ssl::{SslConnector, SslFiletype, SslMethod, SslVerifyMode};
 use postgres_openssl::MakeTlsConnector;
-use std::{borrow::Cow, env, path::Path, pin::pin, sync::Arc};
+use std::{borrow::Cow, env, path::PathBuf, pin::pin, str::FromStr, sync::Arc};
 use tank_core::{
     Connection, Driver, Error, ErrorContext, Executor, Query, QueryResult, Result, Transaction,
     future::Either,
@@ -157,25 +157,31 @@ impl Connection for PostgresConnection {
             client
         } else {
             let mut builder = SslConnector::builder(SslMethod::tls())?;
-            if let Some(path) = take_url_param("sslrootcert", "PGSSLROOTCERT")
-                .as_deref()
-                .map(Path::new)
-                && path.exists()
-            {
+            let path = PathBuf::from_str(
+                take_url_param("sslrootcert", "PGSSLROOTCERT")
+                    .as_deref()
+                    .unwrap_or("~/.postgresql/root.crt"),
+            )
+            .context(context())?;
+            if path.exists() {
                 builder.set_ca_file(path)?;
             }
-            if let Some(path) = take_url_param("sslcert", "PGSSLCERT")
-                .as_deref()
-                .map(Path::new)
-                && path.exists()
-            {
+            let path = PathBuf::from_str(
+                take_url_param("sslcert", "PGSSLCERT")
+                    .as_deref()
+                    .unwrap_or("~/.postgresql/postgresql.crt"),
+            )
+            .context(context())?;
+            if path.exists() {
                 builder.set_certificate_chain_file(path)?;
             }
-            if let Some(path) = take_url_param("sslkey", "PGSSLKEY")
-                .as_deref()
-                .map(Path::new)
-                && path.exists()
-            {
+            let path = PathBuf::from_str(
+                take_url_param("sslkey", "PGSSLKEY")
+                    .as_deref()
+                    .unwrap_or("~/.postgresql/postgresql.key"),
+            )
+            .context(context())?;
+            if path.exists() {
                 builder.set_private_key_file(path, SslFiletype::PEM)?;
             }
             match &*sslmode {
