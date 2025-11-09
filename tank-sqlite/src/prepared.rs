@@ -26,12 +26,12 @@ impl SQLitePrepared {
 }
 
 impl Prepared for SQLitePrepared {
-    fn bind<V: AsValue>(&mut self, value: V) -> Result<&mut Self> {
+    fn bind(&mut self, value: impl AsValue) -> Result<&mut Self> {
         let index = self.index;
         self.index += 1;
         self.bind_index(value, index)
     }
-    fn bind_index<V: AsValue>(&mut self, v: V, index: u64) -> Result<&mut Self> {
+    fn bind_index(&mut self, v: impl AsValue, index: u64) -> Result<&mut Self> {
         let index = index as c_int;
         unsafe {
             let value = v.as_value();

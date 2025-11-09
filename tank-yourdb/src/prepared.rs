@@ -1,4 +1,4 @@
-use std::fmt::{self, Display};
+use std::fmt::{self, Display, Formatter};
 use tank_core::{AsValue, Prepared, Result};
 
 #[derive(Debug)]
@@ -13,23 +13,19 @@ impl YourDBPrepared {
 }
 
 impl Prepared for YourDBPrepared {
-    fn bind<V: AsValue>(&mut self, value: V) -> Result<&mut Self> {
+    fn bind(&mut self, value: impl AsValue) -> Result<&mut Self> {
         let index = self.index;
         self.index += 1;
         self.bind_index(value, index)
     }
 
-    fn bind_index<V: tank_core::AsValue>(
-        &mut self,
-        value: V,
-        index: u64,
-    ) -> tank_core::Result<&mut Self> {
+    fn bind_index(&mut self, value: impl AsValue, index: u64) -> Result<&mut Self> {
         Ok(self)
     }
 }
 
 impl Display for YourDBPrepared {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.write_str("YourDBPrepared")
     }
 }

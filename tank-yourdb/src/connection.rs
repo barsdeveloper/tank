@@ -29,12 +29,14 @@ impl Executor for YourDBConnection {
 
 impl Connection for YourDBConnection {
     async fn connect(url: Cow<'static, str>) -> Result<YourDBConnection> {
+        let context = || format!("While trying to connect to `{}`", url);
         let prefix = format!("{}://", <Self::Driver as Driver>::NAME);
         if !url.starts_with(&prefix) {
             let error = Error::msg(format!(
                 "YourDB connection url must start with `{}`",
                 &prefix
-            ));
+            ))
+            .context(context());
             log::error!("{:#}", error);
             return Err(error);
         }

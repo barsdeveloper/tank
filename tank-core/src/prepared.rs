@@ -16,7 +16,7 @@ use std::fmt::Display;
 /// ```
 pub trait Prepared: Send + Sync + Display {
     /// Append a parameter value.
-    fn bind<V: AsValue>(&mut self, value: V) -> Result<&mut Self>;
+    fn bind(&mut self, value: impl AsValue) -> Result<&mut Self>;
     /// Bind a value at a specific index.
-    fn bind_index<V: AsValue>(&mut self, value: V, index: u64) -> Result<&mut Self>;
+    fn bind_index(&mut self, value: impl AsValue, index: u64) -> Result<&mut Self>;
 }

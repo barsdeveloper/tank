@@ -33,10 +33,10 @@ impl Display for DuckDBPrepared {
 }
 
 impl Prepared for DuckDBPrepared {
-    fn bind<V: AsValue>(&mut self, value: V) -> Result<&mut Self> {
+    fn bind(&mut self, value: impl AsValue) -> Result<&mut Self> {
         self.bind_index(value, self.index)
     }
-    fn bind_index<V: AsValue>(&mut self, v: V, index: u64) -> Result<&mut Self> {
+    fn bind_index(&mut self, v: impl AsValue, index: u64) -> Result<&mut Self> {
         unsafe {
             let prepared = *self.statement;
             let value = v.as_value();

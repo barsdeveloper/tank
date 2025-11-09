@@ -30,7 +30,6 @@ use urlencoding::decode;
 
 pub struct DuckDBConnection {
     pub(crate) connection: CBox<duckdb_connection>,
-    pub(crate) transaction: bool,
 }
 
 impl DuckDBConnection {
@@ -207,7 +206,6 @@ impl Debug for DuckDBConnection {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("DuckDBConnection")
             .field("connection", &self.connection)
-            .field("transaction", &self.transaction)
             .finish()
     }
 }
@@ -468,6 +466,7 @@ impl Executor for DuckDBConnection {
 impl Connection for DuckDBConnection {
     #[allow(refining_impl_trait)]
     async fn connect(url: Cow<'static, str>) -> Result<DuckDBConnection> {
+        let context = || format!("While trying to connect to `{}`", url);
         let prefix = format!("{}://", <Self::Driver as Driver>::NAME);
         if !url.starts_with(&prefix) {
             let error = Error::msg(format!(
@@ -482,7 +481,6 @@ impl Connection for DuckDBConnection {
             .next()
             .ok_or(Error::msg(format!("Invalid database url `{}`", url,)))?;
         let params = parts.next().unwrap_or_default();
-        let context = || format!("Invalid database url: `{}`", url);
         let mut path = decode(path)
             .with_context(context)
             .and_then(|v| CString::new(&*v).with_context(context))?;
@@ -492,8 +490,8 @@ impl Connection for DuckDBConnection {
         unsafe {
             let rc = duckdb_create_config(&mut *config);
             if rc != duckdb_state_DuckDBSuccess {
-                let error = Error::msg("Cannot allocate the duckdb_config object")
-                    .context(format!("Failed to connect to database url `{}`", url));
+                let error =
+                    Error::msg("Cannot allocate the duckdb_config object").context(context());
                 log::error!("{:#}", error);
                 return Err(error);
             }
@@ -563,10 +561,7 @@ impl Connection for DuckDBConnection {
                 return Err(error);
             };
         };
-        Ok(DuckDBConnection {
-            connection,
-            transaction: false,
-        })
+        Ok(DuckDBConnection { connection })
     }
 
     #[allow(refining_impl_trait)]
