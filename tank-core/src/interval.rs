@@ -253,7 +253,6 @@ macro_rules! sum_intervals {
 
 impl Add for Interval {
     type Output = Interval;
-
     fn add(self, rhs: Self) -> Self {
         sum_intervals!(self + rhs)
     }
@@ -267,7 +266,6 @@ impl AddAssign for Interval {
 
 impl Sub for Interval {
     type Output = Interval;
-
     fn sub(self, rhs: Self) -> Self::Output {
         sum_intervals!(self - rhs)
     }
@@ -281,7 +279,6 @@ impl SubAssign for Interval {
 
 impl Neg for Interval {
     type Output = Interval;
-
     fn neg(self) -> Self::Output {
         Self::default() - self
     }

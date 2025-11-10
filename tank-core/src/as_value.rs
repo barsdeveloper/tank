@@ -891,8 +891,8 @@ impl<T: AsValue, const N: usize> AsValue for [T; N] {
 }
 
 macro_rules! impl_as_value {
-    ($list:ident) => {
-        impl<T: AsValue> AsValue for $list<T> {
+    ($source:ident) => {
+        impl<T: AsValue> AsValue for $source<T> {
             fn as_empty_value() -> Value {
                 Value::List(None, Box::new(T::as_empty_value()))
             }
@@ -908,7 +908,7 @@ macro_rules! impl_as_value {
                         .into_iter()
                         .map(|v| Ok::<_, Error>(<T as AsValue>::try_from_value(v)?))
                         .collect::<Result<_>>()?),
-                    Value::List(None, ..) => Ok($list::<T>::new()),
+                    Value::List(None, ..) => Ok($source::<T>::new()),
                     Value::Array(Some(v), ..) => Ok(v
                         .into_iter()
                         .map(|v| Ok::<_, Error>(<T as AsValue>::try_from_value(v)?))
@@ -927,8 +927,8 @@ impl_as_value!(VecDeque);
 impl_as_value!(LinkedList);
 
 macro_rules! impl_as_value {
-    ($map:ident, $($key_trait:ident),+) => {
-        impl<K: AsValue $(+ $key_trait)+, V: AsValue> AsValue for $map<K, V> {
+    ($source:ident, $($key_trait:ident),+) => {
+        impl<K: AsValue $(+ $key_trait)+, V: AsValue> AsValue for $source<K, V> {
             fn as_empty_value() -> Value {
                 Value::Map(None, K::as_empty_value().into(), V::as_empty_value().into())
             }
@@ -1041,16 +1041,16 @@ impl<T: AsValue> AsValue for Box<T> {
 }
 
 macro_rules! impl_as_value {
-    ($wrapper:ident) => {
-        impl<T: AsValue + ToOwned<Owned = impl AsValue>> AsValue for $wrapper<T> {
+    ($source:ident) => {
+        impl<T: AsValue + ToOwned<Owned = impl AsValue>> AsValue for $source<T> {
             fn as_empty_value() -> Value {
                 T::as_empty_value()
             }
             fn as_value(self) -> Value {
-                $wrapper::<T>::into_inner(self).as_value()
+                $source::<T>::into_inner(self).as_value()
             }
             fn try_from_value(value: Value) -> Result<Self> {
-                Ok($wrapper::new(<T as AsValue>::try_from_value(value)?))
+                Ok($source::new(<T as AsValue>::try_from_value(value)?))
             }
         }
     };
@@ -1074,18 +1074,18 @@ impl<T: AsValue> AsValue for RwLock<T> {
 }
 
 macro_rules! impl_as_value {
-    ($wrapper:ident) => {
-        impl<T: AsValue + ToOwned<Owned = impl AsValue>> AsValue for $wrapper<T> {
+    ($source:ident) => {
+        impl<T: AsValue + ToOwned<Owned = impl AsValue>> AsValue for $source<T> {
             fn as_empty_value() -> Value {
                 T::as_empty_value()
             }
             fn as_value(self) -> Value {
-                $wrapper::try_unwrap(self)
+                $source::try_unwrap(self)
                     .map(|v| v.as_value())
                     .unwrap_or_else(|v| v.as_ref().to_owned().as_value())
             }
             fn try_from_value(value: Value) -> Result<Self> {
-                Ok($wrapper::new(<T as AsValue>::try_from_value(value)?))
+                Ok($source::new(<T as AsValue>::try_from_value(value)?))
             }
         }
     };

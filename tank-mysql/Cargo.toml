@@ -1,0 +1,25 @@
+[package]
+name = "tank-mysql"
+description = "MySQL driver implementation for Tank: the Rust data layer"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+repository.workspace = true
+categories.workspace = true
+
+[features]
+# Example: default = ["bundled"]
+# Add backend-specific toggles; keep minimal.
+
+[dependencies]
+async-stream = "0"
+log.workspace = true
+mysql_async = { version = "0", features = ["rust_decimal", "time"] }
+tank-core.workspace = true
+time.workspace = true
+url.workspace = true
+
+[dev-dependencies]
+tank-tests = { path = "../tank-tests" }
+tokio.workspace = true
