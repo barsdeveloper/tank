@@ -4,7 +4,7 @@
 Welcome to the armored convoy, commander. Before you can unleash Tank's firepower, you have to secure your supply lines. Open a **Connection** to your database, and when the mission escalates, lock operations inside a **Transaction**. No connection, no combat. It's that simple.
 
 ## Connect
-Every database connection abstraction implements the [`Connection`](https://docs.rs/tank/latest/tank/trait.Connection.html) trait. This is your communication link to the database server. Call [`connect("dbms://...")`](https://docs.rs/tank/latest/tank/trait.Connection.html#tymethod.connect) with a URL to let Tank establish the line. Every driver is its own crate. Load only what you need for the operation. Check the [drivers](1-introduction.md#drivers) to see the available connections.
+Every database connection abstraction implements the [`Connection`](https://docs.rs/tank/latest/tank/trait.Connection.html) trait. This is your communication link to the database server. Call [`driver.connect("dbms://...")`](https://docs.rs/tank/latest/tank/trait.Driver.html#method.connect) with a URL to let Tank establish the line. Every driver is its own crate. Load only what you need for the operation. Check the [drivers](1-introduction.md#drivers) to see the available connections.
 
 Once the line is open, the connection exposes both the [`Connection`](https://docs.rs/tank/latest/tank/trait.Connection.html) and [`Executor`](https://docs.rs/tank/latest/tank/trait.Executor.html) interfaces, enabling you to prepare statements, run multiple queries, execute commands, fetch rows and orchestrate transactions.
 
@@ -25,8 +25,8 @@ async fn establish_duckdb_connection() -> Result<DuckDBConnection> {
 ```
 
 **URL Format**:
-- File:`duckdb://path/to/database.duckdb?mode=rw`
-- Memory: `duckdb://:memory:`
+- File: `duckdb://path/to/database.duckdb?mode=rw`
+- Memory: `duckdb://:memory:` or `duckdb://database?mode=memory`
 
 Modes:
 - `mode=ro`: read-only access (fails if the database doesn’t exist)
@@ -54,7 +54,7 @@ async fn establish_sqlite_connection() -> Result<SQLiteConnection> {
 
 **URL Format**:
 - File: `sqlite://path/to/database.sqlite?mode=rwc`
-- Memory: `sqlite://:memory:`
+- Memory: `sqlite://:memory:` or or `sqlite://database?mode=memory`
 
 Modes:
 - `mode=ro`: read-only access (fails if the database doesn’t exist)
@@ -83,15 +83,13 @@ async fn establish_postgres_connection() -> Result<PostgresConnection> {
 **URL Format**: `postgres://user:pass@host:5432/database`
 
 Parameters:
-- `sslmode`: How a secure SSL TCP/IP connection will be negotiated with the server. Otherwise the environment variable `PGSSLMODE` will be used. Otherwise: `disable`. This parameter is passed to `tokio_postgres`, for this reason only the following alternatives are supported:
+- `sslmode`: How a secure SSL TCP/IP connection will be negotiated with the server. Falls back to the environment variable `PGSSLMODE`, otherwise `disable`. This parameter is passed to `tokio_postgres`, for this reason only the following alternatives are supported (even tough Postgres supports more modes):
     - `disable`
     - `prefer`
     - `require`
-- `sslrootcert`: Path to the file containing SSL certificate authority (CA) certificate. Otherwise the environment variable `PGSSLROOTCERT*` will be used. Otherwise the default path `~/.postgresql/root.crt` will be used.
-- `sslcert`: Path to the file containing SSL certificate authority (CA) certificate. Otherwise the environment variable `PGSSLCERT` will be used. Otherwise the default path `~/.postgresql/postgresql.crt` will be used.
-- `sslkey`: Path to the file containing SSL certificate authority (CA) certificate. Otherwise the environment variable `PGSSLKEY` will be used. Otherwise the default path `~/.postgresql/postgresql.key` will be used.
-
-The previous parameters will be removed the the URL provided to `tokio_postgres::connect`, any other parameter will passed directly.
+- `sslrootcert`: CA certificate path (falls back to environment variable `PGSSLROOTCERT` or `~/.postgresql/root.crt`).
+- `sslcert`: Client certificate path (falls back to environment variable `PGSSLCERT` or `~/.postgresql/postgresql.crt`).
+- `sslkey`: Client private key path (falls back to environment variable `PGSSLKEY` or `~/.postgresql/postgresql.key`).
 
 ## Operations Briefing
 - [`prepare("SELECT * FROM ...*".into())`](https://docs.rs/tank/latest/tank/trait.Executor.html#tymethod.prepare):
@@ -118,10 +116,10 @@ Sometimes you need to execute multiple operations as a single atomic mission - a
 Transactions support depends on the specific driver and database capabilities. This is a thin layer over the database's native transaction concept. For databases without transaction support, `begin` should return an error.
 
 ## Connection Lifecycle
-1. **Establish**: Call [`Connection::connect("dbms://...").await?`](https://docs.rs/tank/latest/tank/trait.Connection.html#tymethod.connect) with your database URL.
+1. **Establish**: Call `driver.connect("dbms://...").await?` with your database URL.
 2. **Deploy**: Use the connection for queries, inserts, updates, and deletes.
-3. **Lock (optional)**: Start a transaction with `connection.begin().await?`. This exclusively borrows the connection. Issue all statements through the transaction handle. On `commit()` (or `rollback()`) and get back the connection.
-4. **Maintain**: Connection pooling is handled automatically by the driver.
-5. **Terminate**: Connections close automatically when dropped.
+3. **Lock (optional)**: Start a transaction with `connection.begin().await?`, this borrows the connection. All operations route through the transactional executor until `commit()` or `rollback()`.
+4. **Maintain**: Current drivers expose a single underlying session (DuckDB shares process instance; Postgres spawns one async connection; SQLite opens one handle). External pooling is not bundled.
+5. **Terminate**: Connections close automatically when dropped. Disconnection is ensured after a call to `disconnect().await`.
 
 *Lock, commit, advance. Dismissed.*
