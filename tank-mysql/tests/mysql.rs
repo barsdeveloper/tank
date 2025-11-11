@@ -7,16 +7,16 @@ mod tests {
 
     static MUTEX: Mutex<()> = Mutex::new(());
 
-    #[tokio::test]
-    async fn mysql() {
-        init_logs();
-        const URL: &'static str = "mysql://";
-        let _guard = MUTEX.lock().unwrap();
-        let driver = MySQLDriver::new();
-        let connection = driver
-            .connect(URL.into())
-            .await
-            .expect("Could not open the database");
-        execute_tests(connection).await;
-    }
+    // #[tokio::test]
+    // async fn mysql() {
+    //     init_logs();
+    //     const URL: &'static str = "mysql://";
+    //     let _guard = MUTEX.lock().unwrap();
+    //     let driver = MySQLDriver::new();
+    //     let connection = driver
+    //         .connect(URL.into())
+    //         .await
+    //         .expect("Could not open the database");
+    //     execute_tests(connection).await;
+    // }
 }

@@ -170,8 +170,8 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                 #from_row_factory::<Self>::from_row(row)
             }
 
-            async fn create_table<Exec: ::tank::Executor>(
-                executor: &mut Exec,
+            async fn create_table(
+                executor: &mut impl ::tank::Executor,
                 if_not_exists: bool,
                 create_schema: bool,
             ) -> ::tank::Result<()> {
@@ -194,8 +194,8 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                     .map(|_| ())
             }
 
-            async fn drop_table<Exec: ::tank::Executor>(
-                executor: &mut Exec,
+            async fn drop_table(
+                executor: &mut impl ::tank::Executor,
                 if_exists: bool,
                 drop_schema: bool,
             ) -> ::tank::Result<()> {
@@ -218,9 +218,9 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                     .map(|_| ())
             }
 
-            fn insert_one<Exec: ::tank::Executor, E: ::tank::Entity>(
-                executor: &mut Exec,
-                entity: &E,
+            fn insert_one(
+                executor: &mut impl ::tank::Executor,
+                entity: &impl ::tank::Entity,
             ) -> impl ::std::future::Future<Output = ::tank::Result<::tank::RowsAffected>> + Send {
                 let mut query = String::with_capacity(128);
                 ::tank::SqlWriter::write_insert(
@@ -232,20 +232,19 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                 executor.execute(::tank::Query::Raw(query.into()))
             }
 
-            fn insert_many<'a, Exec, It>(
-                executor: &mut Exec,
+            fn insert_many<'a, It>(
+                executor: &mut impl ::tank::Executor,
                 entities: It,
             ) -> impl ::std::future::Future<Output = ::tank::Result<::tank::RowsAffected>> + Send
             where
                 Self: 'a,
-                Exec: ::tank::Executor,
                 It: IntoIterator<Item = &'a Self> + Send,
             {
                 executor.append(entities)
             }
 
-            fn find_pk<E: ::tank::Executor>(
-                executor: &mut E,
+            fn find_pk(
+                executor: &mut impl ::tank::Executor,
                 primary_key: &Self::PrimaryKey<'_>,
             ) -> impl ::std::future::Future<Output = ::tank::Result<Option<Self>>> {
                 #primary_key_condition_declaration
@@ -268,9 +267,9 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                 }
             }
 
-            fn find_many<Exec: ::tank::Executor, Expr: ::tank::Expression>(
-                executor: &mut Exec,
-                condition: &Expr,
+            fn find_many(
+                executor: &mut impl ::tank::Executor,
+                condition: &impl ::tank::Expression,
                 limit: Option<u32>,
             ) -> impl ::tank::stream::Stream<Item = ::tank::Result<Self>> {
                 ::tank::stream::StreamExt::map(
@@ -287,8 +286,8 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                 )
             }
 
-            fn delete_one<Exec: ::tank::Executor>(
-                executor: &mut Exec,
+            fn delete_one(
+                executor: &mut impl ::tank::Executor,
                 primary_key: Self::PrimaryKey<'_>,
             ) -> impl ::std::future::Future<Output = ::tank::Result<::tank::RowsAffected>> + Send
             where
@@ -305,9 +304,9 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                 executor.execute(::tank::Query::Raw(query.into()))
             }
 
-            fn delete_many<Exec: ::tank::Executor, Expr: ::tank::Expression>(
-                executor: &mut Exec,
-                condition: &Expr,
+            fn delete_many(
+                executor: &mut impl ::tank::Executor,
+                condition: &impl ::tank::Expression,
             ) -> impl ::std::future::Future<Output = ::tank::Result<::tank::RowsAffected>> + Send
             where
                 Self: Sized

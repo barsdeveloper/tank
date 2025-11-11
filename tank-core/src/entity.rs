@@ -54,8 +54,8 @@ pub trait Entity {
     /// Parameters:
     /// - `if_not_exists`: guards against existing table (if drivers support it, otherwise just create table).
     /// - `create_schema`: attempt to create schema prior to table creation (if drivers support it).
-    fn create_table<Exec: Executor>(
-        executor: &mut Exec,
+    fn create_table(
+        executor: &mut impl Executor,
         if_not_exists: bool,
         create_schema: bool,
     ) -> impl Future<Output = Result<()>> + Send;
@@ -65,8 +65,8 @@ pub trait Entity {
     /// Parameters:
     /// - `if_exists`: guards against missing table (if drivers support it, otherwise just drop table).
     /// - `drop_schema`: attempt to drop schema after table removal (if drivers support it).
-    fn drop_table<Exec: Executor>(
-        executor: &mut Exec,
+    fn drop_table(
+        executor: &mut impl Executor,
         if_exists: bool,
         drop_schema: bool,
     ) -> impl Future<Output = Result<()>> + Send;
@@ -74,29 +74,28 @@ pub trait Entity {
     /// Inserts a single entity row.
     ///
     /// Returns rows affected (expected: 1 on success).
-    fn insert_one<Exec: Executor, E: Entity>(
-        executor: &mut Exec,
-        entity: &E,
+    fn insert_one(
+        executor: &mut impl Executor,
+        entity: &impl Entity,
     ) -> impl Future<Output = Result<RowsAffected>> + Send;
 
     /// Multiple insert for a homogeneous iterator of entities.
     ///
     /// Returns the number of rows inserted.
-    fn insert_many<'a, Exec, It>(
-        executor: &mut Exec,
+    fn insert_many<'a, It>(
+        executor: &mut impl Executor,
         items: It,
     ) -> impl Future<Output = Result<RowsAffected>> + Send
     where
         Self: 'a,
-        Exec: Executor,
         It: IntoIterator<Item = &'a Self> + Send;
 
     /// Prepare (but do not yet run) a SQL select query.
     ///
     /// Returns the prepared statement.
-    fn prepare_find<Exec: Executor, Expr: Expression>(
+    fn prepare_find(
         executor: &mut Exec,
-        condition: &Expr,
+        condition: &impl Expression,
         limit: Option<u32>,
     ) -> impl Future<Output = Result<Query<Exec::Driver>>> {
         Self::table().prepare(Self::columns(), executor, condition, limit)
@@ -105,8 +104,8 @@ pub trait Entity {
     /// Finds an entity by primary key.
     ///
     /// Returns `Ok(None)` if no row matches.
-    fn find_pk<Exec: Executor>(
-        executor: &mut Exec,
+    fn find_pk(
+        executor: &mut impl Executor,
         primary_key: &Self::PrimaryKey<'_>,
     ) -> impl Future<Output = Result<Option<Self>>> + Send
     where
@@ -115,9 +114,9 @@ pub trait Entity {
     /// Finds the first entity matching a condition expression.
     ///
     /// Returns `Ok(None)` if no row matches.
-    fn find_one<Exec: Executor, Expr: Expression>(
-        executor: &mut Exec,
-        condition: &Expr,
+    fn find_one(
+        executor: &mut impl Executor,
+        condition: &impl Expression,
     ) -> impl Future<Output = Result<Option<Self>>> + Send
     where
         Self: Sized,
@@ -130,9 +129,9 @@ pub trait Entity {
     ///
     /// `limit` restricts the maximum number of rows returned at a database level if `Some`
     /// (if supported by the driver, unlimited otherwise).
-    fn find_many<Exec: Executor, Expr: Expression>(
-        executor: &mut Exec,
-        condition: &Expr,
+    fn find_many(
+        executor: &mut impl Executor,
+        condition: &impl Expression,
         limit: Option<u32>,
     ) -> impl Stream<Item = Result<Self>> + Send
     where
@@ -141,8 +140,8 @@ pub trait Entity {
     /// Deletes exactly one entity by primary key.
     ///
     /// Returns rows affected (0 if not found).
-    fn delete_one<Exec: Executor>(
-        executor: &mut Exec,
+    fn delete_one(
+        executor: &mut impl Executor,
         primary_key: Self::PrimaryKey<'_>,
     ) -> impl Future<Output = Result<RowsAffected>> + Send
     where
@@ -151,9 +150,9 @@ pub trait Entity {
     /// Deletes all entities matching a condition.
     ///
     /// Returns the number of rows deleted.
-    fn delete_many<Exec: Executor, Expr: Expression>(
-        executor: &mut Exec,
-        condition: &Expr,
+    fn delete_many(
+        executor: &mut impl Executor,
+        condition: &impl Expression,
     ) -> impl Future<Output = Result<RowsAffected>> + Send
     where
         Self: Sized;
@@ -163,7 +162,7 @@ pub trait Entity {
     /// Errors:
     /// - Missing PK in the table.
     /// - Execution failures from underlying driver.
-    fn save<Exec: Executor>(&self, executor: &mut Exec) -> impl Future<Output = Result<()>> + Send
+    fn save(&self, executor: &mut impl Executor) -> impl Future<Output = Result<()>> + Send
     where
         Self: Sized,
     {
@@ -188,7 +187,7 @@ pub trait Entity {
     /// - Missing PK in the table.
     /// - If not exactly one row was deleted.
     /// - Execution failures from underlying driver.
-    fn delete<Exec: Executor>(&self, executor: &mut Exec) -> impl Future<Output = Result<()>> + Send
+    fn delete(&self, executor: &mut impl Executor) -> impl Future<Output = Result<()>> + Send
     where
         Self: Sized,
     {
