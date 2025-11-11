@@ -4,7 +4,7 @@ use std::{
     fmt::{self, Display},
     mem,
 };
-use tank_core::{AsValue, Prepared, Result, Value};
+use tank_core::{AsValue, Prepared, Result, Value, Error};
 
 #[derive(Debug)]
 pub struct MySQLPrepared {
@@ -18,7 +18,7 @@ impl MySQLPrepared {
         Self {
             statement,
             params: Vec::new(),
-            index: 1,
+            index: 0,
         }
     }
     pub(crate) fn take_params(&mut self) -> Result<mysql_async::Params> {

@@ -12,7 +12,7 @@ Three firing modes:
 ## Composing SQL With `SqlWriter`
 Every driver exposes a `SqlWriter` that produces dialect-correct fragments. You can concatenate multiple statements into one `String` and then fire them in one go. Writers normalize spacing and append necessary separators (`;`) so you can be liberal with whitespace.
 
-Example building 8 statements (one *CREATE SCHEMA* (as part of the *CREATE TABLE*), two *CREATE TABLE*, threee *INSERT INTO* and two *SELECT*):
+Example building 8 statements (one *CREATE SCHEMA* (as part of the *CREATE TABLE*), two *CREATE TABLE*, three *INSERT INTO* and two *SELECT*):
 ```rust
 let writer = executor.driver().sql_writer();
 let mut sql = String::new();

@@ -31,17 +31,17 @@ Tank maps ordinary Rust types (numbers, strings, times, collections) to the clos
 | `time::Date`               | DATE         | TEXT ⚠️ | DATE         | DATE                 |
 | `time::Time`               | TIME         | TEXT ⚠️ | TIME         | TIME                 |
 | `time::PrimitiveDateTime`  | TIMESTAMP    | TEXT ⚠️ | TIMESTAMP    | DATETIME             |
-| `time::OffsetDateTime`     | TIMESTAMPTZ  | TEXT ⚠️ | TIMESTAMPTZ  | TIMESTAMP            |
-| `std::time::Duration`      | INTERVAL     | ❌      | INTERVAL     | ❌                   |
-| `time::Duration`           | INTERVAL     | ❌      | INTERVAL     | ❌                   |
-| `tank::Interval`           | INTERVAL     | ❌      | INTERVAL     | ❌                   |
+| `time::OffsetDateTime`     | TIMESTAMPTZ  | TEXT ⚠️ | TIMESTAMPTZ  | TIMESTAMP ⚠️         |
+| `std::time::Duration`      | INTERVAL     | ❌      | INTERVAL     | TIME ⚠️              |
+| `time::Duration`           | INTERVAL     | ❌      | INTERVAL     | TIME ⚠️              |
+| `tank::Interval`           | INTERVAL     | ❌      | INTERVAL     | TIME ⚠️              |
 | `uuid::Uuid`               | UUID         | TEXT    | UUID         | CHAR(36)             |
-| `[T; N]`                   | T[N]         | ❌      | T[N]         | JSON                 |
-| `Vec<T>`                   | T[]          | ❌      | T[]          | JSON                 |
-| `VecDeque<T>`              | T[]          | ❌      | T[]          | JSON                 |
-| `LinkedList<T>`            | T[]          | ❌      | T[]          | JSON                 |
-| `HashMap<K, V>`            | MAP(K,V)     | ❌      | ❌           | JSON                 |
-| `BTreeMap<K, V>`           | MAP(K,V)     | ❌      | ❌           | JSON                 |
+| `[T; N]`                   | T[N]         | ❌      | T[N]         | JSON ⚠️              |
+| `Vec<T>`                   | T[]          | ❌      | T[]          | JSON ⚠️              |
+| `VecDeque<T>`              | T[]          | ❌      | T[]          | JSON ⚠️              |
+| `LinkedList<T>`            | T[]          | ❌      | T[]          | JSON ⚠️              |
+| `HashMap<K, V>`            | MAP(K,V)     | ❌      | ❌           | JSON ⚠️              |
+| `BTreeMap<K, V>`           | MAP(K,V)     | ❌      | ❌           | JSON ⚠️              |
 
 > [!WARNING]
 > When a type falls back to a generic representation (e.g. `TEXT` or `JSON`), Tank encodes it predictably so equality / ordering comparisons (where meaningful) behave as expected. Advanced indexing or operator support may vary by driver.

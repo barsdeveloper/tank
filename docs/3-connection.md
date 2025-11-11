@@ -37,7 +37,7 @@ Modes:
 The `mode` parameter provides a common syntax for specifying connection access, similar to SQLite. The values map respectively to `access_mode=READ_ONLY`, `access_mode=READ_WRITE`, `access_mode=READ_WRITE` and the special `duckdb://:memory:` path. Additional URL parameters are passed directly to the DuckDB C API. See the full list of supported options on the [DuckDB website](https://duckdb.org/docs/stable/configuration/overview#global-configuration-options).
 
 #### SQLite
-SQLite is your trusty sidearm: lightweight, reliable, zero configuration. Deploy anywhere, anytime.
+SQLite is the lone wolf operative, deep behind enemy lines: lightweight, reliable, zero configuration. Deploy anywhere, anytime.
 
 ```rust
 use tank::Driver;
@@ -54,7 +54,7 @@ async fn establish_sqlite_connection() -> Result<SQLiteConnection> {
 
 **URL Format**:
 - File: `sqlite://path/to/database.sqlite?mode=rwc`
-- Memory: `sqlite://:memory:` or or `sqlite://database?mode=memory`
+- Memory: `sqlite://:memory:` or `sqlite://database?mode=memory`
 
 Modes:
 - `mode=ro`: read-only access (fails if the database doesn’t exist)
@@ -90,6 +90,24 @@ Parameters:
 - `sslrootcert`: CA certificate path (falls back to environment variable `PGSSLROOTCERT` or `~/.postgresql/root.crt`).
 - `sslcert`: Client certificate path (falls back to environment variable `PGSSLCERT` or `~/.postgresql/postgresql.crt`).
 - `sslkey`: Client private key path (falls back to environment variable `PGSSLKEY` or `~/.postgresql/postgresql.key`).
+
+#### MySQL
+MySQL is the battle-hardened workhorse of the digital front: widely deployed, solid transactional engine, broad tooling ecosystem.
+
+```rust
+use tank::Driver;
+use tank_mysql::{MySQLConnection, MySQLDriver};
+
+async fn establish_mysql_connection() -> Result<MySQLConnection> {
+  let driver = MySQLDriver::new();
+  let connection = driver
+    .connect("mysql://user:pass@127.0.0.1:3306/operations".into())
+    .await?;
+  Ok(connection)
+}
+```
+
+**URL Format**: `mysql://user:password@host:port/database?param=value`
 
 ## Operations Briefing
 - [`prepare("SELECT * FROM ...*".into())`](https://docs.rs/tank/latest/tank/trait.Executor.html#tymethod.prepare):

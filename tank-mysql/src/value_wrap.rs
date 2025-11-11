@@ -151,7 +151,7 @@ impl TryFrom<ValueWrap> for mysql_async::Value {
             TankValue::Unknown(Some(v), ..) => MySQLValue::from(v),
             _ => {
                 return Err(tank_core::Error::msg(format!(
-                    "tank::Value variant `{:?}` is not supported by Postgres",
+                    "tank::Value variant `{:?}` is not supported by MySQL",
                     value.0
                 ))
                 .into());
