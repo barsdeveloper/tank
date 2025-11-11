@@ -714,7 +714,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -1162,7 +1162,7 @@ dependencies = [
  "hyper",
  "libc",
  "pin-project-lite",
- "socket2 0.6.1",
+ "socket2 0.5.10",
  "tokio",
  "tower-service",
  "tracing",
@@ -2342,7 +2342,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -2777,7 +2777,7 @@ dependencies = [
 
 [[package]]
 name = "tank"
-version = "0.9.0"
+version = "0.10.0"
 dependencies = [
  "indoc",
  "rust_decimal",
@@ -2789,7 +2789,7 @@ dependencies = [
 
 [[package]]
 name = "tank-core"
-version = "0.9.0"
+version = "0.10.0"
 dependencies = [
  "anyhow",
  "async-stream",
@@ -2812,7 +2812,7 @@ dependencies = [
 
 [[package]]
 name = "tank-duckdb"
-version = "0.9.0"
+version = "0.10.0"
 dependencies = [
  "flume",
  "libduckdb-sys",
@@ -2829,7 +2829,7 @@ dependencies = [
 
 [[package]]
 name = "tank-macros"
-version = "0.9.0"
+version = "0.10.0"
 dependencies = [
  "convert_case",
  "proc-macro2",
@@ -2840,7 +2840,7 @@ dependencies = [
 
 [[package]]
 name = "tank-mysql"
-version = "0.9.0"
+version = "0.10.0"
 dependencies = [
  "async-stream",
  "log",
@@ -2854,7 +2854,7 @@ dependencies = [
 
 [[package]]
 name = "tank-postgres"
-version = "0.9.0"
+version = "0.10.0"
 dependencies = [
  "async-stream",
  "byteorder",
@@ -2880,7 +2880,7 @@ dependencies = [
 
 [[package]]
 name = "tank-sqlite"
-version = "0.9.0"
+version = "0.10.0"
 dependencies = [
  "async-stream",
  "libsqlite3-sys",
@@ -2896,7 +2896,7 @@ dependencies = [
 
 [[package]]
 name = "tank-tests"
-version = "0.9.0"
+version = "0.10.0"
 dependencies = [
  "env_logger",
  "log",
@@ -2934,7 +2934,7 @@ dependencies = [
  "getrandom 0.3.4",
  "once_cell",
  "rustix",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -3581,7 +3581,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
