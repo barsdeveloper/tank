@@ -193,17 +193,19 @@ impl Executor for SQLiteConnection {
 impl Connection for SQLiteConnection {
     #[allow(refining_impl_trait)]
     async fn connect(url: Cow<'static, str>) -> Result<SQLiteConnection> {
+        let context = || format!("While trying to connect to `{}`", url);
         let prefix = format!("{}://", <Self::Driver as Driver>::NAME);
         if !url.starts_with(&prefix) {
             let error = Error::msg(format!(
                 "SQLite connection url must start with `{}`",
                 &prefix
-            ));
+            ))
+            .context(context());
             log::error!("{:#}", error);
             return Err(error);
         }
         let url = CString::new(format!("file:{}", url.trim_start_matches(&prefix)))
-            .with_context(|| format!("Invalid database url `{}`", url))?;
+            .with_context(context)?;
         let mut connection;
         unsafe {
             connection = CBox::new(ptr::null_mut(), |p| {
@@ -220,10 +222,7 @@ impl Connection for SQLiteConnection {
             if rc != SQLITE_OK {
                 let error =
                     Error::msg(error_message_from_ptr(&sqlite3_errmsg(*connection)).to_string())
-                        .context(format!(
-                            "Failed to connect to database url `{}`",
-                            url.to_str().unwrap_or("unprintable value")
-                        ));
+                        .context(context());
                 log::error!("{:#}", error);
                 return Err(error);
             }

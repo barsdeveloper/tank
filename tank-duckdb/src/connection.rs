@@ -472,7 +472,8 @@ impl Connection for DuckDBConnection {
             let error = Error::msg(format!(
                 "DuckDB connection url must start with `{}`",
                 &prefix,
-            ));
+            ))
+            .context(context());
             log::error!("{:#}", error);
             return Err(error);
         }
