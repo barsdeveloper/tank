@@ -13,7 +13,7 @@ pub struct PostgresTransaction<'c>(pub(crate) tokio_postgres::Transaction<'c>);
 impl<'c> PostgresTransaction<'c> {
     pub async fn new(client: &'c mut PostgresConnection) -> Result<Self> {
         Ok(Self(client.client.transaction().await.map_err(|e| {
-            log::error!("{:#}", e);
+            log::error!("{:#?}", e);
             e
         })?))
     }
@@ -27,9 +27,9 @@ impl<'c> Executor for PostgresTransaction<'c> {
     async fn prepare(&mut self, query: String) -> Result<Query<Self::Driver>> {
         Ok(
             PostgresPrepared::new(self.0.prepare(&query).await.map_err(|e| {
-                let e = Error::new(e);
-                log::error!("{:#}", e);
-                e
+                let error = Error::new(e);
+                log::error!("{:#?}", error);
+                error
             })?)
             .into(),
         )
@@ -55,7 +55,7 @@ impl<'c> Executor for PostgresTransaction<'c> {
             }
         })
         .map_err(|e| {
-            log::error!("{:#}", e);
+            log::error!("{:#?}", e);
             e
         })
     }
@@ -65,14 +65,14 @@ impl<'c> Transaction<'c> for PostgresTransaction<'c> {
     fn commit(self) -> impl Future<Output = Result<()>> {
         self.0.commit().map_err(|e| {
             let e = Error::new(e);
-            log::error!("{:#}", e);
+            log::error!("{:#?}", e);
             e
         })
     }
     fn rollback(self) -> impl Future<Output = Result<()>> {
         self.0.rollback().map_err(|e| {
             let e = Error::new(e);
-            log::error!("{:#}", e);
+            log::error!("{:#?}", e);
             e
         })
     }

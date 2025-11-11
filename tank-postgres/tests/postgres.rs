@@ -3,14 +3,10 @@ mod init;
 #[cfg(test)]
 mod tests {
     use super::init::init;
-    use std::env;
-    use std::path::PathBuf;
-    use std::sync::Mutex;
-    use tank_core::Connection;
-    use tank_postgres::PostgresConnection;
-    use tank_tests::execute_tests;
-    use tank_tests::init_logs;
-    use tank_tests::silent_logs;
+    use std::{env, path::PathBuf, sync::Mutex};
+    use tank_core::{Connection, Driver};
+    use tank_postgres::{PostgresConnection, PostgresDriver};
+    use tank_tests::{execute_tests, init_logs, silent_logs};
     use url::Url;
 
     static MUTEX: Mutex<()> = Mutex::new(());
@@ -19,14 +15,13 @@ mod tests {
     async fn postgres() {
         init_logs();
         let _guard = MUTEX.lock().unwrap();
+        let driver = PostgresDriver::new();
 
         // Unencrypted
         let (url, container) = init(false).await;
         let container = container.expect("Could not launch container");
         let error_msg = format!("Could not connect to `{url}`");
-        let connection = PostgresConnection::connect(url.into())
-            .await
-            .expect(&error_msg);
+        let connection = driver.connect(url.into()).await.expect(&error_msg);
         execute_tests(connection).await;
         drop(container);
 
@@ -34,9 +29,7 @@ mod tests {
         let (url, container) = init(true).await;
         let container = container.expect("Could not launch container");
         let error_msg = format!("Could not connect to `{url}`");
-        let connection = PostgresConnection::connect(url.into())
-            .await
-            .expect(&error_msg);
+        let connection = driver.connect(url.into()).await.expect(&error_msg);
         execute_tests(connection).await;
         drop(container);
     }
@@ -45,7 +38,7 @@ mod tests {
     async fn wrong_url() {
         silent_logs! {
             assert!(
-                PostgresConnection::connect("mysql://some_url".into())
+                PostgresDriver::new().connect("mysql://some_url".into())
                     .await
                     .is_err()
             );

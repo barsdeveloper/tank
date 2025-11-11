@@ -37,12 +37,12 @@ impl Executor for PostgresConnection {
         let sql = sql.trim_end().trim_end_matches(';');
         Ok(
             PostgresPrepared::new(self.client.prepare(&sql).await.map_err(|e| {
-                let e = Error::new(e).context(format!(
+                let error = Error::new(e).context(format!(
                     "While preparing the query:\n{}",
                     truncate_long!(sql)
                 ));
-                log::error!("{:#}", e);
-                e
+                log::error!("{:#?}", error);
+                error
             })?)
             .into(),
         )
@@ -71,9 +71,9 @@ impl Executor for PostgresConnection {
             }),
         }
         .map_err(move |e: Error| {
-            let e = e.context(context.clone());
-            log::error!("{:#}", e);
-            e
+            let error = e.context(context.clone());
+            log::error!("{:#?}", error);
+            error
         })
     }
 
@@ -88,9 +88,9 @@ impl Executor for PostgresConnection {
                     .query_raw(&sql, Vec::<ValueWrap>::new())
                     .await
                     .map_err(|e| {
-                        let e = Error::new(e).context(context.clone());
-                        log::error!("{:#}", e);
-                        e
+                        let error = Error::new(e).context(context.clone());
+                        log::error!("{:#?}", error);
+                        error
                     })
             })),
             Query::Prepared(..) => Either::Right(
@@ -105,9 +105,9 @@ impl Executor for PostgresConnection {
                     transaction.commit().await?;
                 }
                 .map_err(move |e: Error| {
-                    let e = e.context(context.clone());
-                    log::error!("{:#}", e);
-                    e
+                    let error = e.context(context.clone());
+                    log::error!("{:#?}", error);
+                    error
                 }),
             ),
         }
@@ -126,7 +126,7 @@ impl Connection for PostgresConnection {
                 &prefix
             ))
             .context(context());
-            log::error!("{:#}", error);
+            log::error!("{:#?}", error);
             return Err(error);
         }
         let mut url = Url::parse(&url).with_context(context)?;
@@ -149,10 +149,10 @@ impl Connection for PostgresConnection {
         let (client, handle) = if sslmode == "disable" {
             let (client, connection) = tokio_postgres::connect(url.as_str(), NoTls).await?;
             let handle = spawn(async move {
-                if let Err(e) = connection.await
-                    && !e.is_closed()
+                if let Err(error) = connection.await
+                    && !error.is_closed()
                 {
-                    log::error!("Postgres connection error: {:#}", e);
+                    log::error!("Postgres connection error: {:#?}", error);
                 }
             });
             (client, handle)
@@ -189,10 +189,10 @@ impl Connection for PostgresConnection {
             let connector = MakeTlsConnector::new(builder.build());
             let (client, connection) = tokio_postgres::connect(url.as_str(), connector).await?;
             let handle = spawn(async move {
-                if let Err(e) = connection.await
-                    && !e.is_closed()
+                if let Err(error) = connection.await
+                    && !error.is_closed()
                 {
-                    log::error!("Postgres connection error: {:#}", e);
+                    log::error!("Postgres connection error: {:#?}", error);
                 }
             });
             (client, handle)
@@ -213,9 +213,9 @@ impl Connection for PostgresConnection {
     async fn disconnect(self) -> Result<()> {
         drop(self.client);
         if let Err(e) = self.handle.await {
-            let e = Error::new(e).context("While disconnecting from Postgres");
-            log::error!("{:#}", e);
-            return Err(e);
+            let error = Error::new(e).context("While disconnecting from Postgres");
+            log::error!("{:#?}", error);
+            return Err(error);
         }
         Ok(())
     }

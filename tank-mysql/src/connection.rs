@@ -54,9 +54,9 @@ impl Executor for MySQLConnection {
             }
         }
         .map_err(move |e: Error| {
-            let e = e.context(context.clone());
-            log::error!("{:#}", e);
-            e
+            let error = e.context(context.clone());
+            log::error!("{:#?}", error);
+            error
         })
     }
 }
@@ -71,7 +71,7 @@ impl Connection for MySQLConnection {
                 &prefix
             ))
             .context(context());
-            log::error!("{:#}", error);
+            log::error!("{:#?}", error);
             return Err(error);
         }
         let url = Url::parse(&url).with_context(context)?;

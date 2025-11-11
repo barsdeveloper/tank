@@ -125,9 +125,9 @@ macro_rules! possibly_parenthesized {
 macro_rules! truncate_long {
     ($query:expr) => {
         format_args!(
-            "{}{}\n",
+            "{}{}",
             &$query[..::std::cmp::min($query.len(), 497)].trim_end(),
-            if $query.len() > 497 { "..." } else { "" },
+            if $query.len() > 497 { "...\n" } else { "" },
         )
     };
 }
@@ -147,7 +147,7 @@ macro_rules! truncate_long {
 macro_rules! send_value {
     ($tx:ident, $value:expr) => {{
         if let Err(e) = $tx.send($value) {
-            log::error!("{:#}", e);
+            log::error!("{:#?}", e);
         }
     }};
 }

@@ -184,7 +184,7 @@ impl Prepared for SQLitePrepared {
                 _ => {
                     let error =
                         Error::msg(format!("Cannot use a {:?} as a query parameter", value));
-                    log::error!("{:#}", error);
+                    log::error!("{:#?}", error);
                     return Err(error);
                 }
             };
@@ -197,7 +197,7 @@ impl Prepared for SQLitePrepared {
                         index,
                         truncate_long!(CStr::from_ptr(query).to_string_lossy())
                     ));
-                log::error!("{:#}", error);
+                log::error!("{:#?}", error);
                 return Err(error);
             }
             self.index = index as u64 + 1;
