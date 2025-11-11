@@ -1,10 +1,11 @@
 use crate::{MySQLDriver, MySQLPrepared, MySQLTransaction, RowWrap};
 use async_stream::try_stream;
 use mysql_async::{Conn, Opts, prelude::Queryable};
-use std::borrow::Cow;
+use std::{borrow::Cow, sync::Arc};
 use tank_core::{
     Connection, Driver, Error, ErrorContext, Executor, Query, QueryResult, Result,
-    stream::{Stream, StreamExt},
+    stream::{Stream, StreamExt, TryStreamExt},
+    truncate_long,
 };
 use url::Url;
 
@@ -29,6 +30,7 @@ impl Executor for MySQLConnection {
         &mut self,
         query: Query<Self::Driver>,
     ) -> impl Stream<Item = Result<QueryResult>> + Send {
+        let context = Arc::new(format!("While running the query:\n{}", query));
         try_stream! {
             match query {
                 Query::Raw(sql) => {
@@ -51,12 +53,17 @@ impl Executor for MySQLConnection {
                 }
             }
         }
+        .map_err(move |e: Error| {
+            let e = e.context(context.clone());
+            log::error!("{:#}", e);
+            e
+        })
     }
 }
 
 impl Connection for MySQLConnection {
     async fn connect(url: Cow<'static, str>) -> Result<MySQLConnection> {
-        let context = || format!("While trying to connect to `{}`", url);
+        let context = || format!("While trying to connect to `{}`", truncate_long!(url));
         let prefix = format!("{}://", <Self::Driver as Driver>::NAME);
         if !url.starts_with(&prefix) {
             let error = Error::msg(format!(

@@ -10,10 +10,13 @@ use tank_core::{
     Result,
     future::{BoxFuture, FutureExt},
 };
-use testcontainers::core::logs::{LogFrame, consumer::LogConsumer};
 use testcontainers_modules::{
     postgres::Postgres,
-    testcontainers::{ContainerAsync, ImageExt, runners::AsyncRunner},
+    testcontainers::{
+        ContainerAsync, ImageExt,
+        core::logs::{LogFrame, consumer::LogConsumer},
+        runners::AsyncRunner,
+    },
 };
 use tokio::fs;
 
@@ -110,7 +113,7 @@ pub async fn init(ssl: bool) -> (String, Option<ContainerAsync<Postgres>>) {
         .with_db_name("military")
         .with_user("tank-user")
         .with_password("armored")
-        .with_startup_timeout(Duration::from_secs(10))
+        .with_startup_timeout(Duration::from_secs(60))
         .with_log_consumer(TestcontainersLogConsumer);
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     if ssl {

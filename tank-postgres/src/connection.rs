@@ -117,7 +117,7 @@ impl Executor for PostgresConnection {
 impl Connection for PostgresConnection {
     #[allow(refining_impl_trait)]
     async fn connect(url: Cow<'static, str>) -> Result<PostgresConnection> {
-        let context = || format!("While trying to connect to `{}`", url);
+        let context = || format!("While trying to connect to `{}`", truncate_long!(url));
         let url = decode(&url).with_context(context)?;
         let prefix = format!("{}://", <Self::Driver as Driver>::NAME);
         if !url.starts_with(&prefix) {

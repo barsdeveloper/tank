@@ -29,6 +29,5 @@ uuid.workspace = true
 [dev-dependencies]
 rcgen = "0.14.5"
 tank-tests = { path = "../tank-tests", features = ["disable-large-integers", "disable-lists", "disable-maps"] }
-testcontainers = "0.25.2"
 testcontainers-modules = { version = "0", features = ["postgres"] }
 tokio.workspace = true

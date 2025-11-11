@@ -466,7 +466,7 @@ impl Executor for DuckDBConnection {
 impl Connection for DuckDBConnection {
     #[allow(refining_impl_trait)]
     async fn connect(url: Cow<'static, str>) -> Result<DuckDBConnection> {
-        let context = || format!("While trying to connect to `{}`", url);
+        let context = || format!("While trying to connect to `{}`", truncate_long!(url));
         let prefix = format!("{}://", <Self::Driver as Driver>::NAME);
         if !url.starts_with(&prefix) {
             let error = Error::msg(format!(

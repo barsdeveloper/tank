@@ -22,4 +22,5 @@ url.workspace = true
 
 [dev-dependencies]
 tank-tests = { path = "../tank-tests" }
+testcontainers-modules = { version = "0", features = ["mysql"] }
 tokio.workspace = true

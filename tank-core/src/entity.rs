@@ -93,7 +93,7 @@ pub trait Entity {
     /// Prepare (but do not yet run) a SQL select query.
     ///
     /// Returns the prepared statement.
-    fn prepare_find(
+    fn prepare_find<Exec: Executor>(
         executor: &mut Exec,
         condition: &impl Expression,
         limit: Option<u32>,
