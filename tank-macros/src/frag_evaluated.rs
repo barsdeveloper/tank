@@ -24,7 +24,7 @@ pub fn flag_evaluated(input: TokenStream) -> TokenStream {
                         )));
                     }
 
-                    // Asterisk preceeded by '.' | ','
+                    // Asterisk preceeded by '.' or ','
                     (Some(TokenTree::Punct(a)), TokenTree::Punct(b), _)
                         if matches!(a.as_char(), '.' | ',') && b.as_char() == '*' =>
                     {

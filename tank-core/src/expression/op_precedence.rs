@@ -1,8 +1,8 @@
 use crate::{Expression, Value, writer::SqlWriter};
 
-/// Provides numeric precedence for expressions allowing dialect writers to insert parentheses.
+/// Provides numeric precedence for expressions allowing sql writers to insert parentheses.
 pub trait OpPrecedence {
-    /// Lower numbers bind weaker; writers parenthesize when child precedence <= operator precedence.
+    /// Lower numbers bind weaker, writers parenthesize when child precedence <= operator precedence.
     fn precedence(&self, writer: &dyn SqlWriter) -> i32;
 }
 

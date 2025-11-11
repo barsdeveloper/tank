@@ -13,26 +13,10 @@ use std::{
 ///
 /// An `Entity` defines:
 /// - Static table/column metadata
-/// - Conversion to/from raw `Row` / `RowLabeled`
+/// - Conversion to/from database returned row
 /// - Helper CRUD operations using an `Executor`
-///
-/// Lifetimes:
-/// - Associated `PrimaryKey<'a>` may borrow from `&self` when composed.
-///
-/// Error Handling:
-/// - Methods return `Result<...>` using crate-level `Error`.
-/// - `save` / `delete` early-return an error when a primary key is not defined.
-///
-/// Streaming:
-/// - `find_many` returns a `Stream` of row conversions.
-/// - `find_one` and `find_pk` internally consume a single element from that stream.
-///
-/// Idempotency:
-/// - `save` performs an UPSERT-style insert when supported (based on
-///   `sql_writer().write_insert(..., true)`), falling back to insert-only on
-///   unsupported drivers.
 pub trait Entity {
-    /// Associated primary key type. May be a single value or a tuple.
+    /// Primary key type. Tuple of the types of the fields forming the primary key.
     type PrimaryKey<'a>;
 
     /// Returns the table reference backing this entity.
@@ -45,13 +29,9 @@ pub trait Entity {
     fn primary_key_def() -> impl ExactSizeIterator<Item = &'static ColumnDef>;
 
     /// Extracts the primary key value(s) from `self`.
-    ///
-    /// Should mirror the order and shape returned by `primary_key_def()`.
     fn primary_key(&self) -> Self::PrimaryKey<'_>;
 
     /// Returns an iterator over unique constraint definitions.
-    ///
-    /// Each inner iterator represents one unique composite constraint.
     fn unique_defs()
     -> impl ExactSizeIterator<Item = impl ExactSizeIterator<Item = &'static ColumnDef>>;
 
@@ -64,7 +44,7 @@ pub trait Entity {
 
     /// Constructs `Self` from a labeled database row.
     ///
-    /// Errors if mandatory columns are missing or type conversion fails.
+    /// Error if mandatory columns are missing or type conversion fails.
     fn from_row(row: RowLabeled) -> Result<Self>
     where
         Self: Sized;
@@ -148,7 +128,8 @@ pub trait Entity {
 
     /// Streams entities matching a condition.
     ///
-    /// `limit` restricts the maximum number of rows returned at a database level if `Some` (if supported, otherwise unlimited).
+    /// `limit` restricts the maximum number of rows returned at a database level if `Some`
+    /// (if supported by the driver, unlimited otherwise).
     fn find_many<Exec: Executor, Expr: Expression>(
         executor: &mut Exec,
         condition: &Expr,
@@ -177,11 +158,7 @@ pub trait Entity {
     where
         Self: Sized;
 
-    /// Saves the entity (insert or update) based on primary key presence.
-    ///
-    /// Behavior:
-    /// - Errors if no primary key is defined in the table.
-    /// - Uses driver-specific UPSERT semantics when available (`write_insert(..., true)`).
+    /// Saves the entity (insert or update if available) based on primary key presence.
     ///
     /// Errors:
     /// - Missing PK in the table.
@@ -210,6 +187,7 @@ pub trait Entity {
     /// Errors:
     /// - Missing PK in the table.
     /// - If not exactly one row was deleted.
+    /// - Execution failures from underlying driver.
     fn delete<Exec: Executor>(&self, executor: &mut Exec) -> impl Future<Output = Result<()>> + Send
     where
         Self: Sized,
@@ -248,7 +226,7 @@ pub trait Entity {
 impl<E: Entity> DataSet for E {
     /// Indicates whether column names should be fully qualified with schema and table name.
     ///
-    /// For entities this returns `false` to keep queries concise.
+    /// For entities this returns `false` to keep queries concise, for joins it returns `true`.
     fn qualified_columns() -> bool
     where
         Self: Sized,
@@ -256,7 +234,7 @@ impl<E: Entity> DataSet for E {
         false
     }
 
-    /// Writes the table reference into the query string.
+    /// Writes the table reference into the out string.
     fn write_query(&self, writer: &dyn SqlWriter, context: &mut Context, out: &mut String) {
         Self::table().write_query(writer, context, out);
     }

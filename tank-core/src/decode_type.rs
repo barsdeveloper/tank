@@ -6,6 +6,7 @@ use syn::{
     Expr, ExprLit, GenericArgument, Lit, PathArguments, Type, TypeArray, TypePath, TypeSlice,
 };
 
+#[doc(hidden)]
 pub fn decode_type(ty: &Type) -> (TypeDecoded, Option<CheckPassive>) {
     let mut nullable = false;
     let mut filter_passive = None;

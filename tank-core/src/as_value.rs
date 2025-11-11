@@ -27,17 +27,17 @@ use uuid::Uuid;
 /// `Value::Varchar`. A minimal implementation:
 ///
 /// # Parsing contract
-/// * `parse` delegates to `extract` then verifies the slice is exhausted.
-/// * `extract` MUST update the input slice only on success.
-/// * Implementations should return descriptive errors including the original
+/// - `parse` delegates to `extract` then verifies the slice is exhausted.
+/// - `extract` MUST update the input slice only on success.
+/// - Implementations should return descriptive errors including the original
 ///   fragment; prefer `any::type_name::<Self>()` for uniform messages.
 ///
 /// # Error semantics
-/// * Range checks always occur before returning numeric conversions. The error
+/// - Range checks always occur before returning numeric conversions. The error
 ///   message includes both the offending literal and target type.
-/// * Temporal parsing attempts multiple format strings, if none match an error
+/// - Temporal parsing attempts multiple format strings, if none match an error
 ///   with the remaining slice is returned.
-/// * `parse` errors when residual unconsumed input remains, helping surface
+/// - `parse` errors when residual unconsumed input remains, helping surface
 ///   accidental trailing characters like `123abc`.
 ///
 /// # Examples
@@ -62,11 +62,11 @@ pub trait AsValue {
     /// Attempt to convert a dynamic [`Value`] into `Self`.
     ///
     /// Implementations should:
-    /// * Accept the canonical `Value` variant for the type (e.g. `Value::Int32`
+    /// - Accept the canonical `Value` variant for the type (e.g. `Value::Int32`
     ///   for `i32`).
-    /// * Optionally accept alternate numeric widths performing range checks.
-    /// * Optionally fall back to parsing `Value::Unknown` via [`AsValue::parse`].
-    /// * Return an `Error` describing the mismatch on failure.
+    /// - Optionally accept alternate numeric widths performing range checks.
+    /// - Optionally fall back to parsing `Value::Unknown` via [`AsValue::parse`].
+    /// - Return an `Error` describing the mismatch on failure.
     fn try_from_value(value: Value) -> Result<Self>
     where
         Self: Sized;

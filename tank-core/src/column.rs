@@ -6,11 +6,11 @@ use quote::{ToTokens, TokenStreamExt, quote};
 pub trait ColumnTrait {
     /// Logical definition (column metadata).
     fn column_def(&self) -> &ColumnDef;
-    /// Reference used in expressions.
+    /// Column reference to be used in expressions.
     fn column_ref(&self) -> &ColumnRef;
 }
 
-/// Fully-ì-qualified reference to a table column.
+/// Reference to a table column.
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ColumnRef {
     /// Column name.
@@ -31,7 +31,7 @@ impl ColumnRef {
     }
 }
 
-/// Indicates how (or if) a column participates in the primary key.
+/// Indicates if and how a column participates in the primary key.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum PrimaryKeyType {
     /// Single-column primary key.
@@ -54,7 +54,7 @@ impl ToTokens for PrimaryKeyType {
     }
 }
 
-/// Referential action for foreign key updates / deletes.
+/// Referential action for foreign key updates or deletes.
 #[derive(Default, Debug, PartialEq, Eq)]
 pub enum Action {
     /// No special action.
@@ -62,7 +62,7 @@ pub enum Action {
     NoAction,
     /// Reject the operation.
     Restrict,
-    /// Propagate delete/update.
+    /// Propagate delete, update...
     Cascade,
     /// Set referencing columns to NULL.
     SetNull,
@@ -87,9 +87,9 @@ impl ToTokens for Action {
 pub struct ColumnDef {
     /// Column identity.
     pub column_ref: ColumnRef,
-    /// Explicit SQL type override (empty => infer from `value`).
+    /// Explicit SQL type override (empty means infer from `value`).
     pub column_type: &'static str,
-    /// `Value` describing column type and shape (arrays/maps/decimal precision).
+    /// `Value` describing column type and parameters.
     pub value: Value,
     /// Nullability flag.
     pub nullable: bool,

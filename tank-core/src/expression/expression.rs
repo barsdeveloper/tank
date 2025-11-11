@@ -6,9 +6,9 @@ use std::fmt::Debug;
 
 /// A renderable SQL expression node.
 pub trait Expression: OpPrecedence + Send + Sync + Debug {
-    /// Serialize the expression into the output string using the dialect writer.
+    /// Serialize the expression into the output string using the sql writer.
     fn write_query(&self, writer: &dyn SqlWriter, context: &mut Context, out: &mut String);
-    /// Whether this expression carries ordering (ASC/DESC) information.
+    /// Whether this expression carries ordering information.
     fn is_ordered(&self) -> bool {
         false
     }

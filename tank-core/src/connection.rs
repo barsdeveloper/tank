@@ -13,9 +13,9 @@ use std::{
 /// behavior (timeouts, pooling strategies, prepared statement caching, etc.).
 ///
 /// # Lifecycle
-/// * `connect` creates (or fetches) an underlying connection. It may eagerly
+/// - `connect` creates (or fetches) an underlying connection. It may eagerly
 ///   establish network I/O for validation; always await it.
-/// * `begin` starts a transaction returning an object implementing
+/// - `begin` starts a transaction returning an object implementing
 ///   [`Transaction`]. Commit / rollback MUST be awaited to guarantee resource
 ///   release.
 pub trait Connection: Executor {

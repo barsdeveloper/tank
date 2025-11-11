@@ -94,21 +94,6 @@ pub fn consume_while<'s>(input: &mut &'s str, predicate: impl FnMut(&char) -> bo
 
 #[macro_export]
 /// Conditionally wrap a generated fragment in parentheses.
-///
-/// This is used by SQL writers where certain precedence or grouping must be
-/// preserved only under specific syntactic circumstances (for example nested
-/// joins or composite boolean expressions). It evaluates `$v` exactly once,
-/// writing surrounding `(` `)` into the mutable output buffer `$out` iff
-/// `$cond` is true.
-///
-/// # Examples
-/// ```rust
-/// # use tank_core::possibly_parenthesized;
-/// let mut out = String::new();
-/// let cond = true;
-/// possibly_parenthesized!(out, cond, { out.push_str("A OR B"); });
-/// assert_eq!(out, "(A OR B)");
-/// ```
 macro_rules! possibly_parenthesized {
     ($out:ident, $cond:expr, $v:expr) => {
         if $cond {
@@ -122,22 +107,19 @@ macro_rules! possibly_parenthesized {
 }
 
 #[macro_export]
-/// Truncate a long string (typically a SQL query) for logging and error
-/// messages purpose, preserving a newline terminator.
+/// Truncate long strings for logging and error messages purpose.
 ///
 /// Returns a `format_args!` that yields at most 497 characters from the start
-/// of the input followed by `...` when truncation occurred. Chosen length keeps
-/// messages concise while retaining useful context near the beginning of a
-/// query. Trailing whitespace is trimmed.
+/// of the input followed by `...` when truncation occurred. Minimal overhead.
 ///
 /// # Examples
 /// ```rust
-/// # use tank_core::truncate_long;
+/// use tank_core::truncate_long;
 /// let short = "SELECT 1";
 /// assert_eq!(format!("{}", truncate_long!(short)), "SELECT 1\n");
 /// let long = format!("SELECT {}", "X".repeat(600));
 /// let logged = format!("{}", truncate_long!(long));
-/// assert!(logged.starts_with("SELECT "));
+/// assert!(logged.starts_with("SELECT XXXXXX"));
 /// assert!(logged.ends_with("...\n"));
 /// ```
 macro_rules! truncate_long {
@@ -151,6 +133,16 @@ macro_rules! truncate_long {
 }
 
 /// Sends the value through the channel and logs in case of error.
+///
+/// Parameters:
+/// * `$tx`: sender channel
+/// * `$value`: value to be sent
+///
+/// *Example*:
+/// ```rust
+/// send_value!(tx, Ok(QueryResult::Row(row)));
+/// ```
+
 #[macro_export]
 macro_rules! send_value {
     ($tx:ident, $value:expr) => {{
@@ -163,17 +155,9 @@ macro_rules! send_value {
 /// Incrementally accumulates tokens from a speculative parse stream until one
 /// of the supplied parsers succeeds.
 ///
-/// Each `$parser` is invoked against a forked cursor so failures do not
-/// advance the main stream. When a parser succeeds its result is stored and
-/// the loop terminates. If none succeed before the input is exhausted, the
-/// macro returns all consumed tokens and a tuple of `None` results.
-///
-/// Returns `(accumulated_tokens, (parser1_result, parser2_result, ...))` with
-/// exactly one `Some(T)` (the first successful parser) or all `None` when no
-/// parser matched.
-///
-/// Useful for parsing sequences like `lhs JOIN rhs ON condition` where the
-/// boundary between components is context-sensitive.
+/// Returns `(accumulated_tokens, (parser1_option, parser2_option, ...))` with
+/// exactly one `Some(T)`: the first successful parser.
+#[doc(hidden)]
 #[macro_export]
 macro_rules! take_until {
     ($original:expr, $($parser:expr),+ $(,)?) => {{
@@ -226,11 +210,16 @@ macro_rules! take_until {
 ///
 /// # Examples
 /// ```rust
-/// # use tank_core::impl_executor_transaction;
-/// # struct MyDriver;
-/// # struct Conn { /* ... */ }
-/// # struct Tx<'c> { connection: &'c Conn }
-/// // impl_executor_transaction!(MyDriver, Tx, connection);
+/// use crate::{YourDBConnection, YourDBDriver};
+/// use tank_core::{Error, Result, Transaction, impl_executor_transaction};
+///
+/// pub struct YourDBTransaction<'c> {
+///     connection: &'c mut YourDBConnection,
+/// }
+///
+/// impl_executor_transaction!(YourDBDriver, YourDBTransaction, connection);
+///
+/// impl<'c> Transaction<'c> for YourDBTransaction<'c> { ... }
 /// ```
 macro_rules! impl_executor_transaction {
     ($driver:ty, $transaction:ident, $connection:ident) => {

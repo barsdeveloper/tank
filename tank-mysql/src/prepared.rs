@@ -4,7 +4,7 @@ use std::{
     fmt::{self, Display},
     mem,
 };
-use tank_core::{AsValue, Prepared, Result, Value, Error};
+use tank_core::{AsValue, Prepared, Result, Value};
 
 #[derive(Debug)]
 pub struct MySQLPrepared {

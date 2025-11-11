@@ -114,35 +114,39 @@ assert!(
 ```
 
 ## Expr
-[`expr!(...)`](https://docs.rs/tank/latest/tank/macro.expr.html) macro builds predicates and computed values:
-- `42`, `1.2`, `"Alpha"`, `true`, `NULL` (literal values)
-- `RadioLog::signal_strength` (column reference)
-- `Operator::id == #some_uuid` (comparison: `==`, `!=`, `>`, `>=`. `<`, `<=`)
-- `Operator::is_certified && RadioLog::signal_strength > -20` (logical: `&&`, `||`, `!`)
-- `(a + b) * (c - d)` (operations: `+`, `-`, `*`, `/`, `%`)
-- `(flags >> 1) & 3` (bitwise: `|`, `&`, `<<`, `>>`)
-- `[1, 2, 3][0]` (array literal and indexing)
-- `#threshold + 2 == #target` (variable capture)
-- `alpha == ? && beta > ?` (parameters)
-- `value != "ab%" as LIKE` (`NULL`, `LIKE`, `REGEXP`, `GLOB`)
-- `COUNT(*)`, `SUM(RadioLog::signal_strength)` (function calls / aggregates)
-- `1 as u128` (casting)
-- `PI` (identifiers)
-- `-(-PI) + 2 * (5 % (2 + 1)) == 7 && !(4 < 2)` (combination of the previous)
+[`expr!()`](https://docs.rs/tank/latest/tank/macro.expr.html) macro accepts a subset of Rust syntax with additional sentinel tokens for SQL semantics:
+- `42`, `1.2`, `"Alpha"`, `true`, `NULL`, `[1, 2, 3]` literal values
+- `#value` variable evaluation
+- `RadioLog::signal_strength` column reference
+- `Operator::id == #some_uuid` comparison: `==`, `!=`, `>`, `>=`. `<`, `<=`
+- `!Operator::is_certified || RadioLog::signal_strength < -20` logical: `&&`, `||`, `!`
+- `(a + b) * (c - d)` math operations: `+`, `-`, `*`, `/`, `%`
+- `(flags >> 1) & 3` bitwise operations: `|`, `&`, `<<`, `>>`
+- `[1, 2, 3][0]` array or map indexing
+- `alpha == ? && beta > ?` prepared statement parameters
+- `col == NULL`, `col != NULL` null check, it becomes `IS NULL` / `IS NOT NULL`
+- `COUNT(*)`, `SUM(RadioLog::signal_strength)` function calls and aggregates
+- `1 as u128` type casting
+- `PI` identifiers
+- `value != "ab%" as LIKE` pattern matching, it becomes `value NOT LIKE 'ab%'`, it also supports `REGEXP` and `GLOB` (actual supports depends on the driver)
+- `-(-PI) + 2 * (5 % (2 + 1)) == 7 && !(4 < 2)` combination of the previous
 
-Ultimately, the drivers decide if and how these expressions are translated into the specific query language.
+Parentheses obey standard Rust precedence. Empty invocation (`expr!()`) yields `false`. Ultimately, the drivers decide if and how these expressions are translated into the specific query language.
 
 ## Cols
-[`tank::cols!(col, ...)`](https://docs.rs/tank/0.8.0/tank/macro.cols.html) macro is more expressive syntax to select columns in a query, it supports:
+[`tank::cols!()`](https://docs.rs/tank/latest/tank/macro.cols.html) builds a slice of column expressions (optionally ordered) suitable for a `SELECT` projection.
+Each comma separated item becomes either a expression (parsed via [`expr!`](7-advanced-operations.html#expr)) or a ordered expression when followed by `ASC` or `DESC`.
+
+Example of valid syntax
 - `RadioLog::transmission_time`
-- `Operator::service_rank as rank` (aliasing)
-- `RadioLog::signal_strength + 10` (expressions)
-- `AVG(RadioLog::signal_strength)` (function calls)
-- `*` (wildcard)
-- `COUNT(*)` (counting)
-- `operations.radio_log.signal_strength.rssi` (raw database identifier)
-- `Operator::enlisted DESC` (ordering)
-- `AVG(ABS(Operator::enlisted - operations.radio_log.transmission_time)) as difference DESC` (combination of the previous)
+- `Operator::service_rank as rank` aliasing
+- `RadioLog::signal_strength + 10` expressions
+- `AVG(RadioLog::signal_strength)` function calls
+- `*` wildcard
+- `COUNT(*)` counting
+- `operations.radio_log.signal_strength.rssi` raw database identifier
+- `Operator::enlisted DESC` ordering
+- `AVG(ABS(Operator::enlisted - operations.radio_log.transmission_time)) as difference DESC` combination of the previous
 
 ## Performance notes
 - Request only the necessary columns.
