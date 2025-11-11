@@ -326,12 +326,63 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro]
+/// Build a typed join tree from a concise SQL-like syntax.
+///
+/// The grammar supports standard join variants (`JOIN`, `INNER JOIN`, `LEFT
+/// JOIN`, `LEFT OUTER JOIN`, `RIGHT JOIN`, `RIGHT OUTER JOIN`, `FULL OUTER
+/// JOIN`, `OUTER JOIN`, `CROSS`, `NATURAL JOIN`) plus nesting via parentheses
+/// and chaining multiple joins in sequence. Optional `ON <expr>` clauses are
+/// parsed into expressions using the same rules as [`expr!`].
+///
+/// Tables may be aliased by following them with an identifier (`MyTable MT
+/// JOIN Other ON MT.id == Other.other_id`). Parentheses group joins when
+/// building larger trees.
+///
+/// # Examples
+/// ```rust
+/// use tank::join;
+/// let j = join!(User U JOIN Post P ON U.id == P.user_id);
+/// // Produces a [tank::DataSet] value that supports select() calls.
+/// ```
 pub fn join(input: TokenStream) -> TokenStream {
     let result = parse_macro_input!(input as JoinParsed);
     result.0.into()
 }
 
 #[proc_macro]
+/// Parse a Rust expression into a typed SQL expression tree.
+///
+/// The macro accepts a subset of Rust syntax with additional sentinel tokens
+/// for SQL semantics:
+/// * Binary ops: `+ - * / % && || | & << >> == != < <= > >=`
+/// * Special comparisons using casts: `expr == other as LIKE`, `expr != pattern as GLOB`, `expr == ident as REGEXP`.
+/// * NULL tests: `col == NULL`, `col != NULL` become `IS` / `IS NOT`.
+/// * Function calls: `COUNT(*)`, `SUM(Table::col)` etc.
+/// * Casting: `CAST(expr as Type)` where `Type` maps to a `tank::Value` type.
+/// * Arrays: `[1, 2, 3]` literals.
+/// * Indexing: `array_expr[0]`.
+/// * Variable / placeholder tokens generated via internal macros (`?`, `*`).
+///
+/// Empty invocation (`expr!()`) yields `false` (useful for building dynamic
+/// conditions incrementally).
+///
+/// # Examples
+/// ```rust
+/// use tank::expr;
+/// let condition = expr!(User::age > 18 && User::active == true);
+/// let like = expr!(Post::title == "Rust%" as LIKE);
+/// let cast = expr!(CAST(User::active as i32) == 1);
+/// ```
+///
+/// Aggregates:
+/// ```rust
+/// use tank::expr;
+/// let count = expr!(COUNT(*));
+/// let sum = expr!(SUM(Order::total));
+/// ```
+///
+/// Parentheses obey standard Rust precedence. All identifiers and paths are
+/// preserved verbatim to allow referencing entity columns.
 pub fn expr(input: TokenStream) -> TokenStream {
     let mut input: TokenStream = flag_evaluated(input.into()).into();
     if input.is_empty() {
@@ -343,6 +394,30 @@ pub fn expr(input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro]
+/// Build a slice of column expressions (optionally ordered) suitable for a
+/// `SELECT` projection.
+///
+/// Each comma separated item becomes either:
+/// * An expression (parsed via [`expr!`])
+/// * An ordered expression when followed by `ASC` or `DESC`.
+///
+/// Returns `&[&dyn Expression]` allowing direct passing to APIs expecting a
+/// heterogeneous list of column expressions.
+///
+/// `*` (asterisk) is supported via the internal token macro and expands to the
+/// appropriate operand.
+///
+/// # Examples
+/// ```rust
+/// use tank::cols;
+/// let projection = cols!(User::id, User::name DESC, COUNT(*));
+/// ```
+///
+/// Ordering:
+/// ```rust
+/// use tank::cols;
+/// let ordered = cols!(Book::year DESC, Book::title ASC);
+/// ```
 pub fn cols(input: TokenStream) -> TokenStream {
     let input = flag_evaluated(input.into());
     let Ok(ColList { cols: items }) = parse2(input) else {
