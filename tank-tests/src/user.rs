@@ -17,9 +17,9 @@ static MUTEX: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
 pub struct UserProfile {
     #[tank(primary_key, name = "user_id")]
     pub id: Passive<Uuid>,
-    #[tank(unique)]
+    #[tank(unique, column_type = (mysql = "VARCHAR(128)"))]
     pub username: String,
-    #[tank(unique)]
+    #[tank(unique, column_type = (mysql = "VARCHAR(128)"))]
     pub email: String,
     pub full_name: Option<String>,
     #[tank(default = "0")]

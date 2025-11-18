@@ -9,7 +9,7 @@ use std::{
     cell::{Cell, RefCell},
     collections::{BTreeMap, HashMap, LinkedList, VecDeque},
     hash::Hash,
-    mem,
+    iter, mem,
     rc::Rc,
     sync::{Arc, RwLock},
 };
@@ -417,10 +417,10 @@ impl_as_value!(
     Value::Boolean,
     |input: &mut &str| {
         let mut value = *input;
-        let result = consume_while(&mut value, |v| v.is_alphabetic() || *v == '_');
+        let result = consume_while(&mut value, |v| v.is_alphanumeric() || *v == '_');
         let result = match result {
-            x if x.eq_ignore_ascii_case("true") || x.eq_ignore_ascii_case("t") => Ok(true),
-            x if x.eq_ignore_ascii_case("false") || x.eq_ignore_ascii_case("f") => Ok(false),
+            x if x.eq_ignore_ascii_case("true") || x.eq_ignore_ascii_case("t") || x.eq("1") => Ok(true),
+            x if x.eq_ignore_ascii_case("false") || x.eq_ignore_ascii_case("f") || x.eq("0") => Ok(false),
             _  => return Err(Error::msg(format!("Cannot parse boolean from '{input}'")))
         };
         *input = value;
@@ -463,9 +463,36 @@ impl_as_value!(
     char,
     Value::Char,
     |v: &mut &str| {
-        let result = v.chars().next().ok_or(Error::msg("Empty input"))?;
-        *v = &v[1..];
-        Ok(result)
+        let mut chars = v.chars().peekable();
+        let mut pos = 0;
+        let delimiter = chars.peek().copied();
+        let delimiter = match delimiter {
+            Some('\'') | Some('"') => {
+                pos += 1;
+                chars.next();
+                delimiter
+            },
+            _ => None,
+        };
+        let c = match chars.next() {
+            Some(c) => {
+                pos +=1;
+                c
+            }
+            None => {
+                return delimiter.ok_or(Error::msg("Cannot convert empty Value::Varchar into a char"));
+            }
+        };
+        if delimiter.is_some() {
+            pos += 1;
+            if chars.next() != delimiter {
+                return Err(Error::msg(format!(
+                    "Cannot convert {v:?} into a char, unterminated string",
+                )))
+            }
+        }
+        *v = &v[pos..];
+        Ok(c)
     },
     Value::Varchar(Some(v), ..) => {
         if v.len() != 1 {
@@ -479,17 +506,18 @@ impl_as_value!(
     Value::Varchar,
     |input: &mut &str| {
         let mut value = *input;
-        let delimiter = value.chars().next();
+        let mut chars = value.chars().peekable();
+        let mut pos = 0;
+        let delimiter = chars.peek().copied();
         let delimiter = match delimiter {
             Some('\'') | Some('"') => {
+                chars.next();
                 value = &value[1..];
                 delimiter
             },
             _ => None,
         };
-        let mut result = String::new();
-        let mut chars = value.chars().peekable();
-        let mut pos = 0;
+        let mut result = String::with_capacity(value.len());
         while let Some(c) = chars.next() {
             if Some(c) == delimiter {
                 if let Some(next_c) = chars.peek()
@@ -507,9 +535,6 @@ impl_as_value!(
             }
             pos += 1;
         }
-        if delimiter.is_some() {
-            result = format!("{}{}", delimiter.unwrap(), result);
-        }
         result.push_str(&value[..pos]);
         value = &value[pos..];
         *input = value;
@@ -522,11 +547,22 @@ impl_as_value!(Box<[u8]>, Value::Blob, |input: &mut &str| {
     if value[0..2].eq_ignore_ascii_case("\\x") {
         value = &value[2..];
     }
-    let hex = consume_while(
-        &mut value,
-        |v| matches!(*v, '0'..='9' | 'a'..='f' | 'A'..='F'),
-    );
-    let result = hex::decode(hex).map(Into::into).context(format!(
+    let mut filter_x = false;
+    let hex = consume_while(&mut value, |v| match v {
+        '0'..='9' | 'a'..='f' | 'A'..='F' => true,
+        'x' => {
+            filter_x = true;
+            true
+        }
+        _ => false,
+    });
+    let result = if filter_x {
+        hex::decode(hex.chars().filter(|c| *c != 'x').collect::<String>())
+    } else {
+        hex::decode(hex)
+    }
+    .map(Into::into)
+    .context(format!(
         "While decoding `{}` as {}",
         truncate_long!(input),
         any::type_name::<Self>()
@@ -890,7 +926,7 @@ impl<T: AsValue, const N: usize> AsValue for [T; N] {
         match value {
             Value::List(Some(v), ..) if v.len() == N => convert_iter(v),
             Value::Array(Some(v), ..) if v.len() == N => convert_iter(v.into()),
-            Value::Unknown(Some(v)) => Self::parse(v),
+            Value::Unknown(Some(v)) => <Self as AsValue>::parse(v),
             _ => Err(Error::msg(format!(
                 "Cannot convert {value:?} to array {}",
                 any::type_name::<Self>()
@@ -972,11 +1008,52 @@ macro_rules! impl_as_value {
                         .into_iter()
                         .map(|v| Ok::<_, Error>(<T as AsValue>::try_from_value(v)?))
                         .collect::<Result<_>>()?),
+                    Value::Unknown(Some(ref v)) => <Self as AsValue>::parse(v),
                     _ => Err(Error::msg(format!(
                         "Cannot convert {value:?} to {}",
                         any::type_name::<Self>(),
                     ))),
                 }
+            }
+            fn extract(input: &mut &str) -> Result<Self> {
+                let mut value = *input;
+                let error = Arc::new(format!(
+                    "Cannot extract `{}` as {}",
+                    truncate_long!(value),
+                    any::type_name::<Self>(),
+                ));
+                let closing = match value.chars().next() {
+                    Some('{') => '}',
+                    Some('[') => ']',
+                    _ => {
+                        return Err(Error::msg(error));
+                    }
+                };
+                value = &value[1..].trim_ascii_start();
+                let result = iter::from_fn(|| {
+                    if value.chars().next() == Some(closing.clone()) {
+                        return None;
+                    }
+                    let result = T::extract(&mut value).ok()?;
+                    value = value.trim_ascii_start();
+                    match value.chars().next() {
+                        Some(',') => value = &value[1..].trim_ascii_start(),
+                        d if d == Some(closing) => {}
+                        _ => return Some(Err(Error::msg(error.clone()))),
+                    }
+                    Some(Ok(result))
+                })
+                .collect::<Result<Self>>()?;
+                if Some(closing) != value.chars().next() {
+                    return Err(Error::msg(format!(
+                        "Incorrect array `{}`, expected a `{}`",
+                        truncate_long!(value),
+                        closing
+                    )));
+                };
+                value = &value[1..].trim_ascii_start();
+                *input = &value;
+                Ok(result)
             }
         }
     };
@@ -1003,21 +1080,71 @@ macro_rules! impl_as_value {
                 )
             }
             fn try_from_value(value: Value) -> Result<Self> {
-                if let Value::Map(Some(v), ..) = value {
-                    Ok(v.into_iter()
-                        .map(|(k, v)| {
-                            Ok((
-                                <K as AsValue>::try_from_value(k)?,
-                                <V as AsValue>::try_from_value(v)?,
-                            ))
-                        })
-                        .collect::<Result<_>>()?)
-                } else {
-                    Err(Error::msg(format!(
-                        "Cannot convert {value:?} to {}",
-                        any::type_name::<Self>(),
-                    )))
+                match value {
+                    Value::Map(Some(v), ..) => {
+                        Ok(v.into_iter()
+                            .map(|(k, v)| {
+                                Ok((
+                                    <K as AsValue>::try_from_value(k)?,
+                                    <V as AsValue>::try_from_value(v)?,
+                                ))
+                            })
+                            .collect::<Result<_>>()?)
+                    }
+                    Value::Unknown(Some(ref v)) => <Self as AsValue>::parse(v),
+                    _=> {
+                        Err(Error::msg(format!(
+                            "Cannot convert {value:?} to {}",
+                            any::type_name::<Self>(),
+                        )))
+                    }
                 }
+            }
+            fn extract(input: &mut &str) -> Result<Self> {
+                let mut value = *input;
+                let error = Arc::new(format!(
+                    "Cannot extract `{}` as {}",
+                    truncate_long!(value),
+                    any::type_name::<Self>(),
+                ));
+                let closing = match value.chars().next() {
+                    Some('{') => '}',
+                    _ => {
+                        return Err(Error::msg(error));
+                    }
+                };
+                value = &value[1..].trim_ascii_start();
+                let result = iter::from_fn(|| {
+                    if value.chars().next() == Some(closing.clone()) {
+                        return None;
+                    }
+                    let k = K::extract(&mut value).ok()?;
+                    value = value.trim_ascii_start();
+                    match value.chars().next() {
+                        Some(':') => value = &value[1..].trim_ascii_start(),
+                        d if d == Some(closing) => {}
+                        _ => return Some(Err(Error::msg(error.clone()))),
+                    }
+                    let v = V::extract(&mut value).ok()?;
+                    value = value.trim_ascii_start();
+                    match value.chars().next() {
+                        Some(',') => value = &value[1..].trim_ascii_start(),
+                        d if d == Some(closing) => {}
+                        _ => return Some(Err(Error::msg(error.clone()))),
+                    }
+                    Some(Ok((k, v)))
+                })
+                .collect::<Result<Self>>()?;
+                if Some(closing) != value.chars().next() {
+                    return Err(Error::msg(format!(
+                        "Incorrect array `{}`, expected a `{}`",
+                        truncate_long!(value),
+                        closing
+                    )));
+                };
+                value = &value[1..].trim_ascii_start();
+                *input = &value;
+                Ok(result)
             }
         }
     }
@@ -1037,6 +1164,12 @@ impl<'a> AsValue for Cow<'a, str> {
         Self: Sized,
     {
         String::try_from_value(value).map(Into::into)
+    }
+    fn extract(input: &mut &str) -> Result<Self>
+    where
+        Self: Sized,
+    {
+        <String as AsValue>::extract(input).map(Into::into)
     }
 }
 

@@ -170,7 +170,7 @@ pub trait Entity {
             let error = Error::msg(
                 "Cannot save a entity without a primary key, it would always result in a insert",
             );
-            log::error!("{:#?}", error);
+            log::error!("{:#}", error);
             return Either::Left(future::ready(Err(error)));
         }
         let mut query = String::with_capacity(512);
@@ -194,7 +194,7 @@ pub trait Entity {
         if Self::primary_key_def().len() == 0 {
             let error =
                 Error::msg("Cannot delete a entity without a primary key, it would delete nothing");
-            log::error!("{:#?}", error);
+            log::error!("{:#}", error);
             return Either::Left(future::ready(Err(error)));
         }
         Either::Right(Self::delete_one(executor, self.primary_key()).map(|v| {

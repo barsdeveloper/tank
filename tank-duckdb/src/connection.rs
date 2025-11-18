@@ -231,7 +231,7 @@ impl Executor for DuckDBConnection {
                     let error = Error::new(e)
                         .context("Could not create a CString from the query String")
                         .context(context);
-                    log::error!("{:#?}", error);
+                    log::error!("{:#}", error);
                     return Err(error);
                 }
             };
@@ -245,7 +245,7 @@ impl Executor for DuckDBConnection {
                     error_message_from_ptr(&duckdb_prepare_error(*prepared)).to_string(),
                 )
                 .context(context);
-                log::error!("{:#?}", error);
+                log::error!("{:#}", error);
                 return Err(error);
             }
             Ok(prepared)
@@ -260,7 +260,7 @@ impl Executor for DuckDBConnection {
         let context = Arc::new(format!("While executing the query:\n{}", query));
         let stream = rx.into_stream().map_err(move |e| {
             let error = e.context(context.clone());
-            log::error!("{:#?}", error);
+            log::error!("{:#}", error);
             error
         });
         spawn_blocking(move || match query {
@@ -448,7 +448,7 @@ impl Executor for DuckDBConnection {
                         let error = Error::msg(
                             error_message_from_ptr(&duckdb_appender_error(*appender)).to_string(),
                         );
-                        log::error!("{:#?}", error);
+                        log::error!("{:#}", error);
                         return Err(error);
                     }
                 }
@@ -474,7 +474,7 @@ impl Connection for DuckDBConnection {
                 &prefix,
             ))
             .context(context());
-            log::error!("{:#?}", error);
+            log::error!("{:#}", error);
             return Err(error);
         }
         let mut parts = url.trim_start_matches(&prefix).splitn(2, '?');
@@ -493,7 +493,7 @@ impl Connection for DuckDBConnection {
             if rc != duckdb_state_DuckDBSuccess {
                 let error =
                     Error::msg("Cannot allocate the duckdb_config object").context(context());
-                log::error!("{:#?}", error);
+                log::error!("{:#}", error);
                 return Err(error);
             }
         };
@@ -558,7 +558,7 @@ impl Connection for DuckDBConnection {
             let rc = duckdb_connect(database, &mut *connection);
             if rc != duckdb_state_DuckDBSuccess {
                 let error = Error::msg(format!("Failed to connect to database url `{}`", url));
-                log::error!("{:#?}", error);
+                log::error!("{:#}", error);
                 return Err(error);
             };
         };

@@ -39,7 +39,7 @@ export default defineConfig({
     ],
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/barsdeveloper/tank' },
+      { icon: 'github', link: 'https://github.com/TankHQ/tank' },
     ],
 
     footer: {

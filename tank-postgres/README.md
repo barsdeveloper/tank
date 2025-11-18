@@ -8,9 +8,9 @@ Postgres driver implementation for [Tank](https://crates.io/crates/tank): the Ru
 
 Implements Tank’s `Driver` and related traits for Postgres, mapping Tank operations and queries into direct Postgres commands. It does not replace the main [`tank`](https://crates.io/crates/tank) crate. you still use it to define entities, manage schemas, and build queries.
 
-https://barsdeveloper.github.io/tank/
+https://tankhq.github.io/tank/
 
-https://github.com/barsdeveloper/tank ⭐
+https://github.com/TankHQ/tank ⭐
 
 https://crates.io/crates/tank
 

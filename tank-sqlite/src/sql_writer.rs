@@ -1,4 +1,4 @@
-use std::fmt::Write;
+use std::{collections::BTreeMap, fmt::Write};
 use tank_core::{ColumnRef, Context, Entity, SqlWriter, TableRef, Value};
 
 pub struct SQLiteSqlWriter {}
@@ -6,6 +6,20 @@ pub struct SQLiteSqlWriter {}
 impl SqlWriter for SQLiteSqlWriter {
     fn as_dyn(&self) -> &dyn SqlWriter {
         self
+    }
+
+    fn write_column_overridden_type(
+        &self,
+        _context: &mut Context,
+        out: &mut String,
+        types: &BTreeMap<&'static str, &'static str>,
+    ) {
+        if let Some(t) = types
+            .iter()
+            .find_map(|(k, v)| if *k == "sqlite" { Some(v) } else { None })
+        {
+            out.push_str(t);
+        }
     }
 
     fn write_column_ref(&self, context: &mut Context, out: &mut String, value: &ColumnRef) {
@@ -106,7 +120,7 @@ impl SqlWriter for SQLiteSqlWriter {
         // SQLite does not support schema
     }
 
-    fn write_column_comments<E>(&self, _context: &mut Context, _buff: &mut String)
+    fn write_column_comments_statements<E>(&self, _context: &mut Context, _buff: &mut String)
     where
         Self: Sized,
         E: Entity,

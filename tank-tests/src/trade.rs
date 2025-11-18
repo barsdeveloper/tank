@@ -1,6 +1,7 @@
 use rust_decimal::Decimal;
 #[allow(unused_imports)]
 use std::{collections::BTreeMap, pin::pin, str::FromStr, sync::LazyLock};
+#[allow(unused_imports)]
 use tank::{
     Driver, Entity, Executor, FixedDecimal, Passive, QueryResult, RowsAffected, SqlWriter,
     stream::{StreamExt, TryStreamExt},
@@ -331,82 +332,87 @@ pub async fn trade_multiple<E: Executor>(executor: &mut E) {
     }
 
     // Multiple statements
-    let writer = executor.driver().sql_writer();
-    let mut query = String::new();
-    writer.write_delete::<Trade>(&mut query, &true);
-    writer.write_insert(
-        &mut query,
-        &[Trade {
-            trade: 10002,
-            order: Uuid::parse_str("895dc048-be92-4a55-afbf-38a60936e844").unwrap(),
-            symbol: "RIVN".to_string(),
-            #[cfg(not(feature = "disable-arrays"))]
-            isin: std::array::from_fn(|i| "US76954A1034".chars().nth(i).unwrap()),
-            price: Decimal::new(1345, 2).into(),
-            quantity: 3200,
-            execution_time: datetime!(2025-06-01 10:15:30).into(),
-            currency: Some("USD".into()),
-            is_internalized: true,
-            venue: Some("NASDAQ".into()),
-            #[cfg(not(feature = "disable-lists"))]
-            child_trade_ids: Some(vec![201]),
-            metadata: Some(
-                b"desc: \"Crossed with internal liquidity\", id:'\\X696E7465726E616C'"
-                    .to_vec()
-                    .into_boxed_slice(),
-            ),
-            #[cfg(not(feature = "disable-maps"))]
-            tags: Some(BTreeMap::from_iter([
-                ("source".into(), "internal".into()),
-                ("strategy".into(), "arbitrage".into()),
-                ("risk_limit".into(), "high".into()),
-            ])),
-        }],
-        false,
-    );
-    writer.write_select(&mut query, Trade::columns(), Trade::table(), &true, None);
-    let mut stream = pin!(executor.run(query.into()));
-    let Some(Ok(QueryResult::Affected(RowsAffected { rows_affected, .. }))) = stream.next().await
-    else {
-        panic!("Could not get the result of the first query");
-    };
-    assert_eq!(rows_affected, 5);
-    let Some(Ok(QueryResult::Affected(RowsAffected { rows_affected, .. }))) = stream.next().await
-    else {
-        panic!("Could not get the result of the first statement");
-    };
-    assert_eq!(rows_affected, 1);
-    let Some(Ok(QueryResult::Row(row))) = stream.next().await else {
-        panic!("Could not get the result of the second statement");
-    };
-    let trade = Trade::from_row(row).expect("Could not decode the Trade from row");
-    assert_eq!(
-        trade,
-        Trade {
-            trade: 10002,
-            order: Uuid::parse_str("895dc048-be92-4a55-afbf-38a60936e844").unwrap(),
-            symbol: "RIVN".to_string(),
-            #[cfg(not(feature = "disable-arrays"))]
-            isin: std::array::from_fn(|i| "US76954A1034".chars().nth(i).unwrap()),
-            price: Decimal::new(1345, 2).into(),
-            quantity: 3200,
-            execution_time: datetime!(2025-06-01 10:15:30).into(),
-            currency: Some("USD".into()),
-            is_internalized: true,
-            venue: Some("NASDAQ".into()),
-            #[cfg(not(feature = "disable-lists"))]
-            child_trade_ids: Some(vec![201]),
-            metadata: Some(
-                b"desc: \"Crossed with internal liquidity\", id:'\\X696E7465726E616C'"
-                    .to_vec()
-                    .into_boxed_slice(),
-            ),
-            #[cfg(not(feature = "disable-maps"))]
-            tags: Some(BTreeMap::from_iter([
-                ("source".into(), "internal".into()),
-                ("strategy".into(), "arbitrage".into()),
-                ("risk_limit".into(), "high".into()),
-            ])),
-        }
-    );
+    #[cfg(not(feature = "disable-multi-statements"))]
+    {
+        let writer = executor.driver().sql_writer();
+        let mut query = String::new();
+        writer.write_delete::<Trade>(&mut query, &true);
+        writer.write_insert(
+            &mut query,
+            &[Trade {
+                trade: 10002,
+                order: Uuid::parse_str("895dc048-be92-4a55-afbf-38a60936e844").unwrap(),
+                symbol: "RIVN".to_string(),
+                #[cfg(not(feature = "disable-arrays"))]
+                isin: std::array::from_fn(|i| "US76954A1034".chars().nth(i).unwrap()),
+                price: Decimal::new(1345, 2).into(),
+                quantity: 3200,
+                execution_time: datetime!(2025-06-01 10:15:30).into(),
+                currency: Some("USD".into()),
+                is_internalized: true,
+                venue: Some("NASDAQ".into()),
+                #[cfg(not(feature = "disable-lists"))]
+                child_trade_ids: Some(vec![201]),
+                metadata: Some(
+                    b"desc: \"Crossed with internal liquidity\", id:'\\X696E7465726E616C'"
+                        .to_vec()
+                        .into_boxed_slice(),
+                ),
+                #[cfg(not(feature = "disable-maps"))]
+                tags: Some(BTreeMap::from_iter([
+                    ("source".into(), "internal".into()),
+                    ("strategy".into(), "arbitrage".into()),
+                    ("risk_limit".into(), "high".into()),
+                ])),
+            }],
+            false,
+        );
+        writer.write_select(&mut query, Trade::columns(), Trade::table(), &true, None);
+        let mut stream = pin!(executor.run(query.into()));
+        let Some(Ok(QueryResult::Affected(RowsAffected { rows_affected, .. }))) =
+            stream.next().await
+        else {
+            panic!("Could not get the result of the first query");
+        };
+        assert_eq!(rows_affected, 5);
+        let Some(Ok(QueryResult::Affected(RowsAffected { rows_affected, .. }))) =
+            stream.next().await
+        else {
+            panic!("Could not get the result of the first statement");
+        };
+        assert_eq!(rows_affected, 1);
+        let Some(Ok(QueryResult::Row(row))) = stream.next().await else {
+            panic!("Could not get the result of the second statement");
+        };
+        let trade = Trade::from_row(row).expect("Could not decode the Trade from row");
+        assert_eq!(
+            trade,
+            Trade {
+                trade: 10002,
+                order: Uuid::parse_str("895dc048-be92-4a55-afbf-38a60936e844").unwrap(),
+                symbol: "RIVN".to_string(),
+                #[cfg(not(feature = "disable-arrays"))]
+                isin: std::array::from_fn(|i| "US76954A1034".chars().nth(i).unwrap()),
+                price: Decimal::new(1345, 2).into(),
+                quantity: 3200,
+                execution_time: datetime!(2025-06-01 10:15:30).into(),
+                currency: Some("USD".into()),
+                is_internalized: true,
+                venue: Some("NASDAQ".into()),
+                #[cfg(not(feature = "disable-lists"))]
+                child_trade_ids: Some(vec![201]),
+                metadata: Some(
+                    b"desc: \"Crossed with internal liquidity\", id:'\\X696E7465726E616C'"
+                        .to_vec()
+                        .into_boxed_slice(),
+                ),
+                #[cfg(not(feature = "disable-maps"))]
+                tags: Some(BTreeMap::from_iter([
+                    ("source".into(), "internal".into()),
+                    ("strategy".into(), "arbitrage".into()),
+                    ("risk_limit".into(), "high".into()),
+                ])),
+            }
+        );
+    }
 }

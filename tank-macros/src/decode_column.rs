@@ -1,10 +1,10 @@
 use crate::expr;
 use proc_macro2::TokenStream;
 use quote::ToTokens;
-use std::fmt::Debug;
+use std::{collections::BTreeMap, fmt::Debug};
 use syn::{
     Expr, ExprCall, ExprLit, ExprMethodCall, Field, Ident, Lit, LitStr, Path, Result, Type,
-    custom_keyword,
+    custom_keyword, parenthesized,
     parse::{Parse, ParseStream},
     parse2,
     token::{Comma, Eq},
@@ -18,7 +18,7 @@ pub(crate) struct ColumnMetadata {
     pub(crate) ignored: bool,
     pub(crate) ty: Type,
     pub(crate) name: String,
-    pub(crate) column_type: String,
+    pub(crate) column_type: BTreeMap<String, String>,
     pub(crate) value: Value,
     pub(crate) nullable: bool,
     pub(crate) default: Option<TokenStream>,
@@ -92,6 +92,39 @@ impl Parse for Entries {
     }
 }
 
+struct TypeEntries {
+    types: BTreeMap<String, String>,
+}
+
+impl Parse for TypeEntries {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let mut map = BTreeMap::new();
+        let content;
+        parenthesized!(content in input);
+        for pair in content.parse_terminated(TypeEntry::parse, Comma)? {
+            map.insert(pair.key, pair.value);
+        }
+        Ok(TypeEntries { types: map })
+    }
+}
+
+struct TypeEntry {
+    key: String,
+    value: String,
+}
+
+impl Parse for TypeEntry {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let key = input.parse::<Ident>()?.to_string();
+        input.parse::<Eq>()?;
+        let value_lit = input.parse::<LitStr>()?;
+        Ok(TypeEntry {
+            key,
+            value: value_lit.value(),
+        })
+    }
+}
+
 pub fn decode_column(field: &Field) -> ColumnMetadata {
     let ident = field
         .ident
@@ -103,7 +136,7 @@ pub fn decode_column(field: &Field) -> ColumnMetadata {
         ignored: false,
         ty: field.ty.clone(),
         name,
-        column_type: "".into(),
+        column_type: Default::default(),
         value: Value::Null,
         nullable: false,
         default: None,
@@ -137,8 +170,10 @@ pub fn decode_column(field: &Field) -> ColumnMetadata {
                         panic!("Cannot parse `name`, example: `#[tank(name = \"my_column\")]`");
                     };
                     metadata.name = v.value();
-                } else if name == "type" {
-                    metadata.column_type = value.to_string();
+                } else if name == "column_type" {
+                    let column_type = parse2::<TypeEntries>(value.clone())
+                        .expect("Cannot parse `column_type`, example: `#[tank(column_type = (postgres = \"TEXT\", mysql = \"VARCHAR(255)\")]`");
+                    metadata.column_type = column_type.types;
                 } else if name == "primary_key" {
                     metadata.primary_key = PrimaryKeyType::PrimaryKey;
                     metadata.nullable = false;

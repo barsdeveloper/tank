@@ -1,4 +1,7 @@
-use std::{collections::HashMap, fmt::Write};
+use std::{
+    collections::{BTreeMap, HashMap},
+    fmt::Write,
+};
 use tank_core::{Context, Interval, SqlWriter, Value, separated_by};
 
 #[derive(Default)]
@@ -7,6 +10,20 @@ pub struct DuckDBSqlWriter {}
 impl SqlWriter for DuckDBSqlWriter {
     fn as_dyn(&self) -> &dyn SqlWriter {
         self
+    }
+
+    fn write_column_overridden_type(
+        &self,
+        _context: &mut Context,
+        out: &mut String,
+        types: &BTreeMap<&'static str, &'static str>,
+    ) {
+        if let Some(t) = types
+            .iter()
+            .find_map(|(k, v)| if *k == "duckdb" { Some(v) } else { None })
+        {
+            out.push_str(t);
+        }
     }
 
     fn write_value_blob(&self, _context: &mut Context, out: &mut String, value: &[u8]) {

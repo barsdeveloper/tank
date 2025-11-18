@@ -5,7 +5,10 @@ use crate::{
 };
 use core::f64;
 use futures::future::Either;
-use std::{collections::HashMap, fmt::Write};
+use std::{
+    collections::{BTreeMap, HashMap},
+    fmt::Write,
+};
 use time::{Date, OffsetDateTime, PrimitiveDateTime, Time};
 
 macro_rules! write_integer {
@@ -93,6 +96,21 @@ pub trait SqlWriter {
         self.write_identifier_quoted(context, out, &value.name);
     }
 
+    /// Render the SQL overridden type.
+    fn write_column_overridden_type(
+        &self,
+        _context: &mut Context,
+        out: &mut String,
+        types: &BTreeMap<&'static str, &'static str>,
+    ) {
+        if let Some(t) = types
+            .iter()
+            .find_map(|(k, v)| if *k == "" { Some(v) } else { None })
+        {
+            out.push_str(t);
+        }
+    }
+
     /// Render the SQL type for a `Value` prototype.
     fn write_column_type(&self, context: &mut Context, out: &mut String, value: &Value) {
         match value {
@@ -165,9 +183,8 @@ pub trait SqlWriter {
             Value::Float64(Some(v), ..) => write_float!(self, context, out, *v),
             Value::Decimal(Some(v), ..) => drop(write!(out, "{}", v)),
             Value::Char(Some(v), ..) => {
-                out.push('\'');
-                out.push(*v);
-                out.push('\'');
+                let mut buf = [0u8; 4];
+                self.write_value_string(context, out, v.encode_utf8(&mut buf));
             }
             Value::Varchar(Some(v), ..) => self.write_value_string(context, out, v),
             Value::Blob(Some(v), ..) => self.write_value_blob(context, out, v.as_ref()),
@@ -239,13 +256,18 @@ pub trait SqlWriter {
     }
 
     /// Render and escape a string literal using single quotes.
-    fn write_value_string(&self, _context: &mut Context, out: &mut String, value: &str) {
-        out.push('\'');
+    fn write_value_string(&self, context: &mut Context, out: &mut String, value: &str) {
+        let (delim, escaped) = if context.fragment != Fragment::StringLiteral {
+            ('\'', "''")
+        } else {
+            ('"', r#"\""#)
+        };
+        out.push(delim);
         let mut pos = 0;
         for (i, c) in value.char_indices() {
-            if c == '\'' {
+            if c == delim {
                 out.push_str(&value[pos..i]);
-                out.push_str("''");
+                out.push_str(escaped);
                 pos = i + 1;
             } else if c == '\n' {
                 out.push_str(&value[pos..i]);
@@ -254,7 +276,7 @@ pub trait SqlWriter {
             }
         }
         out.push_str(&value[pos..]);
-        out.push('\'');
+        out.push(delim);
     }
 
     /// Render a blob literal using hex escapes.
@@ -401,7 +423,7 @@ pub trait SqlWriter {
     }
 
     /// Render list/array literal.
-    fn write_value_list<'a>(
+    fn write_value_list(
         &self,
         context: &mut Context,
         out: &mut String,
@@ -466,7 +488,7 @@ pub trait SqlWriter {
     }
 
     /// Precedence table for unary operators.
-    fn expression_unary_op_precedence<'a>(&self, value: &UnaryOpType) -> i32 {
+    fn expression_unary_op_precedence(&self, value: &UnaryOpType) -> i32 {
         match value {
             UnaryOpType::Negative => 1250,
             UnaryOpType::Not => 250,
@@ -474,7 +496,7 @@ pub trait SqlWriter {
     }
 
     /// Precedence table for binary operators.
-    fn expression_binary_op_precedence<'a>(&self, value: &BinaryOpType) -> i32 {
+    fn expression_binary_op_precedence(&self, value: &BinaryOpType) -> i32 {
         match value {
             BinaryOpType::Or => 100,
             BinaryOpType::And => 200,
@@ -814,24 +836,7 @@ pub trait SqlWriter {
             }
         }
         out.push_str(");");
-        self.write_column_comments::<E>(&mut context, out);
-    }
-
-    /// Emit COMMENT ON COLUMN statements for columns carrying comments.
-    fn write_column_comments<E>(&self, context: &mut Context, out: &mut String)
-    where
-        Self: Sized,
-        E: Entity,
-    {
-        let mut context = context.switch_fragment(Fragment::SqlCommentOnColumn);
-        context.current.qualify_columns = true;
-        for c in E::columns().iter().filter(|c| !c.comment.is_empty()) {
-            out.push_str("\nCOMMENT ON COLUMN ");
-            self.write_column_ref(&mut context.current, out, c.into());
-            out.push_str(" IS ");
-            self.write_value_string(&mut context.current, out, c.comment);
-            out.push(';');
-        }
+        self.write_column_comments_statements::<E>(&mut context, out);
     }
 
     /// Emit single column definition fragment.
@@ -845,9 +850,11 @@ pub trait SqlWriter {
     {
         self.write_identifier_quoted(context, out, &column.name());
         out.push(' ');
+        let len = out.len();
         if !column.column_type.is_empty() {
-            out.push_str(&column.column_type);
-        } else {
+            self.write_column_overridden_type(context, out, &column.column_type);
+        }
+        if column.column_type.is_empty() || out.len() == len {
             SqlWriter::write_column_type(self, context, out, &column.value);
         }
         if !column.nullable && column.primary_key == PrimaryKeyType::None {
@@ -879,6 +886,9 @@ pub trait SqlWriter {
                 self.write_create_table_references_action(context, out, on_update);
             }
         }
+        if !column.comment.is_empty() {
+            self.write_column_comment_inline(context, out, column);
+        }
     }
 
     /// Emit referential action keyword.
@@ -895,6 +905,33 @@ pub trait SqlWriter {
             Action::SetNull => "SET NULL",
             Action::SetDefault => "SET DEFAULT",
         });
+    }
+
+    fn write_column_comment_inline(
+        &self,
+        _context: &mut Context,
+        _out: &mut String,
+        _column: &ColumnDef,
+    ) where
+        Self: Sized,
+    {
+    }
+
+    /// Emit COMMENT ON COLUMN statements for columns carrying comments.
+    fn write_column_comments_statements<E>(&self, context: &mut Context, out: &mut String)
+    where
+        Self: Sized,
+        E: Entity,
+    {
+        let mut context = context.switch_fragment(Fragment::SqlCommentOnColumn);
+        context.current.qualify_columns = true;
+        for c in E::columns().iter().filter(|c| !c.comment.is_empty()) {
+            out.push_str("\nCOMMENT ON COLUMN ");
+            self.write_column_ref(&mut context.current, out, c.into());
+            out.push_str(" IS ");
+            self.write_value_string(&mut context.current, out, c.comment);
+            out.push(';');
+        }
     }
 
     /// Emit DROP TABLE statement.
@@ -979,11 +1016,14 @@ pub trait SqlWriter {
     }
 
     /// Emit INSERT (single/multi-row) optionally with ON CONFLICT DO UPDATE.
-    fn write_insert<'b, E, It>(&self, out: &mut String, entities: It, update: bool)
-    where
+    fn write_insert<'b, E>(
+        &self,
+        out: &mut String,
+        entities: impl IntoIterator<Item = &'b E>,
+        update: bool,
+    ) where
         Self: Sized,
         E: Entity + 'b,
-        It: IntoIterator<Item = &'b E>,
     {
         let mut rows = entities.into_iter().map(Entity::row_filtered).peekable();
         let Some(mut row) = rows.next() else {
@@ -1066,7 +1106,7 @@ pub trait SqlWriter {
             .into_iter()
             .map(|(v, _)| v);
         if update {
-            self.write_insert_update_fragment::<E, _>(
+            self.write_insert_update_fragment::<E>(
                 &mut context.current,
                 out,
                 if single {
@@ -1083,15 +1123,14 @@ pub trait SqlWriter {
     }
 
     /// Emit ON CONFLICT DO UPDATE fragment for upsert.
-    fn write_insert_update_fragment<'a, E, It>(
+    fn write_insert_update_fragment<'a, E>(
         &self,
         context: &mut Context,
         out: &mut String,
-        columns: It,
+        columns: impl Iterator<Item = &'a ColumnDef>,
     ) where
         Self: Sized,
         E: Entity,
-        It: Iterator<Item = &'a ColumnDef>,
     {
         let pk = E::primary_key_def();
         if pk.len() == 0 {

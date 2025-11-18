@@ -20,8 +20,8 @@ impl LogConsumer for TestcontainersLogConsumer {
             .trim();
         future::ready(if !log.is_empty() {
             match record {
-                LogFrame::StdOut(..) => log::warn!("{log}",),
-                LogFrame::StdErr(..) => log::warn!("{log}"),
+                LogFrame::StdOut(..) => log::trace!("{log}",),
+                LogFrame::StdErr(..) => log::debug!("{log}"),
             }
         })
         .boxed()
@@ -40,12 +40,13 @@ pub async fn init(ssl: bool) -> (String, Option<ContainerAsync<Mysql>>) {
     {
         log::error!("Cannot access docker");
     }
-    let mut container = Mysql::default()
+    let container = Mysql::default()
         .with_init_sql(
             indoc! {r#"
                 CREATE DATABASE mysql_database;
-                CREATE USER 'tank-mysql-user'@'localhost' IDENTIFIED BY 'Sup3r$ecur3';
-                GRANT ALL PRIVILEGES ON mysql_database.* TO 'tank-mysql-user'@'localhost';
+                CREATE USER 'tank-mysql-user'@'%' IDENTIFIED BY 'Sup3r$ecur3';
+                FLUSH PRIVILEGES;
+                GRANT ALL PRIVILEGES ON *.* TO 'tank-mysql-user'@'%';
                 DROP USER IF EXISTS 'root'@'localhost';
                 DROP USER IF EXISTS 'root'@'127.0.0.1';
                 DROP USER IF EXISTS 'root'@'::1';
@@ -68,7 +69,7 @@ pub async fn init(ssl: bool) -> (String, Option<ContainerAsync<Mysql>>) {
         .expect("Cannot get the port of Mysql");
     (
         format!(
-            "mysql://tank-mysql-user:Sup3r$ecur3@1localhost:{port}/mysql_database{}",
+            "mysql://tank-mysql-user:Sup3r$ecur3@localhost:{port}/mysql_database{}",
             if ssl {
                 Cow::Owned(format!(
                     "?sslmode=require&sslrootcert={}&sslcert={}&sslkey={}",

@@ -1,4 +1,4 @@
-use std::fmt::Write;
+use std::{collections::BTreeMap, fmt::Write};
 use tank_core::{Context, SqlWriter, Value, future::Either, separated_by};
 use time::{Date, OffsetDateTime, PrimitiveDateTime, Time};
 
@@ -7,6 +7,23 @@ pub struct PostgresSqlWriter {}
 impl SqlWriter for PostgresSqlWriter {
     fn as_dyn(&self) -> &dyn SqlWriter {
         self
+    }
+
+    fn write_column_overridden_type(
+        &self,
+        _context: &mut Context,
+        out: &mut String,
+        types: &BTreeMap<&'static str, &'static str>,
+    ) {
+        if let Some(t) = types.iter().find_map(|(k, v)| {
+            if *k == "postgres" || *k == "postgresql" {
+                Some(v)
+            } else {
+                None
+            }
+        }) {
+            out.push_str(t);
+        }
     }
 
     fn write_column_type(&self, context: &mut Context, out: &mut String, value: &Value) {
@@ -155,7 +172,7 @@ impl SqlWriter for PostgresSqlWriter {
         out.push_str("'::TIMESTAMPTZ");
     }
 
-    fn write_value_list<'a>(
+    fn write_value_list(
         &self,
         context: &mut Context,
         out: &mut String,

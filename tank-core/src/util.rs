@@ -1,6 +1,6 @@
 use proc_macro2::TokenStream;
-use quote::{ToTokens, quote};
-use std::{borrow::Cow, cmp::min, ffi::CString};
+use quote::{ToTokens, TokenStreamExt, quote};
+use std::{borrow::Cow, cmp::min, collections::BTreeMap, ffi::CString};
 use syn::Path;
 
 #[derive(Clone)]
@@ -24,6 +24,23 @@ where
             EitherIterator::Left(a) => a.next(),
             EitherIterator::Right(b) => b.next(),
         }
+    }
+}
+
+/// Quote a `BTreeMap<K, V>` into tokens.
+pub fn quote_btree_map<K: ToTokens, V: ToTokens>(value: &BTreeMap<K, V>) -> TokenStream {
+    let mut tokens = TokenStream::new();
+    for (k, v) in value {
+        let ks = k.to_token_stream();
+        let vs = v.to_token_stream();
+        tokens.append_all(quote! {
+            (#ks, #vs),
+        });
+    }
+    quote! {
+        ::std::collections::BTreeMap::from([
+            #tokens
+        ])
     }
 }
 
@@ -147,7 +164,7 @@ macro_rules! truncate_long {
 macro_rules! send_value {
     ($tx:ident, $value:expr) => {{
         if let Err(e) = $tx.send($value) {
-            log::error!("{:#?}", e);
+            log::error!("{:#}", e);
         }
     }};
 }

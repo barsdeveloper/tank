@@ -21,6 +21,6 @@ time.workspace = true
 url.workspace = true
 
 [dev-dependencies]
-tank-tests = { path = "../tank-tests" }
+tank-tests = { path = "../tank-tests", features = ["disable-multi-statements"] }
 testcontainers-modules = { version = "0", features = ["mysql"] }
 tokio.workspace = true

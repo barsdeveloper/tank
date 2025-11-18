@@ -40,6 +40,6 @@ Tank's `#[tank(...)]` attributes are your weapon mods, fine-tuning structs for p
 - <Badge type="tip" text="field" /> `default`: Default value expression for the column.
 - <Badge type="tip" text="field" /> `references = OtherEntity::column`: Foreign key reference.
 - <Badge type="tip" text="field" /> `ignore`: Excludes field from table and from row materialization.
-- <Badge type="tip" text="field" /> `type = "RAW_DB_TYPE"`: Override column type in DDL (driver-portability risk).
+- <Badge type="tip" text="field" /> `column_type = (mysql = "VARCHAR(128)", postgres = "TEXT")`: Override column type in DDL (support depends on the driver).
 
 *All units accounted for. Stand by.*

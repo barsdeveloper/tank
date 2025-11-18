@@ -1,6 +1,7 @@
 use crate::{Expression, OpPrecedence, TableRef, Value, writer::Context};
 use proc_macro2::TokenStream;
 use quote::{ToTokens, TokenStreamExt, quote};
+use std::collections::BTreeMap;
 
 /// Helper trait for types that expose an underlying column definition and reference.
 pub trait ColumnTrait {
@@ -88,7 +89,7 @@ pub struct ColumnDef {
     /// Column identity.
     pub column_ref: ColumnRef,
     /// Explicit SQL type override (empty means infer from `value`).
-    pub column_type: &'static str,
+    pub column_type: BTreeMap<&'static str, &'static str>,
     /// `Value` describing column type and parameters.
     pub value: Value,
     /// Nullability flag.

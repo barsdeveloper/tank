@@ -23,18 +23,18 @@ Tank maps ordinary Rust types (numbers, strings, times, collections) to the clos
 | `usize`                    | UBIGINT ⚠️   | INTEGER | NUMERIC(19)  | BIGINT UNSIGNED ⚠️   |
 | `f32`                      | FLOAT        | REAL    | REAL         | FLOAT                |
 | `f64`                      | DOUBLE       | REAL    | DOUBLE       | DOUBLE               |
-| `rust_decimal::Decimal`    | DECIMAL      | REAL    | NUMERIC      | NUMERIC              |
-| `tank::FixedDecimal<W, S>` | DECIMAL(W,S) | REAL    | NUMERIC(W,S) | NUMERIC(W,S)         |
+| `rust_decimal::Decimal`    | DECIMAL      | REAL    | NUMERIC      | DECIMAL              |
+| `tank::FixedDecimal<W, S>` | DECIMAL(W,S) | REAL    | NUMERIC(W,S) | DECIMAL(W,S)         |
 | `char`                     | CHAR(1)      | TEXT    | CHAR(1)      | CHAR(1)              |
 | `String`                   | TEXT         | TEXT    | TEXT         | TEXT                 |
 | `Box<[u8]>`                | BLOB         | BLOB    | BYTEA        | BLOB                 |
 | `time::Date`               | DATE         | TEXT ⚠️ | DATE         | DATE                 |
 | `time::Time`               | TIME         | TEXT ⚠️ | TIME         | TIME                 |
 | `time::PrimitiveDateTime`  | TIMESTAMP    | TEXT ⚠️ | TIMESTAMP    | DATETIME             |
-| `time::OffsetDateTime`     | TIMESTAMPTZ  | TEXT ⚠️ | TIMESTAMPTZ  | TIMESTAMP ⚠️         |
-| `std::time::Duration`      | INTERVAL     | ❌      | INTERVAL     | TIME ⚠️              |
-| `time::Duration`           | INTERVAL     | ❌      | INTERVAL     | TIME ⚠️              |
-| `tank::Interval`           | INTERVAL     | ❌      | INTERVAL     | TIME ⚠️              |
+| `time::OffsetDateTime`     | TIMESTAMPTZ  | TEXT ⚠️ | TIMESTAMPTZ  | DATETIME             |
+| `std::time::Duration`      | INTERVAL     | ❌      | INTERVAL     | TIME                 |
+| `time::Duration`           | INTERVAL     | ❌      | INTERVAL     | TIME                 |
+| `tank::Interval`           | INTERVAL     | ❌      | INTERVAL     | TIME                 |
 | `uuid::Uuid`               | UUID         | TEXT    | UUID         | CHAR(36)             |
 | `[T; N]`                   | T[N]         | ❌      | T[N]         | JSON ⚠️              |
 | `Vec<T>`                   | T[]          | ❌      | T[]          | JSON ⚠️              |

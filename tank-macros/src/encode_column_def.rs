@@ -1,10 +1,10 @@
 use crate::decode_column::ColumnMetadata;
 use proc_macro2::TokenStream;
 use quote::quote;
-use tank_core::{future::Either, quote_option};
+use tank_core::{future::Either, quote_btree_map, quote_option};
 
 pub fn encode_column_def(metadata: &ColumnMetadata, column_ref: TokenStream) -> TokenStream {
-    let column_type = &metadata.column_type;
+    let column_type = quote_btree_map(&metadata.column_type);
     let value = &metadata.value;
     let nullable = &metadata.nullable;
     let default = metadata

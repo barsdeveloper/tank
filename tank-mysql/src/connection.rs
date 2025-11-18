@@ -3,7 +3,7 @@ use async_stream::try_stream;
 use mysql_async::{Conn, Opts, prelude::Queryable};
 use std::{borrow::Cow, sync::Arc};
 use tank_core::{
-    Connection, Driver, Error, ErrorContext, Executor, Query, QueryResult, Result,
+    Connection, Driver, Error, ErrorContext, Executor, Query, Result,
     stream::{Stream, StreamExt, TryStreamExt},
     truncate_long,
 };
@@ -29,16 +29,25 @@ impl Executor for MySQLConnection {
     fn run(
         &mut self,
         query: Query<Self::Driver>,
-    ) -> impl Stream<Item = Result<QueryResult>> + Send {
+    ) -> impl Stream<Item = Result<tank_core::QueryResult>> + Send {
         let context = Arc::new(format!("While running the query:\n{}", query));
         try_stream! {
             match query {
                 Query::Raw(sql) => {
                     let mut result = self.connection.query_iter(sql).await?;
+                    let mut rows = 0;
                     while let Some(mut stream) = result.stream::<RowWrap>().await? {
                         while let Some(row) = stream.next().await.transpose()? {
-                            yield row.0.into()
+                            rows += 1;
+                            yield tank_core::QueryResult::Row(row.0)
                         }
+                    }
+                    let affected = result.affected_rows();
+                    if rows == 0 && affected > 0 {
+                        yield tank_core::QueryResult::Affected(tank_core::RowsAffected {
+                            rows_affected: affected,
+                            last_affected_id: result.last_insert_id().map(|v| v as _),
+                        });
                     }
                 }
                 Query::Prepared(mut prepared) => {
@@ -55,7 +64,7 @@ impl Executor for MySQLConnection {
         }
         .map_err(move |e: Error| {
             let error = e.context(context.clone());
-            log::error!("{:#?}", error);
+            log::error!("{:#}", error);
             error
         })
     }
@@ -71,7 +80,7 @@ impl Connection for MySQLConnection {
                 &prefix
             ))
             .context(context());
-            log::error!("{:#?}", error);
+            log::error!("{:#}", error);
             return Err(error);
         }
         let url = Url::parse(&url).with_context(context)?;

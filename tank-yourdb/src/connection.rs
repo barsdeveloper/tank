@@ -37,7 +37,7 @@ impl Connection for YourDBConnection {
                 &prefix
             ))
             .context(context());
-            log::error!("{:#?}", error);
+            log::error!("{:#}", error);
             return Err(error);
         }
         Ok(YourDBConnection {})

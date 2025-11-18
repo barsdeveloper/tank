@@ -185,7 +185,7 @@ pub(crate) fn extract_value(
                             }
                             _ => {
                                 let error = Error::msg("Invalid internal decimal storage type");
-                                log::error!("{:#?}", error);
+                                log::error!("{:#}", error);
                                 return Err(error);
                             }
                         };
@@ -363,7 +363,7 @@ pub(crate) fn extract_value(
                     "Invalid type value: {}, must be one of the expected DUCKDB_TYPE_DUCKDB_TYPE_* variant",
                     type_id
                 ));
-                log::error!("{:#?}", error);
+                log::error!("{:#}", error);
                 return Err(error);
             }
         };

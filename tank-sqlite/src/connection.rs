@@ -155,7 +155,7 @@ impl Executor for SQLiteConnection {
                 let error =
                     Error::msg(error_message_from_ptr(&sqlite3_errmsg(connection)).to_string())
                         .context(context);
-                log::error!("{:#?}", error);
+                log::error!("{:#}", error);
                 return Err(error);
             }
             if tail != ptr::null() && *tail != '\0' as i8 {
@@ -164,7 +164,7 @@ impl Executor for SQLiteConnection {
                     CStr::from_ptr(tail).to_str().unwrap_or("unprintable")
                 ))
                 .context(context);
-                log::error!("{:#?}", error);
+                log::error!("{:#}", error);
                 return Err(error);
             }
             Ok(statement)
@@ -184,7 +184,7 @@ impl Executor for SQLiteConnection {
         }
         .map_err(move |e| {
             let error = e.context(context.clone());
-            log::error!("{:#?}", error);
+            log::error!("{:#}", error);
             error
         })
     }
@@ -201,7 +201,7 @@ impl Connection for SQLiteConnection {
                 &prefix
             ))
             .context(context());
-            log::error!("{:#?}", error);
+            log::error!("{:#}", error);
             return Err(error);
         }
         let url = CString::new(format!("file:{}", url.trim_start_matches(&prefix)))
@@ -223,7 +223,7 @@ impl Connection for SQLiteConnection {
                 let error =
                     Error::msg(error_message_from_ptr(&sqlite3_errmsg(*connection)).to_string())
                         .context(context());
-                log::error!("{:#?}", error);
+                log::error!("{:#}", error);
                 return Err(error);
             }
         }

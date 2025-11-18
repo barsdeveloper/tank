@@ -1,10 +1,12 @@
 use rust_decimal::{Decimal, prelude::FromPrimitive};
+#[allow(unused_imports)]
 use std::{
     borrow::Cow,
     cell::{Cell, RefCell},
     pin::pin,
     sync::{Arc, LazyLock},
 };
+#[allow(unused_imports)]
 use tank::{
     Driver, Entity, Executor, FixedDecimal, QueryResult, RowsAffected, SqlWriter,
     stream::TryStreamExt,
@@ -100,51 +102,60 @@ pub async fn simple<E: Executor>(executor: &mut E) {
     assert_eq!(entity.papa, Some(Decimal::from_f32(45.2).unwrap().into()));
 
     // Simple 1 - multiple statements
-    let writer = executor.driver().sql_writer();
-    let mut query = String::new();
-    writer.write_delete::<SimpleFields>(&mut query, &false); // Does not delete anything
-    writer.write_select(
-        &mut query,
-        SimpleFields::columns(),
-        SimpleFields::table(),
-        &true,
-        None,
-    );
+    #[cfg(not(feature = "disable-multi-statements"))]
     {
-        let mut stream = pin!(executor.run(query.into()));
-        let Ok(Some(QueryResult::Affected(RowsAffected { rows_affected, .. }))) =
-            stream.try_next().await
-        else {
-            panic!("Could not process the first query correctly")
-        };
-        assert_eq!(rows_affected, 0);
-        let Ok(Some(QueryResult::Row(row))) = stream.try_next().await else {
-            panic!("Could not process the second query correctly")
-        };
-        let value =
-            SimpleFields::from_row(row).expect("Could not decode the row into SimpleFields");
-        assert_eq!(
-            value,
-            SimpleFields {
-                alpha: 1,
-                bravo: 777.into(),
-                charlie: (-2).into(),
-                delta: 9876543210.into(),
-                echo: None,
-                #[cfg(not(feature = "disable-large-integers"))]
-                foxtrot: i128::MAX.into(),
-                golf: Time::from_hms(12, 0, 10).unwrap().into(),
-                hotel: Some("Hello world!".into()),
-                india: Box::new(None),
-                juliet: true.into(),
-                kilo: None,
-                lima: Arc::new(Some(3.14)),
-                mike: None,
-                november: None,
-                oscar: None,
-                papa: Some(Decimal::from_f32(45.2).unwrap().into()),
-            }
+        let writer = executor.driver().sql_writer();
+        let mut query = String::new();
+        writer.write_delete::<SimpleFields>(&mut query, &false); // Does not delete anything
+        writer.write_select(
+            &mut query,
+            SimpleFields::columns(),
+            SimpleFields::table(),
+            &true,
+            None,
         );
+        {
+            let mut stream = pin!(executor.run(query.into()));
+            let result = stream
+                .try_next()
+                .await
+                .expect("Could not process the first query correctly");
+            let Some(QueryResult::Affected(RowsAffected { rows_affected, .. })) = result else {
+                panic!("Unexpected result type:\n{result:#?}");
+            };
+            assert_eq!(rows_affected, 0);
+            let result = stream
+                .try_next()
+                .await
+                .expect("Could not process the second query correctly");
+            let Some(QueryResult::Row(row)) = result else {
+                panic!("Unexpected result type:\n{result:#?}");
+            };
+            let value =
+                SimpleFields::from_row(row).expect("Could not decode the row into SimpleFields");
+            assert_eq!(
+                value,
+                SimpleFields {
+                    alpha: 1,
+                    bravo: 777.into(),
+                    charlie: (-2).into(),
+                    delta: 9876543210.into(),
+                    echo: None,
+                    #[cfg(not(feature = "disable-large-integers"))]
+                    foxtrot: i128::MAX.into(),
+                    golf: Time::from_hms(12, 0, 10).unwrap().into(),
+                    hotel: Some("Hello world!".into()),
+                    india: Box::new(None),
+                    juliet: true.into(),
+                    kilo: None,
+                    lima: Arc::new(Some(3.14)),
+                    mike: None,
+                    november: None,
+                    oscar: None,
+                    papa: Some(Decimal::from_f32(45.2).unwrap().into()),
+                }
+            );
+        }
     }
 
     // Simple 2
@@ -206,57 +217,60 @@ pub async fn simple<E: Executor>(executor: &mut E) {
     assert_eq!(entity.papa, None);
 
     // Simple 2 - multiple statements
-    let writer = executor.driver().sql_writer();
-    let mut query = String::new();
-    writer.write_delete::<SimpleFields>(&mut query, &true);
-    writer.write_insert(&mut query, [&entity], false);
-    writer.write_select(
-        &mut query,
-        SimpleFields::columns(),
-        SimpleFields::table(),
-        &true,
-        None,
-    );
+    #[cfg(not(feature = "disable-multi-statements"))]
     {
-        let mut stream = pin!(executor.run(query.into()));
-        let Ok(Some(QueryResult::Affected(RowsAffected { rows_affected, .. }))) =
-            stream.try_next().await
-        else {
-            panic!("Could not process the first query correctly")
-        };
-        assert_eq!(rows_affected, 1);
-        let Ok(Some(QueryResult::Affected(RowsAffected { rows_affected, .. }))) =
-            stream.try_next().await
-        else {
-            panic!("Could not process the first query correctly")
-        };
-        assert_eq!(rows_affected, 1);
-        let Ok(Some(QueryResult::Row(row))) = stream.try_next().await else {
-            panic!("Could not process the second query correctly")
-        };
-        let value =
-            SimpleFields::from_row(row).expect("Could not decode the row into SimpleFields");
-        assert_eq!(
-            value,
-            SimpleFields {
-                alpha: 255,
-                bravo: None,
-                charlie: None,
-                delta: None,
-                echo: Some(Uuid::parse_str("5e915574-bb30-4430-98cf-c5854f61fbbd").unwrap()),
-                #[cfg(not(feature = "disable-large-integers"))]
-                foxtrot: None,
-                golf: None,
-                hotel: None,
-                india: Box::new(None),
-                juliet: None,
-                kilo: 4294967295.into(),
-                lima: Arc::new(None),
-                mike: date!(2025 - 09 - 07).into(),
-                november: Cell::new(Decimal::from_f32(1.5).unwrap().into()).into(),
-                oscar: RefCell::new(Decimal::from_f32(5080.6244).unwrap().into()).into(),
-                papa: None,
-            }
+        let writer = executor.driver().sql_writer();
+        let mut query = String::new();
+        writer.write_delete::<SimpleFields>(&mut query, &true);
+        writer.write_insert(&mut query, [&entity], false);
+        writer.write_select(
+            &mut query,
+            SimpleFields::columns(),
+            SimpleFields::table(),
+            &true,
+            None,
         );
+        {
+            let mut stream = pin!(executor.run(query.into()));
+            let Ok(Some(QueryResult::Affected(RowsAffected { rows_affected, .. }))) =
+                stream.try_next().await
+            else {
+                panic!("Could not process the first query correctly")
+            };
+            assert_eq!(rows_affected, 1);
+            let Ok(Some(QueryResult::Affected(RowsAffected { rows_affected, .. }))) =
+                stream.try_next().await
+            else {
+                panic!("Could not process the first query correctly")
+            };
+            assert_eq!(rows_affected, 1);
+            let Ok(Some(QueryResult::Row(row))) = stream.try_next().await else {
+                panic!("Could not process the second query correctly")
+            };
+            let value =
+                SimpleFields::from_row(row).expect("Could not decode the row into SimpleFields");
+            assert_eq!(
+                value,
+                SimpleFields {
+                    alpha: 255,
+                    bravo: None,
+                    charlie: None,
+                    delta: None,
+                    echo: Some(Uuid::parse_str("5e915574-bb30-4430-98cf-c5854f61fbbd").unwrap()),
+                    #[cfg(not(feature = "disable-large-integers"))]
+                    foxtrot: None,
+                    golf: None,
+                    hotel: None,
+                    india: Box::new(None),
+                    juliet: None,
+                    kilo: 4294967295.into(),
+                    lima: Arc::new(None),
+                    mike: date!(2025 - 09 - 07).into(),
+                    november: Cell::new(Decimal::from_f32(1.5).unwrap().into()).into(),
+                    oscar: RefCell::new(Decimal::from_f32(5080.6244).unwrap().into()).into(),
+                    papa: None,
+                }
+            );
+        }
     }
 }

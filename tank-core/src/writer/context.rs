@@ -20,6 +20,7 @@ pub enum Fragment {
     SqlSelectFrom,
     SqlSelectOrderBy,
     SqlSelectWhere,
+    StringLiteral,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

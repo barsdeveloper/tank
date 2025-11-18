@@ -41,7 +41,7 @@ impl Executor for PostgresConnection {
                     "While preparing the query:\n{}",
                     truncate_long!(sql)
                 ));
-                log::error!("{:#?}", error);
+                log::error!("{:#}", error);
                 error
             })?)
             .into(),
@@ -72,7 +72,7 @@ impl Executor for PostgresConnection {
         }
         .map_err(move |e: Error| {
             let error = e.context(context.clone());
-            log::error!("{:#?}", error);
+            log::error!("{:#}", error);
             error
         })
     }
@@ -89,7 +89,7 @@ impl Executor for PostgresConnection {
                     .await
                     .map_err(|e| {
                         let error = Error::new(e).context(context.clone());
-                        log::error!("{:#?}", error);
+                        log::error!("{:#}", error);
                         error
                     })
             })),
@@ -106,7 +106,7 @@ impl Executor for PostgresConnection {
                 }
                 .map_err(move |e: Error| {
                     let error = e.context(context.clone());
-                    log::error!("{:#?}", error);
+                    log::error!("{:#}", error);
                     error
                 }),
             ),
@@ -126,7 +126,7 @@ impl Connection for PostgresConnection {
                 &prefix
             ))
             .context(context());
-            log::error!("{:#?}", error);
+            log::error!("{:#}", error);
             return Err(error);
         }
         let mut url = Url::parse(&url).with_context(context)?;
@@ -214,7 +214,7 @@ impl Connection for PostgresConnection {
         drop(self.client);
         if let Err(e) = self.handle.await {
             let error = Error::new(e).context("While disconnecting from Postgres");
-            log::error!("{:#?}", error);
+            log::error!("{:#}", error);
             return Err(error);
         }
         Ok(())

@@ -23,7 +23,10 @@ impl TryFrom<mysql_async::Value> for ValueWrap {
     fn try_from(value: mysql_async::Value) -> Result<Self, Self::Error> {
         Ok(match value {
             mysql_async::Value::NULL => tank_core::Value::Null,
-            mysql_async::Value::Bytes(v) => tank_core::Value::Blob(Some(v.into())),
+            mysql_async::Value::Bytes(v) => {
+                // TODO replace with String::from_utf8_lossy_owned to avoid copy, if stable
+                tank_core::Value::Unknown(Some(String::from_utf8_lossy(&v).to_string()))
+            }
             mysql_async::Value::Int(v) => tank_core::Value::Int64(v.into()),
             mysql_async::Value::UInt(v) => tank_core::Value::UInt64(v.into()),
             mysql_async::Value::Float(v) => tank_core::Value::Float32(v.into()),

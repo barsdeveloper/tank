@@ -7,9 +7,9 @@ Tank (Table Abstraction & Navigation Kit): the Rust data layer.
 
 Simple and flexible ORM that manages in a unified way data from different sources.
 
-https://barsdeveloper.github.io/tank/
+https://tankhq.github.io/tank/
 
-https://github.com/barsdeveloper/tank ⭐
+https://github.com/TankHQ/tank ⭐
 
 https://crates.io/crates/tank
 
@@ -17,7 +17,7 @@ https://crates.io/crates/tank
 - DuckDB
 - SQLite
 - PostgreSQL
-- MySQL (Coming soon)
+- MySQL (WIP)
 - Cassandra/ScyllaDB (Coming soon)
 - More to be decided...
 
