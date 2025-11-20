@@ -246,7 +246,7 @@ mod tests {
             indoc! {r#"
                 CREATE TABLE "trading.company"."trade_execution" (
                 "trade_id" UBIGINT,
-                "order_id" UUID NOT NULL DEFAULT '241d362d-797e-4769-b3f6-412440c8cf68' REFERENCES "order"("id") ON DELETE SET DEFAULT ON UPDATE RESTRICT,
+                "order_id" UUID NOT NULL DEFAULT '241d362d-797e-4769-b3f6-412440c8cf68',
                 "symbol" VARCHAR NOT NULL,
                 "isin" CHAR(1)[12] NOT NULL,
                 "price" DECIMAL(18,4) NOT NULL,
@@ -258,7 +258,8 @@ mod tests {
                 "child_trade_ids" BIGINT[],
                 "metadata" BLOB,
                 "tags" MAP(VARCHAR,VARCHAR),
-                PRIMARY KEY ("trade_id", "execution_time"));
+                PRIMARY KEY ("trade_id", "execution_time"),
+                FOREIGN KEY ("order_id") REFERENCES "order"("id") ON DELETE SET DEFAULT ON UPDATE RESTRICT);
                 COMMENT ON COLUMN "trading.company"."trade_execution"."symbol" IS 'Ticker symbol';
                 COMMENT ON COLUMN "trading.company"."trade_execution"."venue" IS 'Exchange';
             "#}

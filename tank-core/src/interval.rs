@@ -50,6 +50,7 @@ impl Interval {
     pub const DAYS_IN_MONTH_AVG: f64 = 30.436875;
     pub const SECS_IN_DAY: i64 = 60 * 60 * 24;
     pub const NANOS_IN_SEC: i128 = 1_000_000_000;
+    pub const NANOS_IN_HOUR: i128 = Self::NANOS_IN_SEC * 3600;
     pub const NANOS_IN_DAY: i128 = Self::SECS_IN_DAY as i128 * Self::NANOS_IN_SEC;
     pub const MICROS_IN_DAY: i128 = Self::SECS_IN_DAY as i128 * 1_000_000;
 
@@ -108,7 +109,7 @@ impl Interval {
         Self {
             months: 0,
             days: (value / MINS_IN_DAYS),
-            nanos: ((value % MINS_IN_DAYS) * 60 * Interval::NANOS_IN_SEC as i64) as _,
+            nanos: ((value % MINS_IN_DAYS) * 60 * Interval::NANOS_IN_HOUR as i64) as _,
         }
     }
 
@@ -116,7 +117,7 @@ impl Interval {
         Self {
             months: 0,
             days: (value / 24),
-            nanos: ((value % 24) * 3600 * Interval::NANOS_IN_SEC as i64) as _,
+            nanos: ((value % 24) * Interval::NANOS_IN_HOUR as i64) as _,
         }
     }
 
@@ -150,6 +151,18 @@ impl Interval {
             days: 0,
             nanos: 0,
         }
+    }
+
+    pub const fn as_hmsns(&self) -> (i128, u8, u8, u32) {
+        let mut nanos = self.nanos;
+        let mut hours = self.nanos / Self::NANOS_IN_HOUR;
+        nanos %= Self::NANOS_IN_HOUR;
+        hours += ((self.months * 30 + self.days) * 24) as i128;
+        let m = nanos / (60 * Self::NANOS_IN_SEC);
+        nanos %= 60 * Self::NANOS_IN_SEC;
+        let s = nanos / Self::NANOS_IN_SEC;
+        nanos %= Self::NANOS_IN_SEC;
+        (hours, m as _, s as _, nanos as _)
     }
 
     pub const fn is_zero(&self) -> bool {

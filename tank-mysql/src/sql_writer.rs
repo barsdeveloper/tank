@@ -3,8 +3,8 @@ use std::{
     fmt::Write,
 };
 use tank_core::{
-    ColumnDef, Context, Entity, Fragment, PrimaryKeyType, SqlWriter, Value, future::Either,
-    separated_by,
+    ColumnDef, Context, Entity, Fragment, Interval, PrimaryKeyType, SqlWriter, Value,
+    future::Either, print_timer, separated_by,
 };
 
 #[derive(Default)]
@@ -78,6 +78,22 @@ impl SqlWriter for MySQLSqlWriter {
         };
     }
 
+    fn write_value_infinity(&self, context: &mut Context, out: &mut String, negative: bool) {
+        let delimiter = if context.is_inside_json() { '"' } else { '\'' };
+        out.push(delimiter);
+        if negative {
+            out.push('-');
+        }
+        out.push_str("inf");
+        out.push(delimiter);
+    }
+
+    fn write_value_interval(&self, context: &mut Context, out: &mut String, value: &Interval) {
+        let delimiter = if context.is_inside_json() { "\"" } else { "\'" };
+        let (h, m, s, ns) = value.as_hmsns();
+        print_timer(out, delimiter, h as _, m, s, ns);
+    }
+
     fn write_value_list(
         &self,
         context: &mut Context,
@@ -85,9 +101,9 @@ impl SqlWriter for MySQLSqlWriter {
         value: Either<&Box<[Value]>, &Vec<Value>>,
         _ty: &Value,
     ) {
-        let inside_string = context.fragment == Fragment::StringLiteral;
-        let mut context = context.switch_fragment(Fragment::StringLiteral);
-        if !inside_string {
+        let is_json = context.is_inside_json();
+        let mut context = context.switch_fragment(Fragment::Json);
+        if !is_json {
             out.push('\'');
         }
         out.push('[');
@@ -103,7 +119,7 @@ impl SqlWriter for MySQLSqlWriter {
             ",",
         );
         out.push(']');
-        if !inside_string {
+        if !is_json {
             out.push('\'');
         }
     }
@@ -113,8 +129,8 @@ impl SqlWriter for MySQLSqlWriter {
         out: &mut String,
         value: &HashMap<Value, Value>,
     ) {
-        let inside_string = context.fragment == Fragment::StringLiteral;
-        let mut context = context.switch_fragment(Fragment::StringLiteral);
+        let inside_string = context.fragment == Fragment::Json;
+        let mut context = context.switch_fragment(Fragment::Json);
         if !inside_string {
             out.push('\'');
         }
@@ -123,7 +139,10 @@ impl SqlWriter for MySQLSqlWriter {
             out,
             value,
             |out, (k, v)| {
-                self.write_value(&mut context.current, out, k);
+                {
+                    let mut context = context.current.switch_fragment(Fragment::JsonKey);
+                    self.write_value(&mut context.current, out, k);
+                }
                 out.push(':');
                 self.write_value(&mut context.current, out, v);
             },

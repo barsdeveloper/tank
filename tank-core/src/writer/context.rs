@@ -20,7 +20,8 @@ pub enum Fragment {
     SqlSelectFrom,
     SqlSelectOrderBy,
     SqlSelectWhere,
-    StringLiteral,
+    Json,
+    JsonKey,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -53,6 +54,9 @@ impl Context {
             current: Context { fragment, ..*self },
             previous: self,
         }
+    }
+    pub fn is_inside_json(&self) -> bool {
+        self.fragment == Fragment::Json || self.fragment == Fragment::JsonKey
     }
 }
 

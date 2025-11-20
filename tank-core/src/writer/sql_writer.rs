@@ -1,7 +1,8 @@
 use crate::{
     Action, BinaryOp, BinaryOpType, ColumnDef, ColumnRef, DataSet, EitherIterator, Entity,
     Expression, Fragment, Interval, Join, JoinType, Operand, Order, Ordered, PrimaryKeyType,
-    TableRef, UnaryOp, UnaryOpType, Value, possibly_parenthesized, separated_by, writer::Context,
+    TableRef, UnaryOp, UnaryOpType, Value, possibly_parenthesized, print_timer, separated_by,
+    writer::Context,
 };
 use core::f64;
 use futures::future::Either;
@@ -12,20 +13,24 @@ use std::{
 use time::{Date, OffsetDateTime, PrimitiveDateTime, Time};
 
 macro_rules! write_integer {
-    ($out:ident, $value:expr) => {{
+    ($out:ident, $value:expr, $delim:expr) => {{
+        $out.push_str($delim);
         let mut buffer = itoa::Buffer::new();
         $out.push_str(buffer.format($value));
+        $out.push_str($delim);
     }};
 }
 macro_rules! write_float {
-    ($this:ident, $context:ident,$out:ident, $value:expr) => {{
+    ($this:ident, $context:ident,$out:ident, $value:expr, $delim:expr) => {{
         if $value.is_infinite() {
             $this.write_value_infinity($context, $out, $value.is_sign_negative());
         } else if $value.is_nan() {
             $this.write_value_nan($context, $out);
         } else {
+            $out.push_str($delim);
             let mut buffer = ryu::Buffer::new();
             $out.push_str(buffer.format($value));
+            $out.push_str($delim);
         }
     }};
 }
@@ -166,22 +171,27 @@ pub trait SqlWriter {
 
     /// Render a concrete value (including proper quoting / escaping).
     fn write_value(&self, context: &mut Context, out: &mut String, value: &Value) {
+        let delimiter = if context.fragment == Fragment::JsonKey {
+            "\""
+        } else {
+            ""
+        };
         match value {
             v if v.is_null() => self.write_value_none(context, out),
             Value::Boolean(Some(v), ..) => self.write_value_bool(context, out, *v),
-            Value::Int8(Some(v), ..) => write_integer!(out, *v),
-            Value::Int16(Some(v), ..) => write_integer!(out, *v),
-            Value::Int32(Some(v), ..) => write_integer!(out, *v),
-            Value::Int64(Some(v), ..) => write_integer!(out, *v),
-            Value::Int128(Some(v), ..) => write_integer!(out, *v),
-            Value::UInt8(Some(v), ..) => write_integer!(out, *v),
-            Value::UInt16(Some(v), ..) => write_integer!(out, *v),
-            Value::UInt32(Some(v), ..) => write_integer!(out, *v),
-            Value::UInt64(Some(v), ..) => write_integer!(out, *v),
-            Value::UInt128(Some(v), ..) => write_integer!(out, *v),
-            Value::Float32(Some(v), ..) => write_float!(self, context, out, *v),
-            Value::Float64(Some(v), ..) => write_float!(self, context, out, *v),
-            Value::Decimal(Some(v), ..) => drop(write!(out, "{}", v)),
+            Value::Int8(Some(v), ..) => write_integer!(out, *v, delimiter),
+            Value::Int16(Some(v), ..) => write_integer!(out, *v, delimiter),
+            Value::Int32(Some(v), ..) => write_integer!(out, *v, delimiter),
+            Value::Int64(Some(v), ..) => write_integer!(out, *v, delimiter),
+            Value::Int128(Some(v), ..) => write_integer!(out, *v, delimiter),
+            Value::UInt8(Some(v), ..) => write_integer!(out, *v, delimiter),
+            Value::UInt16(Some(v), ..) => write_integer!(out, *v, delimiter),
+            Value::UInt32(Some(v), ..) => write_integer!(out, *v, delimiter),
+            Value::UInt64(Some(v), ..) => write_integer!(out, *v, delimiter),
+            Value::UInt128(Some(v), ..) => write_integer!(out, *v, delimiter),
+            Value::Float32(Some(v), ..) => write_float!(self, context, out, *v, delimiter),
+            Value::Float64(Some(v), ..) => write_float!(self, context, out, *v, delimiter),
+            Value::Decimal(Some(v), ..) => drop(write!(out, "{delimiter}{v}{delimiter}")),
             Value::Char(Some(v), ..) => {
                 let mut buf = [0u8; 4];
                 self.write_value_string(context, out, v.encode_utf8(&mut buf));
@@ -195,7 +205,10 @@ pub trait SqlWriter {
                 self.write_value_timestamptz(context, out, v)
             }
             Value::Interval(Some(v), ..) => self.write_value_interval(context, out, v),
-            Value::Uuid(Some(v), ..) => drop(write!(out, "'{}'", v)),
+            Value::Uuid(Some(v), ..) => {
+                let b = if context.is_inside_json() { '"' } else { '\'' };
+                let _ = write!(out, "{b}{v}{b}");
+            }
             Value::Array(Some(..), ..) | Value::List(Some(..), ..) => match value {
                 Value::Array(Some(v), ..) => {
                     self.write_value_list(context, out, Either::Left(v), value)
@@ -214,13 +227,23 @@ pub trait SqlWriter {
     }
 
     /// Render NULL literal.
-    fn write_value_none(&self, _context: &mut Context, out: &mut String) {
-        out.push_str("NULL");
+    fn write_value_none(&self, context: &mut Context, out: &mut String) {
+        out.push_str(if context.fragment == Fragment::Json {
+            "null"
+        } else {
+            "NULL"
+        });
     }
 
     /// Render boolean literal.
-    fn write_value_bool(&self, _context: &mut Context, out: &mut String, value: bool) {
+    fn write_value_bool(&self, context: &mut Context, out: &mut String, value: bool) {
+        if context.fragment == Fragment::JsonKey {
+            out.push('"');
+        }
         out.push_str(["false", "true"][value as usize]);
+        if context.fragment == Fragment::JsonKey {
+            out.push('"');
+        }
     }
 
     /// Render +/- INF via CAST for dialect portability.
@@ -257,15 +280,16 @@ pub trait SqlWriter {
 
     /// Render and escape a string literal using single quotes.
     fn write_value_string(&self, context: &mut Context, out: &mut String, value: &str) {
-        let (delim, escaped) = if context.fragment != Fragment::StringLiteral {
-            ('\'', "''")
-        } else {
-            ('"', r#"\""#)
-        };
-        out.push(delim);
+        let (delimiter, escaped) =
+            if context.fragment == Fragment::Json || context.fragment == Fragment::JsonKey {
+                ('"', r#"\""#)
+            } else {
+                ('\'', "''")
+            };
+        out.push(delimiter);
         let mut pos = 0;
         for (i, c) in value.char_indices() {
-            if c == delim {
+            if c == delimiter {
                 out.push_str(&value[pos..i]);
                 out.push_str(escaped);
                 pos = i + 1;
@@ -276,16 +300,21 @@ pub trait SqlWriter {
             }
         }
         out.push_str(&value[pos..]);
-        out.push(delim);
+        out.push(delimiter);
     }
 
     /// Render a blob literal using hex escapes.
-    fn write_value_blob(&self, _context: &mut Context, out: &mut String, value: &[u8]) {
-        out.push('\'');
-        for b in value {
-            let _ = write!(out, "\\x{:X}", b);
+    fn write_value_blob(&self, context: &mut Context, out: &mut String, value: &[u8]) {
+        let delimiter = if context.fragment == Fragment::Json {
+            '"'
+        } else {
+            '\''
+        };
+        out.push(delimiter);
+        for v in value {
+            let _ = write!(out, "\\x{:X}", v);
         }
-        out.push('\'');
+        out.push(delimiter);
     }
 
     /// Render a DATE literal (optionally as part of TIMESTAMP composition).
@@ -314,20 +343,13 @@ pub trait SqlWriter {
         value: &Time,
         timestamp: bool,
     ) {
-        let mut subsecond = value.nanosecond();
-        let mut width = 9;
-        while width > 1 && subsecond % 10 == 0 {
-            subsecond /= 10;
-            width -= 1;
-        }
-        let b = if timestamp { "" } else { "'" };
-        let _ = write!(
+        print_timer(
             out,
-            "{b}{:02}:{:02}:{:02}.{:0width$}{b}",
-            value.hour(),
+            if timestamp { "" } else { "'" },
+            value.hour() as _,
             value.minute(),
             value.second(),
-            subsecond
+            value.nanosecond(),
         );
     }
 
@@ -338,11 +360,16 @@ pub trait SqlWriter {
         out: &mut String,
         value: &PrimitiveDateTime,
     ) {
-        out.push('\'');
+        let delimiter = if context.fragment == Fragment::Json {
+            '"'
+        } else {
+            '\''
+        };
+        out.push(delimiter);
         self.write_value_date(context, out, &value.date(), true);
         out.push('T');
         self.write_value_time(context, out, &value.time(), true);
-        out.push('\'');
+        out.push(delimiter);
     }
 
     /// Render a TIMESTAMPTZ literal.
@@ -374,8 +401,14 @@ pub trait SqlWriter {
     }
 
     /// Render INTERVAL literal using largest representative units.
-    fn write_value_interval(&self, _context: &mut Context, out: &mut String, value: &Interval) {
-        out.push_str("INTERVAL '");
+    fn write_value_interval(&self, context: &mut Context, out: &mut String, value: &Interval) {
+        out.push_str("INTERVAL ");
+        let delimiter = if context.fragment == Fragment::Json {
+            '"'
+        } else {
+            '\''
+        };
+        out.push(delimiter);
         if value.is_zero() {
             out.push_str("0 SECONDS");
         }
@@ -419,7 +452,7 @@ pub trait SqlWriter {
                 }
             }
         }
-        out.push('\'');
+        out.push(delimiter);
     }
 
     /// Render list/array literal.
@@ -531,12 +564,17 @@ pub trait SqlWriter {
 
     /// Render an operand (literal / variable / nested expression).
     fn write_expression_operand(&self, context: &mut Context, out: &mut String, value: &Operand) {
+        let delimiter = if context.fragment == Fragment::JsonKey {
+            "\""
+        } else {
+            ""
+        };
         match value {
             Operand::LitBool(v) => self.write_value_bool(context, out, *v),
-            Operand::LitFloat(v) => write_float!(self, context, out, *v),
+            Operand::LitFloat(v) => write_float!(self, context, out, *v, delimiter),
             Operand::LitIdent(v) => drop(out.push_str(v)),
             Operand::LitField(v) => separated_by(out, *v, |out, v| out.push_str(v), "."),
-            Operand::LitInt(v) => write_integer!(out, *v),
+            Operand::LitInt(v) => write_integer!(out, *v, delimiter),
             Operand::LitStr(v) => self.write_value_string(context, out, v),
             Operand::LitArray(v) => {
                 out.push('[');
@@ -835,6 +873,30 @@ pub trait SqlWriter {
                 out.push(')');
             }
         }
+        let foreign_keys = E::columns().iter().filter(|c| c.references.is_some());
+        separated_by(
+            out,
+            foreign_keys,
+            |out, column| {
+                let references = column.references.unwrap();
+                out.push_str(",\nFOREIGN KEY (");
+                self.write_identifier_quoted(&mut context, out, &column.name());
+                out.push_str(") REFERENCES ");
+                self.write_table_ref(&mut context, out, &references.table());
+                out.push('(');
+                self.write_column_ref(&mut context, out, &references);
+                out.push(')');
+                if let Some(on_delete) = &column.on_delete {
+                    out.push_str(" ON DELETE ");
+                    self.write_create_table_references_action(&mut context, out, on_delete);
+                }
+                if let Some(on_update) = &column.on_update {
+                    out.push_str(" ON UPDATE ");
+                    self.write_create_table_references_action(&mut context, out, on_update);
+                }
+            },
+            "",
+        );
         out.push_str(");");
         self.write_column_comments_statements::<E>(&mut context, out);
     }
@@ -870,21 +932,6 @@ pub trait SqlWriter {
         }
         if column.unique && column.primary_key != PrimaryKeyType::PrimaryKey {
             out.push_str(" UNIQUE");
-        }
-        if let Some(references) = column.references {
-            out.push_str(" REFERENCES ");
-            self.write_table_ref(context, out, &references.table());
-            out.push('(');
-            self.write_column_ref(context, out, &references);
-            out.push(')');
-            if let Some(on_delete) = &column.on_delete {
-                out.push_str(" ON DELETE ");
-                self.write_create_table_references_action(context, out, on_delete);
-            }
-            if let Some(on_update) = &column.on_update {
-                out.push_str(" ON UPDATE ");
-                self.write_create_table_references_action(context, out, on_update);
-            }
         }
         if !column.comment.is_empty() {
             self.write_column_comment_inline(context, out, column);

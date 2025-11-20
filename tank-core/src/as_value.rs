@@ -161,13 +161,23 @@ macro_rules! impl_as_value {
                 }
             }
             fn extract(input: &mut &str) -> Result<Self> {
-                if input.is_empty() {
-                    return Err(Error::msg(format!(
-                        "Cannot extract {} from empty string",
-                        any::type_name::<Self>(),
-                    )));
-                }
                 let mut value = *input;
+                let context = || {
+                    format!(
+                        "Cannot extract a floating point value from `{}`",
+                        truncate_long!(input)
+                    )
+                };
+                if value.is_empty() {
+                    return Err(Error::msg(context()));
+                }
+                let quote = if value.starts_with(['"', '\'']) {
+                    let r = &value[0..1];
+                    value = &value[1..];
+                    r
+                } else {
+                    ""
+                };
                 macro_rules! do_extract {
                     ($parse:expr) => {{
                         let (num, tail) = $parse();
@@ -182,6 +192,10 @@ macro_rules! impl_as_value {
                                 )))
                             }
                             value = &value[tail..];
+                            if !value.starts_with(quote) {
+                                return Err(Error::msg(context()));
+                            }
+                            value = &value[quote.len()..];
                             *input = value;
                             return Ok(num as _);
                         }
@@ -437,13 +451,38 @@ impl_as_value!(
     Value::UInt64(Some(v), ..) => Ok(v != 0),
     Value::UInt128(Some(v), ..) => Ok(v != 0),
 );
+
+macro_rules! extract_float {
+    ($input:expr) => {{
+        let mut value = *$input;
+        let quote = if value.starts_with(['"', '\'']) {
+            let r = &value[0..1];
+            value = &value[1..];
+            r
+        } else {
+            ""
+        };
+        let context = || {
+            format!(
+                "Cannot extract a floating point value from `{}`",
+                truncate_long!($input)
+            )
+        };
+        let (num, tail) = parse_partial(value).with_context(context)?;
+        value = &value[tail..];
+        if !value.starts_with(quote) {
+            return Err(Error::msg(context()));
+        }
+        value = &value[quote.len()..];
+        *$input = &value;
+        Ok(num)
+    }};
+}
 impl_as_value!(
     f32,
     Value::Float32,
-    |v: &mut &str| {
-        let (num, tail) = parse_partial(*v)?;
-        *v = &v[tail..];
-        Ok(num)
+    |input: &mut &str| {
+        extract_float!(input)
     },
     Value::Float64(Some(v), ..) => Ok(v as _),
     Value::Decimal(Some(v), ..) => Ok(v.try_into()?),
@@ -451,14 +490,13 @@ impl_as_value!(
 impl_as_value!(
     f64,
     Value::Float64,
-    |v: &mut &str| {
-        let (num, tail) = parse_partial(*v)?;
-        *v = &v[tail..];
-        Ok(num)
+    |input: &mut &str| {
+        extract_float!(input)
     },
     Value::Float32(Some(v), ..) => Ok(v as _),
     Value::Decimal(Some(v), ..) => Ok(v.try_into()?),
 );
+
 impl_as_value!(
     char,
     Value::Char,
@@ -725,10 +763,29 @@ impl_as_value!(time::Duration, Value::Interval, |v| {
 impl_as_value!(
     Uuid,
     Value::Uuid,
-    |v: &mut &str| {
-        let result = Ok(Uuid::parse_str(&v[0..36])?);
-        *v = &v[36..];
-        result
+    |input: &mut &str| {
+        let mut value = *input;
+        let delimiter = if value.starts_with(['"', '\'']) {
+             let d = &value[0..1];
+            value = &value[1..];
+            d
+        } else {
+            ""
+        };
+        let context = || {
+            format!(
+                "Cannot extract a uuid value from `{}`",
+                truncate_long!(input)
+            )
+        };
+        let uuid = Uuid::parse_str(&value[0..36]).with_context(context)?;
+        value = &value[36..];
+        if !value.starts_with(delimiter) {
+            return Err(Error::msg(context()));
+        }
+        value = &value[delimiter.len()..];
+        *input = &value;
+        Ok(uuid)
     },
     Value::Varchar(Some(v), ..) => Self::parse(v),
 );
@@ -975,7 +1032,7 @@ impl<T: AsValue, const N: usize> AsValue for [T; N] {
         if Some(closing) != value.chars().next() {
             return Err(Error::msg(format!(
                 "Incorrect array `{}`, expected a `{}`",
-                truncate_long!(value),
+                truncate_long!(input),
                 closing
             )));
         };
@@ -1019,7 +1076,7 @@ macro_rules! impl_as_value {
                 let mut value = *input;
                 let error = Arc::new(format!(
                     "Cannot extract `{}` as {}",
-                    truncate_long!(value),
+                    truncate_long!(input),
                     any::type_name::<Self>(),
                 ));
                 let closing = match value.chars().next() {
@@ -1046,8 +1103,9 @@ macro_rules! impl_as_value {
                 .collect::<Result<Self>>()?;
                 if Some(closing) != value.chars().next() {
                     return Err(Error::msg(format!(
-                        "Incorrect array `{}`, expected a `{}`",
-                        truncate_long!(value),
+                        "Incorrect {} `{}`, expected a `{}`",
+                        any::type_name::<Self>(),
+                        truncate_long!(input),
                         closing
                     )));
                 };
@@ -1138,7 +1196,7 @@ macro_rules! impl_as_value {
                 if Some(closing) != value.chars().next() {
                     return Err(Error::msg(format!(
                         "Incorrect array `{}`, expected a `{}`",
-                        truncate_long!(value),
+                        truncate_long!(input),
                         closing
                     )));
                 };
@@ -1205,11 +1263,17 @@ impl<T: AsValue> AsValue for Option<T> {
             Some(<T as AsValue>::try_from_value(value)?)
         })
     }
-    fn extract(value: &mut &str) -> Result<Self>
+    fn extract(input: &mut &str) -> Result<Self>
     where
         Self: Sized,
     {
-        T::extract(value).map(Some)
+        let mut value = *input;
+        let result = consume_while(&mut value, |v| v.is_alphanumeric() || *v == '_');
+        if result.eq_ignore_ascii_case("null") {
+            *input = value;
+            return Ok(None);
+        };
+        T::extract(input).map(Some)
     }
 }
 
@@ -1222,13 +1286,13 @@ impl<T: AsValue> AsValue for Box<T> {
         (*self).as_value()
     }
     fn try_from_value(value: Value) -> Result<Self> {
-        Ok(Box::new(<T as AsValue>::try_from_value(value)?))
+        Ok(Self::new(<T as AsValue>::try_from_value(value)?))
     }
     fn extract(value: &mut &str) -> Result<Self>
     where
         Self: Sized,
     {
-        T::extract(value).map(Box::new)
+        T::extract(value).map(Self::new)
     }
 }
 
@@ -1263,6 +1327,12 @@ impl<T: AsValue> AsValue for RwLock<T> {
     fn try_from_value(value: Value) -> Result<Self> {
         Ok(RwLock::new(<T as AsValue>::try_from_value(value)?))
     }
+    fn extract(value: &mut &str) -> Result<Self>
+    where
+        Self: Sized,
+    {
+        T::extract(value).map(Self::new)
+    }
 }
 
 macro_rules! impl_as_value {
@@ -1278,6 +1348,12 @@ macro_rules! impl_as_value {
             }
             fn try_from_value(value: Value) -> Result<Self> {
                 Ok($source::new(<T as AsValue>::try_from_value(value)?))
+            }
+            fn extract(value: &mut &str) -> Result<Self>
+            where
+                Self: Sized,
+            {
+                T::extract(value).map(Self::new)
             }
         }
     };

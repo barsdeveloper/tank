@@ -40,7 +40,8 @@ impl Prepared for MySQLPrepared {
 
     fn bind_index(&mut self, value: impl AsValue, index: u64) -> Result<&mut Self> {
         if self.params.is_empty() {
-            self.params.reserve(self.statement.num_params() as _);
+            self.params
+                .resize_with(self.statement.num_params() as _, || Default::default());
         }
         self.params[index as usize] = value.into();
         Ok(self)

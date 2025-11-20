@@ -1,6 +1,6 @@
 use proc_macro2::TokenStream;
 use quote::{ToTokens, TokenStreamExt, quote};
-use std::{borrow::Cow, cmp::min, collections::BTreeMap, ffi::CString};
+use std::{borrow::Cow, cmp::min, collections::BTreeMap, ffi::CString, fmt::Write};
 use syn::Path;
 
 #[derive(Clone)]
@@ -107,6 +107,16 @@ pub fn consume_while<'s>(input: &mut &'s str, predicate: impl FnMut(&char) -> bo
     let result = &input[..len];
     *input = &input[len..];
     result
+}
+
+pub fn print_timer(out: &mut String, quote: &str, h: i64, m: u8, s: u8, ns: u32) {
+    let mut subsecond = ns;
+    let mut width = 9;
+    while width > 1 && subsecond % 10 == 0 {
+        subsecond /= 10;
+        width -= 1;
+    }
+    let _ = write!(out, "{quote}{h:02}:{m:02}:{s:02}.{subsecond:0width$}{quote}",);
 }
 
 #[macro_export]
