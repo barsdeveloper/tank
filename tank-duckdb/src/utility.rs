@@ -61,10 +61,10 @@ pub(crate) fn tank_value_to_duckdb_logical_type(v: &Value) -> CBox<duckdb_logica
                 *result = duckdb_create_logical_type(DUCKDB_TYPE_DUCKDB_TYPE_UHUGEINT)
             }
             Value::Float32(..) => {
-                *result = duckdb_create_logical_type(DUCKDB_TYPE_DUCKDB_TYPE_SQLNULL)
+                *result = duckdb_create_logical_type(DUCKDB_TYPE_DUCKDB_TYPE_FLOAT)
             }
             Value::Float64(..) => {
-                *result = duckdb_create_logical_type(DUCKDB_TYPE_DUCKDB_TYPE_FLOAT)
+                *result = duckdb_create_logical_type(DUCKDB_TYPE_DUCKDB_TYPE_DOUBLE)
             }
             Value::Decimal(.., w, s) => *result = duckdb_create_decimal_type(*w, *s),
             Value::Char(..) | Value::Varchar(..) => {

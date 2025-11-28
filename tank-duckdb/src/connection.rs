@@ -389,6 +389,11 @@ impl Executor for DuckDBConnection {
                                 ),
                                 |mut p| duckdb_destroy_value(&mut p),
                             );
+                            if value.is_null() {
+                                let error = Error::msg("Could not create list value");
+                                log::error!("{:#}", error);
+                                return Err(error);
+                            }
                             duckdb_append_value(*appender, *value)
                         }
                         Value::Array(Some(ref v), ty, len) => {
@@ -405,6 +410,11 @@ impl Executor for DuckDBConnection {
                                 ),
                                 |mut p| duckdb_destroy_value(&mut p),
                             );
+                            if value.is_null() {
+                                let error = Error::msg("Could not create array value");
+                                log::error!("{:#}", error);
+                                return Err(error);
+                            }
                             duckdb_append_value(*appender, *value)
                         }
                         Value::Map(Some(ref v), ..) => {
@@ -426,6 +436,11 @@ impl Executor for DuckDBConnection {
                                 ),
                                 |mut p| duckdb_destroy_value(&mut p),
                             );
+                            if value.is_null() {
+                                let error = Error::msg("Could not create map value");
+                                log::error!("{:#}", error);
+                                return Err(error);
+                            }
                             duckdb_append_value(*appender, *value)
                         }
                         Value::Struct(Some(ref v), ..) => {
@@ -440,6 +455,11 @@ impl Executor for DuckDBConnection {
                                 ),
                                 |mut p| duckdb_destroy_value(&mut p),
                             );
+                            if value.is_null() {
+                                let error = Error::msg("Could not create struct value");
+                                log::error!("{:#}", error);
+                                return Err(error);
+                            }
                             duckdb_append_value(*appender, *value)
                         }
                         _ => duckdb_append_null(*appender),
