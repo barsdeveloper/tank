@@ -79,13 +79,10 @@ impl SqlWriter for MySQLSqlWriter {
     }
 
     fn write_value_infinity(&self, context: &mut Context, out: &mut String, negative: bool) {
-        let delimiter = if context.is_inside_json() { '"' } else { '\'' };
-        out.push(delimiter);
         if negative {
             out.push('-');
         }
-        out.push_str("inf");
-        out.push(delimiter);
+        out.push_str("1.0e+10000");
     }
 
     fn write_value_interval(&self, context: &mut Context, out: &mut String, value: &Interval) {
