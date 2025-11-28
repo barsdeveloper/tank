@@ -11,8 +11,6 @@ categories.workspace = true
 [dependencies]
 anyhow.workspace = true
 async-stream = "0"
-atoi = "2"
-fast-float = "0"
 futures.workspace = true
 hex = "0"
 indoc.workspace = true

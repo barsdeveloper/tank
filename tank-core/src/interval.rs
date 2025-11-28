@@ -106,10 +106,12 @@ impl Interval {
 
     pub const fn from_mins(value: i64) -> Self {
         const MINS_IN_DAYS: i64 = 60 * 24;
+        let days = value / MINS_IN_DAYS;
+        let nanos = (value % MINS_IN_DAYS) * Interval::NANOS_IN_SEC as i64 * 60;
         Self {
             months: 0,
-            days: (value / MINS_IN_DAYS),
-            nanos: ((value % MINS_IN_DAYS) * 60 * Interval::NANOS_IN_HOUR as i64) as _,
+            days,
+            nanos: nanos as _,
         }
     }
 

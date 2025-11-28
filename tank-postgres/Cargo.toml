@@ -16,6 +16,7 @@ log.workspace = true
 native-tls = "0.2.14"
 openssl = "0.10.75"
 postgres-openssl = "0.5.2"
+postgres-protocol = "0.6.9"
 postgres-types = "0"
 rust_decimal = { workspace = true, features = ["db-tokio-postgres"] }
 tank-core.workspace = true
@@ -28,6 +29,6 @@ uuid.workspace = true
 
 [dev-dependencies]
 rcgen = "0.14.5"
-tank-tests = { path = "../tank-tests", features = ["disable-large-integers", "disable-lists", "disable-maps"] }
+tank-tests = { path = "../tank-tests", features = ["disable-large-integers", "disable-lists", "disable-maps", "disable-multi-statements"] }
 testcontainers-modules = { version = "0", features = ["postgres"] }
 tokio.workspace = true

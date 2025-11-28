@@ -1,6 +1,6 @@
-use crate::IntervalWrap;
+use crate::{IntervalWrap, util::extract_value};
 use bytes::BytesMut;
-use postgres_types::{FromSql, IsNull, ToSql, Type, to_sql_checked};
+use postgres_types::{FromSql, IsNull, Kind, ToSql, Type, to_sql_checked};
 use rust_decimal::{Decimal, prelude::FromPrimitive};
 use std::{error::Error, io::Read};
 use tank_core::Value;
@@ -27,76 +27,7 @@ impl<'a> FromSql<'a> for ValueWrap {
         ty: &Type,
         raw: Option<&'a [u8]>,
     ) -> Result<Self, Box<dyn Error + Sync + Send>> {
-        fn convert<'a, T: FromSql<'a>>(
-            ty: &Type,
-            raw: Option<&'a [u8]>,
-        ) -> Result<Option<T>, Box<dyn Error + Sync + Send>> {
-            Ok(match raw {
-                Some(raw) => Some(T::from_sql(ty, raw)?),
-                None => None,
-            })
-        }
-        let value = match *ty {
-            Type::BOOL => Value::Boolean(convert::<bool>(ty, raw)?),
-            Type::CHAR => Value::Int8(convert::<i8>(ty, raw)?),
-            Type::INT2 => Value::Int16(convert::<i16>(ty, raw)?),
-            Type::INT4 => Value::Int32(convert::<i32>(ty, raw)?),
-            Type::INT8 => Value::Int64(convert::<i64>(ty, raw)?),
-            Type::FLOAT4 => Value::Float32(convert::<f32>(ty, raw)?),
-            Type::FLOAT8 => Value::Float64(convert::<f64>(ty, raw)?),
-            Type::NUMERIC => Value::Decimal(convert::<Decimal>(ty, raw)?, 0, 0),
-            Type::OID => Value::UInt32(convert::<u32>(ty, raw)?),
-            Type::VARCHAR | Type::TEXT | Type::NAME | Type::BPCHAR | Type::JSON | Type::XML => {
-                Value::Varchar(convert::<String>(ty, raw)?)
-            }
-            Type::BYTEA => Value::Blob(convert::<Vec<u8>>(ty, raw)?.map(Into::into)),
-            Type::DATE => Value::Date(convert::<Date>(ty, raw)?),
-            Type::TIME => Value::Time(convert::<Time>(ty, raw)?),
-            Type::TIMESTAMP => Value::Timestamp(convert::<PrimitiveDateTime>(ty, raw)?),
-            Type::TIMESTAMPTZ => Value::TimestampWithTimezone(convert::<OffsetDateTime>(ty, raw)?),
-            Type::INTERVAL => Value::Interval(convert::<IntervalWrap>(ty, raw)?.map(Into::into)),
-            Type::UUID => Value::Uuid(convert::<Uuid>(ty, raw)?),
-
-            Type::INT2_ARRAY => Value::List(
-                convert::<VecWrap<ValueWrap>>(ty, raw)?.map(Into::into),
-                Box::new(Value::Int16(None)),
-            ),
-            Type::INT4_ARRAY => Value::List(
-                convert::<VecWrap<ValueWrap>>(ty, raw)?.map(Into::into),
-                Box::new(Value::Int32(None)),
-            ),
-            Type::INT8_ARRAY => Value::List(
-                convert::<VecWrap<ValueWrap>>(ty, raw)?.map(Into::into),
-                Box::new(Value::Int64(None)),
-            ),
-            Type::FLOAT4_ARRAY => Value::List(
-                convert::<VecWrap<ValueWrap>>(ty, raw)?.map(Into::into),
-                Box::new(Value::Float32(None)),
-            ),
-            Type::FLOAT8_ARRAY => Value::List(
-                convert::<VecWrap<ValueWrap>>(ty, raw)?.map(Into::into),
-                Box::new(Value::Float64(None)),
-            ),
-            Type::BPCHAR_ARRAY => Value::List(
-                convert::<VecWrap<ValueWrap>>(ty, raw)?.map(Into::into),
-                Box::new(Value::Varchar(None)),
-            ),
-
-            Type::UNKNOWN => Value::Unknown(convert::<String>(ty, raw)?),
-            _ => {
-                if let Some(mut raw) = raw {
-                    let mut buf = String::new();
-                    let _ = raw.read_to_string(&mut buf);
-                    return Err(tank_core::Error::msg(format!(
-                        "Cannot decode sql type: `{}`, value: `{}`",
-                        ty, buf
-                    ))
-                    .into());
-                }
-                Value::Null
-            }
-        };
-        Ok(value.into())
+        extract_value(ty, raw).map(Into::into)
     }
 
     fn accepts(_ty: &Type) -> bool {
@@ -197,7 +128,7 @@ pub fn postgres_type_to_value(ty: &Type) -> Value {
     }
 }
 
-struct VecWrap<T>(pub Vec<T>);
+pub(crate) struct VecWrap<T>(pub Vec<T>);
 
 impl<'a, T: FromSql<'a>> FromSql<'a> for VecWrap<T> {
     fn from_sql_null(ty: &Type) -> Result<Self, Box<dyn Error + Sync + Send>> {

@@ -109,6 +109,21 @@ pub fn consume_while<'s>(input: &mut &'s str, predicate: impl FnMut(&char) -> bo
     result
 }
 
+pub fn extract_number<'s, const SIGNED: bool>(input: &mut &'s str) -> &'s str {
+    let mut end = 0;
+    let mut chars = input.chars().peekable();
+    if SIGNED && matches!(chars.peek(), Some('+') | Some('-')) {
+        chars.next();
+        end += 1;
+    }
+    for _ in chars.take_while(char::is_ascii_digit) {
+        end += 1;
+    }
+    let result = &input[..end];
+    *input = &input[end..];
+    result
+}
+
 pub fn print_timer(out: &mut String, quote: &str, h: i64, m: u8, s: u8, ns: u32) {
     let mut subsecond = ns;
     let mut width = 9;
@@ -116,7 +131,10 @@ pub fn print_timer(out: &mut String, quote: &str, h: i64, m: u8, s: u8, ns: u32)
         subsecond /= 10;
         width -= 1;
     }
-    let _ = write!(out, "{quote}{h:02}:{m:02}:{s:02}.{subsecond:0width$}{quote}",);
+    let _ = write!(
+        out,
+        "{quote}{h:02}:{m:02}:{s:02}.{subsecond:0width$}{quote}",
+    );
 }
 
 #[macro_export]

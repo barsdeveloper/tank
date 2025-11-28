@@ -1,15 +1,15 @@
-use crate::{Error, FixedDecimal, Interval, Passive, Result, Value, consume_while, truncate_long};
+use crate::{
+    Error, FixedDecimal, Interval, Passive, Result, Value, consume_while, extract_number,
+    truncate_long,
+};
 use anyhow::Context;
-use atoi::{FromRadix10, FromRadix10Signed};
-use fast_float::parse_partial;
 use rust_decimal::{Decimal, prelude::FromPrimitive, prelude::ToPrimitive};
 use std::{
-    any, array,
+    any,
     borrow::Cow,
     cell::{Cell, RefCell},
     collections::{BTreeMap, HashMap, LinkedList, VecDeque},
     hash::Hash,
-    iter, mem,
     rc::Rc,
     sync::{Arc, RwLock},
 };
@@ -80,29 +80,9 @@ pub trait AsValue {
     where
         Self: Sized,
     {
-        let mut value = input.as_ref();
-        let result = Self::extract(&mut value)?;
-        if !value.is_empty() {
-            return Err(Error::msg(format!(
-                "Value `{}` parsed correctly as {} but it did not consume all the input (remaining: `{}`)",
-                truncate_long!(input.as_ref()),
-                any::type_name::<Self>(),
-                truncate_long!(value),
-            )));
-        }
-        Ok(result)
-    }
-    /// Attempt to parse a prefix from the provided string slice, updating the
-    /// slice to point to the remaining (unconsumed) portion on success.
-    ///
-    /// Returning an error MUST leave the slice untouched. This enables parser
-    /// combinators / backtracking without a separate buffering strategy.
-    fn extract(value: &mut &str) -> Result<Self>
-    where
-        Self: Sized,
-    {
         Err(Error::msg(format!(
-            "Cannot parse '{value}' as {}",
+            "Cannot parse '{}' as {}",
+            truncate_long!(input.as_ref()),
             any::type_name::<Self>()
         )))
     }
@@ -160,81 +140,8 @@ macro_rules! impl_as_value {
                     ))),
                 }
             }
-            fn extract(input: &mut &str) -> Result<Self> {
-                let mut value = *input;
-                let context = || {
-                    format!(
-                        "Cannot extract a floating point value from `{}`",
-                        truncate_long!(input)
-                    )
-                };
-                if value.is_empty() {
-                    return Err(Error::msg(context()));
-                }
-                let quote = if value.starts_with(['"', '\'']) {
-                    let r = &value[0..1];
-                    value = &value[1..];
-                    r
-                } else {
-                    ""
-                };
-                macro_rules! do_extract {
-                    ($parse:expr) => {{
-                        let (num, tail) = $parse();
-                        if tail > 0 {
-                            let min = <$source>::MIN;
-                            let max = <$source>::MAX;
-                            if num < min as _ || num > max as _ {
-                                return Err(Error::msg(format!(
-                                    "Parsed integer {} is out of range for {}",
-                                    value,
-                                    any::type_name::<Self>(),
-                                )))
-                            }
-                            value = &value[tail..];
-                            if !value.starts_with(quote) {
-                                return Err(Error::msg(context()));
-                            }
-                            value = &value[quote.len()..];
-                            *input = value;
-                            return Ok(num as _);
-                        }
-                    }
-                }}
-                let mut v = value;
-                let is_negative = value.starts_with('-');
-                let first = if is_negative {
-                    v = &v[1..];
-                    1
-                } else {
-                    0
-                };
-                let v = &value[first..v.chars().take_while(char::is_ascii_digit).count()];
-                #[allow(unused_comparisons)]
-                let is_signed = <$source>::MIN < 0;
-                let lim = if is_negative {
-                    "170141183460469231731687303715884105728"
-                } else if is_signed {
-                    "170141183460469231731687303715884105727"
-                } else {
-                    "340282366920938463463374607431768211455"
-                };
-                // It's important to avoid overhead otherwise atoi panics
-                if v.len() > lim.len() || v.len() == lim.len() && v > lim {
-                    return Err(Error::msg(format!(
-                        "Value {value} is out of range for {}",
-                        any::type_name::<Self>(),
-                    )));
-                }
-                if is_signed {
-                    do_extract!(|| i128::from_radix_10_signed(value.as_bytes()));
-                } else {
-                    do_extract!(|| u128::from_radix_10(value.as_bytes()));
-                }
-                Err(Error::msg(format!(
-                    "Cannot extract {} from `{value}`",
-                    any::type_name::<Self>(),
-                )))
+            fn parse(input: impl AsRef<str>) -> Result<Self> {
+                input.as_ref().parse::<Self>().map_err(Into::into)
             }
         }
     };
@@ -412,7 +319,6 @@ macro_rules! impl_as_value {
                 match value {
                     $destination(Some(v), ..) => Ok(v.into()),
                     $($pat_rest => $expr_rest,)*
-                    #[allow(unreachable_patterns)]
                     Value::Unknown(Some(ref v)) => <Self as AsValue>::parse(v),
                     _ => Err(Error::msg(format!(
                         "Cannot convert {value:?} to {}",
@@ -420,8 +326,8 @@ macro_rules! impl_as_value {
                     ))),
                 }
             }
-            fn extract(value: &mut &str) -> Result<Self> {
-                $extract(value)
+            fn parse(input: impl AsRef<str>)  -> Result<Self> {
+                $extract(input.as_ref())
             }
         }
     };
@@ -429,16 +335,12 @@ macro_rules! impl_as_value {
 impl_as_value!(
     bool,
     Value::Boolean,
-    |input: &mut &str| {
-        let mut value = *input;
-        let result = consume_while(&mut value, |v| v.is_alphanumeric() || *v == '_');
-        let result = match result {
+    |input: &str| {
+        match input {
             x if x.eq_ignore_ascii_case("true") || x.eq_ignore_ascii_case("t") || x.eq("1") => Ok(true),
             x if x.eq_ignore_ascii_case("false") || x.eq_ignore_ascii_case("f") || x.eq("0") => Ok(false),
             _  => return Err(Error::msg(format!("Cannot parse boolean from '{input}'")))
-        };
-        *input = value;
-        result
+        }
     },
     Value::Int8(Some(v), ..) => Ok(v != 0),
     Value::Int16(Some(v), ..) => Ok(v != 0),
@@ -451,38 +353,11 @@ impl_as_value!(
     Value::UInt64(Some(v), ..) => Ok(v != 0),
     Value::UInt128(Some(v), ..) => Ok(v != 0),
 );
-
-macro_rules! extract_float {
-    ($input:expr) => {{
-        let mut value = *$input;
-        let quote = if value.starts_with(['"', '\'']) {
-            let r = &value[0..1];
-            value = &value[1..];
-            r
-        } else {
-            ""
-        };
-        let context = || {
-            format!(
-                "Cannot extract a floating point value from `{}`",
-                truncate_long!($input)
-            )
-        };
-        let (num, tail) = parse_partial(value).with_context(context)?;
-        value = &value[tail..];
-        if !value.starts_with(quote) {
-            return Err(Error::msg(context()));
-        }
-        value = &value[quote.len()..];
-        *$input = &value;
-        Ok(num)
-    }};
-}
 impl_as_value!(
     f32,
     Value::Float32,
-    |input: &mut &str| {
-        extract_float!(input)
+    |input: &str| {
+        Ok(input.parse::<f32>()?)
     },
     Value::Float64(Some(v), ..) => Ok(v as _),
     Value::Decimal(Some(v), ..) => Ok(v.try_into()?),
@@ -490,8 +365,8 @@ impl_as_value!(
 impl_as_value!(
     f64,
     Value::Float64,
-    |input: &mut &str| {
-        extract_float!(input)
+    |input: &str| {
+        Ok(input.parse::<f64>()?)
     },
     Value::Float32(Some(v), ..) => Ok(v as _),
     Value::Decimal(Some(v), ..) => Ok(v.try_into()?),
@@ -500,37 +375,11 @@ impl_as_value!(
 impl_as_value!(
     char,
     Value::Char,
-    |v: &mut &str| {
-        let mut chars = v.chars().peekable();
-        let mut pos = 0;
-        let delimiter = chars.peek().copied();
-        let delimiter = match delimiter {
-            Some('\'') | Some('"') => {
-                pos += 1;
-                chars.next();
-                delimiter
-            },
-            _ => None,
-        };
-        let c = match chars.next() {
-            Some(c) => {
-                pos +=1;
-                c
-            }
-            None => {
-                return delimiter.ok_or(Error::msg("Cannot convert empty Value::Varchar into a char"));
-            }
-        };
-        if delimiter.is_some() {
-            pos += 1;
-            if chars.next() != delimiter {
-                return Err(Error::msg(format!(
-                    "Cannot convert {v:?} into a char, unterminated string",
-                )))
-            }
+    |input: &str| {
+        if input.len() != 1 {
+            return Err(Error::msg(format!("Cannot convert `{input:?}` into a char")))
         }
-        *v = &v[pos..];
-        Ok(c)
+        Ok(input.chars().next().expect("Should have one character"))
     },
     Value::Varchar(Some(v), ..) => {
         if v.len() != 1 {
@@ -542,62 +391,20 @@ impl_as_value!(
 impl_as_value!(
     String,
     Value::Varchar,
-    |input: &mut &str| {
-        let mut value = *input;
-        let mut chars = value.chars().peekable();
-        let mut pos = 0;
-        let delimiter = chars.peek().copied();
-        let delimiter = match delimiter {
-            Some('\'') | Some('"') => {
-                chars.next();
-                value = &value[1..];
-                delimiter
-            },
-            _ => None,
-        };
-        let mut result = String::with_capacity(value.len());
-        while let Some(c) = chars.next() {
-            if Some(c) == delimiter {
-                if let Some(next_c) = chars.peek()
-                    && Some(*next_c) == delimiter {
-                    result.push_str(&value[..=pos]);
-                    value = &value[(pos + 2)..];
-                    pos = 0;
-                    chars.next();
-                    continue;
-                }
-                result.push_str(&value[..pos]);
-                value = &value[(pos + 1)..];
-                *input = &value;
-                return Ok(result);
-            }
-            pos += 1;
-        }
-        result.push_str(&value[..pos]);
-        value = &value[pos..];
-        *input = value;
-        Ok(result)
+    |input: &str| {
+        Ok(input.into())
     },
     Value::Char(Some(v), ..) => Ok(v.into()),
 );
-impl_as_value!(Box<[u8]>, Value::Blob, |input: &mut &str| {
-    let mut value = *input;
-    if value[0..2].eq_ignore_ascii_case("\\x") {
-        value = &value[2..];
+impl_as_value!(Box<[u8]>, Value::Blob, |mut input: &str| {
+    if input.starts_with("\\x") {
+        input = &input[2..];
     }
-    let mut filter_x = false;
-    let hex = consume_while(&mut value, |v| match v {
-        '0'..='9' | 'a'..='f' | 'A'..='F' => true,
-        'x' => {
-            filter_x = true;
-            true
-        }
-        _ => false,
-    });
+    let filter_x = input.contains('x');
     let result = if filter_x {
-        hex::decode(hex.chars().filter(|c| *c != 'x').collect::<String>())
+        hex::decode(input.chars().filter(|c| *c != 'x').collect::<String>())
     } else {
-        hex::decode(hex)
+        hex::decode(input)
     }
     .map(Into::into)
     .context(format!(
@@ -605,27 +412,30 @@ impl_as_value!(Box<[u8]>, Value::Blob, |input: &mut &str| {
         truncate_long!(input),
         any::type_name::<Self>()
     ))?;
-    *input = value;
     Ok(result)
 });
-impl_as_value!(Interval, Value::Interval, |input: &mut &str| {
-    let error = || {
-        Err(Error::msg(format!(
-            "Cannot extract interval from '{input}'"
-        )))
+impl_as_value!(Interval, Value::Interval, |mut input: &str| {
+    let context = || {
+        Error::msg(format!(
+            "Cannot extract interval from `{}`",
+            truncate_long!(input)
+        ))
+        .into()
     };
-    let mut value = *input;
-    let boundary = match value.chars().next() {
-        Some(v) if v == '"' || v == '\'' => {
-            value = &value[1..];
-            Some(v)
+    match input.chars().peekable().peek() {
+        Some(v) if *v == '"' || *v == '\'' => {
+            input = &input[1..];
+            if !input.ends_with(*v) {
+                return Err(context());
+            }
+            input = input.trim_end_matches(*v);
         }
-        _ => None,
+        _ => {}
     };
     let mut interval = Interval::ZERO;
     loop {
-        let mut cur = value;
-        let Ok(count) = i128::extract(&mut cur) else {
+        let mut cur = input;
+        let Ok(count) = extract_number::<true>(&mut cur).parse::<i128>() else {
             break;
         };
         cur = cur.trim_start();
@@ -689,52 +499,47 @@ impl_as_value!(Interval, Value::Interval, |input: &mut &str| {
             {
                 interval += Interval::from_nanos(count as _)
             }
-            _ => return error(),
+            _ => return Err(context()),
         }
-        value = cur.trim_start();
+        input = cur.trim_start();
     }
-    let neg = if Some('-') == value.chars().next() {
-        value = value[1..].trim_ascii_start();
+    let neg = if Some('-') == input.chars().next() {
+        input = input[1..].trim_ascii_start();
         true
     } else {
         false
     };
     let mut time_interval = Interval::ZERO;
-    let (num, tail) = u64::from_radix_10(value.as_bytes());
-    if tail > 0 {
+    let num = extract_number::<true>(&mut input);
+    if !num.is_empty() {
+        let num = num.parse::<u64>().with_context(context)?;
         time_interval += Interval::from_hours(num as _);
-        value = &value[tail..];
-        if Some(':') == value.chars().next() {
-            value = &value[1..];
-            let (num, tail) = u64::from_radix_10(value.as_bytes());
-            if tail == 0 {
-                return error();
+        if Some(':') == input.chars().next() {
+            input = &input[1..];
+            let num = extract_number::<false>(&mut input).parse::<u64>()?;
+            if input.is_empty() {
+                return Err(context());
             }
-            value = &value[tail..];
             time_interval += Interval::from_mins(num as _);
-            if Some(':') == value.chars().next() {
-                value = &value[1..];
-                let (num, tail) = u64::from_radix_10(value.as_bytes());
-                if tail == 0 {
-                    return error();
-                }
-                value = &value[tail..];
+            if Some(':') == input.chars().next() {
+                input = &input[1..];
+                let num = extract_number::<false>(&mut input)
+                    .parse::<u64>()
+                    .with_context(context)?;
                 time_interval += Interval::from_secs(num as _);
-                if Some('.') == value.chars().next() {
-                    value = &value[1..];
-                    let (mut num, mut tail) = i128::from_radix_10(value.as_bytes());
-                    if tail == 0 {
-                        return error();
-                    }
-                    value = &value[tail..];
-                    tail -= 1;
-                    let magnitude = tail / 3;
-                    num *= 10_i128.pow(2 - tail as u32 % 3);
+                if Some('.') == input.chars().next() {
+                    input = &input[1..];
+                    let len = input.len();
+                    let mut num = extract_number::<true>(&mut input)
+                        .parse::<i128>()
+                        .with_context(context)?;
+                    let magnitude = (len - 1) / 3;
+                    num *= 10_i128.pow(2 - (len + 2) as u32 % 3);
                     match magnitude {
                         0 => time_interval += Interval::from_millis(num),
                         1 => time_interval += Interval::from_micros(num),
                         2 => time_interval += Interval::from_nanos(num),
-                        _ => return error(),
+                        _ => return Err(context()),
                     }
                 }
             }
@@ -745,46 +550,27 @@ impl_as_value!(Interval, Value::Interval, |input: &mut &str| {
             interval += time_interval;
         }
     }
-    if let Some(b) = boundary {
-        if value.chars().next() != Some(b) {
-            return error();
-        }
-        value = value[1..].trim_ascii_start();
+    if !input.is_empty() {
+        return Err(context());
     }
-    *input = value;
     Ok(interval)
 });
 impl_as_value!(std::time::Duration, Value::Interval, |v| {
-    <Interval as AsValue>::extract(v).map(Into::into)
+    <Interval as AsValue>::parse(v).map(Into::into)
 });
 impl_as_value!(time::Duration, Value::Interval, |v| {
-    <Interval as AsValue>::extract(v).map(Into::into)
+    <Interval as AsValue>::parse(v).map(Into::into)
 });
 impl_as_value!(
     Uuid,
     Value::Uuid,
-    |input: &mut &str| {
-        let mut value = *input;
-        let delimiter = if value.starts_with(['"', '\'']) {
-             let d = &value[0..1];
-            value = &value[1..];
-            d
-        } else {
-            ""
-        };
-        let context = || {
+    |input: &str| {
+        let uuid = Uuid::parse_str(input).with_context(|| {
             format!(
                 "Cannot extract a uuid value from `{}`",
                 truncate_long!(input)
             )
-        };
-        let uuid = Uuid::parse_str(&value[0..36]).with_context(context)?;
-        value = &value[36..];
-        if !value.starts_with(delimiter) {
-            return Err(Error::msg(context()));
-        }
-        value = &value[delimiter.len()..];
-        *input = &value;
+        })?;
         Ok(uuid)
     },
     Value::Varchar(Some(v), ..) => Self::parse(v),
@@ -793,21 +579,22 @@ impl_as_value!(
 macro_rules! parse_time {
     ($value: ident, $($formats:literal),+ $(,)?) => {
         'value: {
+            let context = || Error::msg(format!(
+                "Cannot parse `{}` as {}",
+                truncate_long!($value),
+                any::type_name::<Self>()
+            ));
             for format in [$($formats,)+] {
                 let format = parse_borrowed::<2>(format)?;
                 let mut parsed = time::parsing::Parsed::new();
                 let remaining = parsed.parse_items($value.as_bytes(), &format);
                 if let Ok(remaining) = remaining {
-                    let result = parsed.try_into()?;
-                    *$value = &$value[($value.len() - remaining.len())..];
+                    let result = parsed.try_into().with_context(context)?;
+                    $value = &$value[($value.len() - remaining.len())..];
                     break 'value Ok(result);
                 }
             }
-            Err(Error::msg(format!(
-                "Cannot extract from `{}` as {}",
-                $value,
-                any::type_name::<Self>()
-            )))
+            Err(context())
         }
     }
 }
@@ -815,36 +602,41 @@ macro_rules! parse_time {
 impl_as_value!(
     time::Date,
     Value::Date,
-    |v: &mut &str| {
-        let mut result: time::Date = parse_time!(v, "[year]-[month]-[day]")?;
+    |input: &str| {
+        let mut value = input;
+        let mut result: time::Date = parse_time!(value, "[year]-[month]-[day]")?;
         {
-            let mut attempt = v.trim_start();
+            let mut attempt = value.trim_start();
             let suffix = consume_while(&mut attempt, char::is_ascii_alphabetic);
             if suffix.eq_ignore_ascii_case("bc") {
-                *v = attempt;
                 result =
                     time::Date::from_calendar_date(-(result.year() - 1), result.month(), result.day())?;
-                *v = attempt
+                value = attempt;
             }
             if suffix.eq_ignore_ascii_case("ad") {
-                *v = attempt
+                value = attempt
             }
+        }
+        if !value.is_empty() {
+            return Err(Error::msg(format!("Cannot parse `{}` as time::Date", truncate_long!(input))))
         }
         Ok(result)
     },
     Value::Varchar(Some(v), ..) => <Self as AsValue>::parse(v),
 );
-
 impl_as_value!(
     time::Time,
     Value::Time,
-    |v: &mut &str| {
+    |mut input: &str| {
         let result: time::Time = parse_time!(
-            v,
+            input,
             "[hour]:[minute]:[second].[subsecond]",
             "[hour]:[minute]:[second]",
             "[hour]:[minute]",
         )?;
+        if !input.is_empty() {
+            return Err(Error::msg(format!("Cannot parse `{}` as time::Time", truncate_long!(input))))
+        }
         Ok(result)
     },
     Value::Varchar(Some(v), ..) => <Self as AsValue>::parse(v),
@@ -853,9 +645,9 @@ impl_as_value!(
 impl_as_value!(
     time::PrimitiveDateTime,
     Value::Timestamp,
-    |v: &mut &str| {
+    |mut input: &str| {
         let result: time::PrimitiveDateTime = parse_time!(
-            v,
+            input,
             "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond]",
             "[year]-[month]-[day]T[hour]:[minute]:[second]",
             "[year]-[month]-[day]T[hour]:[minute]",
@@ -863,6 +655,9 @@ impl_as_value!(
             "[year]-[month]-[day] [hour]:[minute]:[second]",
             "[year]-[month]-[day] [hour]:[minute]",
         )?;
+        if !input.is_empty() {
+            return Err(Error::msg(format!("Cannot parse `{}` as time::PrimitiveDateTime", truncate_long!(input))))
+        }
         Ok(result)
     },
     Value::Varchar(Some(v), ..) => <Self as AsValue>::parse(v),
@@ -871,9 +666,9 @@ impl_as_value!(
 impl_as_value!(
     time::OffsetDateTime,
     Value::TimestampWithTimezone,
-    |v: &mut &str| {
-        let result: time::OffsetDateTime = parse_time!(
-            v,
+    |mut input: &str| {
+        if let Ok::<time::OffsetDateTime, _>(result) = parse_time!(
+            input,
             "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond][offset_hour sign:mandatory]:[offset_minute]",
             "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond][offset_hour sign:mandatory]",
             "[year]-[month]-[day]T[hour]:[minute]:[second][offset_hour sign:mandatory]:[offset_minute]",
@@ -886,8 +681,13 @@ impl_as_value!(
             "[year]-[month]-[day] [hour]:[minute]:[second][offset_hour sign:mandatory]",
             "[year]-[month]-[day] [hour]:[minute][offset_hour sign:mandatory]:[offset_minute]",
             "[year]-[month]-[day] [hour]:[minute][offset_hour sign:mandatory]",
-        ).or(<PrimitiveDateTime as AsValue>::extract(v).map(|v| v.assume_utc()))?;
-        Ok(result)
+        ) {
+            return Ok(result);
+        }
+        if let Ok(result) = <PrimitiveDateTime as AsValue>::parse(input).map(|v| v.assume_utc()) {
+            return Ok(result);
+        }
+        Err(Error::msg(format!("Cannot parse `{}` as time::OffsetDateTime", truncate_long!(input))))
     },
     Value::Timestamp(Some(timestamp), ..) => Ok(timestamp.assume_utc()),
     Value::Varchar(Some(v), ..) => <Self as AsValue>::parse(v),
@@ -919,23 +719,14 @@ impl AsValue for Decimal {
             _ => Err(Error::msg(format!("Cannot convert {value:?} to Decimal"))),
         }
     }
-    fn extract(input: &mut &str) -> Result<Self> {
-        let mut value = *input;
-        let (mut n, len) = i128::from_radix_10_signed(value.as_bytes());
-        value = &value[len..];
-        let n = if value.chars().next() == Some('.') {
-            value = &value[1..];
-            let (dec, len) = i128::from_radix_10(value.as_bytes());
-            n = n * 10u64.pow(len as _) as i128 + dec;
-            value = &value[len..];
-            Decimal::try_from_i128_with_scale(n, len as _)
-                .map_err(|_| Error::msg(format!("Could not create a Decimal from {n}")))
-        } else {
-            Decimal::from_i128(n)
-                .ok_or_else(|| Error::msg(format!("Could not create a Decimal from {n}")))
-        }?;
-        *input = value.trim_ascii_start();
-        Ok(n)
+    fn parse(input: impl AsRef<str>) -> Result<Self> {
+        let input = input.as_ref();
+        Ok(input.parse::<Decimal>().with_context(|| {
+            Error::msg(format!(
+                "Cannot extract a decimal value from `{}`",
+                truncate_long!(input)
+            ))
+        })?)
     }
 }
 
@@ -951,6 +742,9 @@ impl<const W: u8, const S: u8> AsValue for FixedDecimal<W, S> {
         Self: Sized,
     {
         Ok(Self(Decimal::try_from_value(value)?))
+    }
+    fn parse(input: impl AsRef<str>) -> Result<Self> {
+        <Decimal as AsValue>::parse(input).map(Into::into)
     }
 }
 
@@ -990,56 +784,6 @@ impl<T: AsValue, const N: usize> AsValue for [T; N] {
             ))),
         }
     }
-    fn extract(input: &mut &str) -> Result<Self> {
-        let mut value = *input;
-        let error = Arc::new(format!(
-            "Cannot extract `{}` as array {}",
-            truncate_long!(value),
-            any::type_name::<Self>(),
-        ));
-        let closing = match value.chars().next() {
-            Some('{') => '}',
-            Some('[') => ']',
-            _ => {
-                return Err(Error::msg(error));
-            }
-        };
-        value = &value[1..].trim_ascii_start();
-        // TODO Replace with array::from_fn once stable
-        let mut result = array::from_fn(|i| {
-            let result = T::extract(&mut value)?;
-            value = value.trim_ascii_start();
-            match value.chars().next() {
-                Some(',') => value = &value[1..].trim_ascii_start(),
-                _ if i != N - 1 => {
-                    return Err(Error::msg(error.clone()));
-                }
-                _ => {}
-            }
-            Ok(result)
-        });
-        if let Some(error) = result.iter_mut().find_map(|v| {
-            if let Err(e) = v {
-                let mut r = Error::msg("");
-                mem::swap(e, &mut r);
-                Some(r)
-            } else {
-                None
-            }
-        }) {
-            return Err(error);
-        }
-        if Some(closing) != value.chars().next() {
-            return Err(Error::msg(format!(
-                "Incorrect array `{}`, expected a `{}`",
-                truncate_long!(input),
-                closing
-            )));
-        };
-        value = &value[1..].trim_ascii_start();
-        *input = &value;
-        Ok(result.map(Result::unwrap))
-    }
 }
 
 macro_rules! impl_as_value {
@@ -1065,53 +809,11 @@ macro_rules! impl_as_value {
                         .into_iter()
                         .map(|v| Ok::<_, Error>(<T as AsValue>::try_from_value(v)?))
                         .collect::<Result<_>>()?),
-                    Value::Unknown(Some(ref v)) => <Self as AsValue>::parse(v),
                     _ => Err(Error::msg(format!(
                         "Cannot convert {value:?} to {}",
                         any::type_name::<Self>(),
                     ))),
                 }
-            }
-            fn extract(input: &mut &str) -> Result<Self> {
-                let mut value = *input;
-                let error = Arc::new(format!(
-                    "Cannot extract `{}` as {}",
-                    truncate_long!(input),
-                    any::type_name::<Self>(),
-                ));
-                let closing = match value.chars().next() {
-                    Some('{') => '}',
-                    Some('[') => ']',
-                    _ => {
-                        return Err(Error::msg(error));
-                    }
-                };
-                value = &value[1..].trim_ascii_start();
-                let result = iter::from_fn(|| {
-                    if value.chars().next() == Some(closing.clone()) {
-                        return None;
-                    }
-                    let result = T::extract(&mut value).ok()?;
-                    value = value.trim_ascii_start();
-                    match value.chars().next() {
-                        Some(',') => value = &value[1..].trim_ascii_start(),
-                        d if d == Some(closing) => {}
-                        _ => return Some(Err(Error::msg(error.clone()))),
-                    }
-                    Some(Ok(result))
-                })
-                .collect::<Result<Self>>()?;
-                if Some(closing) != value.chars().next() {
-                    return Err(Error::msg(format!(
-                        "Incorrect {} `{}`, expected a `{}`",
-                        any::type_name::<Self>(),
-                        truncate_long!(input),
-                        closing
-                    )));
-                };
-                value = &value[1..].trim_ascii_start();
-                *input = &value;
-                Ok(result)
             }
         }
     };
@@ -1149,7 +851,6 @@ macro_rules! impl_as_value {
                             })
                             .collect::<Result<_>>()?)
                     }
-                    Value::Unknown(Some(ref v)) => <Self as AsValue>::parse(v),
                     _=> {
                         Err(Error::msg(format!(
                             "Cannot convert {value:?} to {}",
@@ -1157,52 +858,6 @@ macro_rules! impl_as_value {
                         )))
                     }
                 }
-            }
-            fn extract(input: &mut &str) -> Result<Self> {
-                let mut value = *input;
-                let error = Arc::new(format!(
-                    "Cannot extract `{}` as {}",
-                    truncate_long!(value),
-                    any::type_name::<Self>(),
-                ));
-                let closing = match value.chars().next() {
-                    Some('{') => '}',
-                    _ => {
-                        return Err(Error::msg(error));
-                    }
-                };
-                value = &value[1..].trim_ascii_start();
-                let result = iter::from_fn(|| {
-                    if value.chars().next() == Some(closing.clone()) {
-                        return None;
-                    }
-                    let k = K::extract(&mut value).ok()?;
-                    value = value.trim_ascii_start();
-                    match value.chars().next() {
-                        Some(':') => value = &value[1..].trim_ascii_start(),
-                        d if d == Some(closing) => {}
-                        _ => return Some(Err(Error::msg(error.clone()))),
-                    }
-                    let v = V::extract(&mut value).ok()?;
-                    value = value.trim_ascii_start();
-                    match value.chars().next() {
-                        Some(',') => value = &value[1..].trim_ascii_start(),
-                        d if d == Some(closing) => {}
-                        _ => return Some(Err(Error::msg(error.clone()))),
-                    }
-                    Some(Ok((k, v)))
-                })
-                .collect::<Result<Self>>()?;
-                if Some(closing) != value.chars().next() {
-                    return Err(Error::msg(format!(
-                        "Incorrect array `{}`, expected a `{}`",
-                        truncate_long!(input),
-                        closing
-                    )));
-                };
-                value = &value[1..].trim_ascii_start();
-                *input = &value;
-                Ok(result)
             }
         }
     }
@@ -1223,11 +878,11 @@ impl<'a> AsValue for Cow<'a, str> {
     {
         String::try_from_value(value).map(Into::into)
     }
-    fn extract(input: &mut &str) -> Result<Self>
+    fn parse(input: impl AsRef<str>) -> Result<Self>
     where
         Self: Sized,
     {
-        <String as AsValue>::extract(input).map(Into::into)
+        <String as AsValue>::parse(input).map(Into::into)
     }
 }
 
@@ -1263,17 +918,16 @@ impl<T: AsValue> AsValue for Option<T> {
             Some(<T as AsValue>::try_from_value(value)?)
         })
     }
-    fn extract(input: &mut &str) -> Result<Self>
+    fn parse(input: impl AsRef<str>) -> Result<Self>
     where
         Self: Sized,
     {
-        let mut value = *input;
+        let mut value = input.as_ref();
         let result = consume_while(&mut value, |v| v.is_alphanumeric() || *v == '_');
         if result.eq_ignore_ascii_case("null") {
-            *input = value;
             return Ok(None);
         };
-        T::extract(input).map(Some)
+        T::parse(input).map(Some)
     }
 }
 
@@ -1288,11 +942,11 @@ impl<T: AsValue> AsValue for Box<T> {
     fn try_from_value(value: Value) -> Result<Self> {
         Ok(Self::new(<T as AsValue>::try_from_value(value)?))
     }
-    fn extract(value: &mut &str) -> Result<Self>
+    fn parse(input: impl AsRef<str>) -> Result<Self>
     where
         Self: Sized,
     {
-        T::extract(value).map(Self::new)
+        T::parse(input).map(Self::new)
     }
 }
 
@@ -1327,11 +981,11 @@ impl<T: AsValue> AsValue for RwLock<T> {
     fn try_from_value(value: Value) -> Result<Self> {
         Ok(RwLock::new(<T as AsValue>::try_from_value(value)?))
     }
-    fn extract(value: &mut &str) -> Result<Self>
+    fn parse(input: impl AsRef<str>) -> Result<Self>
     where
         Self: Sized,
     {
-        T::extract(value).map(Self::new)
+        T::parse(input).map(Self::new)
     }
 }
 
@@ -1349,11 +1003,11 @@ macro_rules! impl_as_value {
             fn try_from_value(value: Value) -> Result<Self> {
                 Ok($source::new(<T as AsValue>::try_from_value(value)?))
             }
-            fn extract(value: &mut &str) -> Result<Self>
+            fn parse(input: impl AsRef<str>) -> Result<Self>
             where
                 Self: Sized,
             {
-                T::extract(value).map(Self::new)
+                T::parse(input).map(Self::new)
             }
         }
     };
