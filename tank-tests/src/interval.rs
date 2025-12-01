@@ -121,7 +121,7 @@ pub async fn interval<E: Executor>(executor: &mut E) {
         &true,
         None,
     );
-    let mut stream = pin!(executor.run(query.into()));
+    let mut stream = pin!(executor.run(query));
     let Some(Ok(QueryResult::Affected(RowsAffected { rows_affected, .. }))) = stream.next().await
     else {
         panic!("Could not get the result of deleting the rows")

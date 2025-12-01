@@ -5,7 +5,7 @@ mod tests {
         AsValue, Connection, Executor, QueryResult, indoc::indoc, stream::TryStreamExt,
     };
     use tank_duckdb::DuckDBConnection;
-    use tank_tests::init_logs;
+    use tank_tests::{init_logs, silent_logs};
     use tokio::fs;
 
     static MUTEX: Mutex<()> = Mutex::new(());
@@ -35,11 +35,14 @@ mod tests {
 
     #[tokio::test]
     async fn wrong_url() {
-        assert!(
-            DuckDBConnection::connect("postgres://some_value".into())
-                .await
-                .is_err()
-        );
+        init_logs();
+        silent_logs! {
+            assert!(
+                DuckDBConnection::connect("postgres://some_value".into())
+                    .await
+                    .is_err()
+            );
+        }
     }
 
     #[tokio::test]
@@ -49,15 +52,12 @@ mod tests {
                 .await
                 .expect("Could not open the database");
         let parameters = connection
-            .run(
-                indoc! {r#"
-                        SELECT name, value
-                        FROM duckdb_settings()
-                        WHERE name IN ('threads', 'max_memory');
+            .run(indoc! {r#"
+                SELECT name, value
+                FROM duckdb_settings()
+                WHERE name IN ('threads', 'max_memory');
 
-                    "#}
-                .into(),
-            )
+            "#})
             .try_collect::<Vec<_>>()
             .await
             .expect("Could not get the query result");

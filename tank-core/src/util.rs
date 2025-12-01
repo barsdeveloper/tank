@@ -171,7 +171,7 @@ macro_rules! truncate_long {
     ($query:expr) => {
         format_args!(
             "{}{}",
-            &$query[..::std::cmp::min($query.len(), 497)].trim_end(),
+            &$query[..::std::cmp::min($query.len(), 497)].trim(),
             if $query.len() > 497 { "...\n" } else { "" },
         )
     };
@@ -192,7 +192,7 @@ macro_rules! truncate_long {
 macro_rules! send_value {
     ($tx:ident, $value:expr) => {{
         if let Err(e) = $tx.send($value) {
-            log::error!("{:#}", e);
+            log::error!("{e:#}");
         }
     }};
 }
@@ -283,9 +283,9 @@ macro_rules! impl_executor_transaction {
                 self.$connection.prepare(query)
             }
 
-            fn run(
-                &mut self,
-                query: ::tank_core::Query<Self::Driver>,
+            fn run<'s>(
+                &'s mut self,
+                query: impl ::tank_core::AsQuery<Self::Driver> + 's,
             ) -> impl ::tank_core::stream::Stream<
                 Item = ::tank_core::Result<::tank_core::QueryResult>,
             > + Send {
@@ -294,7 +294,7 @@ macro_rules! impl_executor_transaction {
 
             fn fetch<'s>(
                 &'s mut self,
-                query: ::tank_core::Query<Self::Driver>,
+                query: impl ::tank_core::AsQuery<Self::Driver> + 's,
             ) -> impl ::tank_core::stream::Stream<
                 Item = ::tank_core::Result<::tank_core::RowLabeled>,
             > + Send
@@ -302,9 +302,9 @@ macro_rules! impl_executor_transaction {
                 self.$connection.fetch(query)
             }
 
-            fn execute(
-                &mut self,
-                query: ::tank_core::Query<Self::Driver>,
+            fn execute<'s>(
+                &'s mut self,
+                query: impl ::tank_core::AsQuery<Self::Driver> + 's,
             ) -> impl Future<Output = ::tank_core::Result<::tank_core::RowsAffected>> + Send {
                 self.$connection.execute(query)
             }

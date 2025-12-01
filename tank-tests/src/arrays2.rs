@@ -2,7 +2,7 @@
 use std::{pin::pin, str::FromStr, sync::LazyLock};
 #[allow(unused_imports)]
 use tank::{
-    Driver, Entity, Executor, Interval, QueryResult, SqlWriter,
+    Driver, Entity, Executor, Interval, Query, QueryResult, SqlWriter,
     stream::{StreamExt, TryStreamExt},
 };
 use tokio::sync::Mutex;
@@ -44,7 +44,7 @@ pub async fn arrays2<E: Executor>(executor: &mut E) {
             &true,
             Some(1),
         );
-        let rows = pin!(executor.run(query.into()).try_filter_map(|v| async move {
+        let rows = pin!(executor.run(query).try_filter_map(|v| async move {
             Ok(match v {
                 QueryResult::Row(v) => Some(v),
                 QueryResult::Affected(..) => None,

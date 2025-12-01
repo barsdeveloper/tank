@@ -337,7 +337,7 @@ pub(crate) fn extract_value(
             }
             DUCKDB_TYPE_DUCKDB_TYPE_UUID => Value::Uuid(if is_valid {
                 let data = &*(data as *const duckdb_uhugeint).add(row);
-                // Todo remove first bit swap once this is fixed https://github.com/duckdb/duckdb-rs/issues/519
+                // TODO: remove first bit swap once this is fixed https://github.com/duckdb/duckdb-rs/issues/519
                 Some(Uuid::from_u64_pair(data.upper ^ (1 << 63), data.lower))
             } else {
                 None

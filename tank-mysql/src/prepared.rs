@@ -32,12 +32,15 @@ impl MySQLPrepared {
 }
 
 impl Prepared for MySQLPrepared {
+    fn clear_bindings(&mut self) -> Result<&mut Self> {
+        self.params.clear();
+        Ok(self)
+    }
     fn bind(&mut self, value: impl AsValue) -> Result<&mut Self> {
         let index = self.index;
         self.index += 1;
         self.bind_index(value, index)
     }
-
     fn bind_index(&mut self, value: impl AsValue, index: u64) -> Result<&mut Self> {
         if self.params.is_empty() {
             self.params

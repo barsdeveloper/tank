@@ -62,7 +62,10 @@ pub async fn limits<E: Executor>(executor: &mut E) {
         #[cfg(not(feature = "disable-large-integers"))]
         uint128: 0,
         float32: f32::MIN_POSITIVE,
+        #[cfg(not(feature = "disable-infinity"))]
         float64: f64::NEG_INFINITY,
+        #[cfg(feature = "disable-infinity")]
+        float64: f64::MIN,
         time: Time::from_hms(0, 0, 0).expect("All zero must be correct time"),
         date: Date::from_calendar_date(-2000, Month::January, 01)
             .expect("Very old date must be correct"),
@@ -94,7 +97,10 @@ pub async fn limits<E: Executor>(executor: &mut E) {
     #[cfg(not(feature = "disable-large-integers"))]
     assert_eq!(loaded.uint128, 0);
     assert_eq!(loaded.float32, f32::MIN_POSITIVE);
+    #[cfg(not(feature = "disable-infinity"))]
     assert_eq!(loaded.float64, f64::NEG_INFINITY);
+    #[cfg(feature = "disable-infinity")]
+    assert_eq!(loaded.float64, f64::MIN);
     assert_eq!(loaded.time, Time::from_hms(0, 0, 0).unwrap());
     assert_eq!(
         loaded.date,
@@ -123,7 +129,10 @@ pub async fn limits<E: Executor>(executor: &mut E) {
         #[cfg(not(feature = "disable-large-integers"))]
         uint128: 340_282_366_920_938_463_463_374_607_431_768_211_455,
         float32: f32::MAX,
+        #[cfg(not(feature = "disable-infinity"))]
         float64: f64::INFINITY,
+        #[cfg(feature = "disable-infinity")]
+        float64: f64::MAX,
         time: Time::from_hms_micro(23, 59, 59, 999_999)
             .expect("Close to midnight time must be correct"),
         date: Date::from_calendar_date(9999, Month::December, 31)
@@ -159,7 +168,10 @@ pub async fn limits<E: Executor>(executor: &mut E) {
         340_282_366_920_938_463_463_374_607_431_768_211_455
     );
     assert!((loaded.float32 - f32::MAX).abs() < 0.001);
+    #[cfg(not(feature = "disable-infinity"))]
     assert_eq!(loaded.float64, f64::INFINITY);
+    #[cfg(feature = "disable-infinity")]
+    assert_eq!(loaded.float64, f64::MAX);
     assert_eq!(
         loaded.time,
         Time::from_hms_micro(23, 59, 59, 999_999).unwrap()
@@ -190,7 +202,7 @@ pub async fn limits<E: Executor>(executor: &mut E) {
         &expr!(Limits::boolean),
         None,
     );
-    let mut stream = pin!(executor.run(query.into()));
+    let mut stream = pin!(executor.run(query));
     let Some(Ok(QueryResult::Affected(RowsAffected { rows_affected, .. }))) = stream.next().await
     else {
         panic!("Could not get the result of the first statement");
@@ -223,7 +235,10 @@ pub async fn limits<E: Executor>(executor: &mut E) {
     #[cfg(not(feature = "disable-large-integers"))]
     assert_eq!(loaded.uint128, 0);
     assert!((loaded.float32 - f32::MIN_POSITIVE).abs() < 0.001);
+    #[cfg(not(feature = "disable-infinity"))]
     assert_eq!(loaded.float64, f64::NEG_INFINITY);
+    #[cfg(feature = "disable-infinity")]
+    assert_eq!(loaded.float64, f64::MIN);
     assert_eq!(loaded.time, Time::from_hms(0, 0, 0).unwrap());
     assert_eq!(
         loaded.date,
@@ -254,7 +269,10 @@ pub async fn limits<E: Executor>(executor: &mut E) {
         340_282_366_920_938_463_463_374_607_431_768_211_455
     );
     assert!((loaded.float32 - f32::MAX).abs() < 1E35 && loaded.float32 > 1E38);
+    #[cfg(not(feature = "disable-infinity"))]
     assert_eq!(loaded.float64, f64::INFINITY);
+    #[cfg(feature = "disable-infinity")]
+    assert_eq!(loaded.float64, f64::MIN);
     assert_eq!(
         loaded.time,
         Time::from_hms_micro(23, 59, 59, 999_999).unwrap()

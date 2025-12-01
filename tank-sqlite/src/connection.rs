@@ -2,24 +2,21 @@ use crate::{
     CBox, SQLiteDriver, SQLitePrepared, SQLiteTransaction, error_message_from_ptr,
     extract::{extract_name, extract_value},
 };
-use async_stream::{stream, try_stream};
+use async_stream::try_stream;
+use flume::Sender;
 use libsqlite3_sys::*;
 use std::{
     borrow::Cow,
     ffi::{CStr, CString, c_char, c_int},
-    pin::pin,
-    ptr,
+    mem, ptr,
     sync::{
         Arc,
         atomic::{AtomicPtr, Ordering},
     },
 };
 use tank_core::{
-    Connection, Driver, Error, ErrorContext, Executor, Query, QueryResult, Result, RowLabeled,
-    RowsAffected,
-    future::Either,
-    stream::{Stream, StreamExt, TryStreamExt},
-    truncate_long,
+    AsQuery, Connection, Driver, Error, ErrorContext, Executor, Query, QueryResult, Result,
+    RowLabeled, RowsAffected, send_value, stream::Stream, truncate_long,
 };
 use tokio::task::spawn_blocking;
 
@@ -29,97 +26,121 @@ pub struct SQLiteConnection {
 }
 
 impl SQLiteConnection {
-    pub(crate) fn run_prepared(
-        &mut self,
-        statement: CBox<*mut sqlite3_stmt>,
-    ) -> impl Stream<Item = Result<QueryResult>> {
+    pub(crate) fn do_run_prepared(
+        connection: *mut sqlite3,
+        statement: *mut sqlite3_stmt,
+        tx: Sender<Result<QueryResult>>,
+    ) {
         unsafe {
-            stream! {
-                let count = sqlite3_column_count(*statement);
-                let labels = (0..count)
-                    .map(|i| extract_name(*statement, i))
-                    .collect::<Result<Arc<[_]>>>()?;
-                loop {
-                    match sqlite3_step(*statement) {
-                        SQLITE_BUSY => {
-                            continue;
-                        }
-                        SQLITE_DONE => {
-                            if sqlite3_stmt_readonly(*statement) == 0 {
-                                yield Ok(QueryResult::Affected(RowsAffected {
-                                    rows_affected: sqlite3_changes64(*self.connection) as u64,
-                                    last_affected_id: Some(sqlite3_last_insert_rowid(*self.connection)),
+            let count = sqlite3_column_count(statement);
+            let labels = match (0..count)
+                .map(|i| extract_name(statement, i))
+                .collect::<Result<Arc<[_]>>>()
+            {
+                Ok(labels) => labels,
+                Err(error) => {
+                    send_value!(tx, Err(error.into()));
+                    return;
+                }
+            };
+            loop {
+                match sqlite3_step(statement) {
+                    SQLITE_BUSY => {
+                        continue;
+                    }
+                    SQLITE_DONE => {
+                        if sqlite3_stmt_readonly(statement) == 0 {
+                            send_value!(
+                                tx,
+                                Ok(QueryResult::Affected(RowsAffected {
+                                    rows_affected: sqlite3_changes64(connection) as u64,
+                                    last_affected_id: Some(sqlite3_last_insert_rowid(connection)),
                                 }))
-                            }
-                            break;
-                        }
-                        SQLITE_ROW => {
-                            yield Ok(QueryResult::Row(RowLabeled {
-                                labels: labels.clone(),
-                                values: (0..count).map(|i| extract_value(*statement, i)).collect()?,
-                            }))
-                        }
-                        _ => {
-                            let error = Error::msg(
-                                error_message_from_ptr(&sqlite3_errmsg(sqlite3_db_handle(*statement)))
-                                    .to_string(),
                             );
-                            yield Err(error);
                         }
+                        break;
+                    }
+                    SQLITE_ROW => {
+                        let values = match (0..count)
+                            .map(|i| extract_value(statement, i))
+                            .collect::<Result<_>>()
+                        {
+                            Ok(value) => value,
+                            Err(error) => {
+                                send_value!(tx, Err(error));
+                                return;
+                            }
+                        };
+                        send_value!(
+                            tx,
+                            Ok(QueryResult::Row(RowLabeled {
+                                labels: labels.clone(),
+                                values: values,
+                            }))
+                        )
+                    }
+                    _ => {
+                        send_value!(
+                            tx,
+                            Err(Error::msg(
+                                error_message_from_ptr(&sqlite3_errmsg(sqlite3_db_handle(
+                                    statement,
+                                )))
+                                .to_string(),
+                            ))
+                        );
+                        return;
                     }
                 }
             }
         }
     }
 
-    pub(crate) fn run_unprepared(
-        &mut self,
-        sql: String,
-    ) -> impl Stream<Item = Result<QueryResult>> {
-        try_stream! {
-            let mut len = sql.trim_end().len();
-            let bytes = sql.into_bytes();
-            let mut it = CBox::new(bytes.as_ptr() as *const c_char, |_| {});
+    pub(crate) fn do_run_unprepared(
+        connection: *mut sqlite3,
+        sql: &str,
+        tx: Sender<Result<QueryResult>>,
+    ) {
+        unsafe {
+            let sql = sql.trim();
+            let mut it = sql.as_ptr() as *const c_char;
+            let mut len = sql.len();
             loop {
-                let connection = CBox::new(*self.connection, |_| {});
-                let sql = CBox::new(*it, |_| {});
-                let (statement, tail) = spawn_blocking(move || unsafe {
-                    let mut statement = CBox::new(ptr::null_mut(), |p| {
+                let (statement, tail) = {
+                    let mut statement = SQLitePrepared::new(CBox::new(ptr::null_mut(), |p| {
                         sqlite3_finalize(p);
-                    });
-                    let mut sql_tail = CBox::new(ptr::null(), |_| {});
+                    }));
+                    let mut sql_tail = ptr::null();
                     let rc = sqlite3_prepare_v2(
-                        *connection,
-                        *sql,
+                        connection,
+                        it,
                         len as c_int,
-                        &mut *statement,
-                        &mut *sql_tail,
+                        &mut *statement.statement,
+                        &mut sql_tail,
                     );
                     if rc != SQLITE_OK {
-                        return Err(Error::msg(
-                            error_message_from_ptr(&sqlite3_errmsg(*connection)).to_string(),
-                        ));
+                        send_value!(
+                            tx,
+                            Err(Error::msg(
+                                error_message_from_ptr(&sqlite3_errmsg(connection)).to_string(),
+                            ))
+                        );
+                        return;
                     }
-                    Ok((statement, sql_tail))
-                })
-                .await??;
-                let mut stream = pin!(self.run_prepared(statement));
-                while let Some(value) = stream.next().await {
-                    yield value?
+                    (statement, sql_tail)
+                };
+                Self::do_run_prepared(connection, statement.statement(), tx.clone());
+                len = if tail != ptr::null() {
+                    len - tail.offset_from_unsigned(it)
+                } else {
+                    0
+                };
+                if len == 0 {
+                    break;
                 }
-                unsafe {
-                    len = if *tail != ptr::null() {
-                        len - tail.offset_from_unsigned(*it)
-                    } else {
-                        0
-                    };
-                    if len == 0 {
-                        break;
-                    }
-                }
-                *it = *tail;
+                it = tail;
             }
-        }
+        };
     }
 }
 
@@ -173,20 +194,38 @@ impl Executor for SQLiteConnection {
         Ok(SQLitePrepared::new(prepared?).into())
     }
 
-    fn run(
-        &mut self,
-        query: Query<Self::Driver>,
+    fn run<'s>(
+        &'s mut self,
+        query: impl AsQuery<Self::Driver> + 's,
     ) -> impl Stream<Item = Result<QueryResult>> + Send {
-        let context = Arc::new(format!("While executing the query:\n{}", query));
-        match query {
-            Query::Raw(sql) => Either::Left(self.run_unprepared(sql)),
-            Query::Prepared(prepared) => Either::Right(self.run_prepared(prepared.statement)),
+        let mut query = query.as_query();
+        let context = Arc::new(format!("While executing the query:\n{}", query.as_mut()));
+        let (tx, rx) = flume::unbounded::<Result<QueryResult>>();
+        let connection = AtomicPtr::new(*self.connection);
+        let mut owned = mem::take(query.as_mut());
+        let join = spawn_blocking(move || {
+            match &mut owned {
+                Query::Raw(query) => {
+                    Self::do_run_unprepared(connection.load(Ordering::Relaxed), query, tx);
+                }
+                Query::Prepared(prepared) => Self::do_run_prepared(
+                    connection.load(Ordering::Relaxed),
+                    prepared.statement(),
+                    tx,
+                ),
+            }
+            owned
+        });
+        try_stream! {
+            while let Ok(result) = rx.recv_async().await {
+                yield result.map_err(|e| {
+                    let error = e.context(context.clone());
+                    log::error!("{:#}", error);
+                    error
+                })?;
+            }
+            *query.as_mut() = mem::take(&mut join.await?);
         }
-        .map_err(move |e| {
-            let error = e.context(context.clone());
-            log::error!("{:#}", error);
-            error
-        })
     }
 }
 

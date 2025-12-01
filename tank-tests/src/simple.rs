@@ -8,7 +8,7 @@ use std::{
 };
 #[allow(unused_imports)]
 use tank::{
-    Driver, Entity, Executor, FixedDecimal, QueryResult, RowsAffected, SqlWriter,
+    Driver, Entity, Executor, FixedDecimal, Query, QueryResult, RowsAffected, SqlWriter,
     stream::TryStreamExt,
 };
 use time::{Date, Time, macros::date};
@@ -115,7 +115,7 @@ pub async fn simple<E: Executor>(executor: &mut E) {
             None,
         );
         {
-            let mut stream = pin!(executor.run(query.into()));
+            let mut stream = pin!(executor.run(query));
             let result = stream
                 .try_next()
                 .await
@@ -231,7 +231,7 @@ pub async fn simple<E: Executor>(executor: &mut E) {
             None,
         );
         {
-            let mut stream = pin!(executor.run(query.into()));
+            let mut stream = pin!(executor.run(query));
             let Ok(Some(QueryResult::Affected(RowsAffected { rows_affected, .. }))) =
                 stream.try_next().await
             else {

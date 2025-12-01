@@ -1,9 +1,9 @@
 use crate::{MySQLDriver, MySQLPrepared, MySQLTransaction, RowWrap};
 use async_stream::try_stream;
 use mysql_async::{Conn, Opts, prelude::Queryable};
-use std::{borrow::Cow, sync::Arc};
+use std::{borrow::Cow, mem, sync::Arc};
 use tank_core::{
-    Connection, Driver, Error, ErrorContext, Executor, Query, Result,
+    AsQuery, Connection, Driver, Error, ErrorContext, Executor, Query, Result,
     stream::{Stream, StreamExt, TryStreamExt},
     truncate_long,
 };
@@ -21,19 +21,19 @@ impl Executor for MySQLConnection {
     }
 
     async fn prepare(&mut self, query: String) -> Result<Query<Self::Driver>> {
-        Ok(Query::Prepared(MySQLPrepared::new(
-            self.connection.prep(query).await?,
-        )))
+        Ok(MySQLPrepared::new(self.connection.prep(query).await?).into())
     }
 
-    fn run(
-        &mut self,
-        query: Query<Self::Driver>,
+    fn run<'s>(
+        &'s mut self,
+        mut query: impl AsQuery<Self::Driver> + 's,
     ) -> impl Stream<Item = Result<tank_core::QueryResult>> + Send {
-        let context = Arc::new(format!("While running the query:\n{}", query));
+        let mut query = query.as_query();
+        let context = Arc::new(format!("While running the query:\n{}", query.as_mut()));
         try_stream! {
-            match query {
+            match query.as_mut() {
                 Query::Raw(sql) => {
+                    let sql = sql.as_str();
                     let mut result = self.connection.query_iter(sql).await?;
                     let mut rows = 0;
                     while let Some(mut stream) = result.stream::<RowWrap>().await? {
@@ -50,11 +50,11 @@ impl Executor for MySQLConnection {
                         });
                     }
                 }
-                Query::Prepared(mut prepared) => {
+                Query::Prepared(prepared) => {
                     let params = prepared.take_params()?;
                     let mut stream = self
                         .connection
-                        .exec_stream::<RowWrap, _, _>(prepared.statement, params)
+                        .exec_stream::<RowWrap, _, _>(&prepared.statement, params)
                         .await?;
                     while let Some(row) = stream.next().await.transpose()? {
                         yield row.0.into()

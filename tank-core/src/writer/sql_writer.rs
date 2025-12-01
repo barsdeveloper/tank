@@ -162,6 +162,7 @@ pub trait SqlWriter {
                 self.write_column_type(context, out, value);
                 out.push(')');
             }
+            Value::Json(..) => out.push_str("JSON"),
             _ => log::error!(
                 "Unexpected tank::Value, variant {:?} is not supported",
                 value

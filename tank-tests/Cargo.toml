@@ -19,6 +19,7 @@ uuid = { workspace = true, features = ["v4"] }
 
 [features]
 disable-arrays = []
+disable-infinity = []
 disable-intervals = []
 disable-large-integers = []
 disable-lists = []

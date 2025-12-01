@@ -98,7 +98,7 @@ pub async fn multiple<E: Executor>(executor: &mut E) {
     writer.write_select(&mut sql, [Two::a2, Two::string], Two::table(), &true, None);
     sql.push_str("            \t    \t\t  \n \n \n \t    \n\n\n ");
     let result = executor
-        .run(sql.into())
+        .run(sql)
         .try_collect::<Vec<_>>()
         .await
         .expect("Could not run the composite query");

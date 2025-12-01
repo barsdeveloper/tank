@@ -222,7 +222,7 @@ writer.write_select(
     Some(50),
 );
 {
-    let mut stream = pin!(executor.run(sql.into()));
+    let mut stream = pin!(executor.run(sql));
     while let Some(result) = stream.try_next().await? {
         match result {
             QueryResult::Row(row) => log::debug!("Row: {row:?}"),

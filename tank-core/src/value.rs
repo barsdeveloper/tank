@@ -2,6 +2,7 @@ use crate::{AsValue, Error, Result, interval::Interval};
 use proc_macro2::TokenStream;
 use quote::{ToTokens, quote};
 use rust_decimal::Decimal;
+use serde_json::Value as JsonValue;
 use std::{collections::HashMap, hash::Hash, mem::discriminant};
 use time::{Date, OffsetDateTime, PrimitiveDateTime, Time};
 use uuid::Uuid;
@@ -54,6 +55,7 @@ pub enum Value {
         /* key: */ Box<Value>,
         /* value: */ Box<Value>,
     ),
+    Json(Option<JsonValue>),
     /// Struct with named fields and their types.
     Struct(
         Option<Vec<(String, Value)>>,
@@ -110,6 +112,7 @@ impl Value {
             | Value::Array(None, ..)
             | Value::List(None, ..)
             | Value::Map(None, ..)
+            | Value::Json(None, ..)
             | Value::Struct(None, ..)
             | Value::Unknown(None, ..) => true,
             _ => false,
@@ -145,6 +148,7 @@ impl Value {
             Value::Array(.., t, len) => Value::Array(None, t.clone(), *len),
             Value::List(.., t) => Value::List(None, t.clone()),
             Value::Map(.., k, v) => Value::Map(None, k.clone(), v.clone()),
+            Value::Json(..) => Value::Json(None),
             Value::Struct(.., t) => Value::Struct(None, t.clone()),
             Value::Unknown(..) => Value::Unknown(None),
         }
@@ -239,6 +243,7 @@ impl PartialEq for Value {
                 l.is_empty() == r.is_empty() && self.same_type(other)
             }
             (Self::Map(..), Self::Map(..)) => self.same_type(other),
+            (Self::Json(l), Self::Json(r)) => l == r,
             (Self::Unknown(..), Self::Unknown(..)) => false,
             _ => false,
         }
@@ -309,6 +314,7 @@ impl Hash for Value {
                 key.hash(state);
                 val.hash(state);
             }
+            Json(v) => v.hash(state),
             Struct(v, t) => {
                 match v {
                     Some(v) => v.hash(state),
@@ -375,6 +381,7 @@ impl ToTokens for Value {
                 let value = value.as_ref().to_token_stream();
                 quote!(::tank::Value::Map(None, Box::new(#key), Box::new(#value)))
             }
+            Value::Json(..) => quote!(::tank::Value::Json(None)),
             Value::Struct(.., t) => {
                 let values = t.into_iter().map(|(k, v)| quote!((#k.into(), #v)));
                 quote!(::tank::Value::Struct(None, vec!(#(#values),*)))

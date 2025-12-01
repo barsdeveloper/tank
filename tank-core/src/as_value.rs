@@ -4,6 +4,7 @@ use crate::{
 };
 use anyhow::Context;
 use rust_decimal::{Decimal, prelude::FromPrimitive, prelude::ToPrimitive};
+use serde_json::Value as JsonValue;
 use std::{
     any,
     borrow::Cow,
@@ -81,7 +82,7 @@ pub trait AsValue {
         Self: Sized,
     {
         Err(Error::msg(format!(
-            "Cannot parse '{}' as {}",
+            "Cannot parse '{}' as {} (the parse method is not implemented)",
             truncate_long!(input.as_ref()),
             any::type_name::<Self>()
         )))
@@ -132,6 +133,18 @@ macro_rules! impl_as_value {
                             )));
                         }
                         Ok(v as $source)
+                    }
+                    Value::Json(Some(v), ..) => {
+                        if let JsonValue::Number(v) = &v {
+                            if let Some(v) = v.as_i128()
+                                && v.clamp(<$source>::MIN as _, <$source>::MAX as _) != v as i128 {
+                                return Ok(v as _);
+                            }
+                        }
+                        Err(Error::msg(format!(
+                            "Value {v}: Json cannot be converted to {}",
+                            any::type_name::<Self>(),
+                        )))
                     }
                     Value::Unknown(Some(ref v), ..) => Self::parse(v),
                     _ => Err(Error::msg(format!(
@@ -931,7 +944,7 @@ impl<T: AsValue> AsValue for Option<T> {
     }
 }
 
-// TODO: USe the macro below once box_into_inner is stabilized
+// TODO: Use the macro below once box_into_inner is stabilized
 impl<T: AsValue> AsValue for Box<T> {
     fn as_empty_value() -> Value {
         T::as_empty_value()

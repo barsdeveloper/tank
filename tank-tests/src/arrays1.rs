@@ -1,6 +1,6 @@
 use std::{borrow::Cow, pin::pin, sync::LazyLock};
 #[allow(unused_imports)]
-use tank::{Driver, Entity, Executor, QueryResult, SqlWriter, cols, stream::TryStreamExt};
+use tank::{Driver, Entity, Executor, Query, QueryResult, SqlWriter, cols, stream::TryStreamExt};
 use tokio::sync::Mutex;
 
 #[derive(Entity, Debug, PartialEq)]
@@ -160,7 +160,7 @@ pub async fn arrays1<E: Executor>(executor: &mut E) {
             &true,
             None,
         );
-        let rows = pin!(executor.run(query.into()).try_filter_map(|v| async move {
+        let rows = pin!(executor.run(query).try_filter_map(|v| async move {
             Ok(match v {
                 QueryResult::Row(v) => Some(v),
                 QueryResult::Affected(..) => None,

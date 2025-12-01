@@ -2,8 +2,8 @@
 use std::{collections::HashSet, pin::pin, sync::LazyLock};
 #[allow(unused_imports)]
 use tank::{
-    AsValue, DataSet, Driver, Entity, Executor, Passive, QueryResult, RowLabeled, SqlWriter, Value,
-    cols, expr, join,
+    AsValue, DataSet, Driver, Entity, Executor, Passive, Query, QueryResult, RowLabeled, SqlWriter,
+    Value, cols, expr, join,
     stream::{StreamExt, TryStreamExt},
 };
 use tokio::sync::Mutex;
@@ -379,7 +379,7 @@ pub async fn books<E: Executor>(executor: &mut E) {
             &expr!(Book::title == "Harry Potter and the Deathly Hallows"),
             Some(1),
         );
-        let mut stream = pin!(executor.run(query.into()));
+        let mut stream = pin!(executor.run(query));
         let Some(Ok(QueryResult::Row(row))) = stream.next().await else {
             panic!("Could not get the first row")
         };

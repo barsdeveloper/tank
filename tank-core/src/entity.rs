@@ -178,7 +178,7 @@ pub trait Entity {
             .driver()
             .sql_writer()
             .write_insert(&mut query, [self], true);
-        Either::Right(executor.execute(query.into()).map_ok(|_| ()))
+        Either::Right(executor.execute(query).map_ok(|_| ()))
     }
 
     /// Deletes this entity instance via its primary key.

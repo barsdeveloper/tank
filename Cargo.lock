@@ -2798,6 +2798,7 @@ dependencies = [
 name = "tank-duckdb"
 version = "0.10.0"
 dependencies = [
+ "async-stream",
  "flume",
  "libduckdb-sys",
  "log",
@@ -2868,6 +2869,7 @@ name = "tank-sqlite"
 version = "0.10.0"
 dependencies = [
  "async-stream",
+ "flume",
  "libsqlite3-sys",
  "log",
  "rust_decimal",

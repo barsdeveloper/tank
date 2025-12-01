@@ -10,7 +10,7 @@ categories.workspace = true
 
 [dependencies]
 anyhow.workspace = true
-async-stream = "0"
+async-stream.workspace = true
 futures.workspace = true
 hex = "0"
 indoc.workspace = true
@@ -20,7 +20,7 @@ proc-macro2.workspace = true
 quote.workspace = true
 rust_decimal.workspace = true
 ryu = "1"
-serde_json = "1"
+serde_json.workspace = true
 syn.workspace = true
 time.workspace = true
 tokio = { version = "1", features = ["sync"] }

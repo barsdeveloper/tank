@@ -17,7 +17,7 @@ impl<'c> DuckDBTransaction<'c> {
             .driver()
             .sql_writer()
             .write_transaction_begin(&mut sql);
-        result.connection.execute(sql.into()).await?;
+        result.connection.execute(sql).await?;
         Ok(result)
     }
 }
@@ -29,7 +29,7 @@ impl<'c> Transaction<'c> for DuckDBTransaction<'c> {
         self.driver()
             .sql_writer()
             .write_transaction_commit(&mut sql);
-        self.connection.execute(sql.into()).map_ok(|_| ())
+        self.connection.execute(sql).map_ok(|_| ())
     }
 
     fn rollback(self) -> impl Future<Output = Result<()>> {
@@ -37,6 +37,6 @@ impl<'c> Transaction<'c> for DuckDBTransaction<'c> {
         self.driver()
             .sql_writer()
             .write_transaction_rollback(&mut sql);
-        self.connection.execute(sql.into()).map_ok(|_| ())
+        self.connection.execute(sql).map_ok(|_| ())
     }
 }

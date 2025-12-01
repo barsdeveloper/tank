@@ -1,15 +1,17 @@
 use crate::{
     PostgresDriver, PostgresPrepared, PostgresTransaction, ValueWrap,
     util::{
-        stream_postgres_row_to_tank_row, stream_postgres_simple_query_message_to_tank_query_result,
+        row_to_tank_row, stream_postgres_row_to_tank_row,
+        stream_postgres_simple_query_message_to_tank_query_result,
     },
 };
 use async_stream::try_stream;
 use openssl::ssl::{SslConnector, SslFiletype, SslMethod, SslVerifyMode};
 use postgres_openssl::MakeTlsConnector;
-use std::{borrow::Cow, env, path::PathBuf, pin::pin, str::FromStr, sync::Arc};
+use std::{borrow::Cow, env, mem, path::PathBuf, pin::pin, str::FromStr, sync::Arc};
 use tank_core::{
-    Connection, Driver, Error, ErrorContext, Executor, Query, QueryResult, Result, Transaction,
+    AsQuery, Connection, Driver, Error, ErrorContext, Executor, Query, QueryResult, Result,
+    Transaction,
     future::Either,
     stream::{Stream, StreamExt, TryStreamExt},
     truncate_long,
@@ -48,12 +50,14 @@ impl Executor for PostgresConnection {
         )
     }
 
-    fn run(
-        &mut self,
-        query: Query<Self::Driver>,
+    fn run<'s>(
+        &'s mut self,
+        query: impl AsQuery<Self::Driver> + 's,
     ) -> impl Stream<Item = Result<QueryResult>> + Send {
-        let context = Arc::new(format!("While running the query:\n{}", query));
-        match query {
+        let mut query = query.as_query();
+        let context = Arc::new(format!("While running the query:\n{}", query.as_mut()));
+        let mut owned = mem::take(query.as_mut());
+        match owned {
             Query::Raw(sql) => {
                 Either::Left(stream_postgres_simple_query_message_to_tank_query_result(
                     async move || self.client.simple_query_raw(&sql).await.map_err(Into::into),
@@ -62,12 +66,13 @@ impl Executor for PostgresConnection {
             Query::Prepared(..) => Either::Right(try_stream! {
                 let mut transaction = self.begin().await?;
                 {
-                    let mut stream = pin!(transaction.run(query));
+                    let mut stream = pin!(transaction.run(&mut owned));
                     while let Some(value) = stream.next().await.transpose()? {
                         yield value;
                     }
                 }
                 transaction.commit().await?;
+                *query.as_mut() = mem::take(&mut owned);
             }),
         }
         .map_err(move |e: Error| {
@@ -79,25 +84,45 @@ impl Executor for PostgresConnection {
 
     fn fetch<'s>(
         &'s mut self,
-        query: Query<Self::Driver>,
+        query: impl AsQuery<Self::Driver> + 's,
     ) -> impl Stream<Item = Result<tank_core::RowLabeled>> + Send + 's {
-        let context = Arc::new(format!("While fetching the query:\n{}", query));
-        match query {
-            Query::Raw(sql) => Either::Left(stream_postgres_row_to_tank_row(async move || {
-                self.client
-                    .query_raw(&sql, Vec::<ValueWrap>::new())
-                    .await
-                    .map_err(|e| {
-                        let error = Error::new(e).context(context.clone());
-                        log::error!("{:#}", error);
-                        error
-                    })
-            })),
-            Query::Prepared(..) => Either::Right(
+        let mut query = query.as_query();
+        let context = Arc::new(format!("While fetching the query:\n{}", query.as_mut()));
+        let mut owned = mem::take(query.as_mut());
+        match owned {
+            Query::Raw(sql) => {
+                let stream = async move || {
+                    self.client
+                        .query_raw(&sql, Vec::<ValueWrap>::new())
+                        .await
+                        .map_err(|e| {
+                            let error = Error::new(e).context(context.clone());
+                            log::error!("{:#}", error);
+                            error
+                        })
+                };
+                let stream = try_stream! {
+                    let stream = stream().await?;
+                    let mut stream = pin!(stream);
+                    let mut labels: Option<tank_core::RowNames> = None;
+                    while let Some(row) = stream.next().await.transpose()? {
+                        let labels = labels.get_or_insert_with(|| {
+                            row.columns().iter().map(|c| c.name().to_string()).collect()
+                        });
+                        yield tank_core::RowLabeled {
+                            labels: labels.clone(),
+                            values: row_to_tank_row(row)?.into(),
+                        };
+                    }
+                };
+                Either::Left(stream)
+            }
+            Query::Prepared(prepared) => Either::Right(
                 try_stream! {
                     let mut transaction = self.begin().await?;
                     {
-                        let mut stream = pin!(transaction.fetch(query));
+                        let mut query = Query::Prepared(prepared);
+                        let mut stream = pin!(transaction.fetch(&mut query));
                         while let Some(value) = stream.next().await.transpose()? {
                             yield value;
                         }

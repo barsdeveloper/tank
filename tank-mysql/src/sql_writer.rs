@@ -71,6 +71,7 @@ impl SqlWriter for MySQLSqlWriter {
             Value::Array(..) => out.push_str("JSON"),
             Value::List(..) => out.push_str("JSON"),
             Value::Map(..) => out.push_str("JSON"),
+            Value::Json(..) => out.push_str("JSON"),
             _ => log::error!(
                 "Unexpected tank::Value, variant {:?} is not supported",
                 value
@@ -79,10 +80,13 @@ impl SqlWriter for MySQLSqlWriter {
     }
 
     fn write_value_infinity(&self, context: &mut Context, out: &mut String, negative: bool) {
-        if negative {
-            out.push('-');
-        }
-        out.push_str("1.0e+10000");
+        log::error!("MySQL does not support float infinity values, will write NULL instead");
+        self.write_value_none(context, out);
+    }
+
+    fn write_value_nan(&self, context: &mut Context, out: &mut String) {
+        log::warn!("MySQL does not support float NaN values, will write NULL instead");
+        self.write_value_none(context, out);
     }
 
     fn write_value_interval(&self, context: &mut Context, out: &mut String, value: &Interval) {

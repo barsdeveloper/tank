@@ -1,9 +1,11 @@
+use std::mem;
+
 use crate::{
     PostgresConnection, PostgresDriver, PostgresPrepared, ValueWrap,
     util::stream_postgres_row_to_tank_row,
 };
 use tank_core::{
-    Error, Executor, Query, QueryResult, Result, Transaction,
+    AsQuery, Error, Executor, Query, QueryResult, Result, Transaction,
     future::{Either, TryFutureExt},
     stream::{Stream, TryStreamExt},
 };
@@ -34,15 +36,18 @@ impl<'c> Executor for PostgresTransaction<'c> {
             .into(),
         )
     }
-    fn run(
-        &mut self,
-        query: Query<Self::Driver>,
+    fn run<'s>(
+        &'s mut self,
+        query: impl AsQuery<Self::Driver> + 's,
     ) -> impl Stream<Item = Result<QueryResult>> + Send {
-        stream_postgres_row_to_tank_row(async move || match query {
-            Query::Raw(sql) => Ok(Either::Left(
-                self.0.query_raw(&sql, Vec::<ValueWrap>::new()).await?,
-            )),
-            Query::Prepared(mut prepared) => {
+        let mut query = query.as_query();
+        let mut owned = mem::take(query.as_mut());
+        stream_postgres_row_to_tank_row(async move || match &mut owned {
+            Query::Raw(sql) => {
+                let stream = self.0.query_raw(sql, Vec::<ValueWrap>::new()).await?;
+                Ok(Either::Left(stream))
+            }
+            Query::Prepared(prepared) => {
                 let portal = if !prepared.is_complete() {
                     prepared.complete(self).await?
                 } else {

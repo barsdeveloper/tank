@@ -188,8 +188,8 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                     &mut query,
                     if_not_exists,
                 );
-                executor
-                    .execute(::tank::Query::Raw(query.into()))
+                // Remove the box pin wrapper once once https://github.com/rust-lang/rust/issues/100013 is fixed
+                ::tank::future::FutureExt::boxed(executor.execute(query))
                     .await
                     .map(|_| ())
             }
@@ -212,8 +212,8 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                         true,
                     );
                 }
-                executor
-                    .execute(::tank::Query::Raw(query.into()))
+                // Remove the FutureExt::boxed wrapper once https://github.com/rust-lang/rust/issues/100013 is fixed
+                ::tank::future::FutureExt::boxed(executor.execute(query))
                     .await
                     .map(|_| ())
             }
@@ -229,7 +229,7 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                     [entity],
                     false,
                 );
-                executor.execute(::tank::Query::Raw(query.into()))
+                executor.execute(query)
             }
 
             fn insert_many<'a, It>(
@@ -259,7 +259,8 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                         &condition,
                         Some(1),
                     );
-                    let mut stream = std::pin::pin!(stream);
+                    // Replace StreamExt::boxed wrapper with ::std::pin::pin! once https://github.com/rust-lang/rust/issues/100013 is fixed
+                    let mut stream = ::tank::stream::StreamExt::boxed(stream);
                     ::tank::stream::StreamExt::next(&mut stream)
                         .await
                         .map(|v| v.and_then(Self::from_row))
@@ -301,7 +302,7 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                     &mut query,
                     &condition,
                 );
-                executor.execute(::tank::Query::Raw(query.into()))
+                executor.execute(query)
             }
 
             fn delete_many(
@@ -317,7 +318,7 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                     &mut query,
                     condition,
                 );
-                executor.execute(::tank::Query::Raw(query.into()))
+                executor.execute(query)
             }
         }
     }

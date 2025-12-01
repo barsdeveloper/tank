@@ -6,7 +6,6 @@ use crate::{
 };
 use std::{
     fmt::{self, Display},
-    pin::pin,
     sync::Arc,
 };
 
@@ -14,7 +13,6 @@ use std::{
 ///
 /// Represents either raw SQL (`Raw`) or a backend prepared statement
 /// (`Prepared`) carrying driver-specific caching / parsing state.
-#[derive(Clone)]
 pub enum Query<D: Driver> {
     /// Unprepared SQL text.
     Raw(String),
@@ -22,28 +20,77 @@ pub enum Query<D: Driver> {
     Prepared(D::Prepared),
 }
 
-impl<D: Driver> Query<D> {
+impl<'d, D: Driver> Query<D>
+where
+    D: 'd,
+{
     /// Execute the query streaming heterogeneous [`QueryResult`] items.
-    pub fn run<'e, Exec: Executor<Driver = D>>(
+    pub fn run<Exec: Executor<Driver = D>>(
         self,
-        executor: &mut Exec,
+        executor: &'d mut Exec,
     ) -> impl Stream<Item = Result<QueryResult>> + Send {
         executor.run(self)
     }
     /// Fetch at most one labeled row.
     pub fn fetch_one<Exec: Executor<Driver = D>>(
         self,
-        executor: &mut Exec,
+        executor: &'d mut Exec,
     ) -> impl Future<Output = Result<Option<RowLabeled>>> + Send {
-        let stream = executor.fetch(self);
-        async move { pin!(stream).into_future().map(|(v, _)| v).await.transpose() }
+        // TODO: replace boxed with pin! once https://github.com/rust-lang/rust/issues/100013 is fixed
+        async {
+            executor
+                .fetch(self)
+                .boxed()
+                .into_future()
+                .map(|(v, _)| v.transpose())
+                .await
+        }
     }
     /// Stream all labeled rows.
     pub fn fetch_many<Exec: Executor<Driver = D>>(
         self,
-        executor: &mut Exec,
+        executor: &'d mut Exec,
     ) -> impl Stream<Item = Result<RowLabeled>> + Send {
         executor.fetch(self)
+    }
+}
+
+pub trait AsQuery<D: Driver> {
+    type Output: AsMut<Query<D>> + Send;
+    fn as_query(self) -> Self::Output;
+}
+
+impl<D: Driver> AsQuery<D> for Query<D> {
+    type Output = Query<D>;
+    fn as_query(self) -> Self::Output {
+        self
+    }
+}
+
+impl<'q, D: Driver + 'q> AsQuery<D> for &'q mut Query<D> {
+    type Output = &'q mut Query<D>;
+    fn as_query(self) -> Self::Output {
+        self
+    }
+}
+
+impl<D: Driver> AsQuery<D> for String {
+    type Output = Query<D>;
+    fn as_query(self) -> Self::Output {
+        Query::Raw(self)
+    }
+}
+
+impl<D: Driver> AsQuery<D> for &str {
+    type Output = Query<D>;
+    fn as_query(self) -> Self::Output {
+        Query::Raw(self.to_owned())
+    }
+}
+
+impl<D: Driver> Default for Query<D> {
+    fn default() -> Self {
+        Self::Raw(Default::default())
     }
 }
 
@@ -75,6 +122,12 @@ impl<D: Driver> Display for Query<D> {
             Query::Raw(query) => write!(f, "{}", truncate_long!(query)),
             Query::Prepared(query) => query.fmt(f),
         }
+    }
+}
+
+impl<D: Driver> AsMut<Query<D>> for Query<D> {
+    fn as_mut(&mut self) -> &mut Query<D> {
+        self
     }
 }
 

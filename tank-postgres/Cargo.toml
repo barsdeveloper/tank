@@ -9,7 +9,7 @@ repository.workspace = true
 categories.workspace = true
 
 [dependencies]
-async-stream = "0"
+async-stream.workspace = true
 byteorder = "1"
 bytes = "1"
 log.workspace = true

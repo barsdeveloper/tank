@@ -1011,7 +1011,7 @@ mod tests {
         assert_eq!(
             Vec::<bool>::try_from_value(Value::List(None, Value::Boolean(None).into()))
                 .expect("Cannot convert null list to Vector"),
-            Vec::new()
+            Vec::<bool>::new()
         );
     }
 

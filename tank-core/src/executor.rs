@@ -45,7 +45,7 @@ might perform effects before awaiting, but relying on that is undefined behavior
 "#]
 
 use crate::{
-    Driver, Entity, Query, QueryResult, Result, RowLabeled, RowsAffected,
+    AsQuery, Driver, Entity, Query, QueryResult, Result, RowLabeled, RowsAffected,
     stream::{Stream, StreamExt, TryStreamExt},
     writer::SqlWriter,
 };
@@ -89,8 +89,10 @@ pub trait Executor: Send + Sized {
     ///
     /// Errors:
     /// - Emitted inline in the stream; consumers should use `TryStreamExt`.
-    fn run(&mut self, query: Query<Self::Driver>)
-    -> impl Stream<Item = Result<QueryResult>> + Send;
+    fn run<'s>(
+        &'s mut self,
+        query: impl AsQuery<Self::Driver> + 's,
+    ) -> impl Stream<Item = Result<QueryResult>> + Send;
 
     /// Run a query and stream only labeled rows, filtering out non-row results.
     ///
@@ -100,7 +102,7 @@ pub trait Executor: Send + Sized {
     /// Each error from `run` is forwarded; affected-count results are discarded.
     fn fetch<'s>(
         &'s mut self,
-        query: Query<Self::Driver>,
+        query: impl AsQuery<Self::Driver> + 's,
     ) -> impl Stream<Item = Result<RowLabeled>> + Send + 's {
         self.run(query).filter_map(|v| async move {
             match v {
@@ -118,9 +120,9 @@ pub trait Executor: Send + Sized {
     ///
     /// If a driver returns multiple `QueryResult::Affected` values, they are combined via `FromIterator`
     /// (driver/module must provide the appropriate implementation).
-    fn execute(
-        &mut self,
-        query: Query<Self::Driver>,
+    fn execute<'s>(
+        &'s mut self,
+        query: impl AsQuery<Self::Driver> + 's,
     ) -> impl Future<Output = Result<RowsAffected>> + Send {
         self.run(query)
             .filter_map(|v| async move {
@@ -156,6 +158,6 @@ pub trait Executor: Send + Sized {
         self.driver()
             .sql_writer()
             .write_insert(&mut query, entities, false);
-        self.execute(query.into())
+        self.execute(query)
     }
 }

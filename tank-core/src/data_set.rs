@@ -35,7 +35,7 @@ pub trait DataSet {
             .driver()
             .sql_writer()
             .write_select(&mut query, columns, self, condition, limit);
-        executor.fetch(query.into())
+        executor.fetch(query)
     }
     /// Prepare (but do not yet run) a SQL select query.
     fn prepare<Item, Cols, Exec, Expr>(
@@ -57,7 +57,7 @@ pub trait DataSet {
             .driver()
             .sql_writer()
             .write_select(&mut query, columns, self, condition, limit);
-        executor.prepare(query.into())
+        executor.prepare(query)
     }
 }
 

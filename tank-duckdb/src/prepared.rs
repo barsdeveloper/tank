@@ -16,29 +16,35 @@ pub struct DuckDBPrepared {
 }
 impl DuckDBPrepared {
     pub(crate) fn new(statement: CBox<duckdb_prepared_statement>) -> Self {
-        unsafe {
-            duckdb_clear_bindings(*statement);
-        }
         Self {
-            statement,
+            statement: statement.into(),
             index: 1,
         }
+    }
+    pub(crate) fn statement(&self) -> duckdb_prepared_statement {
+        *self.statement
     }
 }
 
 impl Display for DuckDBPrepared {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:p}", *self.statement)
+        write!(f, "{:p}", self.statement())
     }
 }
 
 impl Prepared for DuckDBPrepared {
+    fn clear_bindings(&mut self) -> Result<&mut Self> {
+        unsafe {
+            duckdb_clear_bindings(self.statement());
+        }
+        Ok(self)
+    }
     fn bind(&mut self, value: impl AsValue) -> Result<&mut Self> {
         self.bind_index(value, self.index)
     }
     fn bind_index(&mut self, v: impl AsValue, index: u64) -> Result<&mut Self> {
         unsafe {
-            let prepared = *self.statement;
+            let prepared = self.statement();
             let value = v.as_value();
             let state = match value {
                 Value::Null

@@ -1,13 +1,13 @@
 # Raw SQL
 ###### *Field Manual Section 8* - Precision Fire
 
-Sometimes you need to drop the abstractions and put steel directly on target. Tank lets you fire raw SQL or multi‑statement batches while still decoding rows into typed entities. This section covers: building raw statements, executing mixed result streams, and converting rows back into your structs.
+Sometimes you need to drop the abstractions and put steel directly on target. Tank lets you fire raw SQL or multi‑statement (if supported) batches while still decoding rows into typed entities. This section covers: building raw statements, executing mixed result streams, and converting rows back into your structs.
 
 ## Entry Points
 Three firing modes:
-- `executor.run(sql.into())`: Streams a mix of `QueryResult::{Row, Affected}` for all statements contained in SQL
-- `executor.fetch(sql.into())`: Convenience method to extract only rows (skips inspecting affected counts)
-- `executor.execute(sql.into())`: Damage report only. Aggregates all `RowsAffected` counts across the batch and returns a single total. Rows (if any) are discarded.
+- `executor.run(sql)`: Streams a mix of `QueryResult::{Row, Affected}` for all statements contained in SQL
+- `executor.fetch(sql)`: Convenience method to extract only rows (skips inspecting affected counts)
+- `executor.execute(sql)`: Damage report only. Aggregates all `RowsAffected` counts across the batch and returns a single total. Rows (if any) are discarded.
 
 ## Composing SQL With `SqlWriter`
 Every driver exposes a `SqlWriter` that produces dialect-correct fragments. You can concatenate multiple statements into one `String` and then fire them in one go. Writers normalize spacing and append necessary separators (`;`) so you can be liberal with whitespace.
@@ -24,7 +24,7 @@ writer.write_insert(&mut sql, &[One { a1: 11, string: "zzz".into(), c1: 512 }], 
 writer.write_select(&mut sql, [One::a1, One::string, One::c1], One::table(), &true, None);
 writer.write_select(&mut sql, Two::columns(), Two::table(), &true, None);
 // Fire the batch
-let results = executor.run(sql.into()).try_collect::<Vec<_>>().await?;
+let results = executor.run(sql).try_collect::<Vec<_>>().await?;
 ```
 
 ### Mixed Results

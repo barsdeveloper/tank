@@ -110,19 +110,19 @@ async fn establish_mysql_connection() -> Result<MySQLConnection> {
 **URL Format**: `mysql://user:password@host:port/database?param=value`
 
 ## Operations Briefing
-- [`prepare("SELECT * FROM ...*".into())`](https://docs.rs/tank/latest/tank/trait.Executor.html#tymethod.prepare):
+- [`prepare("SELECT * FROM ...*")`](https://docs.rs/tank/latest/tank/trait.Executor.html#tymethod.prepare):
   Compiles a raw SQL string into a reusable [`Query<Driver>`](https://docs.rs/tank/latest/tank/enum.Query.html) object without firing it. Use when the same statement will be dispatched multiple times.
 
-- [`run(query.into())`](https://docs.rs/tank/latest/tank/trait.Executor.html#tymethod.run):
+- [`run(query)`](https://docs.rs/tank/latest/tank/trait.Executor.html#tymethod.run):
   Streams a mixed feed of [`QueryResult`](https://docs.rs/tank/latest/tank/enum.QueryResult.html) values (`Row` or `Affected`). Use when you want to run multiple statements (e.g. INSERT INTO followed by SELECT), or you are not sure what result type you might receive.
 
-- [`fetch(query.into())`](https://docs.rs/tank/latest/tank/trait.Executor.html#method.fetch):
+- [`fetch(query)`](https://docs.rs/tank/latest/tank/trait.Executor.html#method.fetch):
   Precise extraction. Wraps `run` and streams only row results (`QueryResult::Row`), executing all statements while filtering out counts.
 
-- [`execute(query.into())`](https://docs.rs/tank/latest/tank/trait.Executor.html#method.execute):
+- [`execute(query)`](https://docs.rs/tank/latest/tank/trait.Executor.html#method.execute):
   Complement to `fetch` for impact reports: awaits the stream and aggregates all `QueryResult::Affected` values into a single `RowsAffected` total (INSERT / UPDATE / DELETE). Row payloads are ignored.
 
-- [`append(query.into())`](https://docs.rs/tank/latest/tank/trait.Executor.html#method.append):
+- [`append(query)`](https://docs.rs/tank/latest/tank/trait.Executor.html#method.append):
   Convenience bulk insert for an iterator of entities. Builds an INSERT (or driver-optimized append if supported) and returns `RowsAffected`. Use when staging large batches into a table.
 
 - [`begin()`](https://docs.rs/tank/latest/tank/trait.Connection.html#tymethod.begin):

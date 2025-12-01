@@ -35,22 +35,25 @@ mod tests {
         fs::remove_file(DB_PATH)
             .await
             .expect(format!("Failed to remove existing test database file {}", DB_PATH).as_str());
-        assert!(
-            SQLiteConnection::connect(format!("sqlite://{}?mode=ro", DB_PATH).into())
-                .await
-                .is_err(),
-            "Should not be able to open in read only unexisting database"
-        )
+        silent_logs! {
+            assert!(
+                SQLiteConnection::connect(format!("sqlite://{}?mode=ro", DB_PATH).into())
+                    .await
+                    .is_err(),
+                "Should not be able to open in read only unexisting database"
+            );
+        }
     }
 
     #[tokio::test]
     async fn wrong_url() {
+        init_logs();
         silent_logs! {
             assert!(
                 SQLiteConnection::connect("duckdb://some_value".into())
                     .await
                     .is_err()
             );
-        };
+        }
     }
 }

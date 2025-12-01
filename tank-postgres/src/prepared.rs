@@ -66,6 +66,13 @@ impl PostgresPrepared {
 }
 
 impl Prepared for PostgresPrepared {
+    fn clear_bindings(&mut self) -> Result<&mut Self> {
+        let Either::Left(params) = &mut self.value else {
+            return Err(Error::msg("The prepared statement is in the portal state"));
+        };
+        params.clear();
+        Ok(self)
+    }
     fn bind(&mut self, value: impl AsValue) -> Result<&mut Self> {
         self.bind_index(value, self.index)
     }

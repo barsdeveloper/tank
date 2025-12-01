@@ -11,10 +11,12 @@ use std::fmt::Display;
 /// * `bind_index` sets the parameter at `index` (from 0).
 ///
 /// Methods return `&mut Self` for fluent chaining:
-/// ```rust,ignore
+/// ```rust, ignore
 /// prepared.bind(42)?.bind("hello")?;
 /// ```
 pub trait Prepared: Send + Sync + Display {
+    /// Remove all the previously bound values
+    fn clear_bindings(&mut self) -> Result<&mut Self>;
     /// Append a parameter value.
     fn bind(&mut self, value: impl AsValue) -> Result<&mut Self>;
     /// Bind a value at a specific index.

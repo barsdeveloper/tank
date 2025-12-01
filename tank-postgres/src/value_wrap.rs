@@ -1,13 +1,11 @@
-use crate::{IntervalWrap, util::extract_value};
+use crate::util::extract_value;
 use bytes::BytesMut;
-use postgres_types::{FromSql, IsNull, Kind, ToSql, Type, to_sql_checked};
+use postgres_types::{FromSql, IsNull, ToSql, Type, to_sql_checked};
 use rust_decimal::{Decimal, prelude::FromPrimitive};
-use std::{error::Error, io::Read};
+use std::error::Error;
 use tank_core::Value;
-use time::{Date, OffsetDateTime, PrimitiveDateTime, Time};
-use uuid::Uuid;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct ValueWrap(pub(crate) Value);
 
 impl From<Value> for ValueWrap {

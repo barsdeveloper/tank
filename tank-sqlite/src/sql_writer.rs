@@ -93,7 +93,7 @@ impl SqlWriter for SQLiteSqlWriter {
 
     fn write_value_nan(&self, context: &mut Context, out: &mut String) {
         log::warn!("SQLite does not support float NaN values, will write NULL instead");
-        self.write_value(context, out, &Value::Null);
+        self.write_value_none(context, out);
     }
 
     fn write_value_blob(&self, _context: &mut Context, out: &mut String, value: &[u8]) {

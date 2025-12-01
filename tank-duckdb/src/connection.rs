@@ -5,6 +5,7 @@ use crate::{
     primitive_date_time_to_duckdb_timestamp, tank_value_to_duckdb_logical_type,
     tank_value_to_duckdb_value, time_to_duckdb_time, u128_to_duckdb_uhugeint,
 };
+use async_stream::try_stream;
 use flume::Sender;
 use libduckdb_sys::*;
 use std::{
@@ -19,10 +20,8 @@ use std::{
     },
 };
 use tank_core::{
-    Connection, Driver, Entity, Error, ErrorContext, Executor, Query, QueryResult, Result,
-    RowLabeled, RowsAffected, Value, as_c_string, send_value,
-    stream::{Stream, TryStreamExt},
-    truncate_long,
+    AsQuery, Connection, Driver, Entity, Error, ErrorContext, Executor, Query, QueryResult, Result,
+    RowLabeled, RowsAffected, Value, as_c_string, send_value, stream::Stream, truncate_long,
 };
 use tokio::task::spawn_blocking;
 use url::form_urlencoded;
@@ -85,7 +84,7 @@ impl DuckDBConnection {
 
     pub(crate) fn do_run_unprepared(
         connection: duckdb_connection,
-        sql: CString,
+        sql: &CStr,
         tx: Sender<Result<QueryResult>>,
     ) {
         unsafe {
@@ -103,29 +102,38 @@ impl DuckDBConnection {
                 return;
             }
             for i in 0..count {
-                let mut statement =
-                    CBox::new(ptr::null_mut(), |mut p| duckdb_destroy_prepare(&mut p));
-                let rc =
-                    duckdb_prepare_extracted_statement(connection, *statements, i, &mut *statement);
+                let mut prepared = DuckDBPrepared::new(CBox::new(ptr::null_mut(), |mut p| {
+                    duckdb_destroy_prepare(&mut p)
+                }));
+                let rc = duckdb_prepare_extracted_statement(
+                    connection,
+                    *statements,
+                    i,
+                    &mut *prepared.statement,
+                );
                 if rc != duckdb_state_DuckDBSuccess {
                     send_value!(
                         tx,
                         Err(Error::msg(
-                            error_message_from_ptr(&duckdb_prepare_error(*statement)).to_string(),
+                            error_message_from_ptr(&duckdb_prepare_error(prepared.statement()))
+                                .to_string(),
                         ))
                     );
                     return;
                 }
-                Self::do_run_prepared(statement.into(), tx.clone());
+                Self::do_run_prepared(prepared.statement(), tx.clone());
             }
         }
     }
 
-    pub(crate) fn do_run_prepared(prepared: DuckDBPrepared, tx: Sender<Result<QueryResult>>) {
+    pub(crate) fn do_run_prepared(
+        prepared: duckdb_prepared_statement,
+        tx: Sender<Result<QueryResult>>,
+    ) {
         let tx2 = tx.clone();
         Self::do_run(
             |result| unsafe {
-                let rc = duckdb_execute_prepared_streaming(*prepared.statement, result);
+                let rc = duckdb_execute_prepared_streaming(prepared, result);
                 if rc != duckdb_state_DuckDBSuccess {
                     send_value!(
                         tx2,
@@ -138,9 +146,6 @@ impl DuckDBConnection {
             },
             tx,
         );
-        unsafe {
-            duckdb_clear_bindings(*prepared.statement);
-        }
     }
 
     pub(crate) fn extract_result(result: *mut duckdb_result, tx: Sender<Result<QueryResult>>) {
@@ -254,23 +259,36 @@ impl Executor for DuckDBConnection {
         Ok(DuckDBPrepared::new(prepared?).into())
     }
 
-    fn run(&mut self, query: Query<DuckDBDriver>) -> impl Stream<Item = Result<QueryResult>> {
+    fn run<'s>(
+        &'s mut self,
+        query: impl AsQuery<DuckDBDriver> + 's,
+    ) -> impl Stream<Item = Result<QueryResult>> {
+        let mut query = query.as_query();
+        let context = Arc::new(format!("While executing the query:\n{}", query.as_mut()));
         let (tx, rx) = flume::unbounded::<Result<QueryResult>>();
         let connection = AtomicPtr::new(*self.connection);
-        let context = Arc::new(format!("While executing the query:\n{}", query));
-        let stream = rx.into_stream().map_err(move |e| {
-            let error = e.context(context.clone());
-            log::error!("{:#}", error);
-            error
-        });
-        spawn_blocking(move || match query {
-            Query::Raw(query) => {
-                let query = unsafe { CString::from_vec_unchecked(query.into_bytes()) };
-                Self::do_run_unprepared(connection.load(Ordering::Relaxed), query, tx)
+        let mut owned = mem::take(query.as_mut());
+        let join = spawn_blocking(move || {
+            match &mut owned {
+                Query::Raw(query) => {
+                    let sql = unsafe { CString::from_vec_unchecked(mem::take(query).into_bytes()) };
+                    Self::do_run_unprepared(connection.load(Ordering::Relaxed), sql.as_c_str(), tx);
+                    *query = unsafe { String::from_utf8_unchecked(sql.into_bytes()) }
+                }
+                Query::Prepared(query) => Self::do_run_prepared(query.statement(), tx),
             }
-            Query::Prepared(query) => Self::do_run_prepared(query, tx),
+            owned
         });
-        stream
+        try_stream! {
+            while let Ok(result) = rx.recv_async().await {
+                yield result.map_err(|e| {
+                    let error = e.context(context.clone());
+                    log::error!("{:#}", error);
+                    error
+                })?;
+            }
+            *query.as_mut() = mem::take(&mut join.await?);
+        }
     }
 
     async fn append<'a, E, It>(&mut self, rows: It) -> Result<RowsAffected>
