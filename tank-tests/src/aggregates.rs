@@ -117,7 +117,7 @@ pub async fn aggregates<E: Executor>(executor: &mut E) {
     // SELECT value WHERE value > ?
     {
         let mut query = Values::table()
-            .prepare([Values::value], executor, &expr!(Values::value > ?), None)
+            .prepare(executor, [Values::value], &expr!(Values::value > ?), None)
             .await
             .expect("Failed to prepare the query");
         let Query::Prepared(prepared) = &mut query else {

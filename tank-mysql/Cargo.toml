@@ -16,6 +16,7 @@ categories.workspace = true
 async-stream.workspace = true
 log.workspace = true
 mysql_async = { version = "0", features = ["rust_decimal", "time"] }
+serde_json.workspace = true
 tank-core.workspace = true
 time.workspace = true
 url.workspace = true

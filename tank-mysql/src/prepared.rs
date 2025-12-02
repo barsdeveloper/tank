@@ -46,7 +46,7 @@ impl Prepared for MySQLPrepared {
             self.params
                 .resize_with(self.statement.num_params() as _, || Default::default());
         }
-        self.params[index as usize] = value.into();
+        self.params[index as usize] = value.as_value();
         Ok(self)
     }
 }

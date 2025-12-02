@@ -271,6 +271,11 @@ macro_rules! impl_executor_transaction {
         impl<'c> ::tank_core::Executor for $transaction<'c> {
             type Driver = $driver;
 
+            /// Must prepare the query in order to get type information
+            fn types_need_prepare(&self) -> bool {
+                self.$connection.types_need_prepare()
+            }
+
             fn driver(&self) -> &Self::Driver {
                 self.$connection.driver()
             }

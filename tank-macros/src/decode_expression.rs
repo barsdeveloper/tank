@@ -199,7 +199,7 @@ pub fn decode_expression(expr: &Expr) -> TokenStream {
                 .map(|v| v.ident.to_string())
                 .eq(["tank", "evaluated"].into_iter())
             {
-                quote! { ::tank::Operand::Variable(#tokens.into()) }
+                quote! { ::tank::Operand::Variable(::tank::AsValue::as_value(#tokens)) }
             } else if path
                 .segments
                 .iter()

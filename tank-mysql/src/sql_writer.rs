@@ -79,7 +79,7 @@ impl SqlWriter for MySQLSqlWriter {
         };
     }
 
-    fn write_value_infinity(&self, context: &mut Context, out: &mut String, negative: bool) {
+    fn write_value_infinity(&self, context: &mut Context, out: &mut String, _negative: bool) {
         log::error!("MySQL does not support float infinity values, will write NULL instead");
         self.write_value_none(context, out);
     }

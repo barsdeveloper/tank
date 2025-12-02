@@ -29,6 +29,9 @@ pub enum Passive<T: AsValue> {
 }
 
 impl<T: AsValue> Passive<T> {
+    pub fn new(value: T) -> Self {
+        Passive::Set(value)
+    }
     pub fn expect(self, msg: &str) -> T {
         match self {
             Passive::Set(v) => v,

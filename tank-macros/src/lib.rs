@@ -22,10 +22,10 @@ use decode_expression::decode_expression;
 use decode_join::JoinParsed;
 use frag_evaluated::flag_evaluated;
 use proc_macro::TokenStream;
-use proc_macro2::TokenStream as TokenStream2;
+use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::quote;
 use syn::{
-    Expr, Ident, Index, ItemStruct, parse_macro_input, parse2, punctuated::Punctuated,
+    Expr, Ident, Index, ItemStruct, LitInt, parse_macro_input, parse2, punctuated::Punctuated,
     token::AndAnd,
 };
 use tank_core::PrimaryKeyType;
@@ -87,11 +87,11 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
     let label_value_and_filter = metadata_and_filter.iter().map(|(column, filter)| {
         let name = &column.name;
         let field = &column.ident;
-        quote!((#name.into(), self.#field.clone().into(), #filter))
+        quote!((#name.into(), ::tank::AsValue::as_value(self.#field.clone()), #filter))
     });
-    let row_full = metadata_and_filter
-        .iter()
-        .map(|(ColumnMetadata { ident, .. }, _)| quote!(self.#ident.clone().into()));
+    let row_full = metadata_and_filter.iter().map(
+        |(ColumnMetadata { ident, .. }, _)| quote!(::tank::AsValue::as_value(self.#ident.clone())),
+    );
     let columns = metadata_and_filter.iter().map(|(c, _)| {
         let field = &c.ident;
         encode_column_def(&c, quote!(#ident::#field))
@@ -107,9 +107,17 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
         .clone()
         .map(|(_, i, pk)| quote! { let #pk = primary_key.#i.to_owned(); })
         .collect::<TokenStream2>();
+    let primary_key_params_bind = (0..primary_key_condition.len()).map(|i| {
+        let i = LitInt::new(&i.to_string(), Span::call_site());
+        quote! { ::tank::Prepared::bind(&mut prepared, primary_key.#i.clone())?; }
+    });
     let primary_key_condition_expression = primary_key_condition
         .clone()
         .map(|(field, _i, pk)| quote!(#ident::#field == # #pk))
+        .collect::<Punctuated<_, AndAnd>>();
+    let primary_key_condition_expression_param = primary_key_condition
+        .clone()
+        .map(|(field, _i, _pk)| quote!(#ident::#field == ?))
         .collect::<Punctuated<_, AndAnd>>();
     quote! {
         #from_row
@@ -188,7 +196,7 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                     &mut query,
                     if_not_exists,
                 );
-                // Remove the box pin wrapper once once https://github.com/rust-lang/rust/issues/100013 is fixed
+                // Remove the FutureExt::boxed wrapper once once https://github.com/rust-lang/rust/issues/100013 is fixed
                 ::tank::future::FutureExt::boxed(executor.execute(query))
                     .await
                     .map(|_| ())
@@ -247,24 +255,48 @@ pub fn derive_entity(input: TokenStream) -> TokenStream {
                 executor: &mut impl ::tank::Executor,
                 primary_key: &Self::PrimaryKey<'_>,
             ) -> impl ::std::future::Future<Output = ::tank::Result<Option<Self>>> {
-                #primary_key_condition_declaration
                 async move {
-                    let condition = ::tank::expr!(#primary_key_condition_expression);
-                    let stream = ::tank::DataSet::select(
-                        Self::table(),
-                        executor,
-                        Self::columns()
-                            .iter()
-                            .map(|c| &c.column_ref as &dyn ::tank::Expression),
-                        &condition,
-                        Some(1),
-                    );
-                    // Replace StreamExt::boxed wrapper with ::std::pin::pin! once https://github.com/rust-lang/rust/issues/100013 is fixed
-                    let mut stream = ::tank::stream::StreamExt::boxed(stream);
-                    ::tank::stream::StreamExt::next(&mut stream)
-                        .await
-                        .map(|v| v.and_then(Self::from_row))
-                        .transpose()
+                    if executor.types_need_prepare() {
+                        let condition = ::tank::expr!(#primary_key_condition_expression_param);
+                        let ::tank::Query::Prepared(mut prepared) = ::tank::DataSet::prepare(
+                            Self::table(),
+                            executor,
+                            Self::columns()
+                                .iter()
+                                .map(|c| &c.column_ref as &dyn ::tank::Expression),
+                            &condition,
+                            Some(1),
+                        ).await?
+                        else {
+                            unreachable!()
+                        };
+                        #(#primary_key_params_bind)*
+                        let stream = executor.fetch(::tank::Query::Prepared(prepared));
+                        // Replace StreamExt::boxed wrapper with ::std::pin::pin! once https://github.com/rust-lang/rust/issues/100013 is fixed
+                        let mut stream = ::tank::stream::StreamExt::boxed(stream);
+                        ::tank::stream::StreamExt::next(&mut stream)
+                            .await
+                            .map(|v| v.and_then(Self::from_row))
+                            .transpose()
+                    } else {
+                        #primary_key_condition_declaration
+                        let condition = ::tank::expr!(#primary_key_condition_expression);
+                        let stream = ::tank::DataSet::select(
+                            Self::table(),
+                            executor,
+                            Self::columns()
+                                .iter()
+                                .map(|c| &c.column_ref as &dyn ::tank::Expression),
+                            &condition,
+                            Some(1),
+                        );
+                        // Replace StreamExt::boxed wrapper with ::std::pin::pin! once https://github.com/rust-lang/rust/issues/100013 is fixed
+                        let mut stream = ::tank::stream::StreamExt::boxed(stream);
+                        ::tank::stream::StreamExt::next(&mut stream)
+                            .await
+                            .map(|v| v.and_then(Self::from_row))
+                            .transpose()
+                        }
                 }
             }
 

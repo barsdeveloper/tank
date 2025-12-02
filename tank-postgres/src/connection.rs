@@ -1,9 +1,6 @@
 use crate::{
     PostgresDriver, PostgresPrepared, PostgresTransaction, ValueWrap,
-    util::{
-        row_to_tank_row, stream_postgres_row_to_tank_row,
-        stream_postgres_simple_query_message_to_tank_query_result,
-    },
+    util::{row_to_tank_row, stream_postgres_simple_query_message_to_tank_query_result},
 };
 use async_stream::try_stream;
 use openssl::ssl::{SslConnector, SslFiletype, SslMethod, SslVerifyMode};
@@ -88,7 +85,7 @@ impl Executor for PostgresConnection {
     ) -> impl Stream<Item = Result<tank_core::RowLabeled>> + Send + 's {
         let mut query = query.as_query();
         let context = Arc::new(format!("While fetching the query:\n{}", query.as_mut()));
-        let mut owned = mem::take(query.as_mut());
+        let owned = mem::take(query.as_mut());
         match owned {
             Query::Raw(sql) => {
                 let stream = async move || {

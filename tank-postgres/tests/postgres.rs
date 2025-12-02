@@ -36,6 +36,7 @@ mod tests {
 
     #[tokio::test]
     async fn wrong_url() {
+        init_logs();
         silent_logs! {
             assert!(
                 PostgresDriver::new().connect("mysql://some_url".into())

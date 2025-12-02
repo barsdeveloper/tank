@@ -38,10 +38,10 @@ pub trait DataSet {
         executor.fetch(query)
     }
     /// Prepare (but do not yet run) a SQL select query.
-    fn prepare<Item, Cols, Exec, Expr>(
+    fn prepare<Exec, Item, Cols, Expr>(
         &self,
-        columns: Cols,
         executor: &mut Exec,
+        columns: Cols,
         condition: &Expr,
         limit: Option<u32>,
     ) -> impl Future<Output = Result<Query<Exec::Driver>>>

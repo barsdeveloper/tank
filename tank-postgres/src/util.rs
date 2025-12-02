@@ -185,7 +185,6 @@ pub(crate) fn extract_value(
                     .collect::<Vec<_>>()?;
                 let dimensions = array.dimensions().collect::<Vec<_>>()?;
                 let first = build_array(0, &mut values, &ty, dimensions.iter())?;
-                let shape = format!("{first:#?}");
                 first
             } else {
                 Value::List(None, Box::new(ty))

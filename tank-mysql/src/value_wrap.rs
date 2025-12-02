@@ -24,13 +24,22 @@ impl TryFrom<mysql_async::Value> for ValueWrap {
         Ok(match value {
             mysql_async::Value::NULL => tank_core::Value::Null,
             mysql_async::Value::Bytes(v) => {
-                // TODO replace with String::from_utf8_lossy_owned to avoid copy, if stable
-                tank_core::Value::Unknown(Some(String::from_utf8_lossy(&v).to_string()))
+                let json = serde_json::from_slice::<serde_json::Value>(&v);
+                match json {
+                    Ok(json @ serde_json::Value::Array(..))
+                    | Ok(json @ serde_json::Value::Object(..)) => {
+                        tank_core::Value::Json(Some(json))
+                    }
+                    _ => {
+                        // TODO replace with String::from_utf8_lossy_owned to avoid copy, if stable
+                        tank_core::Value::Unknown(Some(String::from_utf8_lossy(&v).to_string()))
+                    }
+                }
             }
-            mysql_async::Value::Int(v) => tank_core::Value::Int64(v.into()),
-            mysql_async::Value::UInt(v) => tank_core::Value::UInt64(v.into()),
-            mysql_async::Value::Float(v) => tank_core::Value::Float32(v.into()),
-            mysql_async::Value::Double(v) => tank_core::Value::Float64(v.into()),
+            mysql_async::Value::Int(v) => tank_core::Value::Int64(Some(v)),
+            mysql_async::Value::UInt(v) => tank_core::Value::UInt64(Some(v)),
+            mysql_async::Value::Float(v) => tank_core::Value::Float32(Some(v)),
+            mysql_async::Value::Double(v) => tank_core::Value::Float64(Some(v)),
             mysql_async::Value::Date(year, month, day, hour, minute, second, microsecond) => {
                 tank_core::Value::Timestamp(Some(PrimitiveDateTime::new(
                     Date::from_calendar_date(
@@ -54,7 +63,7 @@ impl TryFrom<mysql_async::Value> for ValueWrap {
                     )
                     .map_err(|_| mysql_async::FromValueError(value.clone()))?,
                     Time::from_hms_micro(hour, minute, second, microsecond)
-                        .map_err(|_| mysql_async::FromValueError(value.clone()))?,
+                        .map_err(|_| mysql_async::FromValueError(value))?,
                 )))
             }
             mysql_async::Value::Time(negative, days, hours, minutes, seconds, micro) => {

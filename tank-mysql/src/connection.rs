@@ -1,7 +1,7 @@
 use crate::{MySQLDriver, MySQLPrepared, MySQLTransaction, RowWrap};
 use async_stream::try_stream;
 use mysql_async::{Conn, Opts, prelude::Queryable};
-use std::{borrow::Cow, mem, sync::Arc};
+use std::{borrow::Cow, sync::Arc};
 use tank_core::{
     AsQuery, Connection, Driver, Error, ErrorContext, Executor, Query, Result,
     stream::{Stream, StreamExt, TryStreamExt},
@@ -16,6 +16,10 @@ pub struct MySQLConnection {
 impl Executor for MySQLConnection {
     type Driver = MySQLDriver;
 
+    fn types_need_prepare(&self) -> bool {
+        true
+    }
+
     fn driver(&self) -> &Self::Driver {
         &MySQLDriver {}
     }
@@ -26,7 +30,7 @@ impl Executor for MySQLConnection {
 
     fn run<'s>(
         &'s mut self,
-        mut query: impl AsQuery<Self::Driver> + 's,
+        query: impl AsQuery<Self::Driver> + 's,
     ) -> impl Stream<Item = Result<tank_core::QueryResult>> + Send {
         let mut query = query.as_query();
         let context = Arc::new(format!("While running the query:\n{}", query.as_mut()));

@@ -98,7 +98,7 @@ pub trait Entity {
         condition: &impl Expression,
         limit: Option<u32>,
     ) -> impl Future<Output = Result<Query<Exec::Driver>>> {
-        Self::table().prepare(Self::columns(), executor, condition, limit)
+        Self::table().prepare(executor, Self::columns(), condition, limit)
     }
 
     /// Finds an entity by primary key.

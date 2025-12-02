@@ -4,7 +4,6 @@ use crate::{
 };
 use anyhow::Context;
 use rust_decimal::{Decimal, prelude::FromPrimitive, prelude::ToPrimitive};
-use serde_json::Value as JsonValue;
 use std::{
     any,
     borrow::Cow,
@@ -89,9 +88,18 @@ pub trait AsValue {
     }
 }
 
-impl<T: AsValue> From<T> for Value {
-    fn from(value: T) -> Self {
-        value.as_value()
+impl AsValue for Value {
+    fn as_empty_value() -> Value {
+        Value::Null
+    }
+    fn as_value(self) -> Value {
+        self
+    }
+    fn try_from_value(value: Value) -> Result<Self>
+    where
+        Self: Sized,
+    {
+        Ok(value)
     }
 }
 
@@ -123,7 +131,7 @@ macro_rules! impl_as_value {
                             )));
                         }
                         Ok(v as $source)
-                    },
+                    }
                     #[allow(unreachable_patterns)]
                     Value::Int64(Some(v), ..) => {
                         if (v as i128).clamp(<$source>::MIN as _, <$source>::MAX as _) != v as i128 {
@@ -134,15 +142,13 @@ macro_rules! impl_as_value {
                         }
                         Ok(v as $source)
                     }
-                    Value::Json(Some(v), ..) => {
-                        if let JsonValue::Number(v) = &v {
-                            if let Some(v) = v.as_i128()
-                                && v.clamp(<$source>::MIN as _, <$source>::MAX as _) != v as i128 {
-                                return Ok(v as _);
-                            }
+                    Value::Json(Some(serde_json::Value::Number(v)), ..) => {
+                        if let Some(v) = v.as_i128()
+                            && v.clamp(<$source>::MIN as _, <$source>::MAX as _) == v as i128 {
+                            return Ok(v as $source);
                         }
                         Err(Error::msg(format!(
-                            "Value {v}: Json cannot be converted to {}",
+                            "Value {v} from json number is out of range for {}",
                             any::type_name::<Self>(),
                         )))
                     }
@@ -399,6 +405,12 @@ impl_as_value!(
             return Err(Error::msg("Cannot convert Value::Varchar containing more then one character into a char"))
         }
         Ok(v.chars().next().unwrap())
+    },
+    Value::Json(Some(serde_json::Value::String(v)), ..) => {
+        if v.len() != 1 {
+            return Err(Error::msg("Cannot convert Value::Json containing a string with more then one character into a char"))
+        }
+        Ok(v.chars().next().unwrap())
     }
 );
 impl_as_value!(
@@ -408,6 +420,7 @@ impl_as_value!(
         Ok(input.into())
     },
     Value::Char(Some(v), ..) => Ok(v.into()),
+    Value::Json(Some(serde_json::Value::String(v)), ..) => Ok(v),
 );
 impl_as_value!(Box<[u8]>, Value::Blob, |mut input: &str| {
     if input.starts_with("\\x") {
@@ -728,6 +741,17 @@ impl AsValue for Decimal {
                 .ok_or(Error::msg(format!("Cannot convert {value:?} to Decimal")))?),
             Value::Float64(Some(v), ..) => Ok(Decimal::from_f64(v)
                 .ok_or(Error::msg(format!("Cannot convert {value:?} to Decimal")))?),
+            Value::Json(Some(serde_json::Value::Number(v)), ..) => {
+                if let Some(v) = v.as_i128()
+                    && let Some(v) = Decimal::from_i128(v)
+                {
+                    return Ok(v);
+                }
+                Err(Error::msg(format!(
+                    "Value {v} from json number is out of range for {}",
+                    any::type_name::<Self>(),
+                )))
+            }
             Value::Unknown(Some(v), ..) => Self::parse(&v),
             _ => Err(Error::msg(format!("Cannot convert {value:?} to Decimal"))),
         }
@@ -773,9 +797,11 @@ impl<T: AsValue, const N: usize> AsValue for [T; N] {
         )
     }
     fn try_from_value(value: Value) -> Result<Self> {
-        let convert_iter = |iter: Vec<Value>| -> Result<[T; N]> {
+        fn convert_iter<T: AsValue, const N: usize>(
+            iter: impl IntoIterator<Item: AsValue>,
+        ) -> Result<[T; N]> {
             iter.into_iter()
-                .map(T::try_from_value)
+                .map(|v| T::try_from_value(v.as_value()))
                 .collect::<Result<Vec<_>>>()?
                 .try_into()
                 .map_err(|v: Vec<T>| {
@@ -786,10 +812,13 @@ impl<T: AsValue, const N: usize> AsValue for [T; N] {
                         any::type_name::<[T; N]>()
                     ))
                 })
-        };
+        }
         match value {
-            Value::List(Some(v), ..) if v.len() == N => convert_iter(v),
-            Value::Array(Some(v), ..) if v.len() == N => convert_iter(v.into()),
+            Value::List(Some(v), ..) if v.len() == N => convert_iter(v.into_iter()),
+            Value::Array(Some(v), ..) if v.len() == N => convert_iter(v.into_iter()),
+            Value::Json(Some(serde_json::Value::Array(v))) if v.len() == N => {
+                convert_iter(v.into_iter())
+            }
             Value::Unknown(Some(v)) => <Self as AsValue>::parse(v),
             _ => Err(Error::msg(format!(
                 "Cannot convert {value:?} to array {}",
@@ -821,6 +850,10 @@ macro_rules! impl_as_value {
                     Value::Array(Some(v), ..) => Ok(v
                         .into_iter()
                         .map(|v| Ok::<_, Error>(<T as AsValue>::try_from_value(v)?))
+                        .collect::<Result<_>>()?),
+                    Value::Json(Some(serde_json::Value::Array(v)), ..) => Ok(v
+                        .into_iter()
+                        .map(|v| Ok::<_, Error>(<T as AsValue>::try_from_value(v.as_value())?))
                         .collect::<Result<_>>()?),
                     _ => Err(Error::msg(format!(
                         "Cannot convert {value:?} to {}",
@@ -860,6 +893,16 @@ macro_rules! impl_as_value {
                                 Ok((
                                     <K as AsValue>::try_from_value(k)?,
                                     <V as AsValue>::try_from_value(v)?,
+                                ))
+                            })
+                            .collect::<Result<_>>()?)
+                    }
+                    Value::Json(Some(serde_json::Value::Object(v)), ..) => {
+                        Ok(v.into_iter()
+                            .map(|(k, v)| {
+                                Ok((
+                                    <K as AsValue>::try_from_value(k.as_value())?,
+                                    <V as AsValue>::try_from_value(v.as_value())?,
                                 ))
                             })
                             .collect::<Result<_>>()?)
@@ -1027,3 +1070,27 @@ macro_rules! impl_as_value {
 }
 impl_as_value!(Arc);
 impl_as_value!(Rc);
+
+impl AsValue for serde_json::Value {
+    fn as_empty_value() -> Value {
+        Value::Json(None)
+    }
+    fn as_value(self) -> Value {
+        Value::Json(Some(self))
+    }
+    fn try_from_value(value: Value) -> Result<Self>
+    where
+        Self: Sized,
+    {
+        Ok(if let Value::Json(v) = value {
+            match v {
+                Some(v) => v,
+                None => Self::Null,
+            }
+        } else {
+            return Err(Error::msg(
+                "Cannot convert non json tank::Value to serde_json::Value",
+            ));
+        })
+    }
+}
