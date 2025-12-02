@@ -140,4 +140,7 @@ async fn data() -> Result<()> {
 }
 ```
 
+> [!NOTE]
+> The use of `expr!` macro is explained in the [Field Manual Section 7 - Tactical Coordination](7-advanced-operations.md#expr)
+
 *Rustaceans don't hide behind ORMs, they drive Tanks.*
