@@ -5,7 +5,7 @@ Sometimes you need to drop the abstractions and put steel directly on target. Ta
 
 ## Entry Points
 Three firing modes:
-- `executor.run(sql)`: Streams a mix of `QueryResult::{Row, Affected}` for all statements contained in SQL
+- `executor.run(sql)`: Streams a mix of `QueryResult::{Row, Affected}` for all statements contained in SQL. Not all drivers support multiple statements in the same query.
 - `executor.fetch(sql)`: Convenience method to extract only rows (skips inspecting affected counts)
 - `executor.execute(sql)`: Damage report only. Aggregates all `RowsAffected` counts across the batch and returns a single total. Rows (if any) are discarded.
 
