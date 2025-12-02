@@ -147,7 +147,10 @@ pub async fn complex<E: Executor>(executor: &mut E) {
             (-99.5).into(),
             100.0.into(),
             0.0.into(),
+            #[cfg(not(feature = "disable-infinity"))]
             f64::NEG_INFINITY.into(),
+            #[cfg(feature = "disable-infinity")]
+            f64::MIN.into(),
             None,
             777.777.into(),
         ]),

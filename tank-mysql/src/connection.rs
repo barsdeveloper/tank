@@ -16,10 +16,6 @@ pub struct MySQLConnection {
 impl Executor for MySQLConnection {
     type Driver = MySQLDriver;
 
-    fn types_need_prepare(&self) -> bool {
-        true
-    }
-
     fn driver(&self) -> &Self::Driver {
         &MySQLDriver {}
     }

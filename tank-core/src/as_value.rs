@@ -152,6 +152,8 @@ macro_rules! impl_as_value {
                             any::type_name::<Self>(),
                         )))
                     }
+                    // This is needed to allow integer keys in maps, in some drivers the maps are json objects
+                    Value::Json(Some(serde_json::Value::String(ref v)), ..) => <Self as AsValue>::parse(v),
                     Value::Unknown(Some(ref v), ..) => Self::parse(v),
                     _ => Err(Error::msg(format!(
                         "Cannot convert {value:?} to {}",
@@ -338,7 +340,7 @@ macro_rules! impl_as_value {
                 match value {
                     $destination(Some(v), ..) => Ok(v.into()),
                     $($pat_rest => $expr_rest,)*
-                    Value::Unknown(Some(ref v)) => <Self as AsValue>::parse(v),
+                    Value::Unknown(Some(ref v), ..) => <Self as AsValue>::parse(v),
                     _ => Err(Error::msg(format!(
                         "Cannot convert {value:?} to {}",
                         any::type_name::<Self>(),
@@ -371,24 +373,33 @@ impl_as_value!(
     Value::UInt32(Some(v), ..) => Ok(v != 0),
     Value::UInt64(Some(v), ..) => Ok(v != 0),
     Value::UInt128(Some(v), ..) => Ok(v != 0),
+    Value::Json(Some(serde_json::Value::Bool(v)), ..) => Ok(v)
 );
 impl_as_value!(
     f32,
     Value::Float32,
-    |input: &str| {
-        Ok(input.parse::<f32>()?)
-    },
+    |input: &str| Ok(input.parse::<f32>()?),
     Value::Float64(Some(v), ..) => Ok(v as _),
     Value::Decimal(Some(v), ..) => Ok(v.try_into()?),
+    Value::Json(Some(serde_json::Value::Number(v)), ..) => {
+        let Some(v) = v.as_f64() else {
+            return Err(Error::msg(format!("Cannot convert json number `{v:?}` into f32")));
+        };
+        Ok(v as _)
+    }
 );
 impl_as_value!(
     f64,
     Value::Float64,
-    |input: &str| {
-        Ok(input.parse::<f64>()?)
-    },
+    |input: &str| Ok(input.parse::<f64>()?),
     Value::Float32(Some(v), ..) => Ok(v as _),
     Value::Decimal(Some(v), ..) => Ok(v.try_into()?),
+    Value::Json(Some(serde_json::Value::Number(v)), ..) => {
+        let Some(v) = v.as_f64() else {
+            return Err(Error::msg(format!("Cannot convert json number `{v:?}` into f32")));
+        };
+        Ok(v)
+    }
 );
 
 impl_as_value!(
@@ -440,153 +451,164 @@ impl_as_value!(Box<[u8]>, Value::Blob, |mut input: &str| {
     ))?;
     Ok(result)
 });
-impl_as_value!(Interval, Value::Interval, |mut input: &str| {
-    let context = || {
-        Error::msg(format!(
-            "Cannot extract interval from `{}`",
-            truncate_long!(input)
-        ))
-        .into()
-    };
-    match input.chars().peekable().peek() {
-        Some(v) if *v == '"' || *v == '\'' => {
-            input = &input[1..];
-            if !input.ends_with(*v) {
-                return Err(context());
-            }
-            input = input.trim_end_matches(*v);
-        }
-        _ => {}
-    };
-    let mut interval = Interval::ZERO;
-    loop {
-        let mut cur = input;
-        let Ok(count) = extract_number::<true>(&mut cur).parse::<i128>() else {
-            break;
+impl_as_value!(
+    Interval,
+    Value::Interval,
+    |mut input: &str| {
+        let context = || {
+            Error::msg(format!(
+                "Cannot extract interval from `{}`",
+                truncate_long!(input)
+            ))
+            .into()
         };
-        cur = cur.trim_start();
-        let unit = consume_while(&mut cur, char::is_ascii_alphabetic);
-        if unit.is_empty() {
-            break;
+        match input.chars().peekable().peek() {
+            Some(v) if *v == '"' || *v == '\'' => {
+                input = &input[1..];
+                if !input.ends_with(*v) {
+                    return Err(context());
+                }
+                input = input.trim_end_matches(*v);
+            }
+            _ => {}
+        };
+        let mut interval = Interval::ZERO;
+        loop {
+            let mut cur = input;
+            let Ok(count) = extract_number::<true>(&mut cur).parse::<i128>() else {
+                break;
+            };
+            cur = cur.trim_start();
+            let unit = consume_while(&mut cur, char::is_ascii_alphabetic);
+            if unit.is_empty() {
+                break;
+            }
+            match unit {
+                x if x.eq_ignore_ascii_case("y")
+                    || x.eq_ignore_ascii_case("year")
+                    || x.eq_ignore_ascii_case("years") =>
+                {
+                    interval += Interval::from_years(count as _)
+                }
+                x if x.eq_ignore_ascii_case("mon")
+                    || x.eq_ignore_ascii_case("mons")
+                    || x.eq_ignore_ascii_case("month")
+                    || x.eq_ignore_ascii_case("months") =>
+                {
+                    interval += Interval::from_months(count as _)
+                }
+                x if x.eq_ignore_ascii_case("d")
+                    || x.eq_ignore_ascii_case("day")
+                    || x.eq_ignore_ascii_case("days") =>
+                {
+                    interval += Interval::from_days(count as _)
+                }
+                x if x.eq_ignore_ascii_case("h")
+                    || x.eq_ignore_ascii_case("hour")
+                    || x.eq_ignore_ascii_case("hours") =>
+                {
+                    interval += Interval::from_hours(count as _)
+                }
+                x if x.eq_ignore_ascii_case("min")
+                    || x.eq_ignore_ascii_case("mins")
+                    || x.eq_ignore_ascii_case("minute")
+                    || x.eq_ignore_ascii_case("minutes") =>
+                {
+                    interval += Interval::from_mins(count as _)
+                }
+                x if x.eq_ignore_ascii_case("s")
+                    || x.eq_ignore_ascii_case("sec")
+                    || x.eq_ignore_ascii_case("secs")
+                    || x.eq_ignore_ascii_case("second")
+                    || x.eq_ignore_ascii_case("seconds") =>
+                {
+                    interval += Interval::from_secs(count as _)
+                }
+                x if x.eq_ignore_ascii_case("micro")
+                    || x.eq_ignore_ascii_case("micros")
+                    || x.eq_ignore_ascii_case("microsecond")
+                    || x.eq_ignore_ascii_case("microseconds") =>
+                {
+                    interval += Interval::from_micros(count as _)
+                }
+                x if x.eq_ignore_ascii_case("ns")
+                    || x.eq_ignore_ascii_case("nano")
+                    || x.eq_ignore_ascii_case("nanos")
+                    || x.eq_ignore_ascii_case("nanosecond")
+                    || x.eq_ignore_ascii_case("nanoseconds") =>
+                {
+                    interval += Interval::from_nanos(count as _)
+                }
+                _ => return Err(context()),
+            }
+            input = cur.trim_start();
         }
-        match unit {
-            x if x.eq_ignore_ascii_case("y")
-                || x.eq_ignore_ascii_case("year")
-                || x.eq_ignore_ascii_case("years") =>
-            {
-                interval += Interval::from_years(count as _)
-            }
-            x if x.eq_ignore_ascii_case("mon")
-                || x.eq_ignore_ascii_case("mons")
-                || x.eq_ignore_ascii_case("month")
-                || x.eq_ignore_ascii_case("months") =>
-            {
-                interval += Interval::from_months(count as _)
-            }
-            x if x.eq_ignore_ascii_case("d")
-                || x.eq_ignore_ascii_case("day")
-                || x.eq_ignore_ascii_case("days") =>
-            {
-                interval += Interval::from_days(count as _)
-            }
-            x if x.eq_ignore_ascii_case("h")
-                || x.eq_ignore_ascii_case("hour")
-                || x.eq_ignore_ascii_case("hours") =>
-            {
-                interval += Interval::from_hours(count as _)
-            }
-            x if x.eq_ignore_ascii_case("min")
-                || x.eq_ignore_ascii_case("mins")
-                || x.eq_ignore_ascii_case("minute")
-                || x.eq_ignore_ascii_case("minutes") =>
-            {
-                interval += Interval::from_mins(count as _)
-            }
-            x if x.eq_ignore_ascii_case("s")
-                || x.eq_ignore_ascii_case("sec")
-                || x.eq_ignore_ascii_case("secs")
-                || x.eq_ignore_ascii_case("second")
-                || x.eq_ignore_ascii_case("seconds") =>
-            {
-                interval += Interval::from_secs(count as _)
-            }
-            x if x.eq_ignore_ascii_case("micro")
-                || x.eq_ignore_ascii_case("micros")
-                || x.eq_ignore_ascii_case("microsecond")
-                || x.eq_ignore_ascii_case("microseconds") =>
-            {
-                interval += Interval::from_micros(count as _)
-            }
-            x if x.eq_ignore_ascii_case("ns")
-                || x.eq_ignore_ascii_case("nano")
-                || x.eq_ignore_ascii_case("nanos")
-                || x.eq_ignore_ascii_case("nanosecond")
-                || x.eq_ignore_ascii_case("nanoseconds") =>
-            {
-                interval += Interval::from_nanos(count as _)
-            }
-            _ => return Err(context()),
-        }
-        input = cur.trim_start();
-    }
-    let neg = if Some('-') == input.chars().next() {
-        input = input[1..].trim_ascii_start();
-        true
-    } else {
-        false
-    };
-    let mut time_interval = Interval::ZERO;
-    let num = extract_number::<true>(&mut input);
-    if !num.is_empty() {
-        let num = num.parse::<u64>().with_context(context)?;
-        time_interval += Interval::from_hours(num as _);
-        if Some(':') == input.chars().next() {
-            input = &input[1..];
-            let num = extract_number::<false>(&mut input).parse::<u64>()?;
-            if input.is_empty() {
-                return Err(context());
-            }
-            time_interval += Interval::from_mins(num as _);
+        let neg = if Some('-') == input.chars().next() {
+            input = input[1..].trim_ascii_start();
+            true
+        } else {
+            false
+        };
+        let mut time_interval = Interval::ZERO;
+        let num = extract_number::<true>(&mut input);
+        if !num.is_empty() {
+            let num = num.parse::<u64>().with_context(context)?;
+            time_interval += Interval::from_hours(num as _);
             if Some(':') == input.chars().next() {
                 input = &input[1..];
-                let num = extract_number::<false>(&mut input)
-                    .parse::<u64>()
-                    .with_context(context)?;
-                time_interval += Interval::from_secs(num as _);
-                if Some('.') == input.chars().next() {
+                let num = extract_number::<false>(&mut input).parse::<u64>()?;
+                if input.is_empty() {
+                    return Err(context());
+                }
+                time_interval += Interval::from_mins(num as _);
+                if Some(':') == input.chars().next() {
                     input = &input[1..];
-                    let len = input.len();
-                    let mut num = extract_number::<true>(&mut input)
-                        .parse::<i128>()
+                    let num = extract_number::<false>(&mut input)
+                        .parse::<u64>()
                         .with_context(context)?;
-                    let magnitude = (len - 1) / 3;
-                    num *= 10_i128.pow(2 - (len + 2) as u32 % 3);
-                    match magnitude {
-                        0 => time_interval += Interval::from_millis(num),
-                        1 => time_interval += Interval::from_micros(num),
-                        2 => time_interval += Interval::from_nanos(num),
-                        _ => return Err(context()),
+                    time_interval += Interval::from_secs(num as _);
+                    if Some('.') == input.chars().next() {
+                        input = &input[1..];
+                        let len = input.len();
+                        let mut num = extract_number::<true>(&mut input)
+                            .parse::<i128>()
+                            .with_context(context)?;
+                        let magnitude = (len - 1) / 3;
+                        num *= 10_i128.pow(2 - (len + 2) as u32 % 3);
+                        match magnitude {
+                            0 => time_interval += Interval::from_millis(num),
+                            1 => time_interval += Interval::from_micros(num),
+                            2 => time_interval += Interval::from_nanos(num),
+                            _ => return Err(context()),
+                        }
                     }
                 }
             }
+            if neg {
+                interval -= time_interval;
+            } else {
+                interval += time_interval;
+            }
         }
-        if neg {
-            interval -= time_interval;
-        } else {
-            interval += time_interval;
+        if !input.is_empty() {
+            return Err(context());
         }
-    }
-    if !input.is_empty() {
-        return Err(context());
-    }
-    Ok(interval)
-});
-impl_as_value!(std::time::Duration, Value::Interval, |v| {
-    <Interval as AsValue>::parse(v).map(Into::into)
-});
-impl_as_value!(time::Duration, Value::Interval, |v| {
-    <Interval as AsValue>::parse(v).map(Into::into)
-});
+        Ok(interval)
+    },
+    Value::Json(Some(serde_json::Value::String(ref v)), ..) => <Self as AsValue>::parse(v),
+);
+impl_as_value!(
+    std::time::Duration,
+    Value::Interval,
+    |v| <Interval as AsValue>::parse(v).map(Into::into),
+    Value::Json(Some(serde_json::Value::String(ref v)), ..) => <Self as AsValue>::parse(v),
+);
+impl_as_value!(
+    time::Duration,
+    Value::Interval,
+    |v| <Interval as AsValue>::parse(v).map(Into::into),
+    Value::Json(Some(serde_json::Value::String(ref v)), ..) => <Self as AsValue>::parse(v),
+);
 impl_as_value!(
     Uuid,
     Value::Uuid,
@@ -599,7 +621,8 @@ impl_as_value!(
         })?;
         Ok(uuid)
     },
-    Value::Varchar(Some(v), ..) => Self::parse(v),
+    Value::Varchar(Some(v), ..) => <Self as AsValue>::parse(v),
+    Value::Json(Some(serde_json::Value::String(ref v)), ..) => <Self as AsValue>::parse(v),
 );
 
 macro_rules! parse_time {
@@ -649,6 +672,7 @@ impl_as_value!(
         Ok(result)
     },
     Value::Varchar(Some(v), ..) => <Self as AsValue>::parse(v),
+    Value::Json(Some(serde_json::Value::String(ref v)), ..) => <Self as AsValue>::parse(v),
 );
 impl_as_value!(
     time::Time,
@@ -666,6 +690,7 @@ impl_as_value!(
         Ok(result)
     },
     Value::Varchar(Some(v), ..) => <Self as AsValue>::parse(v),
+    Value::Json(Some(serde_json::Value::String(ref v)), ..) => <Self as AsValue>::parse(v),
 );
 
 impl_as_value!(
@@ -687,6 +712,7 @@ impl_as_value!(
         Ok(result)
     },
     Value::Varchar(Some(v), ..) => <Self as AsValue>::parse(v),
+    Value::Json(Some(serde_json::Value::String(ref v)), ..) => <Self as AsValue>::parse(v),
 );
 
 impl_as_value!(
@@ -717,6 +743,7 @@ impl_as_value!(
     },
     Value::Timestamp(Some(timestamp), ..) => Ok(timestamp.assume_utc()),
     Value::Varchar(Some(v), ..) => <Self as AsValue>::parse(v),
+    Value::Json(Some(serde_json::Value::String(ref v)), ..) => <Self as AsValue>::parse(v),
 );
 
 impl AsValue for Decimal {
@@ -901,7 +928,7 @@ macro_rules! impl_as_value {
                         Ok(v.into_iter()
                             .map(|(k, v)| {
                                 Ok((
-                                    <K as AsValue>::try_from_value(k.as_value())?,
+                                    <K as AsValue>::try_from_value(serde_json::Value::String(k).as_value())?,
                                     <V as AsValue>::try_from_value(v.as_value())?,
                                 ))
                             })

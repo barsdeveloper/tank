@@ -102,7 +102,7 @@ pub async fn simple<E: Executor>(executor: &mut E) {
     assert_eq!(entity.papa, Some(Decimal::from_f32(45.2).unwrap().into()));
 
     // Simple 1 - multiple statements
-    #[cfg(not(feature = "disable-multi-statements"))]
+    #[cfg(not(feature = "disable-multiple-statements"))]
     {
         let writer = executor.driver().sql_writer();
         let mut query = String::new();
@@ -217,7 +217,7 @@ pub async fn simple<E: Executor>(executor: &mut E) {
     assert_eq!(entity.papa, None);
 
     // Simple 2 - multiple statements
-    #[cfg(not(feature = "disable-multi-statements"))]
+    #[cfg(not(feature = "disable-multiple-statements"))]
     {
         let writer = executor.driver().sql_writer();
         let mut query = String::new();

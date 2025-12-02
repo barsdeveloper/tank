@@ -113,6 +113,7 @@ impl Value {
             | Value::List(None, ..)
             | Value::Map(None, ..)
             | Value::Json(None, ..)
+            | Value::Json(Some(serde_json::Value::Null), ..)
             | Value::Struct(None, ..)
             | Value::Unknown(None, ..) => true,
             _ => false,

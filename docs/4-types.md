@@ -29,12 +29,12 @@ Tank maps ordinary Rust types (numbers, strings, times, collections) to the clos
 | `String`                   | TEXT         | TEXT    | TEXT         | TEXT                 |
 | `Box<[u8]>`                | BLOB         | BLOB    | BYTEA        | BLOB                 |
 | `time::Date`               | DATE         | TEXT ⚠️ | DATE         | DATE                 |
-| `time::Time`               | TIME         | TEXT ⚠️ | TIME         | TIME                 |
+| `time::Time`               | TIME         | TEXT ⚠️ | TIME         | TIME(6)              |
 | `time::PrimitiveDateTime`  | TIMESTAMP    | TEXT ⚠️ | TIMESTAMP    | DATETIME             |
 | `time::OffsetDateTime`     | TIMESTAMPTZ  | TEXT ⚠️ | TIMESTAMPTZ  | DATETIME             |
-| `std::time::Duration`      | INTERVAL     | ❌      | INTERVAL     | TIME                 |
-| `time::Duration`           | INTERVAL     | ❌      | INTERVAL     | TIME                 |
-| `tank::Interval`           | INTERVAL     | ❌      | INTERVAL     | TIME                 |
+| `std::time::Duration`      | INTERVAL     | ❌      | INTERVAL     | TIME(6)              |
+| `time::Duration`           | INTERVAL     | ❌      | INTERVAL     | TIME(6)              |
+| `tank::Interval`           | INTERVAL     | ❌      | INTERVAL     | TIME(6)              |
 | `uuid::Uuid`               | UUID         | TEXT    | UUID         | CHAR(36)             |
 | `[T; N]`                   | T[N]         | ❌      | T[N]         | JSON ⚠️              |
 | `Vec<T>`                   | T[]          | ❌      | T[]          | JSON ⚠️              |

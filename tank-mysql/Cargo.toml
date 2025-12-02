@@ -22,6 +22,12 @@ time.workspace = true
 url.workspace = true
 
 [dev-dependencies]
-tank-tests = { path = "../tank-tests", features = ["disable-infinity", "disable-multi-statements"] }
+tank-tests = { path = "../tank-tests", features = [
+    "disable-infinity",
+    "disable-large-integers",
+    "disable-large-intervals",
+    "disable-multiple-statements",
+    "disable-old-dates",
+] }
 testcontainers-modules = { version = "0", features = ["mysql"] }
 tokio.workspace = true

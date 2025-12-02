@@ -4,7 +4,7 @@ mod init;
 mod tests {
     use crate::init::init;
     use std::sync::Mutex;
-    use tank_core::{Driver, Executor};
+    use tank_core::Driver;
     use tank_mysql::MySQLDriver;
     use tank_tests::{execute_tests, init_logs};
 
@@ -24,7 +24,6 @@ mod tests {
             .connect(url.into())
             .await
             .expect("Could not open the database");
-        assert!(connection.types_need_prepare());
         execute_tests(connection).await;
     }
 }

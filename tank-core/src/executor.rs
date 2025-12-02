@@ -63,11 +63,6 @@ pub trait Executor: Send + Sized {
     /// Underlying driver type supplying SQL dialect + I/O.
     type Driver: Driver;
 
-    /// Must prepare the query in order to get typed columns
-    fn types_need_prepare(&self) -> bool {
-        false
-    }
-
     /// Access the driver instance.
     fn driver(&self) -> &Self::Driver;
 
