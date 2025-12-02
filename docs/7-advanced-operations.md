@@ -114,7 +114,9 @@ assert!(
 ```
 
 ## Expr
-[`expr!()`](https://docs.rs/tank/latest/tank/macro.expr.html) macro accepts a subset of Rust syntax with additional sentinel tokens for SQL semantics:
+[`expr!()`](https://docs.rs/tank/latest/tank/macro.expr.html) is your tactical toolkit for crafting query expressions in Tank, blending Rust syntax with SQL semantics for precision strikes in database operations. It parses your input into an expression tree that drivers translate into backend-specific syntax. You can use it to specify conditions for fetch queries or column default values.
+
+It accepts a subset of Rust syntax with additional sentinel tokens for SQL semantics:
 - `42`, `1.2`, `"Alpha"`, `true`, `NULL`, `[1, 2, 3]` literal values
 - `#value` variable evaluation
 - `RadioLog::signal_strength` column reference
