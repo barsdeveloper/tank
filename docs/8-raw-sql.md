@@ -10,7 +10,7 @@ Three firing modes:
 - `executor.execute(sql)`: Damage report only. Aggregates all `RowsAffected` counts across the batch and returns a single total. Rows (if any) are discarded.
 
 ## Composing SQL With `SqlWriter`
-Every driver exposes a `SqlWriter` that produces dialect-correct fragments. You can concatenate multiple statements into one `String` and then fire them in one go. Writers normalize spacing and append necessary separators (`;`) so you can be liberal with whitespace.
+Every driver exposes a `SqlWriter` that produces dialect-correct fragments. You can concatenate multiple statements into one `String` and then fire them in one go. Writers append the necessary separators (`;`) at the end of every statement.
 
 Example building 8 statements (one *CREATE SCHEMA* (as part of the *CREATE TABLE*), two *CREATE TABLE*, three *INSERT INTO* and two *SELECT*):
 ```rust
