@@ -12,6 +12,9 @@ cd ../ &&
 cd tank-duckdb/ &&
 cargo publish &&
 cd ../ &&
+cd tank-mysql/ &&
+cargo publish &&
+cd ../ &&
 cd tank-postgres/ &&
 cargo publish &&
 cd ../ &&
