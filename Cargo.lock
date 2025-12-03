@@ -2803,7 +2803,6 @@ dependencies = [
  "libduckdb-sys",
  "log",
  "rust_decimal",
- "serde_json",
  "tank-core",
  "tank-tests",
  "time",
