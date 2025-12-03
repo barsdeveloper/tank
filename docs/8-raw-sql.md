@@ -5,14 +5,16 @@ Sometimes you need to drop the abstractions and put steel directly on target. Ta
 
 ## Entry Points
 Three firing modes:
-- `executor.run(sql)`: Streams a mix of `QueryResult::{Row, Affected}` for all statements contained in SQL. Not all drivers support multiple statements in the same query.
-- `executor.fetch(sql)`: Convenience method to extract only rows (skips inspecting affected counts)
-- `executor.execute(sql)`: Damage report only. Aggregates all `RowsAffected` counts across the batch and returns a single total. Rows (if any) are discarded.
+- `executor.run(query)`: Streams a mix of `QueryResult::{Row, Affected}` for all statements contained in query. Not all drivers support multiple statements in the same query.
+- `executor.fetch(query)`: Convenience method to extract only the rows. By default calls `Executor::run` and discards `QueryResult::Affected`.
+- `executor.execute(query)`: Damage report only. Aggregates all `RowsAffected` counts across the batch and returns a single total. By default calls `Executor::run` discarding the rows (if any).
+
+What can you feed the gun? Anything that implements [`AsQuery`](https://docs.rs/tank/latest/tank/trait.AsQuery.html). The executor happily accepts a raw `String`, a `&str`, a fully built [`Query<D>`](https://docs.rs/tank/latest/tank/enum.Query.html) owned, or a `&mut Query<D>`. All three entry calls (`run`, `fetch`, `execute`) take `impl AsQuery<Driver>` tied to `&mut self`'s lifetime, so you can pass owned text, borrowed text, or a prepared handle without ceremony. Whatever you provide, Tank will chamber it and fire.
 
 ## Composing SQL With `SqlWriter`
 Every driver exposes a `SqlWriter` that produces dialect-correct fragments. You can concatenate multiple statements into one `String` and then fire them in one go. Writers append the necessary separators (`;`) at the end of every statement.
 
-Example building 8 statements (one *CREATE SCHEMA* (as part of the *CREATE TABLE*), two *CREATE TABLE*, three *INSERT INTO* and two *SELECT*):
+Example building 8 statements (1 *CREATE SCHEMA* (as part of the *CREATE TABLE*), 2 *CREATE TABLE*, 3 *INSERT INTO* and 2 *SELECT*):
 ```rust
 let writer = executor.driver().sql_writer();
 let mut sql = String::new();
@@ -37,7 +39,7 @@ let mut rows = results
 ```
 
 ## Decoding Rows Into Entities
-Raw result rows carry column labels. Any type with `#[derive(Entity)]` can reconstruct itself using `Entity::from_row(row)`. The labels must align with the field mapping (renames via `#[tank(name = "...")]` are respected). Missing or mismatched labels produce an error.
+`QueryResult::Row` contains column labels. Any type with `#[derive(Entity)]` can be reconstructed using the function `Entity::from_row(row)` provided by the entity. The labels must match the field mapping (custom column names `#[tank(name = "...")]` are respected). Missing or mismatched labels will use the default values (if the `Default` trait is implemented for the entity) or produce a error.
 ```rust
 #[derive(Entity)]
 struct Two { a2: u32, string: String }
