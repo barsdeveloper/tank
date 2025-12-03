@@ -20,7 +20,6 @@ use crate::{
     complex::complex,
     insane::insane,
     limits::limits,
-    multiple::multiple,
     operations::{advanced_operations, operations},
     shopping::shopping,
     simple::simple,
@@ -37,6 +36,8 @@ use arrays2::arrays2;
 #[cfg(not(feature = "disable-intervals"))]
 use interval::interval;
 use log::LevelFilter;
+#[cfg(not(feature = "disable-multiple-statements"))]
+use multiple::multiple;
 use readme::readme;
 use std::env;
 use tank::Connection;
@@ -63,6 +64,7 @@ pub async fn execute_tests<C: Connection>(mut connection: C) {
     complex(&mut connection).await;
     insane(&mut connection).await;
     limits(&mut connection).await;
+    #[cfg(not(feature = "disable-multiple-statements"))]
     multiple(&mut connection).await;
     #[cfg(not(feature = "disable-transactions"))]
     transaction1(&mut connection).await;

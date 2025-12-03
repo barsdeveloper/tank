@@ -13,6 +13,7 @@ impl SqlWriter for YourDBSqlWriter {
         &self,
         _context: &mut Context,
         out: &mut String,
+        _column: &ColumnDef,
         types: &BTreeMap<&'static str, &'static str>,
     ) {
         if let Some(t) = types

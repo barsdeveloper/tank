@@ -106,6 +106,7 @@ pub trait SqlWriter {
         &self,
         _context: &mut Context,
         out: &mut String,
+        _column: &ColumnDef,
         types: &BTreeMap<&'static str, &'static str>,
     ) {
         if let Some(t) = types
@@ -914,10 +915,9 @@ pub trait SqlWriter {
         self.write_identifier_quoted(context, out, &column.name());
         out.push(' ');
         let len = out.len();
-        if !column.column_type.is_empty() {
-            self.write_column_overridden_type(context, out, &column.column_type);
-        }
-        if column.column_type.is_empty() || out.len() == len {
+        self.write_column_overridden_type(context, out, column, &column.column_type);
+        let didnt_write_type = out.len() == len;
+        if didnt_write_type {
             SqlWriter::write_column_type(self, context, out, &column.value);
         }
         if !column.nullable && column.primary_key == PrimaryKeyType::None {

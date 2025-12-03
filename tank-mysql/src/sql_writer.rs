@@ -10,6 +10,10 @@ use tank_core::{
 #[derive(Default)]
 pub struct MySQLSqlWriter {}
 
+impl MySQLSqlWriter {
+    const DEFAULT_PK_VARCHAR_TYPE: &'static str = "VARCHAR(63)";
+}
+
 impl SqlWriter for MySQLSqlWriter {
     fn as_dyn(&self) -> &dyn SqlWriter {
         self
@@ -25,15 +29,28 @@ impl SqlWriter for MySQLSqlWriter {
         &self,
         _context: &mut Context,
         out: &mut String,
+        column: &ColumnDef,
         types: &BTreeMap<&'static str, &'static str>,
     ) {
-        if let Some(t) = types.iter().find_map(|(k, v)| {
-            if *k == "mysql" || *k == "mariadb" {
-                Some(v)
-            } else {
-                None
-            }
-        }) {
+        if let Some(t) = types
+            .iter()
+            .find_map(|(k, v)| {
+                if *k == "mysql" || *k == "mariadb" {
+                    Some(*v)
+                } else {
+                    None
+                }
+            })
+            .or_else(|| {
+                if matches!(column.value, Value::Varchar(..))
+                    && column.primary_key != PrimaryKeyType::None
+                {
+                    Some(Self::DEFAULT_PK_VARCHAR_TYPE)
+                } else {
+                    None
+                }
+            })
+        {
             out.push_str(t);
         }
     }

@@ -1,6 +1,6 @@
 use crate::{MySQLDriver, MySQLPrepared, MySQLTransaction, RowWrap};
 use async_stream::try_stream;
-use mysql_async::{Conn, Opts, prelude::Queryable};
+use mysql_async::{Conn, Opts, TxOpts, prelude::Queryable};
 use std::{borrow::Cow, sync::Arc};
 use tank_core::{
     AsQuery, Connection, Driver, Error, ErrorContext, Executor, Query, Result,
@@ -10,7 +10,7 @@ use tank_core::{
 use url::Url;
 
 pub struct MySQLConnection {
-    pub(crate) connection: Conn,
+    pub(crate) conn: Conn,
 }
 
 impl Executor for MySQLConnection {
@@ -21,7 +21,7 @@ impl Executor for MySQLConnection {
     }
 
     async fn prepare(&mut self, query: String) -> Result<Query<Self::Driver>> {
-        Ok(MySQLPrepared::new(self.connection.prep(query).await?).into())
+        Ok(MySQLPrepared::new(self.conn.prep(query).await?).into())
     }
 
     fn run<'s>(
@@ -34,7 +34,7 @@ impl Executor for MySQLConnection {
             match query.as_mut() {
                 Query::Raw(sql) => {
                     let sql = sql.as_str();
-                    let mut result = self.connection.query_iter(sql).await?;
+                    let mut result = self.conn.query_iter(sql).await?;
                     let mut rows = 0;
                     while let Some(mut stream) = result.stream::<RowWrap>().await? {
                         while let Some(row) = stream.next().await.transpose()? {
@@ -53,7 +53,7 @@ impl Executor for MySQLConnection {
                 Query::Prepared(prepared) => {
                     let params = prepared.take_params()?;
                     let mut stream = self
-                        .connection
+                        .conn
                         .exec_stream::<RowWrap, _, _>(&prepared.statement, params)
                         .await?;
                     while let Some(row) = stream.next().await.transpose()? {
@@ -86,11 +86,11 @@ impl Connection for MySQLConnection {
         let url = Url::parse(&url).with_context(context)?;
         let config = Opts::from_url(url.as_str()).with_context(context)?;
         let connection = Conn::new(config).await.with_context(context)?;
-        Ok(MySQLConnection { connection })
+        Ok(MySQLConnection { conn: connection })
     }
 
     #[allow(refining_impl_trait)]
-    async fn begin(&mut self) -> Result<MySQLTransaction<'_>> {
-        Err(Error::msg("Transactions are not supported by MySQL"))
+    fn begin(&mut self) -> impl Future<Output = Result<MySQLTransaction<'_>>> {
+        MySQLTransaction::new(self)
     }
 }

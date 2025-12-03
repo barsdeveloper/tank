@@ -17,7 +17,7 @@ https://crates.io/crates/tank
 - DuckDB
 - SQLite
 - PostgreSQL
-- MySQL (WIP)
+- MySQL
 - Cassandra/ScyllaDB (Coming soon)
 - More to be decided...
 

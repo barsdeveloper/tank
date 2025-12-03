@@ -1,5 +1,5 @@
 use std::{collections::BTreeMap, fmt::Write};
-use tank_core::{ColumnRef, Context, Entity, SqlWriter, TableRef, Value};
+use tank_core::{ColumnDef, ColumnRef, Context, Entity, SqlWriter, TableRef, Value};
 
 pub struct SQLiteSqlWriter {}
 
@@ -12,6 +12,7 @@ impl SqlWriter for SQLiteSqlWriter {
         &self,
         _context: &mut Context,
         out: &mut String,
+        _column: &ColumnDef,
         types: &BTreeMap<&'static str, &'static str>,
     ) {
         if let Some(t) = types

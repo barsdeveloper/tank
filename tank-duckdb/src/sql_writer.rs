@@ -2,7 +2,7 @@ use std::{
     collections::{BTreeMap, HashMap},
     fmt::Write,
 };
-use tank_core::{Context, Interval, SqlWriter, Value, separated_by};
+use tank_core::{ColumnDef, Context, Interval, SqlWriter, Value, separated_by};
 
 #[derive(Default)]
 pub struct DuckDBSqlWriter {}
@@ -16,6 +16,7 @@ impl SqlWriter for DuckDBSqlWriter {
         &self,
         _context: &mut Context,
         out: &mut String,
+        _column: &ColumnDef,
         types: &BTreeMap<&'static str, &'static str>,
     ) {
         if let Some(t) = types

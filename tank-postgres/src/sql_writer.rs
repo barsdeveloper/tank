@@ -1,5 +1,5 @@
 use std::{collections::BTreeMap, fmt::Write};
-use tank_core::{Context, SqlWriter, Value, future::Either, separated_by};
+use tank_core::{ColumnDef, Context, SqlWriter, Value, future::Either, separated_by};
 use time::{Date, OffsetDateTime, PrimitiveDateTime, Time};
 
 pub struct PostgresSqlWriter {}
@@ -13,6 +13,7 @@ impl SqlWriter for PostgresSqlWriter {
         &self,
         _context: &mut Context,
         out: &mut String,
+        _column: &ColumnDef,
         types: &BTreeMap<&'static str, &'static str>,
     ) {
         if let Some(t) = types.iter().find_map(|(k, v)| {
