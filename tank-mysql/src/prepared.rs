@@ -4,7 +4,7 @@ use std::{
     fmt::{self, Display},
     mem,
 };
-use tank_core::{AsValue, Prepared, Result, Value};
+use tank_core::{AsValue, Error, Prepared, Result, Value};
 
 #[derive(Debug)]
 pub struct MySQLPrepared {
@@ -34,19 +34,27 @@ impl MySQLPrepared {
 impl Prepared for MySQLPrepared {
     fn clear_bindings(&mut self) -> Result<&mut Self> {
         self.params.clear();
+        self.index = 0;
         Ok(self)
     }
     fn bind(&mut self, value: impl AsValue) -> Result<&mut Self> {
-        let index = self.index;
-        self.index += 1;
-        self.bind_index(value, index)
+        self.bind_index(value, self.index)?;
+        Ok(self)
     }
     fn bind_index(&mut self, value: impl AsValue, index: u64) -> Result<&mut Self> {
+        let len = self.statement.num_params();
         if self.params.is_empty() {
-            self.params
-                .resize_with(self.statement.num_params() as _, || Default::default());
+            self.params.resize_with(len as _, Default::default);
         }
-        self.params[index as usize] = value.as_value();
+        let target = self
+            .params
+            .get_mut(index as usize)
+            .ok_or(Error::msg(format!(
+                "Index {index} cannot be bound, the query has only {} parameters",
+                len
+            )))?;
+        *target = value.as_value();
+        self.index += 1;
         Ok(self)
     }
 }

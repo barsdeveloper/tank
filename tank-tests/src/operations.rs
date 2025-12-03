@@ -119,8 +119,8 @@ pub async fn operations<E: Executor>(executor: &mut E) -> Result<()> {
     if let Query::Prepared(p) = &mut query {
         p.bind(40)?;
     }
-    let _messages: Vec<_> = query
-        .fetch_many(executor)
+    let _messages: Vec<_> = executor
+        .fetch(query)
         .map_ok(|row| row.values[0].clone())
         .try_collect()
         .await?;

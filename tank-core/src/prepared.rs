@@ -1,5 +1,5 @@
 use crate::{AsValue, Result};
-use std::fmt::Display;
+use std::fmt::{Debug, Display};
 
 /// A parameterized, backend-prepared query handle.
 ///
@@ -14,7 +14,7 @@ use std::fmt::Display;
 /// ```rust, ignore
 /// prepared.bind(42)?.bind("hello")?;
 /// ```
-pub trait Prepared: Send + Sync + Display {
+pub trait Prepared: Send + Sync + Display + Debug {
     /// Remove all the previously bound values
     fn clear_bindings(&mut self) -> Result<&mut Self>;
     /// Append a parameter value.

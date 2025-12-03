@@ -10,6 +10,7 @@ use std::{
 };
 use tank_core::{AsValue, Error, Prepared, Result, Value};
 
+#[derive(Debug)]
 pub struct DuckDBPrepared {
     pub(crate) statement: CBox<duckdb_prepared_statement>,
     pub(crate) index: u64,
@@ -35,12 +36,17 @@ impl Display for DuckDBPrepared {
 impl Prepared for DuckDBPrepared {
     fn clear_bindings(&mut self) -> Result<&mut Self> {
         unsafe {
-            duckdb_clear_bindings(self.statement());
+            let rc = duckdb_clear_bindings(self.statement());
+            if rc != duckdb_state_DuckDBSuccess {
+                return Err(Error::msg("Could not clear the bindings"));
+            }
         }
+        self.index = 1;
         Ok(self)
     }
     fn bind(&mut self, value: impl AsValue) -> Result<&mut Self> {
-        self.bind_index(value, self.index)
+        self.bind_index(value, self.index)?;
+        Ok(self)
     }
     fn bind_index(&mut self, v: impl AsValue, index: u64) -> Result<&mut Self> {
         unsafe {
@@ -159,7 +165,7 @@ impl Prepared for DuckDBPrepared {
                 log::error!("{:#}", error);
                 return Err(error);
             }
-            self.index = index + 1;
+            self.index += 1;
             Ok(self)
         }
     }

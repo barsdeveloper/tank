@@ -1,7 +1,7 @@
 use crate::{MySQLConnection, MySQLPrepared, MySQLSqlWriter, MySQLTransaction};
 use tank_core::Driver;
 
-#[derive(Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct MySQLDriver;
 impl MySQLDriver {
     pub const fn new() -> Self {

@@ -1,9 +1,4 @@
-use crate::{
-    Driver, Executor, Prepared, Result, Value,
-    future::FutureExt,
-    stream::{Stream, StreamExt},
-    truncate_long,
-};
+use crate::{AsValue, Driver, Error, Prepared, Result, Value, truncate_long};
 use std::{
     fmt::{self, Display},
     sync::Arc,
@@ -13,6 +8,7 @@ use std::{
 ///
 /// Represents either raw SQL (`Raw`) or a backend prepared statement
 /// (`Prepared`) carrying driver-specific caching / parsing state.
+#[derive(Debug)]
 pub enum Query<D: Driver> {
     /// Unprepared SQL text.
     Raw(String),
@@ -20,38 +16,33 @@ pub enum Query<D: Driver> {
     Prepared(D::Prepared),
 }
 
-impl<'d, D: Driver> Query<D>
-where
-    D: 'd,
-{
-    /// Execute the query streaming heterogeneous [`QueryResult`] items.
-    pub fn run<Exec: Executor<Driver = D>>(
-        self,
-        executor: &'d mut Exec,
-    ) -> impl Stream<Item = Result<QueryResult>> + Send {
-        executor.run(self)
+impl<D: Driver> Query<D> {
+    pub fn is_prepared(&self) -> bool {
+        matches!(self, Query::Prepared(..))
     }
-    /// Fetch at most one labeled row.
-    pub fn fetch_one<Exec: Executor<Driver = D>>(
-        self,
-        executor: &'d mut Exec,
-    ) -> impl Future<Output = Result<Option<RowLabeled>>> + Send {
-        // TODO: replace boxed with pin! once https://github.com/rust-lang/rust/issues/100013 is fixed
-        async {
-            executor
-                .fetch(self)
-                .boxed()
-                .into_future()
-                .map(|(v, _)| v.transpose())
-                .await
-        }
+    /// Remove all the previously bound values
+    pub fn clear_bindings(&mut self) -> Result<&mut Self> {
+        let Self::Prepared(prepared) = self else {
+            return Err(Error::msg("Cannot clear bindings of a raw query"));
+        };
+        prepared.clear_bindings()?;
+        Ok(self)
     }
-    /// Stream all labeled rows.
-    pub fn fetch_many<Exec: Executor<Driver = D>>(
-        self,
-        executor: &'d mut Exec,
-    ) -> impl Stream<Item = Result<RowLabeled>> + Send {
-        executor.fetch(self)
+    /// Append a parameter value.
+    pub fn bind(&mut self, value: impl AsValue) -> Result<&mut Self> {
+        let Self::Prepared(prepared) = self else {
+            return Err(Error::msg("Cannot bind a raw query"));
+        };
+        prepared.bind(value)?;
+        Ok(self)
+    }
+    /// Bind a value at a specific index.
+    pub fn bind_index(&mut self, value: impl AsValue, index: u64) -> Result<&mut Self> {
+        let Self::Prepared(prepared) = self else {
+            return Err(Error::msg("Cannot bind index of a raw query"));
+        };
+        prepared.bind_index(value, index)?;
+        Ok(self)
     }
 }
 

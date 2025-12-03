@@ -1,9 +1,10 @@
+use crate::silent_logs;
 use std::collections::BTreeSet;
 use std::{pin::pin, sync::LazyLock};
 use tank::{
     AsValue, DataSet, Entity, Passive, RowLabeled, expr, stream::StreamExt, stream::TryStreamExt,
 };
-use tank::{Executor, Prepared, Query, cols};
+use tank::{Executor, cols};
 use tokio::sync::Mutex;
 
 #[derive(Default, Entity)]
@@ -120,18 +121,33 @@ pub async fn aggregates<E: Executor>(executor: &mut E) {
             .prepare(executor, [Values::value], &expr!(Values::value > ?), None)
             .await
             .expect("Failed to prepare the query");
-        let Query::Prepared(prepared) = &mut query else {
-            panic!("Expected a prepared query");
-        };
-        prepared
+        assert!(query.is_prepared());
+        query
             .bind(EXPECTED_AVG)
             .expect("Could not bind the parameter");
-        let values = query
-            .fetch_many(executor)
+        let values = executor
+            .fetch(&mut query)
             .map_ok(|v| u32::try_from_value(v.values[0].clone()).expect("Expected a u32 as value"))
             .try_collect::<Vec<_>>()
             .await
             .expect("Could not fetch multiple rows from the prepared statement");
+        assert!(query.is_prepared());
         assert_eq!(values.len(), COUNT as usize / 2);
+        silent_logs! {
+            query
+                .bind(0)
+                .expect_err("Should not be able to bind unexisting params");
+        }
+        query
+            .clear_bindings()
+            .expect("Could not clear the bindings");
+        query.bind(0).expect("Could not bind a second time");
+        let values = executor
+            .fetch(&mut query)
+            .map_ok(|v| u32::try_from_value(v.values[0].clone()).expect("Expected a u32 as value"))
+            .try_collect::<Vec<_>>()
+            .await
+            .expect("Could not fetch multiple rows from the prepared statement");
+        assert_eq!(values.len(), COUNT as usize);
     }
 }

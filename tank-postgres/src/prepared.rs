@@ -71,17 +71,25 @@ impl Prepared for PostgresPrepared {
             return Err(Error::msg("The prepared statement is in the portal state"));
         };
         params.clear();
+        self.index = 0;
         Ok(self)
     }
     fn bind(&mut self, value: impl AsValue) -> Result<&mut Self> {
-        self.bind_index(value, self.index)
+        self.bind_index(value, self.index)?;
+        Ok(self)
     }
     fn bind_index(&mut self, value: impl AsValue, index: u64) -> Result<&mut Self> {
         let Either::Left(params) = &mut self.value else {
             return Err(Error::msg("The prepared statement is already complete"));
         };
-        params.resize_with(self.statement.params().len(), || Default::default());
-        params[index as usize] = Some(value.as_value().into());
+        let len = self.statement.params().len();
+        params.resize_with(len, Default::default);
+        let target = params.get_mut(index as usize).ok_or(Error::msg(format!(
+            "Index {index} cannot be bound, the query has only {} parameters",
+            len
+        )))?;
+        *target = Some(value.as_value().into());
+        self.index += 1;
         Ok(self)
     }
 }
@@ -89,5 +97,14 @@ impl Prepared for PostgresPrepared {
 impl Display for PostgresPrepared {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.statement.fmt(f)
+    }
+}
+
+impl Debug for PostgresPrepared {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("PostgresPrepared")
+            .field("statement", &self.statement)
+            .field("index", &self.index)
+            .finish()
     }
 }

@@ -3,7 +3,7 @@ use crate::{
 };
 use tank_core::Driver;
 
-#[derive(Default, Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy)]
 pub struct DuckDBDriver {}
 
 impl DuckDBDriver {

@@ -26,6 +26,16 @@ pub struct SQLiteConnection {
 }
 
 impl SQLiteConnection {
+    pub fn last_error(&self) -> String {
+        unsafe {
+            let errcode = sqlite3_errcode(*self.connection);
+            format!(
+                "Error ({errcode}): {}",
+                error_message_from_ptr(&sqlite3_errmsg(*self.connection)).to_string(),
+            )
+        }
+    }
+
     pub(crate) fn do_run_prepared(
         connection: *mut sqlite3,
         statement: *mut sqlite3_stmt,

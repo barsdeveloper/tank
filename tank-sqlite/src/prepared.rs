@@ -8,6 +8,7 @@ use std::{
 };
 use tank_core::{AsValue, Error, Prepared, Result, Value, truncate_long};
 
+#[derive(Debug)]
 pub struct SQLitePrepared {
     pub(crate) statement: CBox<*mut sqlite3_stmt>,
     pub(crate) index: u64,
@@ -15,9 +16,6 @@ pub struct SQLitePrepared {
 
 impl SQLitePrepared {
     pub(crate) fn new(statement: CBox<*mut sqlite3_stmt>) -> Self {
-        unsafe {
-            sqlite3_clear_bindings(*statement);
-        }
         Self {
             statement: statement.into(),
             index: 1,
@@ -26,19 +24,42 @@ impl SQLitePrepared {
     pub(crate) fn statement(&self) -> *mut sqlite3_stmt {
         *self.statement
     }
+    pub fn last_error(&self) -> String {
+        unsafe {
+            let db = sqlite3_db_handle(self.statement());
+            let errcode = sqlite3_errcode(db);
+            format!(
+                "Error ({errcode}): {}",
+                error_message_from_ptr(&sqlite3_errmsg(db)).to_string(),
+            )
+        }
+    }
 }
 
 impl Prepared for SQLitePrepared {
     fn clear_bindings(&mut self) -> Result<&mut Self> {
         unsafe {
-            sqlite3_clear_bindings(self.statement());
+            let rc = sqlite3_reset(self.statement());
+            let error = || {
+                let e = Error::msg(self.last_error())
+                    .context("Could not clear the bindings from Sqlite statement");
+                log::error!("{e:#}");
+                e
+            };
+            if rc != SQLITE_OK {
+                return Err(error());
+            }
+            let rc = sqlite3_clear_bindings(self.statement());
+            if rc != SQLITE_OK {
+                return Err(error());
+            }
         }
+        self.index = 1;
         Ok(self)
     }
     fn bind(&mut self, value: impl AsValue) -> Result<&mut Self> {
-        let index = self.index;
-        self.index += 1;
-        self.bind_index(value, index)
+        self.bind_index(value, self.index)?;
+        Ok(self)
     }
     fn bind_index(&mut self, v: impl AsValue, index: u64) -> Result<&mut Self> {
         let index = index as c_int;
@@ -208,7 +229,7 @@ impl Prepared for SQLitePrepared {
                 log::error!("{:#}", error);
                 return Err(error);
             }
-            self.index = index as u64 + 1;
+            self.index += 1;
             Ok(self)
         }
     }

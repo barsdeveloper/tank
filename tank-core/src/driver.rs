@@ -1,5 +1,5 @@
 use crate::{Connection, Prepared, Result, Transaction, writer::SqlWriter};
-use std::{borrow::Cow, future::Future};
+use std::{borrow::Cow, fmt::Debug, future::Future};
 
 /// A backend implementation providing connection + SQL dialect services.
 ///
@@ -15,7 +15,7 @@ use std::{borrow::Cow, future::Future};
 /// * `connect` delegates to the associated `Connection::connect` – drivers may
 ///   wrap pooling or additional validation around it.
 /// * `NAME` is a human readable identifier (e.g. "postgres", "sqlite").
-pub trait Driver {
+pub trait Driver: Debug {
     /// Concrete connection type.
     type Connection: Connection;
     /// Dialect aware SQL writer.

@@ -1,6 +1,7 @@
 use crate::{PostgresConnection, PostgresPrepared, PostgresSqlWriter, PostgresTransaction};
 use tank_core::Driver;
 
+#[derive(Debug)]
 pub struct PostgresDriver {}
 
 impl PostgresDriver {
