@@ -22,7 +22,7 @@ impl<'c> SQLiteTransaction<'c> {
     }
 }
 
-impl_executor_transaction!(SQLiteDriver, SQLiteTransaction, connection);
+impl_executor_transaction!(SQLiteDriver, SQLiteTransaction<'c>, connection);
 impl<'c> Transaction<'c> for SQLiteTransaction<'c> {
     fn commit(self) -> impl Future<Output = Result<()>> {
         let mut sql = String::new();

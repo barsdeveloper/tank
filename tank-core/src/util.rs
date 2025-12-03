@@ -262,13 +262,14 @@ macro_rules! take_until {
 ///     connection: &'c mut YourDBConnection,
 /// }
 ///
-/// impl_executor_transaction!(YourDBDriver, YourDBTransaction, connection);
+/// impl_executor_transaction!(YourDBDriver, YourDBTransaction<'c>, connection);
 ///
 /// impl<'c> Transaction<'c> for YourDBTransaction<'c> { ... }
 /// ```
 macro_rules! impl_executor_transaction {
-    ($driver:ty, $transaction:ident, $connection:ident) => {
-        impl<'c> ::tank_core::Executor for $transaction<'c> {
+    // Case 1: Lifetime is present (necessary for transactions)
+    ($driver:ty, $transaction:ident $(< $lt:lifetime >)?, $connection:ident) => {
+       impl $(<$lt>)? ::tank_core::Executor for $transaction $(<$lt>)? {
             type Driver = $driver;
 
             fn driver(&self) -> &Self::Driver {
@@ -320,5 +321,5 @@ macro_rules! impl_executor_transaction {
                 self.$connection.append(entities)
             }
         }
-    };
+    }
 }

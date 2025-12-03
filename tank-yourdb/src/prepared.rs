@@ -13,6 +13,11 @@ impl YourDBPrepared {
 }
 
 impl Prepared for YourDBPrepared {
+    fn clear_bindings(&mut self) -> Result<&mut Self> {
+        // Clear
+        Ok(self)
+    }
+
     fn bind(&mut self, value: impl AsValue) -> Result<&mut Self> {
         let index = self.index;
         self.index += 1;
